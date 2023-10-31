@@ -1,0 +1,15 @@
+{
+  "__description": "test config",
+  "__date": "October 31, 2023",
+
+  "Out_dir": "results/simple_rectangle/",
+
+  "Geometry": {
+    "size_x": 100.0,  "dx": 0.05,   "__units.x": "c_wp",
+    "size_y": 100.0,  "dy": 0.05,   "__units.y": "c_wp",
+    "size_z": 100.0,  "dz": 0.05,   "__units.z": "c_wp",
+    "time":   250.0,  "dt": 0.025,  "__units.t": "1/wp",
+
+    "diagnose_period": 2.5,  "__units.dp": "1/wp"
+  }
+}
