@@ -12,9 +12,7 @@ class Command {
  public:
   virtual ~Command() = default;
 
-  /**
-   * @param timestep Outer time step, optional.
-   */
+  /// @param timestep Outer time step, optional.
   virtual void execute(timestep_t timestep) = 0;
 
   /**

@@ -10,7 +10,7 @@ enum Axis : std::uint8_t {
   Z = 2
 };
 
-template<typename T>
+template<typename T = double>
 struct vector2 {
   static constexpr std::uint8_t dim = 2;
 
@@ -66,7 +66,7 @@ template<typename T>
 std::ostream& operator<<(std::ostream& out, vector2<T>& vector);
 
 
-template<typename T>
+template<typename T = double>
 struct vector3 {
   static constexpr std::uint8_t dim = 3;
 

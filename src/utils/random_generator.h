@@ -20,9 +20,6 @@ class Random_generator {
 
   Random_generator(const Random_generator&) = delete;
   Random_generator& operator=(const Random_generator&) = delete;
-
-  Random_generator(Random_generator&&) = delete;
-  Random_generator& operator=(Random_generator&&) = delete;
 };
 
 inline double random_01() {
