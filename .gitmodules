@@ -1,0 +1,3 @@
+[submodule "external/petsc-wrapper"]
+	path = external/petsc-wrapper
+	url = https://github.com/vakurshakov/petsc-wrapper

@@ -2,7 +2,8 @@
 bin/
 bin-int/
 
-external/
+external/json
+external/spdlog
 results/
 log/
 __pycache__/
