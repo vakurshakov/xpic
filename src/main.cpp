@@ -11,15 +11,12 @@ int main(int argc, const char** argv) {
     return EXIT_FAILURE;
   }
 
-  /// @warning An exception may be thrown during initialization,
-  /// if the problem is misconfigured using <config.json>
   try {
     const Configuration& config = Configuration::instance(argv[1]);
     config.save();
-    config.init_geometry();
 
-    LOG_INIT(config.out_dir() + "/simulation.log");
-    BEGIN_SESSION(config.out_dir() + "/simulation_time_profile.json");
+    LOG_INIT(config.out_dir + "/simulation.log");
+    BEGIN_SESSION(config.out_dir + "/simulation_time_profile.json");
 
     Simulation_factory factory;
     std::unique_ptr<Simulation> simulation = factory.build();

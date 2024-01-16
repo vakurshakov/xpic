@@ -33,9 +33,7 @@ OBJDIR := bin-int
 PCH := src/pch.h
 
 # other from src/**
-SRCS :=	                                 \
-	src/main.cpp                           \
-	src/constants.cpp                      \
+SRCS := src/main.cpp
 
 # interfaces
 SRCS +=																	 \

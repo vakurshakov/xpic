@@ -1,11 +1,11 @@
 #ifndef SRC_CONSTANTS_H
 #define SRC_CONSTANTS_H
 
-#define there_are_fields              true
-#define fields_are_diagnosed          true
+#define THERE_ARE_FIELDS              true
+#define FIELDS_ARE_DIAGNOSED          true
 
-#define there_are_particles           true
-#define particles_are_diagnosed       true
+#define THERE_ARE_PARTICLES           true
+#define PARTICLES_ARE_DIAGNOSED       true
 
 #define LOGGING                       true
 #define TIME_PROFILING                true
@@ -29,21 +29,5 @@ namespace physical_constants {
 
 #include <cstdint>
 using timestep_t = std::size_t;
-
-extern double dx;
-extern double dy;
-extern double dz;
-
-extern int SIZE_NX;
-extern int SIZE_NY;
-extern int SIZE_NZ;
-
-extern double SIZE_LX;
-extern double SIZE_LY;
-extern double SIZE_LZ;
-
-extern double dt;
-extern timestep_t TIME;
-extern timestep_t DIAGNOSE_PERIOD;
 
 #endif  // SRC_CONSTANTS_H
