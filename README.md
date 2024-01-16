@@ -19,10 +19,10 @@ Now, the executable can be built successfully. To do so, run the following comma
 
 The binary will be created in the bin folder. Execution of the code should be performed from the home directory too:
 ```sh
-  ./bin/simulation.out
+  ./bin/simulation.out <config.json>
 ```
 
 Or using shell straightforward script:
 ```sh
-  ./run.sh
+  ./run.sh <config.json>
 ```
