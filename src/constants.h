@@ -17,14 +17,14 @@
 #define PERIODIC    +2
 #define CONTINUOUS  +3
 
-#define X_BOUNDARY_CONDITION          CONTINUOUS
-#define Y_BOUNDARY_CONDITION          CONTINUOUS
+#define X_BOUNDARY_CONDITION          NONE
+#define Y_BOUNDARY_CONDITION          NONE
 
 namespace physical_constants {
-  constexpr double e   = 1.0;
-  constexpr double me  = 1.0;
-  constexpr double Mp  = 1836.0;
-  constexpr double mec2 = 511.0;
+  constexpr double e   = 1.0;     // units of e
+  constexpr double me  = 1.0;     // units of me
+  constexpr double Mp  = 1836.0;  // units of me
+  constexpr double mec2 = 511.0;  // KeV
 }
 
 #include <cstdint>
