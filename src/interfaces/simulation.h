@@ -14,10 +14,10 @@ public:
   PetscErrorCode calculate();
 
 protected:
-  virtual PetscErrorCode initialize_implementation();
-  virtual PetscErrorCode log_information() const;
+  virtual PetscErrorCode initialize_implementation() = 0;
+  virtual PetscErrorCode log_information() const = 0;
 
-  virtual PetscErrorCode timestep_implementation(timestep_t timestep);
+  virtual PetscErrorCode timestep_implementation(timestep_t timestep) = 0;
   PetscErrorCode diagnose(timestep_t timestep) const;
 
   timestep_t start_ = 0u;

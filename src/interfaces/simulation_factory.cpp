@@ -3,7 +3,8 @@
 using Simulation_up = std::unique_ptr<Simulation>;
 
 Simulation_up Simulation_factory::build() {
-  Simulation_up simulation = std::make_unique<Simulation>();
+  Simulation_up simulation = nullptr;
 
-  return simulation;
+  std::string simulation_str = CONFIG().get("Simulation");
+  throw std::runtime_error("Unkown simulation is used: " + simulation_str);
 }

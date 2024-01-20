@@ -36,18 +36,10 @@ PetscErrorCode Simulation::calculate() {
 
 PetscErrorCode Simulation::diagnose(timestep_t timestep) const {
   PetscFunctionBegin;
-  const Configuration& config = CONFIG();
 
-  #pragma omp parallel for if(timestep % config.diagnose_period == 0)
-  for (const auto& diagnostic : diagnostics_) {
+  for (auto& diagnostic : diagnostics_) {
     PetscCall(diagnostic->diagnose(timestep));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-PetscErrorCode Simulation::initialize_implementation() {}
-
-PetscErrorCode Simulation::log_information() const {}
-
-PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {}

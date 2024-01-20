@@ -1,6 +1,5 @@
-CXX    := g++
-CFLAGS :=
-CFLAGS += -std=c++20 -fpic -fopenmp -pthread
+CXX    := mpicxx
+CFLAGS := -std=c++20 -fpic -fopenmp -pthread
 
 # `filter X, A B` return those of A, B that are equal to X
 ifeq ($(VERSION), $(filter $(VERSION), "DEBUG" ""))
@@ -46,7 +45,6 @@ SRCS +=																	 \
 SRCS +=                                  \
   src/utils/log.cpp                      \
   src/utils/binary_file.cpp              \
-  src/utils/time_manager.cpp             \
   src/utils/configuration.cpp            \
 
 OBJS := $(SRCS:%.cpp=$(OBJDIR)/%.o)
@@ -60,10 +58,11 @@ all: $(OBJDIR)/$(PCH).gch $(RESDIR)/$(EXECUTABLE)
 # creates a directory for the target if it doesn't exist
 MKDIR=@mkdir -p $(@D)
 
+# using g++ for a precompiled header looks bad
 $(OBJDIR)/$(PCH).gch: $(PCH)
 	@echo -e "\033[0;33m\nCompiling header src/pch.h.\033[0m"
 	$(MKDIR)
-	$(CXX) $(CFLAGS) $(INC_PATH) $< -o $@
+	g++ $(CFLAGS) $(INC_PATH) $< -o $@
 
 $(RESDIR)/$(EXECUTABLE): $(OBJS)
 	@echo -e "\033[0;33m\nCreating the resulting binary.\033[0m"
