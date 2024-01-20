@@ -20,7 +20,6 @@
 
 #include "src/constants.h"
 #include "src/utils/log.h"
-#include "src/utils/time_manager.h"
 #include "src/utils/configuration.h"
 
 #endif  // SRC_PCH_H

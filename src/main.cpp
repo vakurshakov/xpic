@@ -17,7 +17,6 @@ int main(int argc, const char** argv) {
     config.save();
 
     LOG_INIT(config.out_dir + "/simulation.log");
-    BEGIN_SESSION(config.out_dir + "/simulation_time_profile.json");
 
     Simulation_factory factory;
     std::unique_ptr<Simulation> simulation = factory.build();
@@ -32,6 +31,5 @@ int main(int argc, const char** argv) {
     std::cerr << "Unknown exception handled!\n" << std::endl;
   }
 
-  END_SESSION();
   return EXIT_SUCCESS;
 }

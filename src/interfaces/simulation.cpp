@@ -11,7 +11,6 @@ void Simulation::calculate() {
 
   for (timestep_t t = start_ + 1; t <= config.time; ++t) {
     LOG_TRACE("timestep, {}", t);
-    PROFILE_SCOPE("timestep");
 
     for (auto& command : step_presets_) {
       command->execute(t);
@@ -27,7 +26,6 @@ void Simulation::calculate() {
 }
 
 void Simulation::diagnose(timestep_t timestep) const {
-  PROFILE_FUNCTION();
   const Configuration& config = CONFIG();
 
   #pragma omp parallel for if(timestep % config.diagnose_period == 0)
