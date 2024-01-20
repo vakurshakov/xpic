@@ -8,9 +8,8 @@
 
 class Log {
  public:
-  static void Init(const std::string& filename);
-
-  inline static std::shared_ptr<spdlog::logger>& GetLogger() { return logger_; }
+  static void init(const std::string& filename);
+  inline static std::shared_ptr<spdlog::logger>& get_logger() { return logger_; }
 
  private:
   static std::shared_ptr<spdlog::logger> logger_;
@@ -18,13 +17,13 @@ class Log {
 
 
 #if LOGGING
-#define LOG_INIT(filename) ::Log::Init(filename)
-#define LOG_TRACE(...)     ::Log::GetLogger()->trace(__VA_ARGS__)
-#define LOG_INFO(...)      ::Log::GetLogger()->info(__VA_ARGS__)
-#define LOG_WARN(...)      ::Log::GetLogger()->warn(__VA_ARGS__)
-#define LOG_ERROR(...)     ::Log::GetLogger()->error(__VA_ARGS__)
-#define LOG_FATAL(...)     ::Log::GetLogger()->critical(__VA_ARGS__)
-#define LOG_FLUSH()        ::Log::GetLogger()->flush()
+#define LOG_INIT(filename) ::Log::init(filename)
+#define LOG_TRACE(...)     ::Log::get_logger()->trace(__VA_ARGS__)
+#define LOG_INFO(...)      ::Log::get_logger()->info(__VA_ARGS__)
+#define LOG_WARN(...)      ::Log::get_logger()->warn(__VA_ARGS__)
+#define LOG_ERROR(...)     ::Log::get_logger()->error(__VA_ARGS__)
+#define LOG_FATAL(...)     ::Log::get_logger()->critical(__VA_ARGS__)
+#define LOG_FLUSH()        ::Log::get_logger()->flush()
 
 #else
 #define LOG_INIT(filename)

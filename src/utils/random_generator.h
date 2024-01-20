@@ -5,14 +5,13 @@
 #include <random>
 
 class Random_generator {
- public:
-
+public:
   static inline std::mt19937& get() {
     static Random_generator single_instance;
     return single_instance.gen;
   }
 
- private:
+private:
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());
 

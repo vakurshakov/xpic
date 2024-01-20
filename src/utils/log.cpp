@@ -4,7 +4,7 @@
 
 std::shared_ptr<spdlog::logger> Log::logger_;
 
-void Log::Init(const std::string& filename) {
+/* static */ void Log::init(const std::string& filename) {
   logger_ = spdlog::basic_logger_mt("basic_logger", filename);
 
   logger_->set_pattern("%^[%m/%d, %R, %L]%$ %v");
