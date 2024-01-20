@@ -3,6 +3,8 @@
 
 #include "src/pch.h"
 
+namespace interfaces {
+
 class Diagnostic {
 public:
   virtual ~Diagnostic() = default;
@@ -15,5 +17,7 @@ public:
 protected:
   std::string result_directory_;
 };
+
+}
 
 #endif  // SRC_INTERFACES_DIAGNOSTIC_H

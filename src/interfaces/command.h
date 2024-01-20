@@ -3,6 +3,8 @@
 
 #include "src/pch.h"
 
+namespace interfaces {
+
 /**
  * @brief We use commands in two situation:
  * 1. To preset simulation before main calculation cycle;
@@ -35,5 +37,7 @@ public:
   /// @brief Since command is executed once, it always return true.
   bool needs_to_be_removed(timestep_t timestep) const override { return true; }
 };
+
+}
 
 #endif  // SRC_INTERFACES_COMMAND_H

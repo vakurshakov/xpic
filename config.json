@@ -4,6 +4,8 @@
 
   "Out_dir": "results/simple_rectangle/",
 
+  "Simulation": "basic",
+
   "Geometry": {
     "size_x": 100.0,  "dx": 0.05,   "__units.x": "c/w_pe",
     "size_y": 100.0,  "dy": 0.05,   "__units.y": "c/w_pe",

@@ -1,5 +1,7 @@
 #include "simulation.h"
 
+namespace interfaces {
+
 PetscErrorCode Simulation::initialize() {
   PetscFunctionBeginUser;
 
@@ -19,7 +21,7 @@ PetscErrorCode Simulation::calculate() {
   for (timestep_t t = start_ + 1; t <= config.time; ++t) {
     LOG_TRACE("timestep, {}", t);
 
-    for (auto& command : step_presets_) {
+    for (const Command_up& command : step_presets_) {
       PetscCall(command->execute(t));
     }
 
@@ -37,9 +39,11 @@ PetscErrorCode Simulation::calculate() {
 PetscErrorCode Simulation::diagnose(timestep_t timestep) const {
   PetscFunctionBegin;
 
-  for (auto& diagnostic : diagnostics_) {
+  for (const Diagnostic_up& diagnostic : diagnostics_) {
     PetscCall(diagnostic->diagnose(timestep));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 }

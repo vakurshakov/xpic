@@ -38,14 +38,14 @@ PCH := src/pch.h
 SRCS := src/main.cpp
 
 # interfaces
-SRCS +=																	 \
-	src/interfaces/simulation.cpp          \
-	src/interfaces/simulation_factory.cpp  \
+SRCS +=                                \
+  src/interfaces/simulation.cpp        \
+  src/interfaces/simulation_build.cpp  \
 
-SRCS +=                                  \
-  src/utils/log.cpp                      \
-  src/utils/binary_file.cpp              \
-  src/utils/configuration.cpp            \
+SRCS +=                                \
+  src/utils/log.cpp                    \
+  src/utils/binary_file.cpp            \
+  src/utils/configuration.cpp          \
 
 OBJS := $(SRCS:%.cpp=$(OBJDIR)/%.o)
 DEPS := $(SRCS:%.cpp=$(OBJDIR)/%.d)

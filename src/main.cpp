@@ -2,7 +2,6 @@
 
 #include "src/pch.h"
 #include "src/interfaces/simulation.h"
-#include "src/interfaces/simulation_factory.h"
 #include "src/utils/configuration.h"
 
 static char help[] = "Usage: simulation.out <config.json>\n";
@@ -23,8 +22,7 @@ int main(int argc, char** argv) {
 
     LOG_INIT(config.out_dir + "/simulation.log");
 
-    Simulation_factory factory;
-    std::unique_ptr<Simulation> simulation = factory.build();
+    std::unique_ptr<interfaces::Simulation> simulation = interfaces::build_simulation();
 
     PetscCall(simulation->initialize());
     PetscCall(simulation->calculate());
