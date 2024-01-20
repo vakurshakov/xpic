@@ -18,6 +18,10 @@
 #include <fstream>
 #include <filesystem>
 
+#include <petscsys.h>
+#include <petscsystypes.h>
+#include <petscerror.h>
+
 #include "src/constants.h"
 #include "src/utils/log.h"
 #include "src/utils/configuration.h"

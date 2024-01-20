@@ -5,11 +5,16 @@
 #include "src/interfaces/simulation_factory.h"
 #include "src/utils/configuration.h"
 
-int main(int argc, const char** argv) {
+static char help[] = "Usage: simulation.out <config.json>\n";
+
+int main(int argc, char** argv) {
   if (argc != 2) {
-    std::cerr << "Usage: simulation.out <config.json>\n" << std::endl;
+    std::cerr << help << std::endl;
     return EXIT_FAILURE;
   }
+
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   try {
     const Configuration& config = CONFIG();
@@ -21,8 +26,8 @@ int main(int argc, const char** argv) {
     Simulation_factory factory;
     std::unique_ptr<Simulation> simulation = factory.build();
 
-    simulation->initialize();
-    simulation->calculate();
+    PetscCall(simulation->initialize());
+    PetscCall(simulation->calculate());
   }
   catch (const std::exception& e) {
     std::cerr << "what(): " << e.what() << "\n" << std::endl;

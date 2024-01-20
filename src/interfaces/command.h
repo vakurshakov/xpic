@@ -9,11 +9,11 @@
  * 2. To preset simulation on each step of the calculation.
  */
 class Command {
- public:
+public:
   virtual ~Command() = default;
 
   /// @param timestep Outer time step, optional.
-  virtual void execute(timestep_t timestep) = 0;
+  virtual PetscErrorCode execute(timestep_t timestep) = 0;
 
   /**
    * @brief Checks whether command needs to be
@@ -29,7 +29,7 @@ class Command {
 
 /// @brief Used to execute command once in the simulation cycle.
 class Command_once final : public Command {
- public:
+public:
   virtual ~Command_once() = default;
 
   /// @brief Since command is executed once, it always return true.

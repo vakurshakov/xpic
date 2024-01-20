@@ -6,18 +6,19 @@
 #include "src/interfaces/command.h"
 
 class Simulation {
- public:
+public:
   Simulation() = default;
   virtual ~Simulation() = default;
 
-  virtual void information() const;
-  virtual void initialize();
-  void calculate();
+  virtual PetscErrorCode initialize();
+  PetscErrorCode calculate();
 
- protected:
-  virtual void log_information() const;
-  virtual void timestep_implementation(timestep_t timestep);
-  void diagnose(timestep_t timestep) const;
+protected:
+  virtual PetscErrorCode initialize_implementation();
+  virtual PetscErrorCode log_information() const;
+
+  virtual PetscErrorCode timestep_implementation(timestep_t timestep);
+  PetscErrorCode diagnose(timestep_t timestep) const;
 
   timestep_t start_ = 0u;
 
