@@ -8,7 +8,7 @@
             "name": "g++ - Сборка и отладка проекта",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/run.sh",
+            "program": "${workspaceFolder}/bin/simulation.out",
             "args": [ "config.json" ],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}/",
