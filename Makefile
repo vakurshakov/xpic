@@ -1,15 +1,3 @@
-SIMULATION_DIR := $(PWD)
-SPDLOG_DIR     := $(PWD)/external/spdlog
-JSON_DIR       := $(PWD)/external/json
-
-INC_PATH :=
-INC_PATH += -I$(SIMULATION_DIR)/
-INC_PATH += -I$(SPDLOG_DIR)/include
-INC_PATH += -I$(JSON_DIR)/include
-
-LIB_PATH :=
-LIBS :=
-
 CXX    := g++
 CFLAGS :=
 CFLAGS += -std=c++20 -fpic -fopenmp -pthread
@@ -17,12 +5,27 @@ CFLAGS += -std=c++20 -fpic -fopenmp -pthread
 # `filter X, A B` return those of A, B that are equal to X
 ifeq ($(VERSION), $(filter $(VERSION), "DEBUG" ""))
 CFLAGS += -O0 -ggdb -Wall -Wextra -Wpedantic -Wno-unused-parameter -Werror
+PETSC_ARCH := linux-mpi-debug
 endif
 
 ifeq ($(VERSION), RELEASE)
 CFLAGS += -ftree-vectorize -O3
+PETSC_ARCH := linux-mpi-opt
 endif
 
+SIMULATION_DIR := $(PWD)
+JSON_DIR       := $(PWD)/external/json
+PETSC_DIR      := $(PWD)/external/petsc
+SPDLOG_DIR     := $(PWD)/external/spdlog
+
+INC_PATH :=
+INC_PATH += -I$(SIMULATION_DIR)/
+INC_PATH += -I$(JSON_DIR)/include
+INC_PATH += -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include
+INC_PATH += -I$(SPDLOG_DIR)/include
+
+LIB_PATH := -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
+LIBS := -Wl,-rpath=$(PETSC_DIR)/$(PETSC_ARCH)/lib -lpetsc -lf2clapack -lf2cblas -lm -lX11
 
 EXECUTABLE := simulation.out
 
@@ -65,7 +68,7 @@ $(OBJDIR)/$(PCH).gch: $(PCH)
 $(RESDIR)/$(EXECUTABLE): $(OBJS)
 	@echo -e "\033[0;33m\nCreating the resulting binary.\033[0m"
 	$(MKDIR)
-	$(CXX) $(CFLAGS) $(LIB_PATH) $^ -Wl,-rpath=$(SPDLOG_DIR)/lib $(LIBS) -o $@
+	$(CXX) $(CFLAGS) $^ $(LIB_PATH) $(LIBS) -o $@
 
 $(OBJDIR)/%.o: %.cpp message_compiling
 	$(MKDIR)
