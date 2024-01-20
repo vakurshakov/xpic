@@ -4,6 +4,7 @@ bin-int/
 
 external/json
 external/spdlog
+external/petsc
 results/
 log/
 __pycache__/

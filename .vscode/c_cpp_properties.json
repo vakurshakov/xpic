@@ -1,4 +1,9 @@
 {
+    "env": {
+        "PETSC_DIR": "external/petsc",
+        "PETSC_ARCH": "linux-mpi-debug"
+    },
+
     "configurations": [
         {
             "name": "Linux",
@@ -6,7 +11,9 @@
                 "${default}",
                 "${workspaceFolder}",
                 "${workspaceFolder}/external/spdlog/include",
-                "${workspaceFolder}/external/json/include"
+                "${workspaceFolder}/external/json/include",
+                "${workspaceFolder}/${PETSC_DIR}/include/",
+                "${workspaceFolder}/${PETSC_DIR}/${PETSC_ARCH}/include/"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
