@@ -7,7 +7,8 @@
 
 class Configuration {
 public:
-  static const Configuration& instance(const std::string& config_path = "");
+  inline static void init(const std::string& config_path);
+  inline static const Configuration& get();
 
   void save(const std::string& to = "") const;
   void save_sources(const std::string& to = "") const;
@@ -47,12 +48,15 @@ private:
   void save(const std::string& from, const std::string& to,
     std::filesystem::copy_options options) const;
 
-  Configuration(const std::string& config_path);
+  Configuration() = default;
+  static Configuration instance_;
 
   Configuration(const Configuration&) = delete;
   Configuration& operator=(const Configuration&) = delete;
 };
 
 #include "configuration.inl"
+
+#define CONFIG()  ::Configuration::get()
 
 #endif // SRC_UTILS_CONFIGURATION_HPP

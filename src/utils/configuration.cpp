@@ -2,33 +2,7 @@
 
 namespace fs = std::filesystem;
 
-Configuration::Configuration(const std::string& config_path)
-{
-  config_path_ = config_path;
-
-  std::ifstream file(config_path);
-  item_ = json::parse(file);
-
-  out_dir = get("Out_dir");
-
-  dx = get<double>("Geometry.dx");
-  dy = get<double>("Geometry.dy");
-  dz = get<double>("Geometry.dz");
-  dt = get<double>("Geometry.dt");
-
-  size_lx = get<double>("Geometry.size_x");
-  size_ly = get<double>("Geometry.size_y");
-  size_lz = get<double>("Geometry.size_y");
-
-#define TO_STEP(dim, ds) static_cast<int>(round(dim / ds))
-  size_nx = TO_STEP(size_lx, dx);
-  size_ny = TO_STEP(size_ly, dy);
-  size_nz = TO_STEP(size_lz, dy);
-
-  time = TO_STEP(get<double>("Geometry.time"), dt);
-  diagnose_period = TO_STEP(get<double>("Geometry.diagnose_period"), dt);
-#undef TO_STEP
-}
+Configuration Configuration::instance_;
 
 void Configuration::save(const std::string& to) const {
   save(config_path_, to, fs::copy_options::overwrite_existing);

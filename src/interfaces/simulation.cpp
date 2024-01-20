@@ -7,7 +7,7 @@ void Simulation::initialize() {
 }
 
 void Simulation::calculate() {
-  const Configuration& config = Configuration::instance();
+  const Configuration& config = CONFIG();
 
   for (timestep_t t = start_ + 1; t <= config.time; ++t) {
     LOG_TRACE("timestep, {}", t);
@@ -28,7 +28,7 @@ void Simulation::calculate() {
 
 void Simulation::diagnose(timestep_t timestep) const {
   PROFILE_FUNCTION();
-  const Configuration& config = Configuration::instance();
+  const Configuration& config = CONFIG();
 
   #pragma omp parallel for if(timestep % config.diagnose_period == 0)
   for (const auto& diagnostic : diagnostics_) {

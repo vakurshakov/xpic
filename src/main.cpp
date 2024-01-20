@@ -12,7 +12,8 @@ int main(int argc, const char** argv) {
   }
 
   try {
-    const Configuration& config = Configuration::instance(argv[1]);
+    const Configuration& config = CONFIG();
+    config.init(argv[1]);
     config.save();
 
     LOG_INIT(config.out_dir + "/simulation.log");
