@@ -19,7 +19,7 @@ PetscErrorCode Simulation::calculate() {
   const Configuration& config = CONFIG();
 
   for (timestep_t t = start_ + 1; t <= config.time; ++t) {
-    LOG_TRACE("timestep, {}", t);
+    LOG_TRACE("timestep: [dt] {},\t[1/w_pe] {:.3f}", t, (t * config.dt));
 
     for (const Command_up& command : step_presets_) {
       PetscCall(command->execute(t));
