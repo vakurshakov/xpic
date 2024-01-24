@@ -17,7 +17,7 @@ public:
 
 protected:
   virtual PetscErrorCode initialize_implementation() = 0;
-  virtual PetscErrorCode log_information() const = 0;
+  virtual PetscErrorCode log_information() const;
 
   virtual PetscErrorCode timestep_implementation(timestep_t timestep) = 0;
   PetscErrorCode diagnose(timestep_t timestep) const;
