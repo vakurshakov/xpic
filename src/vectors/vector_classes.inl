@@ -3,28 +3,28 @@
 #include <cmath>  // for sqrt
 
 template<typename T>
-vector2<T>& vector2<T>::operator+=(const vector2<T>& other) {
+Vector2<T>& Vector2<T>::operator+=(const Vector2<T>& other) {
   x += other.x;
   y += other.y;
   return *this;
 }
 
 template<typename T>
-vector2<T>& vector2<T>::operator-=(const vector2<T>& other) {
+Vector2<T>& Vector2<T>::operator-=(const Vector2<T>& other) {
   x -= other.x;
   y -= other.y;
   return *this;
 }
 
 template<typename T>
-vector2<T>& vector2<T>::operator*=(double scalar) {
+Vector2<T>& Vector2<T>::operator*=(double scalar) {
   x *= scalar;
   y *= scalar;
   return *this;
 }
 
 template<typename T>
-vector2<T>& vector2<T>::operator/=(double scalar) {
+Vector2<T>& Vector2<T>::operator/=(double scalar) {
   x /= scalar;
   y /= scalar;
   return *this;
@@ -32,7 +32,7 @@ vector2<T>& vector2<T>::operator/=(double scalar) {
 
 
 template<typename T>
-vector2<T> vector2<T>::operator+(const vector2<T>& other) const {
+Vector2<T> Vector2<T>::operator+(const Vector2<T>& other) const {
   return {
     x + other.x,
     y + other.y,
@@ -40,7 +40,7 @@ vector2<T> vector2<T>::operator+(const vector2<T>& other) const {
 }
 
 template<typename T>
-vector2<T> vector2<T>::operator-(const vector2<T>& other) const {
+Vector2<T> Vector2<T>::operator-(const Vector2<T>& other) const {
   return {
     x - other.x,
     y - other.y,
@@ -48,7 +48,7 @@ vector2<T> vector2<T>::operator-(const vector2<T>& other) const {
 }
 
 template<typename T>
-vector2<T> vector2<T>::operator/(double scalar) const {
+Vector2<T> Vector2<T>::operator/(double scalar) const {
   return {
     x / scalar,
     y / scalar,
@@ -56,7 +56,7 @@ vector2<T> vector2<T>::operator/(double scalar) const {
 }
 
 template<typename T>
-vector2<T> vector2<T>::operator+() const {
+Vector2<T> Vector2<T>::operator+() const {
   return {
     x,
     y,
@@ -64,7 +64,7 @@ vector2<T> vector2<T>::operator+() const {
 }
 
 template<typename T>
-vector2<T> vector2<T>::operator-() const {
+Vector2<T> Vector2<T>::operator-() const {
   return {
     -x,
     -y,
@@ -73,7 +73,7 @@ vector2<T> vector2<T>::operator-() const {
 
 
 template<typename T>
-vector2<T>& vector2<T>::normalize() {
+Vector2<T>& Vector2<T>::normalize() {
   T tmp = length();
   x /= tmp;
   y /= tmp;
@@ -81,7 +81,7 @@ vector2<T>& vector2<T>::normalize() {
 }
 
 template<typename T>
-vector2<T> vector2<T>::normalized() const {
+Vector2<T> Vector2<T>::normalized() const {
   T tmp = length();
   return {
     x / tmp,
@@ -90,25 +90,25 @@ vector2<T> vector2<T>::normalized() const {
 }
 
 template<typename T>
-T vector2<T>::dot(const vector2<T>& other) const {
+T Vector2<T>::dot(const Vector2<T>& other) const {
   return
     x * other.x +
     y * other.y;
 }
 
 template<typename T>
-T vector2<T>::square() const {
+T Vector2<T>::square() const {
   return dot(*this);
 }
 
 template<typename T>
-T vector2<T>::length() const {
+T Vector2<T>::length() const {
   return sqrt(square());
 }
 
 
 template<typename T>
-vector2<T> operator*(const vector2<T>& vector, double scalar) {
+Vector2<T> operator*(const Vector2<T>& vector, double scalar) {
   return {
     vector.x * scalar,
     vector.y * scalar,
@@ -116,7 +116,7 @@ vector2<T> operator*(const vector2<T>& vector, double scalar) {
 }
 
 template<typename T>
-vector2<T> operator*(double scalar, const vector2<T>& vector) {
+Vector2<T> operator*(double scalar, const Vector2<T>& vector) {
   return {
     vector.x * scalar,
     vector.y * scalar,
@@ -124,14 +124,14 @@ vector2<T> operator*(double scalar, const vector2<T>& vector) {
 }
 
 template<typename T>
-std::ostream& operator<<(std::ostream& out, vector2<T>& vector) {
+std::ostream& operator<<(std::ostream& out, Vector2<T>& vector) {
   out << v.x << " " << v.y;
   return out;
 }
 
 
 template<typename T>
-vector3<T>& vector3<T>::operator+=(const vector3<T>& other) {
+Vector3<T>& Vector3<T>::operator+=(const Vector3<T>& other) {
   x += other.x;
   y += other.y;
   z += other.z;
@@ -139,7 +139,7 @@ vector3<T>& vector3<T>::operator+=(const vector3<T>& other) {
 }
 
 template<typename T>
-vector3<T>& vector3<T>::operator-=(const vector3<T>& other) {
+Vector3<T>& Vector3<T>::operator-=(const Vector3<T>& other) {
   x -= other.x;
   y -= other.y;
   z -= other.z;
@@ -147,7 +147,7 @@ vector3<T>& vector3<T>::operator-=(const vector3<T>& other) {
 }
 
 template<typename T>
-vector3<T>& vector3<T>::operator*=(double scalar) {
+Vector3<T>& Vector3<T>::operator*=(double scalar) {
   x *= scalar;
   y *= scalar;
   z *= scalar;
@@ -155,7 +155,7 @@ vector3<T>& vector3<T>::operator*=(double scalar) {
 }
 
 template<typename T>
-vector3<T>& vector3<T>::operator/=(double scalar) {
+Vector3<T>& Vector3<T>::operator/=(double scalar) {
   x /= scalar;
   y /= scalar;
   z /= scalar;
@@ -164,7 +164,7 @@ vector3<T>& vector3<T>::operator/=(double scalar) {
 
 
 template<typename T>
-vector3<T> vector3<T>::operator+(const vector3<T>& other) const {
+Vector3<T> Vector3<T>::operator+(const Vector3<T>& other) const {
   return {
     x + other.x,
     y + other.y,
@@ -173,7 +173,7 @@ vector3<T> vector3<T>::operator+(const vector3<T>& other) const {
 }
 
 template<typename T>
-vector3<T> vector3<T>::operator-(const vector3<T>& other) const {
+Vector3<T> Vector3<T>::operator-(const Vector3<T>& other) const {
   return {
     x - other.x,
     y - other.y,
@@ -182,7 +182,7 @@ vector3<T> vector3<T>::operator-(const vector3<T>& other) const {
 }
 
 template<typename T>
-vector3<T> vector3<T>::operator/(double scalar) const {
+Vector3<T> Vector3<T>::operator/(double scalar) const {
   return {
     x / scalar,
     y / scalar,
@@ -191,7 +191,7 @@ vector3<T> vector3<T>::operator/(double scalar) const {
 }
 
 template<typename T>
-vector3<T> vector3<T>::operator+() const {
+Vector3<T> Vector3<T>::operator+() const {
   return {
     x,
     y,
@@ -200,7 +200,7 @@ vector3<T> vector3<T>::operator+() const {
 }
 
 template<typename T>
-vector3<T> vector3<T>::operator-() const {
+Vector3<T> Vector3<T>::operator-() const {
   return {
     -x,
     -y,
@@ -210,7 +210,7 @@ vector3<T> vector3<T>::operator-() const {
 
 
 template<typename T>
-vector3<T>& vector3<T>::normalize() {
+Vector3<T>& Vector3<T>::normalize() {
   T tmp = length();
   x /= tmp;
   y /= tmp;
@@ -219,7 +219,7 @@ vector3<T>& vector3<T>::normalize() {
 }
 
 template<typename T>
-vector3<T> vector3<T>::normalized() const {
+Vector3<T> Vector3<T>::normalized() const {
   T tmp = length();
   return {
     x / tmp,
@@ -229,7 +229,7 @@ vector3<T> vector3<T>::normalized() const {
 }
 
 template<typename T>
-vector3<T> vector3<T>::cross(const vector3<T>& other) const {
+Vector3<T> Vector3<T>::cross(const Vector3<T>& other) const {
   return {
     + (y * other.z - z * other.y),
     - (x * other.z - z * other.x),
@@ -238,7 +238,7 @@ vector3<T> vector3<T>::cross(const vector3<T>& other) const {
 }
 
 template<typename T>
-vector2<T> vector3<T>::squeeze_along(Axis axis) const {
+Vector2<T> Vector3<T>::squeeze_along(Axis axis) const {
   switch (axis) {
     case Axis::X: return {y, z};
     case Axis::Y: return {x, z};
@@ -249,7 +249,7 @@ vector2<T> vector3<T>::squeeze_along(Axis axis) const {
 }
 
 template<typename T>
-T vector3<T>::dot(const vector3<T>& other) const {
+T Vector3<T>::dot(const Vector3<T>& other) const {
   return
     x * other.x +
     y * other.y +
@@ -257,18 +257,18 @@ T vector3<T>::dot(const vector3<T>& other) const {
 }
 
 template<typename T>
-T vector3<T>::square() const {
+T Vector3<T>::square() const {
   return dot(*this);
 }
 
 template<typename T>
-T vector3<T>::length() const {
+T Vector3<T>::length() const {
   return sqrt(square());
 }
 
 
 template<typename T>
-vector3<T> operator*(const vector3<T>& vector, double scalar) {
+Vector3<T> operator*(const Vector3<T>& vector, double scalar) {
   return {
     vector.x * scalar,
     vector.y * scalar,
@@ -277,7 +277,7 @@ vector3<T> operator*(const vector3<T>& vector, double scalar) {
 }
 
 template<typename T>
-vector3<T> operator*(double scalar, const vector3<T>& vector) {
+Vector3<T> operator*(double scalar, const Vector3<T>& vector) {
   return {
     vector.x * scalar,
     vector.y * scalar,
@@ -286,7 +286,7 @@ vector3<T> operator*(double scalar, const vector3<T>& vector) {
 }
 
 template<typename T>
-std::ostream& operator<<(std::ostream& out, vector3<T>& vector) {
+std::ostream& operator<<(std::ostream& out, Vector3<T>& vector) {
   out << v.x << " " << v.y << " " << v.z;
   return out;
 }
