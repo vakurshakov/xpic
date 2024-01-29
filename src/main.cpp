@@ -18,7 +18,6 @@ int main(int argc, char** argv) {
     config.init(argv[1]);
     config.save();
 
-    // Not MPI-safe :(
     LOG_INIT(config.out_dir + "/simulation.log");
 
     std::unique_ptr<interfaces::Simulation> simulation = interfaces::build_simulation();

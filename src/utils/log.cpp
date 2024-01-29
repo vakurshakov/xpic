@@ -12,3 +12,11 @@ std::shared_ptr<spdlog::logger> Log::logger_;
   logger_->set_level(spdlog::level::trace);
   logger_->flush_on(spdlog::level::warn);
 }
+
+/* static */ void Log::flush() {
+  assert(MPI_COMM_WORLD != MPI_COMM_NULL && "Logger::flush() called with MPI_COMM_NULL");
+
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  if (rank == 0) { logger_->flush(); }
+}
