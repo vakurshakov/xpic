@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "src/pch.h"
 #include "src/interfaces/simulation.h"
 #include "src/utils/configuration.h"
@@ -8,7 +6,7 @@ static char help[] = "Usage: simulation.out <config.json>\n";
 
 int main(int argc, char** argv) {
   if (argc != 2) {
-    std::cerr << help << std::endl;
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, help));
     return EXIT_FAILURE;
   }
 
@@ -20,6 +18,7 @@ int main(int argc, char** argv) {
     config.init(argv[1]);
     config.save();
 
+    // Not MPI-safe :(
     LOG_INIT(config.out_dir + "/simulation.log");
 
     std::unique_ptr<interfaces::Simulation> simulation = interfaces::build_simulation();
@@ -28,11 +27,14 @@ int main(int argc, char** argv) {
     PetscCall(simulation->calculate());
   }
   catch (const std::exception& e) {
-    std::cerr << "what(): " << e.what() << "\n" << std::endl;
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "what(): %s\n", e.what()));
+    PetscCallMPI(MPI_Abort(PETSC_COMM_WORLD, EXIT_FAILURE));
   }
   catch (...) {
-    std::cerr << "Unknown exception handled!\n" << std::endl;
+    PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Unknown exception handled!\n"));
+    PetscCallMPI(MPI_Abort(PETSC_COMM_WORLD, EXIT_FAILURE));
   }
 
+  PetscCall(PetscFinalize());
   return EXIT_SUCCESS;
 }
