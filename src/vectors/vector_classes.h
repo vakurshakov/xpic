@@ -18,13 +18,8 @@ struct Vector2 {
   static constexpr Vector2 orth_x{1, 0};
   static constexpr Vector2 orth_y{0, 1};
 
-  union {
-    double vector[dim];
-    struct {
-      double x;
-      double y;
-    };
-  };
+  T x;
+  T y;
 
   constexpr Vector2()
     : x{0}, y{0} {}
@@ -78,14 +73,9 @@ struct Vector3 {
   static constexpr Vector3 orth_y{0, 1, 0};
   static constexpr Vector3 orth_z{0, 0, 1};
 
-  union {
-    double vector[dim];
-    struct {
-      double x;
-      double y;
-      double z;
-    };
-  };
+  T x;
+  T y;
+  T z;
 
   constexpr Vector3()
     : x{0}, y{0}, z{0} {}

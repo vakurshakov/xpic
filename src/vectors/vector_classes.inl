@@ -125,7 +125,7 @@ Vector2<T> operator*(double scalar, const Vector2<T>& vector) {
 
 template<typename T>
 std::ostream& operator<<(std::ostream& out, Vector2<T>& vector) {
-  out << v.x << " " << v.y;
+  out << vector.x << " " << vector.y;
   return out;
 }
 
@@ -215,7 +215,7 @@ Vector3<T>& Vector3<T>::normalize() {
   x /= tmp;
   y /= tmp;
   z /= tmp;
-  return *this
+  return *this;
 }
 
 template<typename T>
@@ -287,6 +287,6 @@ Vector3<T> operator*(double scalar, const Vector3<T>& vector) {
 
 template<typename T>
 std::ostream& operator<<(std::ostream& out, Vector3<T>& vector) {
-  out << v.x << " " << v.y << " " << v.z;
+  out << vector.x << " " << vector.y << " " << vector.z;
   return out;
 }
