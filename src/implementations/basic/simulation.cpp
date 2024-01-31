@@ -12,9 +12,11 @@ PetscErrorCode Simulation::initialize_implementation() {
   Nx = config.size_nx;
   Ny = config.size_ny;
   Nz = config.size_nz;
+  Nt = config.time;
   dx = config.dx;
   dy = config.dy;
   dz = config.dz;
+  dt = config.dt;
 
   const PetscInt dof = Vector3d::dim;
   const PetscInt s = 1; // stencil width (should depend on particle size)
@@ -25,8 +27,8 @@ PetscErrorCode Simulation::initialize_implementation() {
 
   PetscCall(DMCreateGlobalVector(da_, &E_));
   PetscCall(DMCreateGlobalVector(da_, &B_));
-  PetscCall(DMCreateMatrix(da_, &rot_p));
-  PetscCall(DMCreateMatrix(da_, &rot_m));
+  PetscCall(DMCreateMatrix(da_, &rot_dt_p));
+  PetscCall(DMCreateMatrix(da_, &rot_dt_m));
 
   PetscCall(setup_positive_rotor());
   PetscCall(setup_negative_rotor());
@@ -74,11 +76,12 @@ PetscErrorCode Simulation::setup_positive_rotor() {
 
   for (const auto& [row, col, value] : triplets) {
     // We use `ADD_VALUES` to cancel out values in case of Nx = 1 (or Ny, Nz)
-    PetscCall(MatSetValues(rot_p, 1, &row, 1, &col, &value, ADD_VALUES));
+    PetscCall(MatSetValues(rot_dt_p, 1, &row, 1, &col, &value, ADD_VALUES));
   }
+  PetscCall(MatAssemblyBegin(rot_dt_p, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(rot_dt_p, MAT_FINAL_ASSEMBLY));
 
-  PetscCall(MatAssemblyBegin(rot_p, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(rot_p, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatScale(rot_dt_p, -dt));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -122,11 +125,12 @@ PetscErrorCode Simulation::setup_negative_rotor() {
 
   for (const auto& [row, col, value] : triplets) {
     // We use `ADD_VALUES` to cancel out values in case of Nx = 1 (or Ny, Nz)
-    PetscCall(MatSetValues(rot_m, 1, &row, 1, &col, &value, ADD_VALUES));
+    PetscCall(MatSetValues(rot_dt_m, 1, &row, 1, &col, &value, ADD_VALUES));
   }
+  PetscCall(MatAssemblyBegin(rot_dt_m, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(rot_dt_m, MAT_FINAL_ASSEMBLY));
 
-  PetscCall(MatAssemblyBegin(rot_m, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(rot_m, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatScale(rot_dt_m, +dt));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -136,6 +140,17 @@ constexpr PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscIn
 
 
 PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
+  PetscFunctionBeginUser;
+
+  // Field source
+  PetscCall(VecSetValue(B_, index(Nx / 2, Ny / 2, Nz / 2, Z), 1.0, ADD_VALUES));
+  PetscCall(VecAssemblyBegin(B_));
+  PetscCall(VecAssemblyEnd(B_));
+
+  // Solving Maxwell's equations using FDTD
+  PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // rot(E) = - ∂B / ∂t
+  PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // rot(B) = + ∂E / ∂t
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -143,8 +158,8 @@ Simulation::~Simulation() {
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&E_));
   PetscCallVoid(VecDestroy(&B_));
-  PetscCallVoid(MatDestroy(&rot_p));
-  PetscCallVoid(MatDestroy(&rot_m));
+  PetscCallVoid(MatDestroy(&rot_dt_p));
+  PetscCallVoid(MatDestroy(&rot_dt_m));
   PetscFunctionReturnVoid();
 }
 
