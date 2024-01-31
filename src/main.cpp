@@ -5,7 +5,7 @@
 static char help[] = "Usage: simulation.out <config.json>\n";
 
 int main(int argc, char** argv) {
-  if (argc != 2) {
+  if (argc < 2) {
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, help));
     return EXIT_FAILURE;
   }
