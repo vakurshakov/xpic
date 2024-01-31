@@ -48,6 +48,7 @@ PetscErrorCode Simulation::setup_positive_rotor() {
     PetscInt yp = (Ny > 1) ? (y + 1) : y;
     PetscInt zp = (Nz > 1) ? (z + 1) : z;
 
+    // Simplest boundary condition
     if (xp >= Nx) continue;
     if (yp >= Ny) continue;
     if (zp >= Nz) continue;
@@ -82,6 +83,50 @@ PetscErrorCode Simulation::setup_positive_rotor() {
 }
 
 PetscErrorCode Simulation::setup_negative_rotor() {
+  PetscFunctionBeginUser;
+
+  Vector3<PetscInt> start, end;
+  PetscCall(DMDAGetCorners(da_, R3DX(&start), R3DX(&end)));
+  end += start;  // Petsc returns size, not end point
+
+  std::vector<Triplet> triplets;
+  for (PetscInt z = start.z; z < end.z; ++z) {
+  for (PetscInt y = start.y; y < end.y; ++y) {
+  for (PetscInt x = start.x; x < end.x; ++x) {
+    PetscInt xm = (Nx > 1) ? (x - 1) : x;
+    PetscInt ym = (Ny > 1) ? (y - 1) : y;
+    PetscInt zm = (Nz > 1) ? (z - 1) : z;
+
+    if (xm < 0) continue;
+    if (ym < 0) continue;
+    if (zm < 0) continue;
+
+    PetscInt cur = index(x, y, z, X);
+    triplets.emplace_back(cur, index(x,  y,  z,  Z), +1.0 / dx);
+    triplets.emplace_back(cur, index(x,  ym, z,  Z), -1.0 / dx);
+    triplets.emplace_back(cur, index(x,  y,  z,  Y), -1.0 / dx);
+    triplets.emplace_back(cur, index(x,  y,  zm, Y), +1.0 / dx);
+
+    cur = index(x, y, z, Y);
+    triplets.emplace_back(cur, index(x,  y,  z,  X), +1.0 / dx);
+    triplets.emplace_back(cur, index(x,  y,  zm, X), -1.0 / dx);
+    triplets.emplace_back(cur, index(x,  y,  z,  Z), -1.0 / dx);
+    triplets.emplace_back(cur, index(xm, y,  z,  Z), +1.0 / dx);
+
+    cur = index(x, y, z, Z);
+    triplets.emplace_back(cur, index(x,  y,  z,  Y), +1.0 / dx);
+    triplets.emplace_back(cur, index(xm, y,  z,  Y), -1.0 / dx);
+    triplets.emplace_back(cur, index(x,  y,  z,  X), -1.0 / dx);
+    triplets.emplace_back(cur, index(x,  ym, z,  X), +1.0 / dx);
+  }}}
+
+  for (const auto& [row, col, value] : triplets) {
+    // We use `ADD_VALUES` to cancel out values in case of Nx = 1 (or Ny, Nz)
+    PetscCall(MatSetValues(rot_m, 1, &row, 1, &col, &value, ADD_VALUES));
+  }
+
+  PetscCall(MatAssemblyBegin(rot_m, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(rot_m, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
