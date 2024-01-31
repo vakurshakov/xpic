@@ -18,12 +18,12 @@
 
   config.size_lx = config.get<double>("Geometry.size_x");
   config.size_ly = config.get<double>("Geometry.size_y");
-  config.size_lz = config.get<double>("Geometry.size_y");
+  config.size_lz = config.get<double>("Geometry.size_z");
 
 #define TO_STEP(dim, ds) static_cast<int>(round(dim / ds))
   config.size_nx = TO_STEP(config.size_lx, config.dx);
   config.size_ny = TO_STEP(config.size_ly, config.dy);
-  config.size_nz = TO_STEP(config.size_lz, config.dy);
+  config.size_nz = TO_STEP(config.size_lz, config.dz);
 
   config.time = TO_STEP(config.get<double>("Geometry.time"), config.dt);
   config.diagnose_period = TO_STEP(config.get<double>("Geometry.diagnose_period"), config.dt);
