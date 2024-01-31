@@ -10,10 +10,15 @@
 namespace basic {
 
 /// @todo move it into common utils
+struct Triplet {
+  PetscInt row;
+  PetscInt col;
+  PetscScalar value;
+};
+
 #define R3C(expr) (expr), (expr), (expr)
-#define R3S(expr) (expr); (expr); (expr)
+#define R3DX(expr) (expr.x), (expr.y), (expr.z)
 #define R3CX(expr) (expr##x), (expr##y), (expr##z)
-#define R3SX(expr) (expr##x); (expr##y); (expr##z)
 
 class Simulation : public interfaces::Simulation {
 public:
@@ -25,14 +30,18 @@ protected:
   PetscErrorCode timestep_implementation(timestep_t timestep) override;
 
 private:
-  PetscErrorCode setup_gradient();
-  PetscErrorCode setup_rotor();
+  PetscErrorCode setup_positive_rotor();
+  PetscErrorCode setup_negative_rotor();
+
+  constexpr PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
+  PetscInt Nx, Ny, Nz;
+  PetscScalar dx, dy, dz;
 
   DM da_;
   Vec E_;
   Vec B_;
-  Mat gradient_;
-  Mat rotor_;
+  Mat rot_p;
+  Mat rot_m;
 };
 
 }
