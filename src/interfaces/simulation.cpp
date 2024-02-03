@@ -29,17 +29,17 @@ PetscErrorCode Simulation::log_information() const {
   LOG_INFO("  magnetic field, B = {:.2e} [T]",     3.21e-7 * n0);
 
   LOG_INFO("Geometric constants for the current setup:");
-  LOG_INFO("  length along x axis,   lx = {:.2e} [c/w_pe] = {} [dx]", size_lx, size_nx);
-  LOG_INFO("  length along y axis,   ly = {:.2e} [c/w_pe] = {} [dy]", size_ly, size_ny);
-  LOG_INFO("  length along z axis,   lz = {:.2e} [c/w_pe] = {} [dz]", size_lz, size_nz);
-  LOG_INFO("  simulation time,     time = {:.2e} [1/w_pe] = {} [dt]", size_lt, size_nt);
+  LOG_INFO("  (length along x axis) = {:.2e} [c/w_pe] = {} [dx]", geom_x, geom_nx);
+  LOG_INFO("  (length along y axis) = {:.2e} [c/w_pe] = {} [dy]", geom_y, geom_ny);
+  LOG_INFO("  (length along z axis) = {:.2e} [c/w_pe] = {} [dz]", geom_z, geom_nz);
+  LOG_INFO("  (simulation time)     = {:.2e} [1/w_pe] = {} [dt]", geom_t, geom_nt);
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::calculate() {
   PetscFunctionBeginUser;
-  for (timestep_t t = start_ + 1; t <= size_nt; ++t) {
+  for (timestep_t t = start_ + 1; t <= geom_nt; ++t) {
     LOG_TRACE("timestep = {:4.3f} [1/w_pe]\t= {} [dt]", (t * dt), t);
 
     for (const Command_up& command : step_presets_) {

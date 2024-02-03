@@ -7,20 +7,12 @@ namespace basic {
 
 PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
-  Nx = size_nx;
-  Ny = size_ny;
-  Nz = size_nz;
-  Nt = size_nt;
-  dx = dx;
-  dy = dy;
-  dz = dz;
-  dt = dt;
 
   const PetscInt dof = Vector3d::dim;
   const PetscInt s = 1; // stencil width (should depend on particle size)
 
   // We can specify in our config DMBoundaryType and procs number and map it to Create3d
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, R3C(DM_BOUNDARY_NONE), DMDA_STENCIL_BOX, R3CX(N), R3C(PETSC_DECIDE), dof, s, R3C(nullptr), &da_));
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, R3C(DM_BOUNDARY_NONE), DMDA_STENCIL_BOX, R3CX(geom_n), R3C(PETSC_DECIDE), dof, s, R3C(nullptr), &da_));
   PetscCall(DMSetUp(da_));
 
   PetscCall(DMCreateGlobalVector(da_, &E_));
@@ -44,14 +36,14 @@ PetscErrorCode Simulation::setup_positive_rotor() {
   for (PetscInt z = start.z; z < end.z; ++z) {
   for (PetscInt y = start.y; y < end.y; ++y) {
   for (PetscInt x = start.x; x < end.x; ++x) {
-    PetscInt xp = (Nx > 1) ? (x + 1) : x;
-    PetscInt yp = (Ny > 1) ? (y + 1) : y;
-    PetscInt zp = (Nz > 1) ? (z + 1) : z;
+    PetscInt xp = (geom_nx > 1) ? (x + 1) : x;
+    PetscInt yp = (geom_ny > 1) ? (y + 1) : y;
+    PetscInt zp = (geom_nz > 1) ? (z + 1) : z;
 
     // Simplest boundary condition
-    if (xp >= Nx) continue;
-    if (yp >= Ny) continue;
-    if (zp >= Nz) continue;
+    if (xp >= geom_nx) continue;
+    if (yp >= geom_ny) continue;
+    if (zp >= geom_nz) continue;
 
     PetscInt cur = index(x, y, z, X);
     triplets.emplace_back(cur, index(x,  yp, z,  Z), +1.0 / dy);
@@ -94,9 +86,9 @@ PetscErrorCode Simulation::setup_negative_rotor() {
   for (PetscInt z = start.z; z < end.z; ++z) {
   for (PetscInt y = start.y; y < end.y; ++y) {
   for (PetscInt x = start.x; x < end.x; ++x) {
-    PetscInt xm = (Nx > 1) ? (x - 1) : x;
-    PetscInt ym = (Ny > 1) ? (y - 1) : y;
-    PetscInt zm = (Nz > 1) ? (z - 1) : z;
+    PetscInt xm = (geom_nx > 1) ? (x - 1) : x;
+    PetscInt ym = (geom_ny > 1) ? (y - 1) : y;
+    PetscInt zm = (geom_nz > 1) ? (z - 1) : z;
 
     if (xm < 0) continue;
     if (ym < 0) continue;
@@ -132,8 +124,8 @@ PetscErrorCode Simulation::setup_negative_rotor() {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-constexpr PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
-  return ((Ny * z + y) * Nx + x) * Vector3d::dim + c;
+PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
+  return ((geom_ny * z + y) * geom_nx + x) * Vector3d::dim + c;
 }
 
 
@@ -141,13 +133,15 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
   PetscFunctionBeginUser;
 
   // Field source
-  PetscCall(VecSetValue(B_, index(Nx / 2, Ny / 2, Nz / 2, Z), 1.0, ADD_VALUES));
+  PetscCall(VecSetValue(B_, index(geom_nx / 2, geom_ny / 2, geom_nz / 2, Z), 1.0, ADD_VALUES));
   PetscCall(VecAssemblyBegin(B_));
   PetscCall(VecAssemblyEnd(B_));
 
   // Solving Maxwell's equations using FDTD
   PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // rot(E) = - ∂B / ∂t
   PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // rot(B) = + ∂E / ∂t
+
+  /// @todo Write a simplest diagnostics of fields energy
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -10,43 +10,33 @@
 #define LOGGING                       true
 #define TIME_PROFILING                true
 
-// BOUNDARY_CONDITIONS:
-#define NONE        -1
-#define PEC         +0
-#define PMC         +1
-#define PERIODIC    +2
-#define CONTINUOUS  +3
-
-#define X_BOUNDARY_CONDITION          NONE
-#define Y_BOUNDARY_CONDITION          NONE
+#include <petscsystypes.h>
+using timestep_t = PetscInt;
 
 namespace physical_constants {
 
-constexpr double e   = 1.0;     // units of e
-constexpr double me  = 1.0;     // units of me
-constexpr double Mp  = 1836.0;  // units of me
-constexpr double mec2 = 511.0;  // KeV
+constexpr PetscReal e = 1.0;       // units of e
+constexpr PetscReal me = 1.0;      // units of me
+constexpr PetscReal Mp = 1836.0;   // units of me
+constexpr PetscReal mec2 = 511.0;  // KeV
 
 }
 
-#include <cstdint>
-using timestep_t = std::size_t;
+extern PetscReal dx;  // c / w_pe
+extern PetscReal dy;  // c / w_pe
+extern PetscReal dz;  // c / w_pe
+extern PetscReal dt;  // 1 / w_pe
 
-extern double dx;  // c / w_pe
-extern double dy;  // c / w_pe
-extern double dz;  // c / w_pe
-extern double dt;  // 1 / w_pe
+extern PetscReal geom_x;  // c / w_pe
+extern PetscReal geom_y;  // c / w_pe
+extern PetscReal geom_z;  // c / w_pe
+extern PetscReal geom_t;  // 1 / w_pe
 
-extern int size_nx;         // units of dx
-extern int size_ny;         // units of dy
-extern int size_nz;         // units of dz
-extern timestep_t size_nt;  // units of dt
+extern PetscInt geom_nx;  // units of dx
+extern PetscInt geom_ny;  // units of dy
+extern PetscInt geom_nz;  // units of dz
+extern PetscInt geom_nt;  // units of dt
 
-extern double size_lx;  // c / w_pe
-extern double size_ly;  // c / w_pe
-extern double size_lz;  // c / w_pe
-extern double size_lt;  // 1 / w_pe
-
-extern timestep_t diagnose_period;  // units of dt
+extern PetscInt diagnose_period;  // units of dt
 
 #endif  // SRC_CONSTANTS_H

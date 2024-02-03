@@ -10,7 +10,7 @@ Binary_file::Binary_file(const std::string& directory_path, const std::string& f
 }
 
 /* static */ Binary_file Binary_file::from_timestep(const std::string& directory_path, timestep_t timestep) {
-  int time_width = std::to_string(size_nt).size();
+  int time_width = std::to_string(geom_nt).size();
 
   std::stringstream ss;
   ss << std::setw(time_width) << std::setfill('0') << timestep;

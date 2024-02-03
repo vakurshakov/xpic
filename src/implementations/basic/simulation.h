@@ -22,9 +22,7 @@ private:
   PetscErrorCode setup_positive_rotor();
   PetscErrorCode setup_negative_rotor();
 
-  constexpr PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
-  PetscInt Nx, Ny, Nz, Nt;
-  PetscScalar dx, dy, dz, dt;
+  PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
 
   DM da_;
   Vec E_;

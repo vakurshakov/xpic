@@ -16,16 +16,16 @@
   dz = config.get<double>("Geometry.dz");
   dt = config.get<double>("Geometry.dt");
 
-  size_lx = config.get<double>("Geometry.size_x");
-  size_ly = config.get<double>("Geometry.size_y");
-  size_lz = config.get<double>("Geometry.size_z");
-  size_lt = config.get<double>("Geometry.size_t");
+  geom_x = config.get<double>("Geometry.size_x");
+  geom_y = config.get<double>("Geometry.size_y");
+  geom_z = config.get<double>("Geometry.size_z");
+  geom_t = config.get<double>("Geometry.size_t");
 
 #define TO_STEP(dim, ds) static_cast<int>(round(dim / ds))
-  size_nx = TO_STEP(size_lx, dx);
-  size_ny = TO_STEP(size_ly, dy);
-  size_nz = TO_STEP(size_lz, dz);
-  size_nt = TO_STEP(size_lt, dt);
+  geom_nx = TO_STEP(geom_x, dx);
+  geom_ny = TO_STEP(geom_y, dy);
+  geom_nz = TO_STEP(geom_z, dz);
+  geom_nt = TO_STEP(geom_t, dt);
 
   diagnose_period = TO_STEP(config.get<double>("Geometry.diagnose_period"), dt);
 #undef TO_STEP
