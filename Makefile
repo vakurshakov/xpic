@@ -50,6 +50,10 @@ SRCS +=                                \
 SRCS +=                                     \
   src/implementations/basic/simulation.cpp  \
 
+SRCS +=													                                 \
+	src/implementations/basic/diagnostics/fields_energy.cpp        \
+	src/implementations/basic/diagnostics/diagnostics_builder.cpp  \
+
 OBJS := $(SRCS:%.cpp=$(OBJDIR)/%.o)
 DEPS := $(SRCS:%.cpp=$(OBJDIR)/%.d)
 

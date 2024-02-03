@@ -2,6 +2,7 @@
 
 #include "src/utils/utils.h"
 #include "src/vectors/vector_classes.h"
+#include "src/implementations/basic/diagnostics/diagnostics_builder.h"
 
 namespace basic {
 
@@ -22,6 +23,10 @@ PetscErrorCode Simulation::initialize_implementation() {
 
   PetscCall(setup_positive_rotor());
   PetscCall(setup_negative_rotor());
+
+  Diagnostics_builder diagnostics_builder(*this);
+  diagnostics_ = diagnostics_builder.build();
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -140,8 +145,6 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
   // Solving Maxwell's equations using FDTD
   PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // rot(E) = - ∂B / ∂t
   PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // rot(B) = + ∂E / ∂t
-
-  /// @todo Write a simplest diagnostics of fields energy
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

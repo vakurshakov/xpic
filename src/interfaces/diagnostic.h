@@ -9,7 +9,7 @@ class Diagnostic {
 public:
   virtual ~Diagnostic() = default;
 
-  Diagnostic(const std::string_view& result_directory)
+  Diagnostic(const std::string& result_directory)
     : result_directory_(result_directory) {}
 
   virtual PetscErrorCode diagnose(timestep_t t) = 0;

@@ -1,5 +1,5 @@
-#ifndef SRC_IMPLEMENTATIONS_BASIC_SIMULATION_H
-#define SRC_IMPLEMENTATIONS_BASIC_SIMULATION_H
+#ifndef SRC_BASIC_SIMULATION_H
+#define SRC_BASIC_SIMULATION_H
 
 #include "src/interfaces/simulation.h"
 
@@ -19,6 +19,8 @@ protected:
   PetscErrorCode timestep_implementation(timestep_t timestep) override;
 
 private:
+  friend class Diagnostics_builder;
+
   PetscErrorCode setup_positive_rotor();
   PetscErrorCode setup_negative_rotor();
 
@@ -33,4 +35,4 @@ private:
 
 }
 
-#endif // SRC_IMPLEMENTATIONS_BASIC_SIMULATION_H
+#endif // SRC_BASIC_SIMULATION_H

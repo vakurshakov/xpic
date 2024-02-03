@@ -13,5 +13,9 @@
     "size_t": 250.0,  "dt": 0.5,  "__units.t": "1/w_pe",
 
     "diagnose_period": 2.5,  "__units.dp": "1/w_pe"
+  },
+
+  "Diagnostics": {
+    "fields_energy": {}
   }
 }
