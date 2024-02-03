@@ -24,8 +24,11 @@ class Binary_file {
    */
   static Binary_file from_backup(const std::string& directory_path, const std::string& file_name, int byte_offset);
 
-  void write_as_floats(double* data, size_t size);
-  void write_as_doubles(double* data, size_t size);
+  void write_as_floats(PetscReal* data, PetscInt size);
+  void write_as_doubles(PetscReal* data, PetscInt size);
+
+  void write_float(PetscReal data);
+  void write_double(PetscReal data);
 
   void flush();
   void close();

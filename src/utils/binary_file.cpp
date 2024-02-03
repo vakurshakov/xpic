@@ -5,8 +5,7 @@ namespace fs = std::filesystem;
 
 Binary_file::Binary_file(const std::string& directory_path, const std::string& file_name) {
   fs::create_directories(directory_path);
-  file_.open(directory_path + "/" + file_name + ".bin",
-    std::ios::out | std::ios::trunc | std::ios::binary);
+  file_.open(directory_path + "/" + file_name + ".bin", std::ios::out | std::ios::trunc | std::ios::binary);
 }
 
 /* static */ Binary_file Binary_file::from_timestep(const std::string& directory_path, timestep_t timestep) {
@@ -20,31 +19,49 @@ Binary_file::Binary_file(const std::string& directory_path, const std::string& f
   return result;
 }
 
-/* static */ Binary_file Binary_file::from_backup(
-    const std::string& directory_path, const std::string& file_name, int byte_offset) {
+/* static */ Binary_file Binary_file::from_backup(const std::string& directory_path, const std::string& file_name, int byte_offset) {
   fs::create_directories(directory_path);
 
   Binary_file result;
 
-  result.file_.open(directory_path + "/" + file_name + ".bin",
-    std::ios::in | std::ios::out | std::ios::binary);
-
+  result.file_.open(directory_path + "/" + file_name + ".bin", std::ios::in | std::ios::out | std::ios::binary);
   result.file_.seekp(-byte_offset, std::ios::end);
-
   return result;
 }
 
-void Binary_file::write_as_floats(double* data, size_t size) {
-  std::vector<float> tmp;
-  tmp.reserve(size);
-  for (size_t i = 0; i < size; ++i) {
-    tmp.emplace_back(static_cast<float>(data[i]));
+template<typename T>
+void write_data(std::ofstream& os, PetscReal* data, PetscInt size) {
+  std::vector<T> tmp(size);
+  for (PetscInt i = 0; i < size; ++i) {
+    tmp[i] = static_cast<T>(data[i]);
   }
-  file_.write(reinterpret_cast<char*>(tmp.data()), sizeof(float) * size);
+  os.write(reinterpret_cast<char*>(tmp.data()), sizeof(T) * tmp.size());
 }
 
-void Binary_file::write_as_doubles(double* data, size_t size) {
+void Binary_file::write_as_floats(PetscReal* data, PetscInt size) {
+#if defined(PETSC_USE_REAL_SINGLE)
+  file_.write(reinterpret_cast<char*>(&data), sizeof(float) * size);
+#else
+  write_data<float>(file_, data, size);
+#endif
+}
+
+void Binary_file::write_as_doubles(PetscReal* data, PetscInt size) {
+#if defined(PETSC_USE_REAL_DOUBLE)
   file_.write(reinterpret_cast<char*>(&data), sizeof(double) * size);
+#else
+  write_data<double>(file_, data, size);
+#endif
+}
+
+void Binary_file::write_float(PetscReal data) {
+  float float_data = static_cast<float>(data);
+  file_.write(reinterpret_cast<char*>(&float_data), sizeof(float));
+}
+
+void Binary_file::write_double(PetscReal data) {
+  double double_data = static_cast<double>(data);
+  file_.write(reinterpret_cast<char*>(&double_data), sizeof(double));
 }
 
 void Binary_file::flush() {
