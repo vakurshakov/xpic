@@ -6,7 +6,7 @@
 struct Triplet {
   PetscInt row;
   PetscInt col;
-  PetscScalar value;
+  PetscReal value;
 };
 
 #define R3C(expr) (expr), (expr), (expr)
