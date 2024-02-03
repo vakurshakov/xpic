@@ -39,7 +39,6 @@ SRCS := src/main.cpp
 
 SRCS +=                                \
   src/interfaces/simulation.cpp        \
-  src/interfaces/simulation_build.cpp  \
 
 SRCS +=                                \
   src/utils/log.cpp                    \
