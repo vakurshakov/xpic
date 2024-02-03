@@ -8,15 +8,14 @@ namespace basic {
 
 PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
-  const Configuration& config = CONFIG();
-  Nx = config.size_nx;
-  Ny = config.size_ny;
-  Nz = config.size_nz;
-  Nt = config.time;
-  dx = config.dx;
-  dy = config.dy;
-  dz = config.dz;
-  dt = config.dt;
+  Nx = size_nx;
+  Ny = size_ny;
+  Nz = size_nz;
+  Nt = size_nt;
+  dx = dx;
+  dy = dy;
+  dz = dz;
+  dt = dt;
 
   const PetscInt dof = Vector3d::dim;
   const PetscInt s = 1; // stencil width (should depend on particle size)

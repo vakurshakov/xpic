@@ -11,22 +11,23 @@
 
   config.out_dir = config.get("Out_dir");
 
-  config.dx = config.get<double>("Geometry.dx");
-  config.dy = config.get<double>("Geometry.dy");
-  config.dz = config.get<double>("Geometry.dz");
-  config.dt = config.get<double>("Geometry.dt");
+  dx = config.get<double>("Geometry.dx");
+  dy = config.get<double>("Geometry.dy");
+  dz = config.get<double>("Geometry.dz");
+  dt = config.get<double>("Geometry.dt");
 
-  config.size_lx = config.get<double>("Geometry.size_x");
-  config.size_ly = config.get<double>("Geometry.size_y");
-  config.size_lz = config.get<double>("Geometry.size_z");
+  size_lx = config.get<double>("Geometry.size_x");
+  size_ly = config.get<double>("Geometry.size_y");
+  size_lz = config.get<double>("Geometry.size_z");
+  size_lt = config.get<double>("Geometry.size_t");
 
 #define TO_STEP(dim, ds) static_cast<int>(round(dim / ds))
-  config.size_nx = TO_STEP(config.size_lx, config.dx);
-  config.size_ny = TO_STEP(config.size_ly, config.dy);
-  config.size_nz = TO_STEP(config.size_lz, config.dz);
+  size_nx = TO_STEP(size_lx, dx);
+  size_ny = TO_STEP(size_ly, dy);
+  size_nz = TO_STEP(size_lz, dz);
+  size_nt = TO_STEP(size_lt, dt);
 
-  config.time = TO_STEP(config.get<double>("Geometry.time"), config.dt);
-  config.diagnose_period = TO_STEP(config.get<double>("Geometry.diagnose_period"), config.dt);
+  diagnose_period = TO_STEP(config.get<double>("Geometry.diagnose_period"), dt);
 #undef TO_STEP
 }
 
