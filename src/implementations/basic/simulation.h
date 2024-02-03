@@ -3,22 +3,11 @@
 
 #include "src/interfaces/simulation.h"
 
-#include <petscdm.h>
+#include <petscdmda.h>
 #include <petscvec.h>
 #include <petscmat.h>
 
 namespace basic {
-
-/// @todo move it into common utils
-struct Triplet {
-  PetscInt row;
-  PetscInt col;
-  PetscScalar value;
-};
-
-#define R3C(expr) (expr), (expr), (expr)
-#define R3DX(expr) (expr.x), (expr.y), (expr.z)
-#define R3CX(expr) (expr##x), (expr##y), (expr##z)
 
 class Simulation : public interfaces::Simulation {
 public:

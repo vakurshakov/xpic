@@ -1,7 +1,6 @@
 #include "simulation.h"
 
-#include <petscdmda.h>
-
+#include "src/utils/utils.h"
 #include "src/vectors/vector_classes.h"
 
 namespace basic {
