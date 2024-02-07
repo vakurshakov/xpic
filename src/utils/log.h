@@ -12,24 +12,35 @@ public:
   static void init(const std::string& filename);
 
   template <typename... Args>
-  static void log(MPI_Comm comm, spdlog::level::level_enum lvl, spdlog::format_string_t<Args...> fmt, Args&&... args);
+  static void trace(MPI_Comm comm, spdlog::format_string_t<Args...> fmt, Args&&... args);
 
-  static void flush();
+  template <typename... Args>
+  static void info(MPI_Comm comm, spdlog::format_string_t<Args...> fmt, Args&&... args);
+
+  template <typename... Args>
+  static void warn(MPI_Comm comm, spdlog::format_string_t<Args...> fmt, Args&&... args);
+
+  template <typename... Args>
+  static void error(MPI_Comm comm, spdlog::format_string_t<Args...> fmt, Args&&... args);
+
+  static void flush(MPI_Comm comm);
 
 private:
+  template <typename... Args>
+  static void log(MPI_Comm comm, spdlog::level::level_enum lvl, spdlog::format_string_t<Args...> fmt, Args&&... args);
+
   static std::shared_ptr<spdlog::logger> logger_;
 };
 
-#include "log.inl"
+#include "log.tpp"
 
 #if LOGGING
 #define LOG_INIT(filename) ::Log::init(filename)
-#define LOG_TRACE(...)     ::Log::log(MPI_COMM_WORLD, spdlog::level::trace, __VA_ARGS__)
-#define LOG_INFO(...)      ::Log::log(MPI_COMM_WORLD, spdlog::level::info,  __VA_ARGS__)
-#define LOG_WARN(...)      ::Log::log(MPI_COMM_WORLD, spdlog::level::warn,  __VA_ARGS__)
-#define LOG_ERROR(...)     ::Log::log(MPI_COMM_WORLD, spdlog::level::error, __VA_ARGS__)
-#define LOG_FATAL(...)     ::Log::log(MPI_COMM_WORLD, spdlog::level::fatal, __VA_ARGS__)
-#define LOG_FLUSH()        ::Log::flush()
+#define LOG_TRACE(...)     ::Log::trace(MPI_COMM_WORLD, __VA_ARGS__)
+#define LOG_INFO(...)      ::Log::info(MPI_COMM_WORLD, __VA_ARGS__)
+#define LOG_WARN(...)      ::Log::warn(MPI_COMM_WORLD, __VA_ARGS__)
+#define LOG_ERROR(...)     ::Log::error(MPI_COMM_WORLD, __VA_ARGS__)
+#define LOG_FLUSH()        ::Log::flush(MPI_COMM_WORLD)
 
 #else
 #define LOG_INIT(filename)
