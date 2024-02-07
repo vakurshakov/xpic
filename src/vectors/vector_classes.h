@@ -51,6 +51,9 @@ struct Vector2 {
   T length() const;
 };
 
+using Vector2i = Vector2<int>;
+using Vector2d = Vector2<double>;
+
 template<typename T>
 Vector2<T> operator*(const Vector2<T>& vector, double scalar);
 
@@ -106,6 +109,9 @@ struct Vector3 {
   T square() const;
   T length() const;
 };
+
+using Vector3i = Vector3<int>;
+using Vector3d = Vector3<double>;
 
 template<typename T>
 Vector3<T> operator*(const Vector3<T>& vector, double scalar);
