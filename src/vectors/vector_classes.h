@@ -45,11 +45,11 @@ struct Vector2 {
   Vector2 operator+() const;
   Vector2 operator-() const;
 
-  Vector2& normalize();
-  Vector2 normalized() const;
+  PetscReal length() const;
+  Vector2<PetscReal> normalized() const;
+
   T dot(const Vector2& other) const;
   T square() const;
-  PetscReal length() const;
 };
 
 template<typename T>
@@ -95,14 +95,14 @@ struct Vector3 {
   Vector3 operator+() const;
   Vector3 operator-() const;
 
-  Vector3& normalize();
-  Vector3 normalized() const;
+  PetscReal length() const;
+  Vector3<PetscReal> normalized() const;
+
   Vector3 cross(const Vector3& other) const;
   Vector2<T> squeeze_along(Axis axis) const;
 
   T dot(const Vector3& other) const;
   T square() const;
-  PetscReal length() const;
 };
 
 template<typename T>

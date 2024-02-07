@@ -73,19 +73,11 @@ Vector2<T> Vector2<T>::operator-() const {
 
 
 template<typename T>
-Vector2<T>& Vector2<T>::normalize() {
-  T tmp = length();
-  x /= tmp;
-  y /= tmp;
-  return *this;
-}
-
-template<typename T>
-Vector2<T> Vector2<T>::normalized() const {
-  T tmp = length();
+Vector2<PetscReal> Vector2<T>::normalized() const {
+  PetscReal len = length();
   return {
-    x / tmp,
-    y / tmp,
+    x / len,
+    y / len,
   };
 }
 
@@ -204,21 +196,12 @@ Vector3<T> Vector3<T>::operator-() const {
 
 
 template<typename T>
-Vector3<T>& Vector3<T>::normalize() {
-  T tmp = length();
-  x /= tmp;
-  y /= tmp;
-  z /= tmp;
-  return *this;
-}
-
-template<typename T>
-Vector3<T> Vector3<T>::normalized() const {
-  T tmp = length();
+Vector3<PetscReal> Vector3<T>::normalized() const {
+  PetscReal len = length();
   return {
-    x / tmp,
-    y / tmp,
-    z / tmp,
+    x / len,
+    y / len,
+    z / len,
   };
 }
 
