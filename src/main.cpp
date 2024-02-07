@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
     config.init(argv[1]);
     config.save();
 
-    LOG_INIT(config.out_dir + "/simulation.log");
+    LOG_INIT(PETSC_COMM_WORLD, config.out_dir + "/simulation.log");
 
     std::unique_ptr<interfaces::Simulation> simulation = interfaces::build_simulation();
 

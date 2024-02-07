@@ -9,27 +9,28 @@
 
 class Log {
 public:
-  static void init(const std::string& filename);
+  static void init(MPI_Comm comm, const std::string& filename);
 
   template <typename... Args>
-  static void log(MPI_Comm comm, spdlog::level::level_enum lvl, spdlog::format_string_t<Args...> fmt, Args&&... args);
+  static void log(spdlog::level::level_enum lvl, spdlog::format_string_t<Args...> fmt, Args&&... args);
 
   static void flush();
 
 private:
+  static MPI_Comm comm_;
   static std::shared_ptr<spdlog::logger> logger_;
 };
 
 #include "log.inl"
 
 #if LOGGING
-#define LOG_INIT(filename) ::Log::init(filename)
-#define LOG_TRACE(...)     ::Log::log(MPI_COMM_WORLD, spdlog::level::trace, __VA_ARGS__)
-#define LOG_INFO(...)      ::Log::log(MPI_COMM_WORLD, spdlog::level::info,  __VA_ARGS__)
-#define LOG_WARN(...)      ::Log::log(MPI_COMM_WORLD, spdlog::level::warn,  __VA_ARGS__)
-#define LOG_ERROR(...)     ::Log::log(MPI_COMM_WORLD, spdlog::level::error, __VA_ARGS__)
-#define LOG_FATAL(...)     ::Log::log(MPI_COMM_WORLD, spdlog::level::fatal, __VA_ARGS__)
-#define LOG_FLUSH()        ::Log::flush()
+#define LOG_INIT(comm, filename) ::Log::init(comm, filename)
+#define LOG_TRACE(...)           ::Log::log(spdlog::level::trace, __VA_ARGS__)
+#define LOG_INFO(...)            ::Log::log(spdlog::level::info,  __VA_ARGS__)
+#define LOG_WARN(...)            ::Log::log(spdlog::level::warn,  __VA_ARGS__)
+#define LOG_ERROR(...)           ::Log::log(spdlog::level::error, __VA_ARGS__)
+#define LOG_FATAL(...)           ::Log::log(spdlog::level::fatal, __VA_ARGS__)
+#define LOG_FLUSH()              ::Log::flush()
 
 #else
 #define LOG_INIT(filename)
