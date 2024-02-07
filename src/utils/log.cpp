@@ -4,10 +4,7 @@
 
 std::shared_ptr<spdlog::logger> Log::logger_;
 
-/* static */ void Log::init(MPI_Comm comm, const std::string& filename) {
-  assert(comm != MPI_COMM_NULL && "Logger::inti() called with MPI_COMM_NULL");
-
-  comm_ = comm;
+/* static */ void Log::init(const std::string& filename) {
   logger_ = spdlog::basic_logger_mt("basic_logger", filename);
 
   logger_->set_pattern("%^[%m/%d, %T, %L]%$ %v");
