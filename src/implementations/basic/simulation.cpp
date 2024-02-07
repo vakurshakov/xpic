@@ -9,7 +9,7 @@ namespace basic {
 PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
 
-  const PetscInt dof = Vector3d::dim;
+  const PetscInt dof = Vector3_dim;
   const PetscInt s = 1; // stencil width (should depend on particle size)
 
   // We can specify in our config DMBoundaryType and procs number and map it to Create3d
@@ -130,7 +130,7 @@ PetscErrorCode Simulation::setup_negative_rotor() {
 }
 
 PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
-  return ((geom_ny * z + y) * geom_nx + x) * Vector3d::dim + c;
+  return ((geom_ny * z + y) * geom_nx + x) * Vector3_dim + c;
 }
 
 

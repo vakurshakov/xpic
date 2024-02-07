@@ -1,6 +1,6 @@
 #include "vector_classes.h"
 
-#include <cmath>  // for sqrt
+#include <petscmath.h>  // for sqrt
 
 template<typename T>
 Vector2<T>& Vector2<T>::operator+=(const Vector2<T>& other) {
@@ -17,14 +17,14 @@ Vector2<T>& Vector2<T>::operator-=(const Vector2<T>& other) {
 }
 
 template<typename T>
-Vector2<T>& Vector2<T>::operator*=(double scalar) {
+Vector2<T>& Vector2<T>::operator*=(PetscReal scalar) {
   x *= scalar;
   y *= scalar;
   return *this;
 }
 
 template<typename T>
-Vector2<T>& Vector2<T>::operator/=(double scalar) {
+Vector2<T>& Vector2<T>::operator/=(PetscReal scalar) {
   x /= scalar;
   y /= scalar;
   return *this;
@@ -48,7 +48,7 @@ Vector2<T> Vector2<T>::operator-(const Vector2<T>& other) const {
 }
 
 template<typename T>
-Vector2<T> Vector2<T>::operator/(double scalar) const {
+Vector2<T> Vector2<T>::operator/(PetscReal scalar) const {
   return {
     x / scalar,
     y / scalar,
@@ -102,13 +102,13 @@ T Vector2<T>::square() const {
 }
 
 template<typename T>
-T Vector2<T>::length() const {
-  return sqrt(square());
+PetscReal Vector2<T>::length() const {
+  return PetscSqrtReal(static_cast<PetscReal>(square()));
 }
 
 
 template<typename T>
-Vector2<T> operator*(const Vector2<T>& vector, double scalar) {
+Vector2<T> operator*(const Vector2<T>& vector, PetscReal scalar) {
   return {
     vector.x * scalar,
     vector.y * scalar,
@@ -116,17 +116,11 @@ Vector2<T> operator*(const Vector2<T>& vector, double scalar) {
 }
 
 template<typename T>
-Vector2<T> operator*(double scalar, const Vector2<T>& vector) {
+Vector2<T> operator*(PetscReal scalar, const Vector2<T>& vector) {
   return {
     vector.x * scalar,
     vector.y * scalar,
   };
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& out, Vector2<T>& vector) {
-  out << vector.x << " " << vector.y;
-  return out;
 }
 
 
@@ -147,7 +141,7 @@ Vector3<T>& Vector3<T>::operator-=(const Vector3<T>& other) {
 }
 
 template<typename T>
-Vector3<T>& Vector3<T>::operator*=(double scalar) {
+Vector3<T>& Vector3<T>::operator*=(PetscReal scalar) {
   x *= scalar;
   y *= scalar;
   z *= scalar;
@@ -155,7 +149,7 @@ Vector3<T>& Vector3<T>::operator*=(double scalar) {
 }
 
 template<typename T>
-Vector3<T>& Vector3<T>::operator/=(double scalar) {
+Vector3<T>& Vector3<T>::operator/=(PetscReal scalar) {
   x /= scalar;
   y /= scalar;
   z /= scalar;
@@ -182,7 +176,7 @@ Vector3<T> Vector3<T>::operator-(const Vector3<T>& other) const {
 }
 
 template<typename T>
-Vector3<T> Vector3<T>::operator/(double scalar) const {
+Vector3<T> Vector3<T>::operator/(PetscReal scalar) const {
   return {
     x / scalar,
     y / scalar,
@@ -262,13 +256,13 @@ T Vector3<T>::square() const {
 }
 
 template<typename T>
-T Vector3<T>::length() const {
-  return sqrt(square());
+PetscReal Vector3<T>::length() const {
+  return PetscSqrtReal(static_cast<PetscReal>(square()));
 }
 
 
 template<typename T>
-Vector3<T> operator*(const Vector3<T>& vector, double scalar) {
+Vector3<T> operator*(const Vector3<T>& vector, PetscReal scalar) {
   return {
     vector.x * scalar,
     vector.y * scalar,
@@ -277,16 +271,10 @@ Vector3<T> operator*(const Vector3<T>& vector, double scalar) {
 }
 
 template<typename T>
-Vector3<T> operator*(double scalar, const Vector3<T>& vector) {
+Vector3<T> operator*(PetscReal scalar, const Vector3<T>& vector) {
   return {
     vector.x * scalar,
     vector.y * scalar,
     vector.z * scalar,
   };
-}
-
-template<typename T>
-std::ostream& operator<<(std::ostream& out, Vector3<T>& vector) {
-  out << vector.x << " " << vector.y << " " << vector.z;
-  return out;
 }
