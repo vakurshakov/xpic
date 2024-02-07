@@ -36,11 +36,11 @@ private:
 
 #if LOGGING
 #define LOG_INIT(filename) ::Log::init(filename)
-#define LOG_TRACE(...)     ::Log::trace(MPI_COMM_WORLD, __VA_ARGS__)
-#define LOG_INFO(...)      ::Log::info(MPI_COMM_WORLD, __VA_ARGS__)
-#define LOG_WARN(...)      ::Log::warn(MPI_COMM_WORLD, __VA_ARGS__)
-#define LOG_ERROR(...)     ::Log::error(MPI_COMM_WORLD, __VA_ARGS__)
-#define LOG_FLUSH()        ::Log::flush(MPI_COMM_WORLD)
+#define LOG_TRACE(...)     ::Log::trace(PETSC_COMM_WORLD, __VA_ARGS__)
+#define LOG_INFO(...)      ::Log::info(PETSC_COMM_WORLD, __VA_ARGS__)
+#define LOG_WARN(...)      ::Log::warn(PETSC_COMM_WORLD, __VA_ARGS__)
+#define LOG_ERROR(...)     ::Log::error(PETSC_COMM_WORLD, __VA_ARGS__)
+#define LOG_FLUSH()        ::Log::flush(PETSC_COMM_WORLD)
 
 #else
 #define LOG_INIT(filename)
