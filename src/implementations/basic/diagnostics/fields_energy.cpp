@@ -9,12 +9,7 @@ namespace basic {
 
 Fields_energy::Fields_energy(const std::string& result_directory, const DM da, const Vec E, const Vec B)
   : interfaces::Diagnostic(result_directory), da_(da), E_(E), B_(B) {
-#if !START_FROM_BACKUP
   file_ = Binary_file(result_directory_, "fields_energy");
-#else
-  const int components_written = 7;
-  file_ = Binary_file::from_backup(result_directory_, "fields_energy", components_written * sizeof(float));
-#endif
 }
 
 PetscErrorCode Fields_energy::diagnose(timestep_t t) {
@@ -47,15 +42,24 @@ PetscErrorCode Fields_energy::diagnose(timestep_t t) {
   PetscCall(DMDAVecRestoreArrayRead(da_, E_, &E));
   PetscCall(DMDAVecRestoreArrayRead(da_, B_, &B));
 
-  file_.write_float(WEx);
-  file_.write_float(WEy);
-  file_.write_float(WEz);
-  file_.write_float(WBx);
-  file_.write_float(WBy);
-  file_.write_float(WBz);
+  auto write_reduced = [&](PetscReal& w) -> PetscErrorCode {
+    PetscFunctionBeginUser;
+    PetscReal sum = 0.0;
+    PetscCallMPI(MPI_Reduce(&w, &sum, 1, MPIU_REAL, MPI_SUM, 0, PETSC_COMM_WORLD));
+
+    w = sum; // only for logging
+    file_.write_float(sum);
+    PetscFunctionReturn(PETSC_SUCCESS);
+  };
+
+  write_reduced(WEy);
+  write_reduced(WEz);
+  write_reduced(WBx);
+  write_reduced(WBy);
+  write_reduced(WBz);
 
   PetscReal total = WEx + WEy + WEz + WBx + WBy + WBz;
-  file_.write_float(total);
+  write_reduced(total);
 
   LOG_INFO("Fields energy: Ex = {:.5e}, Ey = {:.5e}, Ez = {:.5e}", WEx, WEy, WEz);
   LOG_INFO("               Bx = {:.5e}, By = {:.5e}, Bz = {:.5e}", WBx, WBy, WBz);

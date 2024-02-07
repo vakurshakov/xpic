@@ -19,16 +19,6 @@ Binary_file::Binary_file(const std::string& directory_path, const std::string& f
   return result;
 }
 
-/* static */ Binary_file Binary_file::from_backup(const std::string& directory_path, const std::string& file_name, int byte_offset) {
-  fs::create_directories(directory_path);
-
-  Binary_file result;
-
-  result.file_.open(directory_path + "/" + file_name + ".bin", std::ios::in | std::ios::out | std::ios::binary);
-  result.file_.seekp(-byte_offset, std::ios::end);
-  return result;
-}
-
 template<typename T>
 void write_data(std::ofstream& os, PetscReal* data, PetscInt size) {
   std::vector<T> tmp(size);

@@ -13,17 +13,6 @@ class Binary_file {
   /// @brief Construct a new binary file with the name based on timestep.
   static Binary_file from_timestep(const std::string& directory_path, timestep_t timestep);
 
-  /**
-   * @brief Construct a new binary file based on the backup.
-   *
-   * @param directory_path Where the diagnostic was stored.
-   * @param file_name Name of the diagnostics you are trying to load.
-   * @param byte_offset The offset made from the last position after opening.
-   *
-   * @warning This method should be used only to restore single file diagnostics.
-   */
-  static Binary_file from_backup(const std::string& directory_path, const std::string& file_name, int byte_offset);
-
   void write_as_floats(PetscReal* data, PetscInt size);
   void write_as_doubles(PetscReal* data, PetscInt size);
 
