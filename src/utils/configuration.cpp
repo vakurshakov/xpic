@@ -13,6 +13,10 @@ void Configuration::save_sources(const std::string& to) const {
 }
 
 void Configuration::save(const std::string& from, const std::string& to, fs::copy_options options) const {
+  int rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+  if (rank != 0) return;
+
   try {
     fs::create_directories(out_dir + "/" + to + "/");
     fs::copy(from, out_dir + "/" + to + "/", options);
