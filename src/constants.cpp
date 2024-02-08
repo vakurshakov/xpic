@@ -1,18 +1,18 @@
 #include "constants.h"
 
-double dx = 0.0;  // c / w_pe
-double dy = 0.0;  // c / w_pe
-double dz = 0.0;  // c / w_pe
-double dt = 0.0;  // 1 / w_pe
+PetscReal dx = 0.0;  // c / w_pe
+PetscReal dy = 0.0;  // c / w_pe
+PetscReal dz = 0.0;  // c / w_pe
+PetscReal dt = 0.0;  // 1 / w_pe
 
-int geom_nx = 0;         // units of dx
-int geom_ny = 0;         // units of dy
-int geom_nz = 0;         // units of dz
-timestep_t geom_nt = 0;  // units of dt
+PetscReal geom_x = 0.0;  // c / w_pe
+PetscReal geom_y = 0.0;  // c / w_pe
+PetscReal geom_z = 0.0;  // c / w_pe
+PetscReal geom_t = 0.0;  // 1 / w_pe
 
-double geom_x = 0.0;  // c / w_pe
-double geom_y = 0.0;  // c / w_pe
-double geom_z = 0.0;  // c / w_pe
-double geom_t = 0.0;  // 1 / w_pe
+PetscInt geom_nx = 0;  // units of dx
+PetscInt geom_ny = 0;  // units of dy
+PetscInt geom_nz = 0;  // units of dz
+PetscInt geom_nt = 0;  // units of dt
 
-timestep_t diagnose_period = 0;  // units of dt
+PetscInt diagnose_period = 0;  // units of dt
