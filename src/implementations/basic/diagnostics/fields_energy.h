@@ -7,7 +7,7 @@
 #include <petscvec.h>
 
 #include "src/pch.h"
-#include "src/utils/binary_file.h"
+#include "src/utils/sync_binary_file.h"
 
 namespace basic {
 
@@ -17,7 +17,7 @@ public:
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
-  Binary_file file_;
+  Sync_binary_file file_;
 
   const DM da_;
   const Vec E_;

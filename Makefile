@@ -44,8 +44,8 @@ SRCS +=                                \
 
 SRCS +=                                \
   src/utils/log.cpp                    \
-  src/utils/binary_file.cpp            \
   src/utils/configuration.cpp          \
+  src/utils/sync_binary_file.cpp       \
 
 SRCS +=                                     \
   src/implementations/basic/simulation.cpp  \

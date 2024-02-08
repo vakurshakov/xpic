@@ -9,7 +9,7 @@ namespace basic {
 
 Fields_energy::Fields_energy(const std::string& result_directory, const DM da, const Vec E, const Vec B)
   : interfaces::Diagnostic(result_directory), da_(da), E_(E), B_(B) {
-  file_ = Binary_file(result_directory_, "fields_energy");
+  file_ = Sync_binary_file(result_directory_, "fields_energy");
 }
 
 PetscErrorCode Fields_energy::diagnose(timestep_t t) {
@@ -48,7 +48,7 @@ PetscErrorCode Fields_energy::diagnose(timestep_t t) {
     PetscCallMPI(MPI_Reduce(&w, &sum, 1, MPIU_REAL, MPI_SUM, 0, PETSC_COMM_WORLD));
 
     w = sum; // only for logging
-    file_.write_float(sum);
+    PetscCallMPI(file_.write_float(sum));
     PetscFunctionReturn(PETSC_SUCCESS);
   };
 
