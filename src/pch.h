@@ -1,15 +1,14 @@
 #ifndef SRC_PCH_H
 #define SRC_PCH_H
 
+#include <mpi.h>
 #include <omp.h>
-#include <math.h>
 
 #include <map>
 #include <list>
 #include <tuple>
 #include <vector>
 #include <string>
-#include <string_view>
 
 #include <memory>
 #include <utility>
