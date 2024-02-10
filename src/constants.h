@@ -22,21 +22,27 @@ constexpr PetscReal mec2 = 511.0;  // KeV
 
 }
 
-extern PetscReal dx;  // c / w_pe
-extern PetscReal dy;  // c / w_pe
-extern PetscReal dz;  // c / w_pe
-extern PetscReal dt;  // 1 / w_pe
+// To avoid multiple definitions, we put useful global variables into unnamed namespace
+namespace {
 
-extern PetscReal geom_x;  // c / w_pe
-extern PetscReal geom_y;  // c / w_pe
-extern PetscReal geom_z;  // c / w_pe
-extern PetscReal geom_t;  // 1 / w_pe
+// Geometry constants, to be set in `Configuration::init()`
+PetscReal dx = 0.0;  // c / w_pe
+PetscReal dy = 0.0;  // c / w_pe
+PetscReal dz = 0.0;  // c / w_pe
+PetscReal dt = 0.0;  // 1 / w_pe
 
-extern PetscInt geom_nx;  // units of dx
-extern PetscInt geom_ny;  // units of dy
-extern PetscInt geom_nz;  // units of dz
-extern PetscInt geom_nt;  // units of dt
+PetscReal geom_x = 0.0;  // c / w_pe
+PetscReal geom_y = 0.0;  // c / w_pe
+PetscReal geom_z = 0.0;  // c / w_pe
+PetscReal geom_t = 0.0;  // 1 / w_pe
 
-extern PetscInt diagnose_period;  // units of dt
+PetscInt geom_nx = 0;  // units of dx
+PetscInt geom_ny = 0;  // units of dy
+PetscInt geom_nz = 0;  // units of dz
+PetscInt geom_nt = 0;  // units of dt
+
+PetscInt diagnose_period = 0;  // units of dt
+
+}
 
 #endif  // SRC_CONSTANTS_H
