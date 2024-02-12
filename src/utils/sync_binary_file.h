@@ -20,7 +20,7 @@ public:
   int flush();
   int close();
 
-  int write_floats(PetscReal* data, PetscInt size);
+  int write_floats(const PetscReal* data, PetscInt size);
   int write_float(PetscReal data);
 
 private:

@@ -2,11 +2,6 @@
 
 namespace fs = std::filesystem;
 
-#define SYNC_GUARD                        \
-  int rank;                               \
-  MPI_Comm_rank(PETSC_COMM_WORLD, &rank); \
-  if (rank != 0) return                   \
-
 Sync_binary_file::Sync_binary_file(const std::string& directory_path, const std::string& file_name) {
   open(directory_path, file_name);
 }
@@ -44,7 +39,7 @@ int Sync_binary_file::close() {
 }
 
 
-int Sync_binary_file::write_floats(PetscReal* data, PetscInt size) {
+int Sync_binary_file::write_floats(const PetscReal* data, PetscInt size) {
   SYNC_GUARD;
   PetscFunctionBeginHot;
 #if defined(PETSC_USE_REAL_SINGLE)
