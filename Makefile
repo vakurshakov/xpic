@@ -45,12 +45,14 @@ SRCS +=                                \
 SRCS +=                                \
   src/utils/log.cpp                    \
   src/utils/configuration.cpp          \
+  src/utils/mpi_binary_file.cpp        \
   src/utils/sync_binary_file.cpp       \
 
 SRCS +=                                     \
   src/implementations/basic/simulation.cpp  \
 
 SRCS +=													                                 \
+	src/implementations/basic/diagnostics/field_view.cpp           \
 	src/implementations/basic/diagnostics/fields_energy.cpp        \
 	src/implementations/basic/diagnostics/diagnostics_builder.cpp  \
 

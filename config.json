@@ -16,6 +16,8 @@
   },
 
   "Diagnostics": {
-    "fields_energy": {}
+    "fields_energy": {},
+
+    "field_view": { "field": "E", "comp": "x" }
   }
 }
