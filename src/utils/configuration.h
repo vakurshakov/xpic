@@ -7,35 +7,47 @@
 
 class Configuration {
 public:
-  inline static void init(const std::string& config_path);
-  inline static const Configuration& get();
+  /// @note Using ordered json in case of order dependent configuration.
+  using json_t = nlohmann::ordered_json;
 
-  void save(const std::string& to = "") const;
-  void save_sources(const std::string& to = "") const;
+  /// @brief The main storage for the configuration inputted by `config.json` file.
+  json_t json;
 
+  /// @brief Root directory of the simulation output.
   std::string out_dir;
 
-  using json = nlohmann::ordered_json;
+  /**
+   * @brief Retrieves the only instance (process local) of the Configuration class.
+   * @return Read only reference to `Configuration`.
+   */
+  static const Configuration& get();
 
-  template<typename T = std::string>
-  T get(const std::string& key = "") const;
+  /**
+   * @brief Initializes configuration class instance. Should be used before any get/save operations.
+   * @param config_path Location of json file, provided by argv[1].
+   */
+  static void init(const std::string& config_path);
 
-  template<typename T = std::string>
-  T get(const std::string& key, T default_value) const;
+  /**
+   * @brief Stores the configuration json file. Overwrites the existing one, if present.
+   * @param to Location relative to `out_dir` where json file would be stored.
+   */
+  static void save(const std::string& to = "");
+
+  /**
+   * @brief Stores the entire `src/` directory.
+   * @param to Location of resulting src directory relative to `out_dir`.
+   */
+  static void save_sources(const std::string& to = "");
 
 private:
   std::string config_path_;
 
-  json item_;
-  json::json_pointer to_pointer(const std::string& key) const;
-
-  void save(const std::string& from, const std::string& to, std::filesystem::copy_options options) const;
+  static void save(const std::string& from, const std::string& to, std::filesystem::copy_options options);
 
   Configuration() = default;
-  static Configuration instance_;
+  static Configuration config;
 };
-
-#include "configuration.inl"
 
 #define CONFIG()  ::Configuration::get()
 

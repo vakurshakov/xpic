@@ -20,8 +20,8 @@ private:
   Vec get_field(const std::string& name) const;
 
   using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
-  Diagnostic_up build_fields_energy(const Configuration::json& description);
-  Diagnostic_up build_field_view(const Configuration::json& description);
+  Diagnostic_up build_fields_energy(const Configuration::json_t& description);
+  Diagnostic_up build_field_view(const Configuration::json_t& description);
 };
 
 }

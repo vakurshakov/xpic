@@ -14,10 +14,10 @@ int main(int argc, char** argv) {
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   try {
-    const Configuration& config = CONFIG();
-    config.init(argv[1]);
-    config.save();
+    Configuration::init(argv[1]);
+    Configuration::save();
 
+    const Configuration& config = CONFIG();
     LOG_INIT(config.out_dir + "/simulation.log");
 
     std::unique_ptr<interfaces::Simulation> simulation = interfaces::build_simulation();

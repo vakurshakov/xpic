@@ -73,7 +73,11 @@ using Simulation_up = std::unique_ptr<Simulation>;
 Simulation_up build_simulation() {
   Simulation_up simulation = nullptr;
 
-  std::string simulation_str = CONFIG().get("Simulation");
+  std::string simulation_str;
+
+  const Configuration& config = CONFIG();
+  config.json.at("Simulation").get_to(simulation_str);
+
   if (simulation_str == "basic") {
     return std::make_unique<basic::Simulation>();
   }

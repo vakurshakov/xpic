@@ -21,7 +21,7 @@ std::vector<Diagnostic_up> Diagnostics_builder::build() {
   LOG_TRACE("Building diagnostics");
 
   const Configuration& config = CONFIG();
-  const auto& descriptions = config.get<Configuration::json>("Diagnostics");
+  const Configuration::json_t& descriptions = config.json.at("Diagnostics");
 #endif
 
   for (const auto& [name, description] : descriptions.items()) {
@@ -42,7 +42,7 @@ std::vector<Diagnostic_up> Diagnostics_builder::build() {
 }
 
 
-Diagnostic_up Diagnostics_builder::build_fields_energy(const Configuration::json&) {
+Diagnostic_up Diagnostics_builder::build_fields_energy(const Configuration::json_t&) {
   const Configuration& config = CONFIG();
   return std::make_unique<Fields_energy>(config.out_dir + "/", simulation_.da_, simulation_.E_, simulation_.B_);
 }
@@ -54,11 +54,12 @@ Vec Diagnostics_builder::get_field(const std::string& name) const {
   throw std::runtime_error("Unknown field name!");
 }
 
-Diagnostic_up Diagnostics_builder::build_field_view(const Configuration::json& description) {
+Diagnostic_up Diagnostics_builder::build_field_view(const Configuration::json_t& description) {
   const Configuration& config = CONFIG();
 
-  // config :)))
-  std::string field_name = "B";
+  std::string field_name;
+  description.at("field").get_to(field_name);
+
   return std::make_unique<Field_view>(config.out_dir + "/" + field_name + "/", simulation_.da_, get_field(field_name));
 }
 
