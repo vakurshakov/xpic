@@ -15,7 +15,7 @@ Field_view::Field_view(const std::string& result_directory, const DM da, const V
   PetscInt dof;
   PetscCallVoid(DMDAGetDof(da_, &dof));
 
-  constexpr PetscInt ndim = 4;
+  constexpr PetscInt ndim = 4; // Provided by DMDAGetInfo(da_, &ndim, ...)
 
   PetscInt g_size[ndim];
   g_size[0] = size.z;
@@ -63,7 +63,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   Vector3<PetscInt> size;
   PetscCall(DMDAGetCorners(da_, R3C(NULL), R3DX(&size)));
 
-  PetscCallMPI(file_.write_floats(arr, (size.x * size.y * size.z)));
+  PetscCallMPI(file_.write_floats(arr, (size.x * size.y * size.z * 4)));
   PetscCallMPI(file_.close());
 
   PetscCall(VecRestoreArrayRead(field_, &arr));
