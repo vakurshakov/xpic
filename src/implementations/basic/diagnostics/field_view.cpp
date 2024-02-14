@@ -34,7 +34,6 @@ Field_view::Field_view(const std::string& result_directory, const DM da, const V
   starts[1] = 0;
   starts[2] = 0;
   starts[3] = axis;
-
   PetscCallVoid(file_.set_memview_subarray(ndim, g_size, l_size, starts));
 
   g_size[0] = geom_nz;
@@ -42,9 +41,9 @@ Field_view::Field_view(const std::string& result_directory, const DM da, const V
   g_size[2] = geom_nx;
   g_size[3] = 1;
 
-  starts[0] = start.x;
+  starts[0] = start.z;
   starts[1] = start.y;
-  starts[2] = start.z;
+  starts[2] = start.x;
   starts[3] = 0;
   PetscCallVoid(file_.set_fileview_subarray(ndim, g_size, l_size, starts));
 }
