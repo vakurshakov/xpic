@@ -22,8 +22,9 @@ private:
   Axis get_component(const std::string& name) const;
 
   using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
-  Diagnostic_up build_fields_energy(const Configuration::json_t& description);
-  Diagnostic_up build_field_view(const Configuration::json_t& description);
+  using Diagnostics_vector = std::vector<Diagnostic_up>;
+  void build_fields_energy(const Configuration::json_t& diag_info, Diagnostics_vector& result);
+  void build_field_view(const Configuration::json_t& diag_info, Diagnostics_vector& result);
 };
 
 }

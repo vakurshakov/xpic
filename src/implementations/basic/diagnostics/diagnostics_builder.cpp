@@ -12,10 +12,12 @@ namespace basic {
 Diagnostics_builder::Diagnostics_builder(const Simulation& simulation)
   : simulation_(simulation) {}
 
-using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
 
-std::vector<Diagnostic_up> Diagnostics_builder::build() {
-  std::vector<Diagnostic_up> diagnostics;
+using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
+using Diagnostics_vector = std::vector<Diagnostic_up>;
+
+Diagnostics_vector Diagnostics_builder::build() {
+  Diagnostics_vector result;
 
 #if INIT_CONFIGURATION
   LOG_TRACE("Building diagnostics");
@@ -24,27 +26,26 @@ std::vector<Diagnostic_up> Diagnostics_builder::build() {
   const Configuration::json_t& descriptions = config.json.at("Diagnostics");
 #endif
 
-  for (const auto& [name, description] : descriptions.items()) {
+  for (const auto& [diag_name, diag_info] : descriptions.items()) {
 #if FIELDS_DIAGNOSTICS
-    if (name == "fields_energy") {
+    if (diag_name == "fields_energy") {
       LOG_INFO("Add fields energy diagnostic");
-      diagnostics.emplace_back(build_fields_energy(description));
+      build_fields_energy(diag_info, result);
     }
-    else if (name == "field_view") {
+    else if (diag_name == "field_view") {
       LOG_INFO("Add field view diagnostic");
-      diagnostics.emplace_back(build_field_view(description));
+      build_field_view(diag_info, result);
     }
 #endif
   }
 
-  diagnostics.shrink_to_fit();
-  return diagnostics;
+  result.shrink_to_fit();
+  return result;
 }
 
 
-Diagnostic_up Diagnostics_builder::build_fields_energy(const Configuration::json_t&) {
-  const Configuration& config = CONFIG();
-  return std::make_unique<Fields_energy>(config.out_dir + "/", simulation_.da_, simulation_.E_, simulation_.B_);
+void Diagnostics_builder::build_fields_energy(const Configuration::json_t& /* diag_info */, Diagnostics_vector& result) {
+  result.emplace_back(std::make_unique<Fields_energy>(CONFIG().out_dir + "/", simulation_.da_, simulation_.E_, simulation_.B_));
 }
 
 
@@ -61,17 +62,37 @@ Axis Diagnostics_builder::get_component(const std::string& name) const {
   throw std::runtime_error("Unknown component name!");
 }
 
-Diagnostic_up Diagnostics_builder::build_field_view(const Configuration::json_t& description) {
-  const Configuration& config = CONFIG();
-
+struct Field_description {
   std::string field_name;
-  description.at("field").get_to(field_name);
-
   std::string component_name;
-  description.at("comp").get_to(component_name);
+};
 
-  return std::make_unique<Field_view>(config.out_dir + "/" + field_name + component_name + "/",
-    simulation_.da_, get_field(field_name), get_component(component_name));
+using Field_descriptions = std::vector<Field_description>;
+
+void from_json(const Configuration::json_t& json, Field_description& desc) {
+  json.at("field").get_to(desc.field_name);
+  json.at("comp").get_to(desc.component_name);
+}
+
+void Diagnostics_builder::build_field_view(const Configuration::json_t& diag_info, Diagnostics_vector& result) {
+  Field_descriptions fields_desc;
+
+  if (!diag_info.is_array()) {
+    fields_desc.emplace_back(diag_info.get<Field_description>());
+  }
+  else {
+    for (const Configuration::json_t& info : diag_info) {
+      fields_desc.emplace_back(info.get<Field_description>());
+    }
+  }
+
+  for (const auto& [field_name, component_name] : fields_desc) {
+    LOG_INFO("Field view diagnostic is added for {}{}", field_name, component_name);
+
+    result.emplace_back(std::make_unique<Field_view>(
+      CONFIG().out_dir + "/" + field_name + component_name + "/",
+      simulation_.da_, get_field(field_name), get_component(component_name)));
+  }
 }
 
 }

@@ -18,6 +18,10 @@
   "Diagnostics": {
     "fields_energy": {},
 
-    "field_view": { "field": "E", "comp": "x" }
+    "field_view": [
+      { "field": "E", "comp": "x" },
+      { "field": "E", "comp": "y" },
+      { "field": "E", "comp": "z" }
+    ]
   }
 }
