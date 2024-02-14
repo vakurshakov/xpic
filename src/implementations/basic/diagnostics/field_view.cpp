@@ -55,7 +55,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   int time_width = std::to_string(geom_nt).size();
   std::stringstream ss;
   ss << std::setw(time_width) << std::setfill('0') << t;
-  PetscCallMPI(file_.open(PETSC_COMM_WORLD, result_directory_, ss.str()));
+  PetscCall(file_.open(PETSC_COMM_WORLD, result_directory_, ss.str()));
 
   const PetscReal *arr;
   PetscCall(VecGetArrayRead(field_, &arr));
@@ -63,8 +63,8 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   Vector3<PetscInt> size;
   PetscCall(DMDAGetCorners(da_, R3C(NULL), R3DX(&size)));
 
-  PetscCallMPI(file_.write_floats(arr, (size.x * size.y * size.z * 4)));
-  PetscCallMPI(file_.close());
+  PetscCall(file_.write_floats(arr, (size.x * size.y * size.z * 4)));
+  PetscCall(file_.close());
 
   PetscCall(VecRestoreArrayRead(field_, &arr));
   PetscFunctionReturn(PETSC_SUCCESS);
