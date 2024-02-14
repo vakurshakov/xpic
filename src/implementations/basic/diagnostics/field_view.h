@@ -8,18 +8,20 @@
 
 #include "src/pch.h"
 #include "src/utils/mpi_binary_file.h"
+#include "src/vectors/vector_classes.h"
 
 namespace basic {
 
 class Field_view : public interfaces::Diagnostic {
 public:
-  Field_view(const std::string& result_directory, const DM da, const Vec field);
+  Field_view(const std::string& result_directory, const DM da, const Vec field, Axis axis);
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
   const DM da_;
   const Vec field_;
 
+  Axis axis_;
   MPI_binary_file file_;
 };
 

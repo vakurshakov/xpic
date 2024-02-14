@@ -4,6 +4,7 @@
 #include "src/interfaces/diagnostic.h"
 
 #include "src/pch.h"
+#include "src/vectors/vector_classes.h"
 #include "src/implementations/basic/simulation.h"
 
 namespace basic
@@ -18,6 +19,7 @@ private:
   const Simulation& simulation_;
 
   Vec get_field(const std::string& name) const;
+  Axis get_component(const std::string& name) const;
 
   using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
   Diagnostic_up build_fields_energy(const Configuration::json_t& description);

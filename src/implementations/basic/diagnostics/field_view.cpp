@@ -7,8 +7,8 @@ namespace fs = std::filesystem;
 
 namespace basic {
 
-Field_view::Field_view(const std::string& result_directory, const DM da, const Vec field)
-  : interfaces::Diagnostic(result_directory), da_(da), field_(field) {
+Field_view::Field_view(const std::string& result_directory, const DM da, const Vec field, Axis axis)
+  : interfaces::Diagnostic(result_directory), da_(da), field_(field), axis_(axis) {
   Vector3<PetscInt> start, size;
   PetscCallVoid(DMDAGetCorners(da_, R3DX(&start), R3DX(&size)));
 
@@ -33,7 +33,7 @@ Field_view::Field_view(const std::string& result_directory, const DM da, const V
   starts[0] = 0;
   starts[1] = 0;
   starts[2] = 0;
-  starts[3] = 1;
+  starts[3] = axis;
 
   PetscCallVoid(file_.set_memview_subarray(ndim, g_size, l_size, starts));
 

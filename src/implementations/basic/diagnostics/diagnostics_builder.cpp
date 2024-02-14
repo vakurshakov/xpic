@@ -54,13 +54,24 @@ Vec Diagnostics_builder::get_field(const std::string& name) const {
   throw std::runtime_error("Unknown field name!");
 }
 
+Axis Diagnostics_builder::get_component(const std::string& name) const {
+  if (name == "x") return X;
+  if (name == "y") return Y;
+  if (name == "z") return Z;
+  throw std::runtime_error("Unknown component name!");
+}
+
 Diagnostic_up Diagnostics_builder::build_field_view(const Configuration::json_t& description) {
   const Configuration& config = CONFIG();
 
   std::string field_name;
   description.at("field").get_to(field_name);
 
-  return std::make_unique<Field_view>(config.out_dir + "/" + field_name + "/", simulation_.da_, get_field(field_name));
+  std::string component_name;
+  description.at("comp").get_to(component_name);
+
+  return std::make_unique<Field_view>(config.out_dir + "/" + field_name + component_name + "/",
+    simulation_.da_, get_field(field_name), get_component(component_name));
 }
 
 }
