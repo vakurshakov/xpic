@@ -18,8 +18,8 @@ public:
 
   /// should be set only once, other set(s) are no-op since type is already commited
   /// PetscReal type (with MPIU_REAL size) is the only assumed type
-  PetscErrorCode set_memview_subarray(int ndim, const int sizes[], const int subsizes[], const int starts[]);
-  PetscErrorCode set_fileview_subarray(int ndim, const int sizes[], const int subsizes[], const int starts[]);
+  PetscErrorCode set_memview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]);
+  PetscErrorCode set_fileview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]);
 
   PetscErrorCode write_floats(const PetscReal* data, PetscInt size);
 

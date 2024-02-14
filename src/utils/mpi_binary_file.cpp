@@ -50,18 +50,32 @@ PetscErrorCode MPI_binary_file::close() {
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-PetscErrorCode MPI_binary_file::set_memview_subarray(int ndim, const int sizes[], const int subsizes[], const int starts[]) {
+PetscErrorCode create_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[], MPI_Datatype* type) {
   PetscFunctionBegin;
-  PetscCallMPI(MPI_Type_create_subarray(ndim, sizes, subsizes, starts, MPI_ORDER_C, MPI_FLOAT, &memview_));
-  PetscCallMPI(MPI_Type_commit(&memview_));
+  PetscMPIInt d;
+  PetscCall(PetscMPIIntCast(ndim, &d));
+
+  std::vector<PetscMPIInt> sz(d), st(d), sb(d);
+  for (PetscMPIInt i = 0; i < d; ++i) {
+    PetscCall(PetscMPIIntCast(sizes[i], &sz[i]));
+    PetscCall(PetscMPIIntCast(starts[i], &st[i]));
+    PetscCall(PetscMPIIntCast(subsizes[i], &sb[i]));
+  }
+  PetscCallMPI(MPI_Type_create_subarray(d, sz.data(), sb.data(), st.data(), MPI_ORDER_C, MPI_FLOAT, type));
+  PetscCallMPI(MPI_Type_commit(type));
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-PetscErrorCode MPI_binary_file::set_fileview_subarray(int ndim, const int sizes[], const int subsizes[], const int starts[]) {
+PetscErrorCode MPI_binary_file::set_memview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]) {
   PetscFunctionBegin;
-  PetscCallMPI(MPI_Type_create_subarray(ndim, sizes, subsizes, starts, MPI_ORDER_C, MPI_FLOAT, &fileview_));
-  PetscCallMPI(MPI_Type_commit(&fileview_));
-  PetscFunctionReturn(MPI_SUCCESS);
+  PetscCall(create_subarray(ndim, sizes, subsizes, starts, &memview_));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MPI_binary_file::set_fileview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]) {
+  PetscFunctionBegin;
+  PetscCall(create_subarray(ndim, sizes, subsizes, starts, &fileview_));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode MPI_binary_file::write_floats(const PetscReal* data, PetscInt size) {
