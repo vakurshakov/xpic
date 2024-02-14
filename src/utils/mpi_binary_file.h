@@ -23,6 +23,7 @@ public:
   /// should be set only once, other set(s) are no-op since type is already commited
   /// PetscReal type (with MPIU_REAL size) is the only assumed type
   int set_memview_subarray(int ndim, const int sizes[], const int subsizes[], const int starts[]);
+  int set_fileview_subarray(int ndim, const int sizes[], const int subsizes[], const int starts[]);
 
   int write_floats(const PetscReal* data, PetscInt size);
 

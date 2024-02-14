@@ -17,10 +17,10 @@ public:
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
-  MPI_binary_file file_;
-
   const DM da_;
   const Vec field_;
+
+  MPI_binary_file file_;
 };
 
 }

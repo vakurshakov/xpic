@@ -34,6 +34,7 @@ int MPI_binary_file::open(MPI_Comm comm, const std::string& directory_path, cons
   PetscCallMPI(MPI_Barrier(comm_));
 
   PetscCallMPI(MPI_File_open(comm_, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file_));
+  PetscCallMPI(MPI_File_set_view(file_, 0, MPIU_REAL, fileview_, "native", MPI_INFO_NULL));
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
@@ -49,18 +50,17 @@ int MPI_binary_file::close() {
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
-
 int MPI_binary_file::set_memview_subarray(int ndim, const int sizes[], const int subsizes[], const int starts[]) {
   PetscFunctionBegin;
   PetscCallMPI(MPI_Type_create_subarray(ndim, sizes, subsizes, starts, MPI_ORDER_C, MPIU_REAL, &memview_));
   PetscCallMPI(MPI_Type_commit(&memview_));
+  PetscFunctionReturn(MPI_SUCCESS);
+}
 
-  int rank;
-  PetscCallMPI(MPI_Comm_rank(comm_, &rank));
-
-  MPI_Offset disp = rank * sizeof(MPIU_REAL);
-  for (int i = 0; i < ndim; ++i) { disp *= subsizes[i]; }
-  PetscCallMPI(MPI_File_set_view(file_, disp, MPIU_REAL, MPIU_REAL, "native", MPI_INFO_NULL));
+int MPI_binary_file::set_fileview_subarray(int ndim, const int sizes[], const int subsizes[], const int starts[]) {
+  PetscFunctionBegin;
+  PetscCallMPI(MPI_Type_create_subarray(ndim, sizes, subsizes, starts, MPI_ORDER_C, MPIU_REAL, &fileview_));
+  PetscCallMPI(MPI_Type_commit(&fileview_));
   PetscFunctionReturn(MPI_SUCCESS);
 }
 
