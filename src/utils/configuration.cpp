@@ -1,5 +1,7 @@
 #include "configuration.h"
 
+#include "src/utils/utils.h"
+
 namespace fs = std::filesystem;
 
 Configuration Configuration::config;
@@ -29,7 +31,6 @@ void Configuration::init(const std::string& config_path)
   geometry.at("size_z").get_to(geom_z);
   geometry.at("size_t").get_to(geom_t);
 
-#define TO_STEP(dim, ds) static_cast<int>(round(dim / ds))
   geom_nx = TO_STEP(geom_x, dx);
   geom_ny = TO_STEP(geom_y, dy);
   geom_nz = TO_STEP(geom_z, dz);
@@ -39,7 +40,6 @@ void Configuration::init(const std::string& config_path)
   geometry.at("diagnose_period").get_to(diagnose_period_wp);
 
   diagnose_period = TO_STEP(diagnose_period_wp, dt);
-#undef TO_STEP
 }
 
 

@@ -13,4 +13,6 @@ struct Triplet {
 #define R3DX(expr) (expr.x), (expr.y), (expr.z)
 #define R3CX(expr) (expr##x), (expr##y), (expr##z)
 
+#define TO_STEP(s, ds) static_cast<PetscInt>(round(s / ds))
+
 #endif // SRC_UTILS_UTILS_H
