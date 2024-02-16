@@ -72,7 +72,27 @@ struct Field_description {
 
 using Fields_description = std::vector<Field_description>;
 
-void validate_field_description(const Field_description& desc) {
+void parse_field_info(const Configuration::json_t& json, Field_description& desc) {
+  /// @todo turn it into try-catch and print the usage info
+  json.at("field").get_to(desc.field_name);
+  json.at("comp").get_to(desc.component_name);
+
+  /// @todo can be skipped to diagnose all three components
+  desc.region.start[3] = get_component(desc.component_name);
+  desc.region.size[3] = 1;
+
+  /// @todo add check here for start.size() == 3 && size.size() == 3
+  const Configuration::array_t& start = json.at("start");
+  const Configuration::array_t& size = json.at("size");
+
+  // Region in the configuration file is in global coordinates
+  for (int i = 0; i < 3; ++i) {
+    desc.region.start[i] = TO_STEP(start[i].get<PetscReal>(), Dx[i]);
+    desc.region.size[i] = TO_STEP(size[i].get<PetscReal>(), Dx[i]);
+  }
+}
+
+void check_field_description(const Field_description& desc) {
   bool is_field_name_correct =
     (desc.field_name == "E") ||
     (desc.field_name == "B");
@@ -115,34 +135,37 @@ void validate_field_description(const Field_description& desc) {
   }
 }
 
-void parse_field_info(const Configuration::json_t& json, Fields_description& result) {
-  /// @todo turn it into try-catch and print the usage info
-  Field_description desc;
-  json.at("field").get_to(desc.field_name);
-  json.at("comp").get_to(desc.component_name);
+// Attach diagnostic only to those processes, where `desc.region` lies
+void attach_field_description(const DM& da, Field_description&& desc, Fields_description& result) {
+  Vector3<PetscInt> start, size;
+  PetscCallVoid(DMDAGetCorners(da, R3DX(&start), R3DX(&size)));
 
-  /// @todo can be skipped to diagnose all three components
-  desc.region.start[3] = get_component(desc.component_name);
-  desc.region.size[3] = 1;
-
-  /// @todo add check here for start.size() == 3 && size.size() == 3
-  const Configuration::array_t& start = json.at("start");
-  const Configuration::array_t& size = json.at("size");
-
-  for (int i = 0; i < 3; ++i) {
-    desc.region.start[i] = TO_STEP(start[i].get<PetscReal>(), Dx[i]);
-    desc.region.size[i] = TO_STEP(size[i].get<PetscReal>(), Dx[i]);
-  }
-
-  validate_field_description(desc);
-
-  /// @todo attach diagnostic only to those processes, where `desc.region` lies
-  // communicate_fields_descriptions(fields_desc);
+  // check if the local region overlaps with global
+  // const Field_view::Region& region = desc.region;
+  // bool is_region_in_bounds =
+  //   (0 <= region.start[X] && region.start[X] < geom_nx) &&
+  //   (0 <= region.start[Y] && region.start[Y] < geom_ny) &&
+  //   (0 <= region.start[Z] && region.start[Z] < geom_nz) &&
+  //   (0 <= (region.start[X] + region.size[X]) && (region.start[X] + region.size[X]) <= geom_nx) &&
+  //   (0 <= (region.start[Y] + region.size[Y]) && (region.start[Y] + region.size[Y]) <= geom_ny) &&
+  //   (0 <= (region.start[Z] + region.size[Z]) && (region.start[Z] + region.size[Z]) <= geom_nz);
+  //
+  // MPI_Comm new_comm;
+  // MPI_Comm_split(PETSC_COMM_WORLD, color, rank, &new_comm);
 
   // Region coordinates are used in C-order (z, y, x, dof)
   // inside of the Field_view, which is dictated by Petsc.
-  std::swap(desc.region.start[0], desc.region.start[2]);
-  std::swap(desc.region.size[0], desc.region.size[2]);
+  Field_view::Region& region = desc.region;
+  std::swap(region.start[0], region.start[2]);
+  std::swap(region.size[0], region.size[2]);
+
+  region.start[0] = std::min(region.start[0], start.z);
+  region.start[1] = std::min(region.start[1], start.y);
+  region.start[2] = std::min(region.start[2], start.x);
+
+  region.size[0] = std::min(region.start[0], size.z);
+  region.size[1] = std::min(region.start[1], size.y);
+  region.size[2] = std::min(region.start[2], size.x);
 
   result.emplace_back(std::move(desc));
 }
@@ -150,12 +173,19 @@ void parse_field_info(const Configuration::json_t& json, Fields_description& res
 void Diagnostics_builder::build_fields_view(const Configuration::json_t& diag_info, Diagnostics_vector& result) {
   Fields_description fields_desc;
 
+  auto parse_info = [&](const Configuration::json_t& info) {
+    Field_description desc;
+    parse_field_info(info, desc);
+    check_field_description(desc);
+    attach_field_description(simulation_.da_, std::move(desc), fields_desc);
+  };
+
   if (!diag_info.is_array()) {
-    parse_field_info(diag_info, fields_desc);
+    parse_info(diag_info);
   }
   else {
     for (const Configuration::json_t& info : diag_info) {
-      parse_field_info(info, fields_desc);
+      parse_info(info);
     }
   }
 
