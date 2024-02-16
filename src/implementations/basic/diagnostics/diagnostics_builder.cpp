@@ -17,12 +17,11 @@ Diagnostics_builder::Diagnostics_builder(const Simulation& simulation)
 using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
 using Diagnostics_vector = std::vector<Diagnostic_up>;
 
-Diagnostics_vector Diagnostics_builder::build() {
-  Diagnostics_vector result;
+PetscErrorCode Diagnostics_builder::build(Diagnostics_vector& result) {
+  PetscFunctionBegin;
 
 #if INIT_CONFIGURATION
   LOG_TRACE("Building diagnostics");
-
   const Configuration& config = CONFIG();
   const Configuration::json_t& descriptions = config.json.at("Diagnostics");
 #endif
@@ -31,22 +30,23 @@ Diagnostics_vector Diagnostics_builder::build() {
 #if FIELDS_DIAGNOSTICS
     if (diag_name == "fields_energy") {
       LOG_INFO("Add fields energy diagnostic");
-      build_fields_energy(diag_info, result);
+      PetscCall(build_fields_energy(diag_info, result));
     }
     else if (diag_name == "field_view") {
       LOG_INFO("Add field view diagnostic");
-      build_fields_view(diag_info, result);
+      PetscCall(build_fields_view(diag_info, result));
     }
 #endif
   }
-
   result.shrink_to_fit();
-  return result;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-void Diagnostics_builder::build_fields_energy(const Configuration::json_t& /* diag_info */, Diagnostics_vector& result) {
+PetscErrorCode Diagnostics_builder::build_fields_energy(const Configuration::json_t& /* diag_info */, Diagnostics_vector& result) {
+  PetscFunctionBegin;
   result.emplace_back(std::make_unique<Fields_energy>(CONFIG().out_dir + "/", simulation_.da_, simulation_.E_, simulation_.B_));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -72,7 +72,8 @@ struct Field_description {
 
 using Fields_description = std::vector<Field_description>;
 
-void parse_field_info(const Configuration::json_t& json, Field_description& desc) {
+PetscErrorCode parse_field_info(const Configuration::json_t& json, Field_description& desc) {
+  PetscFunctionBegin;
   /// @todo turn it into try-catch and print the usage info
   json.at("field").get_to(desc.field_name);
   json.at("comp").get_to(desc.component_name);
@@ -90,25 +91,20 @@ void parse_field_info(const Configuration::json_t& json, Field_description& desc
     desc.region.start[i] = TO_STEP(start[i].get<PetscReal>(), Dx[i]);
     desc.region.size[i] = TO_STEP(size[i].get<PetscReal>(), Dx[i]);
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void check_field_description(const Field_description& desc) {
-  bool is_field_name_correct =
-    (desc.field_name == "E") ||
-    (desc.field_name == "B");
+PetscErrorCode check_field_description(const Field_description& desc) {
+  PetscFunctionBegin;
+  std::string message;
 
-  if (!is_field_name_correct) {
-    throw std::runtime_error("Unknown field name for Field_view diagnostics.");
-  }
+  bool is_field_name_correct = (desc.field_name == "E") || (desc.field_name == "B");
+  message = "Unknown field name for Field_view diagnostics.";
+  PetscCheck(is_field_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  bool is_component_name_correct =
-    (desc.component_name == "x") ||
-    (desc.component_name == "y") ||
-    (desc.component_name == "z");
-
-  if (!is_component_name_correct) {
-    throw std::runtime_error("Unknown component name for Field_view diagnostic of " + desc.field_name + " field.");
-  }
+  bool is_component_name_correct = (desc.component_name == "x") || (desc.component_name == "y") || (desc.component_name == "z");
+  message = "Unknown component name for Field_view diagnostic of " + desc.field_name + " field.";
+  PetscCheck(is_component_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
   const Field_view::Region& region = desc.region;
   bool is_region_in_bounds =
@@ -119,26 +115,21 @@ void check_field_description(const Field_description& desc) {
     (0 <= (region.start[Y] + region.size[Y]) && (region.start[Y] + region.size[Y]) <= geom_ny) &&
     (0 <= (region.start[Z] + region.size[Z]) && (region.start[Z] + region.size[Z]) <= geom_nz);
 
-  if (!is_region_in_bounds) {
-    throw std::runtime_error("Region is not in global boundaries for " +
-      desc.field_name + desc.component_name + " diagnostic.");
-  }
+  message = "Region is not in global boundaries for " + desc.field_name + desc.component_name + " diagnostic.";
+  PetscCheck(is_region_in_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  bool are_sizes_positive =
-    (region.size[X] > 0) &&
-    (region.size[Y] > 0) &&
-    (region.size[Z] > 0);
+  bool are_sizes_positive = (region.size[X] > 0) && (region.size[Y] > 0) && (region.size[Z] > 0);
+  message = "Sizes are negative for " + desc.field_name + desc.component_name + " diagnostic.";
+  PetscCheck(are_sizes_positive, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  if (!are_sizes_positive) {
-    throw std::runtime_error("Sizes are negative for " +
-      desc.field_name + desc.component_name + " diagnostic.");
-  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // Attach diagnostic only to those processes, where `desc.region` lies
-void attach_field_description(const DM& da, Field_description&& desc, Fields_description& result) {
+PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, Fields_description& result) {
+  PetscFunctionBegin;
   Vector3<PetscInt> start, size;
-  PetscCallVoid(DMDAGetCorners(da, R3DX(&start), R3DX(&size)));
+  PetscCall(DMDAGetCorners(da, R3DX(&start), R3DX(&size)));
 
   // check if the local region overlaps with global
   // const Field_view::Region& region = desc.region;
@@ -168,24 +159,28 @@ void attach_field_description(const DM& da, Field_description&& desc, Fields_des
   region.size[2] = std::min(region.start[2], size.x);
 
   result.emplace_back(std::move(desc));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void Diagnostics_builder::build_fields_view(const Configuration::json_t& diag_info, Diagnostics_vector& result) {
+PetscErrorCode Diagnostics_builder::build_fields_view(const Configuration::json_t& diag_info, Diagnostics_vector& result) {
+  PetscFunctionBegin;
   Fields_description fields_desc;
 
-  auto parse_info = [&](const Configuration::json_t& info) {
+  auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
+    PetscFunctionBegin;
     Field_description desc;
-    parse_field_info(info, desc);
-    check_field_description(desc);
-    attach_field_description(simulation_.da_, std::move(desc), fields_desc);
+    PetscCall(parse_field_info(info, desc));
+    PetscCall(check_field_description(desc));
+    PetscCall(attach_field_description(simulation_.da_, std::move(desc), fields_desc));
+    PetscFunctionReturn(PETSC_SUCCESS);
   };
 
   if (!diag_info.is_array()) {
-    parse_info(diag_info);
+    PetscCall(parse_info(diag_info));
   }
   else {
     for (const Configuration::json_t& info : diag_info) {
-      parse_info(info);
+      PetscCall(parse_info(info));
     }
   }
 
@@ -196,10 +191,11 @@ void Diagnostics_builder::build_fields_view(const Configuration::json_t& diag_in
       CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/",
       simulation_.da_, get_field(desc.field_name));
 
-    diag->set_diagnosed_region(desc.region);
+    PetscCall(diag->set_diagnosed_region(desc.region));
 
     result.emplace_back(std::move(diag));
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 }

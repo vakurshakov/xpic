@@ -14,8 +14,7 @@ class Diagnostics_builder {
 public:
   Diagnostics_builder(const Simulation& simulation);
 
-  /// @todo change the signature to petsc-like
-  std::vector<std::unique_ptr<interfaces::Diagnostic>> build();
+  PetscErrorCode build(std::vector<std::unique_ptr<interfaces::Diagnostic>>& diagnostics);
 
 private:
   const Simulation& simulation_;
@@ -24,8 +23,8 @@ private:
 
   using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
   using Diagnostics_vector = std::vector<Diagnostic_up>;
-  void build_fields_energy(const Configuration::json_t& diag_info, Diagnostics_vector& result);
-  void build_fields_view(const Configuration::json_t& diag_info, Diagnostics_vector& result);
+  PetscErrorCode build_fields_energy(const Configuration::json_t& diag_info, Diagnostics_vector& result);
+  PetscErrorCode build_fields_view(const Configuration::json_t& diag_info, Diagnostics_vector& result);
 };
 
 }

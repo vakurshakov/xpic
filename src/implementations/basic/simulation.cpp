@@ -25,7 +25,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(setup_negative_rotor());
 
   Diagnostics_builder diagnostics_builder(*this);
-  diagnostics_ = diagnostics_builder.build();
+  PetscCall(diagnostics_builder.build(diagnostics_));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
