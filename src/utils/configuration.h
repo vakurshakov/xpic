@@ -9,6 +9,7 @@ class Configuration {
 public:
   /// @note Using ordered json in case of order dependent configuration.
   using json_t = nlohmann::ordered_json;
+  using array_t = nlohmann::ordered_json::array_t;
 
   /// @brief The main storage for the configuration inputted by `config.json` file.
   json_t json;

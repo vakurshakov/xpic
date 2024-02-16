@@ -7,34 +7,36 @@ namespace fs = std::filesystem;
 
 namespace basic {
 
-Field_view::Field_view(const std::string& result_directory, const DM da, const Vec field, Axis axis)
-  : interfaces::Diagnostic(result_directory), da_(da), field_(field), axis_(axis) {
+Field_view::Field_view(const std::string& result_directory, const DM& da, const Vec& field)
+  : interfaces::Diagnostic(result_directory), da_(da), field_(field) {}
+
+PetscErrorCode Field_view::set_diagnosed_region(const Region& /* region */) {
+  PetscFunctionBegin;
+
   Vector3<PetscInt> start, size;
-  PetscCallVoid(DMDAGetCorners(da_, R3DX(&start), R3DX(&size)));
+  PetscCall(DMDAGetCorners(da_, R3DX(&start), R3DX(&size)));
 
   PetscInt dof;
-  PetscCallVoid(DMDAGetDof(da_, &dof));
+  PetscCall(DMDAGetDof(da_, &dof));
 
-  constexpr PetscInt ndim = 4; // Provided by DMDAGetInfo(da_, &ndim, ...)
-
-  PetscInt g_size[ndim];
+  PetscInt g_size[Region::ndim];
   g_size[0] = size.z;
   g_size[1] = size.y;
   g_size[2] = size.x;
   g_size[3] = dof;
 
-  PetscInt l_size[ndim];
+  PetscInt l_size[Region::ndim];
   l_size[0] = size.z;
   l_size[1] = size.y;
   l_size[2] = size.x;
   l_size[3] = 1;
 
-  PetscInt starts[ndim];
+  PetscInt starts[Region::ndim];
   starts[0] = 0;
   starts[1] = 0;
   starts[2] = 0;
-  starts[3] = axis;
-  PetscCallVoid(file_.set_memview_subarray(ndim, g_size, l_size, starts));
+  starts[3] = 1;
+  PetscCall(file_.set_memview_subarray(Region::ndim, g_size, l_size, starts));
 
   g_size[0] = geom_nz;
   g_size[1] = geom_ny;
@@ -45,7 +47,8 @@ Field_view::Field_view(const std::string& result_directory, const DM da, const V
   starts[1] = start.y;
   starts[2] = start.x;
   starts[3] = 0;
-  PetscCallVoid(file_.set_fileview_subarray(ndim, g_size, l_size, starts));
+  PetscCall(file_.set_fileview_subarray(Region::ndim, g_size, l_size, starts));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Field_view::diagnose(timestep_t t) {

@@ -14,14 +14,21 @@ namespace basic {
 
 class Field_view : public interfaces::Diagnostic {
 public:
-  Field_view(const std::string& result_directory, const DM da, const Vec field, Axis axis);
+  struct Region {
+    // Provided by DMDAGetInfo(da_, &ndim, ...)
+    static constexpr PetscInt ndim = 4;
+    PetscInt start[ndim];
+    PetscInt size[ndim];
+  };
+
+  Field_view(const std::string& result_directory, const DM& da, const Vec& field);
+
+  PetscErrorCode set_diagnosed_region(const Region& region);
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
-  const DM da_;
-  const Vec field_;
-
-  Axis axis_;
+  const DM& da_;
+  const Vec& field_;
   MPI_binary_file file_;
 };
 

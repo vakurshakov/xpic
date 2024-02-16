@@ -7,10 +7,10 @@
   "Simulation": "basic",
 
   "Geometry": {
-    "size_x": 100.0,  "dx": 1.0,  "__units.x": "c/w_pe",
-    "size_y": 100.0,  "dy": 1.0,  "__units.y": "c/w_pe",
-    "size_z": 100.0,  "dz": 1.0,  "__units.z": "c/w_pe",
-    "size_t": 250.0,  "dt": 0.5,  "__units.t": "1/w_pe",
+    "size_x": 4.0,  "dx": 1.0,  "__units.x": "c/w_pe",
+    "size_y": 4.0,  "dy": 1.0,  "__units.y": "c/w_pe",
+    "size_z": 1.0,  "dz": 1.0,  "__units.z": "c/w_pe",
+    "size_t": 1.0,  "dt": 0.5,  "__units.t": "1/w_pe",
 
     "diagnose_period": 2.5,  "__units.dp": "1/w_pe"
   },
@@ -19,9 +19,9 @@
     "fields_energy": {},
 
     "field_view": [
-      { "field": "E", "comp": "x" },
-      { "field": "E", "comp": "y" },
-      { "field": "E", "comp": "z" }
+      { "field": "E", "comp": "x", "start": [0, 0, 0], "size": [4, 4, 1], "__units": "c/w_pe" },
+      { "field": "E", "comp": "y", "start": [0, 0, 0], "size": [4, 4, 1], "__units": "c/w_pe" },
+      { "field": "E", "comp": "z", "start": [0, 0, 0], "size": [4, 4, 1], "__units": "c/w_pe" }
     ]
   }
 }
