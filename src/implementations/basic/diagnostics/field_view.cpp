@@ -14,39 +14,39 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& /* region */) {
   PetscFunctionBegin;
 
   Vector3<PetscInt> start, size;
-  PetscCall(DMDAGetCorners(da_, R3DX(&start), R3DX(&size)));
+  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
 
   PetscInt dof;
   PetscCall(DMDAGetDof(da_, &dof));
 
   PetscInt g_size[Region::ndim];
-  g_size[0] = size.z;
-  g_size[1] = size.y;
-  g_size[2] = size.x;
-  g_size[3] = dof;
+  g_size[X] = size[Z];
+  g_size[Y] = size[Y];
+  g_size[Z] = size[X];
+  g_size[C] = dof;
 
   PetscInt l_size[Region::ndim];
-  l_size[0] = size.z;
-  l_size[1] = size.y;
-  l_size[2] = size.x;
-  l_size[3] = 1;
+  l_size[X] = size[Z];
+  l_size[Y] = size[Y];
+  l_size[Z] = size[X];
+  l_size[C] = 1;
 
   PetscInt starts[Region::ndim];
-  starts[0] = 0;
-  starts[1] = 0;
-  starts[2] = 0;
-  starts[3] = 1;
+  starts[X] = 0;
+  starts[Y] = 0;
+  starts[Z] = 0;
+  starts[C] = 1;
   PetscCall(file_.set_memview_subarray(Region::ndim, g_size, l_size, starts));
 
-  g_size[0] = geom_nz;
-  g_size[1] = geom_ny;
-  g_size[2] = geom_nx;
-  g_size[3] = 1;
+  g_size[X] = geom_nz;
+  g_size[Y] = geom_ny;
+  g_size[Z] = geom_nx;
+  g_size[C] = 1;
 
-  starts[0] = start.z;
-  starts[1] = start.y;
-  starts[2] = start.x;
-  starts[3] = 0;
+  starts[X] = start[Z];
+  starts[Y] = start[Y];
+  starts[Z] = start[X];
+  starts[C] = 0;
   PetscCall(file_.set_fileview_subarray(Region::ndim, g_size, l_size, starts));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -63,9 +63,9 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   PetscCall(VecGetArrayRead(field_, &arr));
 
   Vector3<PetscInt> size;
-  PetscCall(DMDAGetCorners(da_, R3C(NULL), R3DX(&size)));
+  PetscCall(DMDAGetCorners(da_, REP3(NULL), REP3_A(&size)));
 
-  PetscCall(file_.write_floats(arr, (size.x * size.y * size.z * 4)));
+  PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z] * 4)));
   PetscCall(file_.close());
 
   PetscCall(VecRestoreArrayRead(field_, &arr));

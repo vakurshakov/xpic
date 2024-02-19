@@ -1,263 +1,188 @@
 #include "vector_classes.h"
 
-#include <petscmath.h>  // for sqrt
+#include <cmath>  // for sqrt
 
-template<typename T>
-Vector2<T>& Vector2<T>::operator+=(const Vector2<T>& other) {
-  x += other.x;
-  y += other.y;
-  return *this;
-}
+#define VECTOR_DEFAULT_CONSTRUCTORS_IMPL(VEC_T, N)                                                \
+  template<typename T> constexpr VEC_T<T>::VEC_T() : data{REP##N(0)} {}                           \
+  template<typename T> constexpr VEC_T<T>::VEC_T(const T& v) : data{REP##N(v)} {}                 \
+  template<typename T> constexpr VEC_T<T>::VEC_T(REP##N##_N(const T& x)) : data{REP##N##_N(x)} {} \
+  template<typename T> constexpr VEC_T<T>::VEC_T(const T v[VEC_T##_dim]) : data{REP##N##_A(v)} {} \
 
-template<typename T>
-Vector2<T>& Vector2<T>::operator-=(const Vector2<T>& other) {
-  x -= other.x;
-  y -= other.y;
-  return *this;
-}
+VECTOR_DEFAULT_CONSTRUCTORS_IMPL(Vector2, 2)
+VECTOR_DEFAULT_CONSTRUCTORS_IMPL(Vector3, 3)
+VECTOR_DEFAULT_CONSTRUCTORS_IMPL(Vector4, 4)
 
-template<typename T>
-Vector2<T>& Vector2<T>::operator*=(PetscReal scalar) {
-  x *= scalar;
-  y *= scalar;
-  return *this;
-}
+#define PLUS +
+#define COMMA ,
+#define SEMICOLON ;
 
-template<typename T>
-Vector2<T>& Vector2<T>::operator/=(PetscReal scalar) {
-  x /= scalar;
-  y /= scalar;
-  return *this;
-}
+#define VEC_OP2(A, B, OP, SEP) A[0] OP B[0] SEP A[1] OP B[1] SEP
+#define VEC_OP3(A, B, OP, SEP) A[0] OP B[0] SEP A[1] OP B[1] SEP A[2] OP B[2] SEP
+#define VEC_OP4(A, B, OP, SEP) A[0] OP B[0] SEP A[1] OP B[1] SEP A[2] OP B[2] SEP A[3] OP B[3] SEP
+
+#define SCALAR_OP2(A, B, OP, SEP) A[0] OP B SEP A[1] OP B SEP
+#define SCALAR_OP3(A, B, OP, SEP) A[0] OP B SEP A[1] OP B SEP A[2] OP B SEP
+#define SCALAR_OP4(A, B, OP, SEP) A[0] OP B SEP A[1] OP B SEP A[2] OP B SEP A[3] OP B SEP
 
 
-template<typename T>
-Vector2<T> Vector2<T>::operator+(const Vector2<T>& other) const {
-  return {
-    x + other.x,
-    y + other.y,
-  };
-}
+#define RETURN_REF_VEC_OP(VEC_T, OP, N)                    \
+  template<typename T>                                     \
+  VEC_T<T>& VEC_T<T>::operator OP(const VEC_T<T>& other) { \
+    VEC_OP##N(data, other, OP, SEMICOLON)                  \
+    return *this;                                          \
+  }                                                        \
 
-template<typename T>
-Vector2<T> Vector2<T>::operator-(const Vector2<T>& other) const {
-  return {
-    x - other.x,
-    y - other.y,
-  };
-}
+RETURN_REF_VEC_OP(Vector2, +=, 2)
+RETURN_REF_VEC_OP(Vector3, +=, 3)
+RETURN_REF_VEC_OP(Vector4, +=, 4)
 
-template<typename T>
-Vector2<T> Vector2<T>::operator/(PetscReal scalar) const {
-  return {
-    x / scalar,
-    y / scalar,
-  };
-}
-
-template<typename T>
-Vector2<T> Vector2<T>::operator+() const {
-  return {
-    x,
-    y,
-  };
-}
-
-template<typename T>
-Vector2<T> Vector2<T>::operator-() const {
-  return {
-    -x,
-    -y,
-  };
-}
+RETURN_REF_VEC_OP(Vector2, -=, 2)
+RETURN_REF_VEC_OP(Vector3, -=, 3)
+RETURN_REF_VEC_OP(Vector4, -=, 4)
 
 
-template<typename T>
-Vector2<PetscReal> Vector2<T>::normalized() const {
-  PetscReal len = length();
-  return {
-    x / len,
-    y / len,
-  };
-}
+#define RETURN_REF_SCALAR_OP(VEC_T, OP, N)                         \
+  template<typename T> VEC_T<T>& VEC_T<T>::operator OP(T scalar) { \
+    SCALAR_OP##N(data, scalar, *=, SEMICOLON)                      \
+    return *this;                                                  \
+  }                                                                \
 
-template<typename T>
-T Vector2<T>::dot(const Vector2<T>& other) const {
-  return
-    x * other.x +
-    y * other.y;
-}
-
-template<typename T>
-T Vector2<T>::square() const {
-  return dot(*this);
-}
-
-template<typename T>
-PetscReal Vector2<T>::length() const {
-  return PetscSqrtReal(static_cast<PetscReal>(square()));
-}
+RETURN_REF_SCALAR_OP(Vector2, *=, 2)
+RETURN_REF_SCALAR_OP(Vector3, *=, 3)
+RETURN_REF_SCALAR_OP(Vector4, *=, 4)
 
 
-template<typename T>
-Vector2<T> operator*(const Vector2<T>& vector, PetscReal scalar) {
-  return {
-    vector.x * scalar,
-    vector.y * scalar,
-  };
-}
+#define RETURN_NEW_VEC_OP(VEC_T, OP, N)                         \
+  template<typename T>                                          \
+  VEC_T<T> VEC_T<T>::operator OP(const VEC_T<T>& other) const { \
+    return {                                                    \
+      VEC_OP##N(data, other, OP, COMMA)                         \
+    };                                                          \
+  }                                                             \
 
-template<typename T>
-Vector2<T> operator*(PetscReal scalar, const Vector2<T>& vector) {
-  return {
-    vector.x * scalar,
-    vector.y * scalar,
-  };
-}
+RETURN_NEW_VEC_OP(Vector2, +, 2)
+RETURN_NEW_VEC_OP(Vector3, +, 3)
+RETURN_NEW_VEC_OP(Vector4, +, 4)
 
-
-template<typename T>
-Vector3<T>& Vector3<T>::operator+=(const Vector3<T>& other) {
-  x += other.x;
-  y += other.y;
-  z += other.z;
-  return *this;
-}
-
-template<typename T>
-Vector3<T>& Vector3<T>::operator-=(const Vector3<T>& other) {
-  x -= other.x;
-  y -= other.y;
-  z -= other.z;
-  return *this;
-}
-
-template<typename T>
-Vector3<T>& Vector3<T>::operator*=(PetscReal scalar) {
-  x *= scalar;
-  y *= scalar;
-  z *= scalar;
-  return *this;
-}
-
-template<typename T>
-Vector3<T>& Vector3<T>::operator/=(PetscReal scalar) {
-  x /= scalar;
-  y /= scalar;
-  z /= scalar;
-  return *this;
-}
+RETURN_NEW_VEC_OP(Vector2, -, 2)
+RETURN_NEW_VEC_OP(Vector3, -, 3)
+RETURN_NEW_VEC_OP(Vector4, -, 4)
 
 
-template<typename T>
-Vector3<T> Vector3<T>::operator+(const Vector3<T>& other) const {
-  return {
-    x + other.x,
-    y + other.y,
-    z + other.z,
-  };
-}
+#define RETURN_NEW_SCALAR_DIV(VEC_T, N)                  \
+  template<typename T>                                   \
+  VEC_T<PetscReal> VEC_T<T>::operator/(T scalar) const { \
+    return {                                             \
+      SCALAR_OP##N((PetscReal)data, scalar, /, COMMA)    \
+    };                                                   \
+  }                                                      \
 
-template<typename T>
-Vector3<T> Vector3<T>::operator-(const Vector3<T>& other) const {
-  return {
-    x - other.x,
-    y - other.y,
-    z - other.z,
-  };
-}
-
-template<typename T>
-Vector3<T> Vector3<T>::operator/(PetscReal scalar) const {
-  return {
-    x / scalar,
-    y / scalar,
-    z / scalar,
-  };
-}
-
-template<typename T>
-Vector3<T> Vector3<T>::operator+() const {
-  return {
-    x,
-    y,
-    z,
-  };
-}
-
-template<typename T>
-Vector3<T> Vector3<T>::operator-() const {
-  return {
-    -x,
-    -y,
-    -z,
-  };
-}
+RETURN_NEW_SCALAR_DIV(Vector2, 2)
+RETURN_NEW_SCALAR_DIV(Vector3, 3)
+RETURN_NEW_SCALAR_DIV(Vector4, 4)
 
 
-template<typename T>
-Vector3<PetscReal> Vector3<T>::normalized() const {
-  PetscReal len = length();
-  return {
-    x / len,
-    y / len,
-    z / len,
-  };
-}
+#define RETURN_NEW_UNARY_OP(VEC_T, OP, N)                  \
+  template<typename T>                                     \
+  VEC_T<T> VEC_T<T>::operator OP() const {                 \
+    return {                                               \
+      SCALAR_OP##N(OP data, /* none */, /* none */, COMMA) \
+    };                                                     \
+  }                                                        \
+
+RETURN_NEW_UNARY_OP(Vector2, +, 2)
+RETURN_NEW_UNARY_OP(Vector3, +, 3)
+RETURN_NEW_UNARY_OP(Vector4, +, 4)
+
+RETURN_NEW_UNARY_OP(Vector2, -, 2)
+RETURN_NEW_UNARY_OP(Vector3, -, 3)
+RETURN_NEW_UNARY_OP(Vector4, -, 4)
+
+
+#define RETURN_NEW_NORMALIZED(VEC_T, N)            \
+  template<typename T>                             \
+  VEC_T<PetscReal> VEC_T<T>::normalized() const {  \
+    PetscReal len = length();                      \
+    return {                                       \
+      SCALAR_OP##N((PetscReal)data, len, /, COMMA) \
+    };                                             \
+  }                                                \
+
+RETURN_NEW_NORMALIZED(Vector2, 2)
+RETURN_NEW_NORMALIZED(Vector3, 3)
+RETURN_NEW_NORMALIZED(Vector4, 4)
+
+
+#define RETURN_VALUE_DOT(VEC_T, N)               \
+  template<typename T>                           \
+  T VEC_T<T>::dot(const VEC_T<T>& other) const { \
+    return                                       \
+      VEC_OP##N(data, other, *, PLUS) 0;         \
+  }                                              \
+
+RETURN_VALUE_DOT(Vector2, 2)
+RETURN_VALUE_DOT(Vector3, 3)
+RETURN_VALUE_DOT(Vector4, 4)
+
+
+#define RETURN_VALUE_SQUARE(VEC_T) \
+  template<typename T>             \
+  T VEC_T<T>::square() const {     \
+    return dot(*this);             \
+  }                                \
+
+RETURN_VALUE_SQUARE(Vector2)
+RETURN_VALUE_SQUARE(Vector3)
+RETURN_VALUE_SQUARE(Vector4)
+
+
+#define RETURN_REAL_LENGTH(VEC_T)      \
+  template<typename T>                 \
+  PetscReal VEC_T<T>::length() const { \
+    return sqrt((PetscReal)square());  \
+  }                                    \
+
+RETURN_REAL_LENGTH(Vector2)
+RETURN_REAL_LENGTH(Vector3)
+RETURN_REAL_LENGTH(Vector4)
+
+
+#define RETURN_NEW_MULTIPLICATION(VEC_T, N)              \
+  template<typename T>                                   \
+  VEC_T<T> operator*(const VEC_T<T>& vector, T scalar) { \
+    return {                                             \
+      SCALAR_OP##N(vector, scalar, *, COMMA)             \
+    };                                                   \
+  }                                                      \
+  \
+  template<typename T>                                   \
+  VEC_T<T> operator*(T scalar, const VEC_T<T>& vector) { \
+    return {                                             \
+      SCALAR_OP##N(vector, scalar, *, COMMA)             \
+    };                                                   \
+  }                                                      \
+
+RETURN_NEW_MULTIPLICATION(Vector2, 2)
+RETURN_NEW_MULTIPLICATION(Vector3, 3)
+RETURN_NEW_MULTIPLICATION(Vector4, 4)
+
 
 template<typename T>
 Vector3<T> Vector3<T>::cross(const Vector3<T>& other) const {
   return {
-    + (y * other.z - z * other.y),
-    - (x * other.z - z * other.x),
-    + (x * other.y - y * other.x),
+    + (data[Y] * other[Z] - data[Z] * other[Y]),
+    - (data[X] * other[Z] - data[Z] * other[X]),
+    + (data[X] * other[Y] - data[Y] * other[X]),
   };
 }
 
 template<typename T>
 Vector2<T> Vector3<T>::squeeze_along(Axis axis) const {
   switch (axis) {
-    case Axis::X: return {y, z};
-    case Axis::Y: return {x, z};
+    case Axis::X: return {data[Y], data[Z]};
+    case Axis::Y: return {data[X], data[Z]};
     case Axis::Z: // fallthrough
     default:
-      return {x, y};
+      return {data[X], data[Y]};
   }
-}
-
-template<typename T>
-T Vector3<T>::dot(const Vector3<T>& other) const {
-  return
-    x * other.x +
-    y * other.y +
-    z * other.z;
-}
-
-template<typename T>
-T Vector3<T>::square() const {
-  return dot(*this);
-}
-
-template<typename T>
-PetscReal Vector3<T>::length() const {
-  return PetscSqrtReal(static_cast<PetscReal>(square()));
-}
-
-
-template<typename T>
-Vector3<T> operator*(const Vector3<T>& vector, PetscReal scalar) {
-  return {
-    vector.x * scalar,
-    vector.y * scalar,
-    vector.z * scalar,
-  };
-}
-
-template<typename T>
-Vector3<T> operator*(PetscReal scalar, const Vector3<T>& vector) {
-  return {
-    vector.x * scalar,
-    vector.y * scalar,
-    vector.z * scalar,
-  };
 }

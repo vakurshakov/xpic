@@ -13,7 +13,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   const PetscInt s = 1; // stencil width (should depend on particle size)
 
   // We can specify in our config DMBoundaryType and procs number and map it to Create3d
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, R3C(DM_BOUNDARY_NONE), DMDA_STENCIL_BOX, R3CX(geom_n), R3C(PETSC_DECIDE), dof, s, R3C(nullptr), &da_));
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3(DM_BOUNDARY_NONE), DMDA_STENCIL_BOX, REP3_X(geom_n), REP3(PETSC_DECIDE), dof, s, REP3(nullptr), &da_));
   PetscCall(DMSetUp(da_));
 
   PetscCall(DMCreateGlobalVector(da_, &E_));
@@ -34,13 +34,13 @@ PetscErrorCode Simulation::setup_positive_rotor() {
   PetscFunctionBeginUser;
 
   Vector3<PetscInt> start, end;
-  PetscCall(DMDAGetCorners(da_, R3DX(&start), R3DX(&end)));
+  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;  // Petsc returns size, not end point
 
   std::vector<Triplet> triplets;
-  for (PetscInt z = start.z; z < end.z; ++z) {
-  for (PetscInt y = start.y; y < end.y; ++y) {
-  for (PetscInt x = start.x; x < end.x; ++x) {
+  for (PetscInt z = start.z(); z < end.z(); ++z) {
+  for (PetscInt y = start.y(); y < end.y(); ++y) {
+  for (PetscInt x = start.x(); x < end.x(); ++x) {
     PetscInt xp = (geom_nx > 1) ? (x + 1) : x;
     PetscInt yp = (geom_ny > 1) ? (y + 1) : y;
     PetscInt zp = (geom_nz > 1) ? (z + 1) : z;
@@ -84,13 +84,13 @@ PetscErrorCode Simulation::setup_negative_rotor() {
   PetscFunctionBeginUser;
 
   Vector3<PetscInt> start, end;
-  PetscCall(DMDAGetCorners(da_, R3DX(&start), R3DX(&end)));
+  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;  // Petsc returns size, not end point
 
   std::vector<Triplet> triplets;
-  for (PetscInt z = start.z; z < end.z; ++z) {
-  for (PetscInt y = start.y; y < end.y; ++y) {
-  for (PetscInt x = start.x; x < end.x; ++x) {
+  for (PetscInt z = start.z(); z < end.z(); ++z) {
+  for (PetscInt y = start.y(); y < end.y(); ++y) {
+  for (PetscInt x = start.x(); x < end.x(); ++x) {
     PetscInt xm = (geom_nx > 1) ? (x - 1) : x;
     PetscInt ym = (geom_ny > 1) ? (y - 1) : y;
     PetscInt zm = (geom_nz > 1) ? (z - 1) : z;

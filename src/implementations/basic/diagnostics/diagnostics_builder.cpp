@@ -129,7 +129,7 @@ PetscErrorCode check_field_description(const Field_description& desc) {
 PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, Fields_description& result) {
   PetscFunctionBegin;
   Vector3<PetscInt> start, size;
-  PetscCall(DMDAGetCorners(da, R3DX(&start), R3DX(&size)));
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
   // check if the local region overlaps with global
   // const Field_view::Region& region = desc.region;
@@ -144,19 +144,19 @@ PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, 
   // MPI_Comm new_comm;
   // MPI_Comm_split(PETSC_COMM_WORLD, color, rank, &new_comm);
 
+  Field_view::Region& reg = desc.region;
+  reg.start[X] = std::min(reg.start[X], start[X]);
+  reg.start[Y] = std::min(reg.start[Y], start[Y]);
+  reg.start[Z] = std::min(reg.start[Z], start[Z]);
+
+  reg.size[X] = std::min(reg.size[X], size[X]);
+  reg.size[Y] = std::min(reg.size[Y], size[Y]);
+  reg.size[Z] = std::min(reg.size[Z], size[Z]);
+
   // Region coordinates are used in C-order (z, y, x, dof)
   // inside of the Field_view, which is dictated by Petsc.
-  Field_view::Region& region = desc.region;
-  std::swap(region.start[0], region.start[2]);
-  std::swap(region.size[0], region.size[2]);
-
-  region.start[0] = std::min(region.start[0], start.z);
-  region.start[1] = std::min(region.start[1], start.y);
-  region.start[2] = std::min(region.start[2], start.x);
-
-  region.size[0] = std::min(region.start[0], size.z);
-  region.size[1] = std::min(region.start[1], size.y);
-  region.size[2] = std::min(region.start[2], size.x);
+  std::swap(reg.start[X], reg.start[Z]);
+  std::swap(reg.size[X], reg.size[Z]);
 
   result.emplace_back(std::move(desc));
   PetscFunctionReturn(PETSC_SUCCESS);
