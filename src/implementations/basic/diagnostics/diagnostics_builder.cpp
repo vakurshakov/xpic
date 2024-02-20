@@ -107,19 +107,19 @@ PetscErrorCode check_field_description(const Field_description& desc) {
   message = "Unknown component name for Field_view diagnostic of " + desc.field_name + " field.";
   PetscCheck(is_component_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  const Field_view::Region& region = desc.region;
+  const Field_view::Region& reg = desc.region;
   bool is_region_in_global_bounds =
-    (0 <= region.start[X] && region.start[X] < geom_nx) &&
-    (0 <= region.start[Y] && region.start[Y] < geom_ny) &&
-    (0 <= region.start[Z] && region.start[Z] < geom_nz) &&
-    (0 <= (region.start[X] + region.size[X]) && (region.start[X] + region.size[X]) <= geom_nx) &&
-    (0 <= (region.start[Y] + region.size[Y]) && (region.start[Y] + region.size[Y]) <= geom_ny) &&
-    (0 <= (region.start[Z] + region.size[Z]) && (region.start[Z] + region.size[Z]) <= geom_nz);
+    (0 <= reg.start[X] && reg.start[X] < geom_nx) &&
+    (0 <= reg.start[Y] && reg.start[Y] < geom_ny) &&
+    (0 <= reg.start[Z] && reg.start[Z] < geom_nz) &&
+    (0 <= (reg.start[X] + reg.size[X]) && (reg.start[X] + reg.size[X]) <= geom_nx) &&
+    (0 <= (reg.start[Y] + reg.size[Y]) && (reg.start[Y] + reg.size[Y]) <= geom_ny) &&
+    (0 <= (reg.start[Z] + reg.size[Z]) && (reg.start[Z] + reg.size[Z]) <= geom_nz);
 
   message = "Region is not in global boundaries for " + desc.field_name + desc.component_name + " diagnostic.";
   PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  bool are_sizes_positive = (region.size[X] > 0) && (region.size[Y] > 0) && (region.size[Z] > 0);
+  bool are_sizes_positive = (reg.size[X] > 0) && (reg.size[Y] > 0) && (reg.size[Z] > 0);
   message = "Sizes are negative for " + desc.field_name + desc.component_name + " diagnostic.";
   PetscCheck(are_sizes_positive, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
@@ -132,7 +132,7 @@ PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, 
   Vector3<PetscInt> start, size;
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
-  Field_view::Region& reg = desc.region;
+  const Field_view::Region& reg = desc.region;
   bool is_start_in_local_bounds =
     (reg.start[X] <= start[X] && start[X] < reg.start[X] + reg.size[X]) &&
     (reg.start[Y] <= start[Y] && start[Y] < reg.start[Y] + reg.size[Y]) &&
