@@ -68,6 +68,7 @@ struct Field_description {
   std::string field_name;
   std::string component_name;
   Field_view::Region region;
+  MPI_Comm comm;
 };
 
 using Fields_description = std::vector<Field_description>;
@@ -107,7 +108,7 @@ PetscErrorCode check_field_description(const Field_description& desc) {
   PetscCheck(is_component_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
   const Field_view::Region& region = desc.region;
-  bool is_region_in_bounds =
+  bool is_region_in_global_bounds =
     (0 <= region.start[X] && region.start[X] < geom_nx) &&
     (0 <= region.start[Y] && region.start[Y] < geom_ny) &&
     (0 <= region.start[Z] && region.start[Z] < geom_nz) &&
@@ -116,7 +117,7 @@ PetscErrorCode check_field_description(const Field_description& desc) {
     (0 <= (region.start[Z] + region.size[Z]) && (region.start[Z] + region.size[Z]) <= geom_nz);
 
   message = "Region is not in global boundaries for " + desc.field_name + desc.component_name + " diagnostic.";
-  PetscCheck(is_region_in_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
+  PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
   bool are_sizes_positive = (region.size[X] > 0) && (region.size[Y] > 0) && (region.size[Z] > 0);
   message = "Sizes are negative for " + desc.field_name + desc.component_name + " diagnostic.";
@@ -131,32 +132,24 @@ PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, 
   Vector3<PetscInt> start, size;
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
-  // check if the local region overlaps with global
-  // const Field_view::Region& region = desc.region;
-  // bool is_region_in_bounds =
-  //   (0 <= region.start[X] && region.start[X] < geom_nx) &&
-  //   (0 <= region.start[Y] && region.start[Y] < geom_ny) &&
-  //   (0 <= region.start[Z] && region.start[Z] < geom_nz) &&
-  //   (0 <= (region.start[X] + region.size[X]) && (region.start[X] + region.size[X]) <= geom_nx) &&
-  //   (0 <= (region.start[Y] + region.size[Y]) && (region.start[Y] + region.size[Y]) <= geom_ny) &&
-  //   (0 <= (region.start[Z] + region.size[Z]) && (region.start[Z] + region.size[Z]) <= geom_nz);
-  //
-  // MPI_Comm new_comm;
-  // MPI_Comm_split(PETSC_COMM_WORLD, color, rank, &new_comm);
-
   Field_view::Region& reg = desc.region;
-  reg.start[X] = std::min(reg.start[X], start[X]);
-  reg.start[Y] = std::min(reg.start[Y], start[Y]);
-  reg.start[Z] = std::min(reg.start[Z], start[Z]);
+  bool is_start_in_local_bounds =
+    (reg.start[X] <= start[X] && start[X] < reg.start[X] + reg.size[X]) &&
+    (reg.start[Y] <= start[Y] && start[Y] < reg.start[Y] + reg.size[Y]) &&
+    (reg.start[Z] <= start[Z] && start[Z] < reg.start[Z] + reg.size[Z]);
 
-  reg.size[X] = std::min(reg.size[X], size[X]);
-  reg.size[Y] = std::min(reg.size[Y], size[Y]);
-  reg.size[Z] = std::min(reg.size[Z], size[Z]);
+  PetscMPIInt color = is_start_in_local_bounds ? 1 : MPI_UNDEFINED;
 
-  // Region coordinates are used in C-order (z, y, x, dof)
-  // inside of the Field_view, which is dictated by Petsc.
-  std::swap(reg.start[X], reg.start[Z]);
-  std::swap(reg.size[X], reg.size[Z]);
+  PetscMPIInt rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+
+  MPI_Comm new_comm;
+  PetscCallMPI(MPI_Comm_split(PETSC_COMM_WORLD, color, rank, &new_comm));
+
+  if (!is_start_in_local_bounds)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
+  desc.comm = new_comm;
 
   result.emplace_back(std::move(desc));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -187,9 +180,10 @@ PetscErrorCode Diagnostics_builder::build_fields_view(const Configuration::json_
   for (const Field_description& desc : fields_desc) {
     LOG_INFO("Field view diagnostic is added for {}{}", desc.field_name, desc.component_name);
 
+    std::string res_dir = CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
+
     std::unique_ptr<Field_view>&& diag = std::make_unique<Field_view>(
-      CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/",
-      simulation_.da_, get_field(desc.field_name));
+      desc.comm, res_dir, simulation_.da_, get_field(desc.field_name));
 
     PetscCall(diag->set_diagnosed_region(desc.region));
 

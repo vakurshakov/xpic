@@ -7,47 +7,31 @@ namespace fs = std::filesystem;
 
 namespace basic {
 
-Field_view::Field_view(const std::string& result_directory, const DM& da, const Vec& field)
-  : interfaces::Diagnostic(result_directory), da_(da), field_(field) {}
+Field_view::Field_view(MPI_Comm comm, const std::string& result_directory, const DM& da, const Vec& field)
+  : interfaces::Diagnostic(result_directory), da_(da), field_(field), comm_(comm) {}
 
-PetscErrorCode Field_view::set_diagnosed_region(const Region& /* region */) {
+PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   PetscFunctionBegin;
-
-  Vector3<PetscInt> start, size;
+  Vector4<PetscInt> start, size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
 
-  PetscInt dof;
-  PetscCall(DMDAGetDof(da_, &dof));
+  /// @todo put it in `to_petsc_order()` method
+  std::swap(start[0], start[Z]);
+  std::swap(start[2], start[X]);
+  start[3] = 0; // if one component is written
 
-  PetscInt g_size[Region::ndim];
-  g_size[X] = size[Z];
-  g_size[Y] = size[Y];
-  g_size[Z] = size[X];
-  g_size[C] = dof;
+  std::swap(size[0], size[Z]);
+  std::swap(size[2], size[X]);
+  PetscCall(DMDAGetDof(da_, &size[3]));
 
-  PetscInt l_size[Region::ndim];
-  l_size[X] = size[Z];
-  l_size[Y] = size[Y];
-  l_size[Z] = size[X];
-  l_size[C] = 1;
+  Vector4<PetscInt> l_size;
+  l_size[0] = size[0];
+  l_size[1] = size[1];
+  l_size[2] = size[2];
+  l_size[3] = region.size[3];
 
-  PetscInt starts[Region::ndim];
-  starts[X] = 0;
-  starts[Y] = 0;
-  starts[Z] = 0;
-  starts[C] = 1;
-  PetscCall(file_.set_memview_subarray(Region::ndim, g_size, l_size, starts));
-
-  g_size[X] = geom_nz;
-  g_size[Y] = geom_ny;
-  g_size[Z] = geom_nx;
-  g_size[C] = 1;
-
-  starts[X] = start[Z];
-  starts[Y] = start[Y];
-  starts[Z] = start[X];
-  starts[C] = 0;
-  PetscCall(file_.set_fileview_subarray(Region::ndim, g_size, l_size, starts));
+  PetscCall(file_.set_memview_subarray(Region::ndim, size, l_size, region.start));
+  PetscCall(file_.set_fileview_subarray(Region::ndim, region.size, l_size, start));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -65,7 +49,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   Vector3<PetscInt> size;
   PetscCall(DMDAGetCorners(da_, REP3(NULL), REP3_A(&size)));
 
-  PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z] * 4)));
+  PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z] * Region::ndim)));
   PetscCall(file_.close());
 
   PetscCall(VecRestoreArrayRead(field_, &arr));

@@ -21,7 +21,7 @@ public:
     PetscInt size[ndim];
   };
 
-  Field_view(const std::string& result_directory, const DM& da, const Vec& field);
+  Field_view(MPI_Comm comm, const std::string& result_directory, const DM& da, const Vec& field);
 
   PetscErrorCode set_diagnosed_region(const Region& region);
   PetscErrorCode diagnose(timestep_t t) override;
@@ -29,6 +29,8 @@ public:
 private:
   const DM& da_;
   const Vec& field_;
+
+  MPI_Comm comm_;
   MPI_binary_file file_;
 };
 
