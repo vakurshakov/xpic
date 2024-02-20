@@ -167,6 +167,34 @@ RETURN_NEW_MULTIPLICATION(Vector3, 3)
 RETURN_NEW_MULTIPLICATION(Vector4, 4)
 
 
+#define RETURN_NEW_TO_PETSC_ORDER(VEC_T, N)   \
+  template<typename T>                        \
+  VEC_T<T> VEC_T<T>::to_petsc_order() const { \
+    return {                                  \
+      REP##N##_AP(data)                       \
+    };                                        \
+  }                                           \
+
+RETURN_NEW_TO_PETSC_ORDER(Vector2, 2)
+RETURN_NEW_TO_PETSC_ORDER(Vector3, 3)
+RETURN_NEW_TO_PETSC_ORDER(Vector4, 4)
+
+
+#define SWAP_TO_PETSC2(A) A[X], A[Y]
+#define SWAP_TO_PETSC3(A) A[X], A[Z]
+#define SWAP_TO_PETSC4(A) A[X], A[Z]
+
+#define UPDATE_TO_PETSC_ORDER(VEC_T, N)  \
+  template<typename T>                   \
+  void VEC_T<T>::to_petsc_order() {      \
+    std::swap(SWAP_TO_PETSC##N(data));   \
+  }                                      \
+
+UPDATE_TO_PETSC_ORDER(Vector2, 2)
+UPDATE_TO_PETSC_ORDER(Vector3, 3)
+UPDATE_TO_PETSC_ORDER(Vector4, 4)
+
+
 template<typename T>
 Vector3<T> Vector3<T>::cross(const Vector3<T>& other) const {
   return {

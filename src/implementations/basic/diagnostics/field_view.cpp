@@ -15,11 +15,10 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   Vector4<PetscInt> start, size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
 
-  /// @todo put it in `to_petsc_order()` method
-  std::swap(start[X], start[Z]);
+  start.to_petsc_order();
   start[3] = 0; // if one component is written
 
-  std::swap(size[X], size[Z]);
+  size.to_petsc_order();
   PetscCall(DMDAGetDof(da_, &size[3]));
 
   Vector4<PetscInt> l_size;
@@ -29,7 +28,7 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   l_size[3] = region.size[3];
 
   Vector4<PetscInt> f_size = region.size;
-  std::swap(f_size[X], f_size[Z]);
+  f_size.to_petsc_order();
 
   PetscCall(file_.set_memview_subarray(Region::ndim, size, l_size, region.start));
   PetscCall(file_.set_fileview_subarray(Region::ndim, f_size, l_size, start));
