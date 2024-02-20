@@ -16,22 +16,23 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
 
   /// @todo put it in `to_petsc_order()` method
-  std::swap(start[0], start[Z]);
-  std::swap(start[2], start[X]);
+  std::swap(start[X], start[Z]);
   start[3] = 0; // if one component is written
 
-  std::swap(size[0], size[Z]);
-  std::swap(size[2], size[X]);
+  std::swap(size[X], size[Z]);
   PetscCall(DMDAGetDof(da_, &size[3]));
 
   Vector4<PetscInt> l_size;
-  l_size[0] = size[0];
-  l_size[1] = size[1];
-  l_size[2] = size[2];
+  l_size[0] = size[0]; // if we are writing 3D array
+  l_size[1] = size[1]; // same
+  l_size[2] = size[2]; // same
   l_size[3] = region.size[3];
 
+  Vector4<PetscInt> f_size = region.size;
+  std::swap(f_size[X], f_size[Z]);
+
   PetscCall(file_.set_memview_subarray(Region::ndim, size, l_size, region.start));
-  PetscCall(file_.set_fileview_subarray(Region::ndim, region.size, l_size, start));
+  PetscCall(file_.set_fileview_subarray(Region::ndim, f_size, l_size, start));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -47,7 +48,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   PetscCall(VecGetArrayRead(field_, &arr));
 
   Vector3<PetscInt> size;
-  PetscCall(DMDAGetCorners(da_, REP3(NULL), REP3_A(&size)));
+  PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
 
   PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z] * Region::ndim)));
   PetscCall(file_.close());
