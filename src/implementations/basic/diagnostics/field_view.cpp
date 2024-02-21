@@ -24,14 +24,16 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   Vector4<PetscInt> f_size = region.size;
   f_size.to_petsc_order();
 
-  // For start = (0, 0, 0) and variable end
+  Vector4<PetscInt> m_start = region.start;
+  m_start.to_petsc_order();
+
   Vector4<PetscInt> l_size;
   l_size[0] = std::min(f_size[0], start[0] + size[0]) - start[0];
   l_size[1] = std::min(f_size[1], start[1] + size[1]) - start[1];
   l_size[2] = std::min(f_size[2], start[2] + size[2]) - start[2];
   l_size[3] = f_size[3];
 
-  PetscCall(file_.set_memview_subarray(Region::ndim, size, l_size, region.start));
+  PetscCall(file_.set_memview_subarray(Region::ndim, size, l_size, m_start));
   PetscCall(file_.set_fileview_subarray(Region::ndim, f_size, l_size, start));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

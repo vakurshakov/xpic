@@ -134,9 +134,9 @@ PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, 
 
   const Field_view::Region& reg = desc.region;
   bool is_start_in_local_bounds =
-    (reg.start[X] <= start[X] && start[X] < reg.start[X] + reg.size[X]) &&
-    (reg.start[Y] <= start[Y] && start[Y] < reg.start[Y] + reg.size[Y]) &&
-    (reg.start[Z] <= start[Z] && start[Z] < reg.start[Z] + reg.size[Z]);
+    (start[X] <= reg.start[X] && reg.start[X] < start[X] + size[X]) &&
+    (start[Y] <= reg.start[Y] && reg.start[Y] < start[Y] + size[Y]) &&
+    (start[Z] <= reg.start[Z] && reg.start[Z] < start[Z] + size[Z]);
 
   PetscMPIInt color = is_start_in_local_bounds ? 1 : MPI_UNDEFINED;
 
