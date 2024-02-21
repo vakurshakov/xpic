@@ -12,6 +12,7 @@
 
 namespace basic {
 
+/// @todo Custom `MPI_Comm` should be freed somewhere!
 class Field_view : public interfaces::Diagnostic {
 public:
   struct Region {

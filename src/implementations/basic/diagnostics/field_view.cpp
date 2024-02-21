@@ -21,14 +21,15 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   size.to_petsc_order();
   PetscCall(DMDAGetDof(da_, &size[3]));
 
-  Vector4<PetscInt> l_size;
-  l_size[0] = size[0]; // if we are writing 3D array
-  l_size[1] = size[1]; // same
-  l_size[2] = size[2]; // same
-  l_size[3] = region.size[3];
-
   Vector4<PetscInt> f_size = region.size;
   f_size.to_petsc_order();
+
+  // For start = (0, 0, 0) and variable end
+  Vector4<PetscInt> l_size;
+  l_size[0] = std::min(f_size[0], start[0] + size[0]) - start[0];
+  l_size[1] = std::min(f_size[1], start[1] + size[1]) - start[1];
+  l_size[2] = std::min(f_size[2], start[2] + size[2]) - start[2];
+  l_size[3] = f_size[3];
 
   PetscCall(file_.set_memview_subarray(Region::ndim, size, l_size, region.start));
   PetscCall(file_.set_fileview_subarray(Region::ndim, f_size, l_size, start));
@@ -41,7 +42,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   int time_width = std::to_string(geom_nt).size();
   std::stringstream ss;
   ss << std::setw(time_width) << std::setfill('0') << t;
-  PetscCall(file_.open(PETSC_COMM_WORLD, result_directory_, ss.str()));
+  PetscCall(file_.open(comm_, result_directory_, ss.str()));
 
   const PetscReal *arr;
   PetscCall(VecGetArrayRead(field_, &arr));
