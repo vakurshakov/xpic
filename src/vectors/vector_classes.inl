@@ -147,26 +147,6 @@ RETURN_REAL_LENGTH(Vector3)
 RETURN_REAL_LENGTH(Vector4)
 
 
-#define RETURN_NEW_MULTIPLICATION(VEC_T, N)              \
-  template<typename T>                                   \
-  VEC_T<T> operator*(const VEC_T<T>& vector, T scalar) { \
-    return {                                             \
-      SCALAR_OP##N(vector, scalar, *, COMMA)             \
-    };                                                   \
-  }                                                      \
-  \
-  template<typename T>                                   \
-  VEC_T<T> operator*(T scalar, const VEC_T<T>& vector) { \
-    return {                                             \
-      SCALAR_OP##N(vector, scalar, *, COMMA)             \
-    };                                                   \
-  }                                                      \
-
-RETURN_NEW_MULTIPLICATION(Vector2, 2)
-RETURN_NEW_MULTIPLICATION(Vector3, 3)
-RETURN_NEW_MULTIPLICATION(Vector4, 4)
-
-
 #define RETURN_NEW_TO_PETSC_ORDER(VEC_T, N)   \
   template<typename T>                        \
   VEC_T<T> VEC_T<T>::to_petsc_order() const { \
@@ -193,6 +173,50 @@ RETURN_NEW_TO_PETSC_ORDER(Vector4, 4)
 UPDATE_TO_PETSC_ORDER(Vector2, 2)
 UPDATE_TO_PETSC_ORDER(Vector3, 3)
 UPDATE_TO_PETSC_ORDER(Vector4, 4)
+
+
+#define RETURN_NEW_MULTIPLICATION(VEC_T, N)              \
+  template<typename T>                                   \
+  VEC_T<T> operator*(const VEC_T<T>& vector, T scalar) { \
+    return {                                             \
+      SCALAR_OP##N(vector, scalar, *, COMMA)             \
+    };                                                   \
+  }                                                      \
+  \
+  template<typename T>                                   \
+  VEC_T<T> operator*(T scalar, const VEC_T<T>& vector) { \
+    return {                                             \
+      SCALAR_OP##N(vector, scalar, *, COMMA)             \
+    };                                                   \
+  }                                                      \
+
+RETURN_NEW_MULTIPLICATION(Vector2, 2)
+RETURN_NEW_MULTIPLICATION(Vector3, 3)
+RETURN_NEW_MULTIPLICATION(Vector4, 4)
+
+
+#define VEC_FUNC2(A, B, FUNC, SEP)  FUNC(A[0], B[0]) SEP FUNC(A[1], B[1]) SEP
+#define VEC_FUNC3(A, B, FUNC, SEP)  FUNC(A[0], B[0]) SEP FUNC(A[1], B[1]) SEP FUNC(A[2], B[2]) SEP
+#define VEC_FUNC4(A, B, FUNC, SEP)  FUNC(A[0], B[0]) SEP FUNC(A[1], B[1]) SEP FUNC(A[2], B[2]) SEP FUNC(A[3], B[3]) SEP
+
+#define RETURN_NEW_MINMAX_COMPARISON(VEC_T, N)             \
+  template<typename T>                                     \
+  VEC_T<T> min(const VEC_T<T>& lhs, const VEC_T<T>& rhs) { \
+    return {                                               \
+      VEC_FUNC##N(lhs, rhs, std::min, COMMA)               \
+    };                                                     \
+  }                                                        \
+  \
+  template<typename T>                                     \
+  VEC_T<T> max(const VEC_T<T>& lhs, const VEC_T<T>& rhs) { \
+    return {                                               \
+      VEC_FUNC##N(lhs, rhs, std::max, COMMA)               \
+    };                                                     \
+  }                                                        \
+
+RETURN_NEW_MINMAX_COMPARISON(Vector2, 2)
+RETURN_NEW_MINMAX_COMPARISON(Vector3, 3)
+RETURN_NEW_MINMAX_COMPARISON(Vector4, 4)
 
 
 template<typename T>

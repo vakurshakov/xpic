@@ -67,6 +67,10 @@ static constexpr PetscInt Vector4_dim = 4;
   template<typename T> VEC_T<T> operator*(const VEC_T<T>& vector, T scalar); \
   template<typename T> VEC_T<T> operator*(T scalar, const VEC_T<T>& vector); \
 
+#define VECTOR_MINMAX_COMPARISON(VEC_T)                                        \
+  template<typename T> VEC_T<T> min(const VEC_T<T>& lhs, const VEC_T<T>& rhs); \
+  template<typename T> VEC_T<T> max(const VEC_T<T>& lhs, const VEC_T<T>& rhs); \
+
 
 template<typename T>
 struct Vector2 {
@@ -81,6 +85,7 @@ struct Vector2 {
   VECTOR_DEFAULT_ACCESS(2)
 };
 VECTOR_COMMUTATIVE_MULTIPLICATION(Vector2)
+VECTOR_MINMAX_COMPARISON(Vector2)
 
 
 template<typename T>
@@ -100,6 +105,7 @@ struct Vector3 {
   Vector2<T> squeeze_along(Axis axis) const;
 };
 VECTOR_COMMUTATIVE_MULTIPLICATION(Vector3)
+VECTOR_MINMAX_COMPARISON(Vector3)
 
 
 template<typename T>
@@ -117,6 +123,7 @@ struct Vector4 {
   VECTOR_DEFAULT_ACCESS(4)
 };
 VECTOR_COMMUTATIVE_MULTIPLICATION(Vector4)
+VECTOR_MINMAX_COMPARISON(Vector4)
 
 #include "vector_classes.inl"
 
