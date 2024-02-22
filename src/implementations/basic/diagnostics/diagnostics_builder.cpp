@@ -120,7 +120,7 @@ PetscErrorCode check_field_description(const Field_description& desc) {
   PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
   bool are_sizes_positive = (reg.size[X] > 0) && (reg.size[Y] > 0) && (reg.size[Z] > 0);
-  message = "Sizes are negative for " + desc.field_name + desc.component_name + " diagnostic.";
+  message = "Sizes are invalid for " + desc.field_name + desc.component_name + " diagnostic.";
   PetscCheck(are_sizes_positive, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -129,16 +129,22 @@ PetscErrorCode check_field_description(const Field_description& desc) {
 // Attach diagnostic only to those processes, where `desc.region` lies
 PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, Fields_description& result) {
   PetscFunctionBegin;
-  Vector3<PetscInt> start, size;
-  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+  Vector3<PetscInt> start;
+  Vector3<PetscInt> end;
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&end)));
+  end += start;
 
-  const Field_view::Region& reg = desc.region;
-  bool is_start_in_local_bounds =
-    (start[X] <= reg.start[X] && reg.start[X] < start[X] + size[X]) &&
-    (start[Y] <= reg.start[Y] && reg.start[Y] < start[Y] + size[Y]) &&
-    (start[Z] <= reg.start[Z] && reg.start[Z] < start[Z] + size[Z]);
+  Vector3<PetscInt> r_start = desc.region.start;
+  Vector3<PetscInt> r_end = desc.region.size;
+  r_end += r_start;
 
-  PetscMPIInt color = is_start_in_local_bounds ? 1 : MPI_UNDEFINED;
+  // checking intersection between local domain and `desc.region`
+  bool is_local_start_in_bounds =
+    r_start[X] < end[X] && r_end[X] > start[X] &&
+    r_start[Y] < end[Y] && r_end[Y] > start[Y] &&
+    r_start[Z] < end[Z] && r_end[Z] > start[Z];
+
+  PetscMPIInt color = is_local_start_in_bounds ? 1 : MPI_UNDEFINED;
 
   PetscMPIInt rank;
   PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
@@ -146,7 +152,7 @@ PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, 
   MPI_Comm new_comm;
   PetscCallMPI(MPI_Comm_split(PETSC_COMM_WORLD, color, rank, &new_comm));
 
-  if (!is_start_in_local_bounds)
+  if (!is_local_start_in_bounds)
     PetscFunctionReturn(PETSC_SUCCESS);
 
   desc.comm = new_comm;
