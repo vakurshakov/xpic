@@ -75,22 +75,36 @@ using Fields_description = std::vector<Field_description>;
 
 PetscErrorCode parse_field_info(const Configuration::json_t& json, Field_description& desc) {
   PetscFunctionBegin;
-  /// @todo turn it into try-catch and print the usage info
-  json.at("field").get_to(desc.field_name);
-  json.at("comp").get_to(desc.component_name);
+  try {
+    json.at("field").get_to(desc.field_name);
+    json.at("comp").get_to(desc.component_name);
 
-  /// @todo can be skipped to diagnose all three components
-  desc.region.start[3] = get_component(desc.component_name);
-  desc.region.size[3] = 1;
+    /// @todo can be skipped to diagnose all three components
+    desc.region.start[3] = get_component(desc.component_name);
+    desc.region.size[3] = 1;
 
-  /// @todo add check here for start.size() == 3 && size.size() == 3
-  const Configuration::array_t& start = json.at("start");
-  const Configuration::array_t& size = json.at("size");
+    /// @todo add check here for start.size() == 3 && size.size() == 3
+    const Configuration::array_t& start = json.at("start");
+    const Configuration::array_t& size = json.at("size");
 
-  // Region in the configuration file is in global coordinates
-  for (int i = 0; i < 3; ++i) {
-    desc.region.start[i] = TO_STEP(start[i].get<PetscReal>(), Dx[i]);
-    desc.region.size[i] = TO_STEP(size[i].get<PetscReal>(), Dx[i]);
+    // Region in the configuration file is in global coordinates
+    for (int i = 0; i < 3; ++i) {
+      desc.region.start[i] = TO_STEP(start[i].get<PetscReal>(), Dx[i]);
+      desc.region.size[i] = TO_STEP(size[i].get<PetscReal>(), Dx[i]);
+    }
+  }
+  catch (const Configuration::json_t::exception& e) {
+    std::string message = e.what();
+    message += "\n";
+    message += "Usage: The structure of the field_view diagnostic description\n"
+      "{\n"
+      "  \"field\": \"E\", -- Diagnosed field that is represented in the `Simulation` class. Values: E, B.\n"
+      "  \"comp\":  \"x\", -- Diagnosed field component. Values: x, y, z.\n"
+      "  \"start\": [ox, oy, oz], -- Starting point of a diagnostic in _global_ coordinates.\n"
+      "  \"size\":  [sx, sy, sz], -- Sizes of a diagnosed region along each coordinate in _global_ coordinates.\n"
+      "  [\"__units\": \"c/w_pe\"]  -- Optional, describes the units of a start/size point.\n"
+      "}";
+    throw std::runtime_error(message);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
