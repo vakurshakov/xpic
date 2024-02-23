@@ -16,6 +16,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3(DM_BOUNDARY_NONE), DMDA_STENCIL_BOX, REP3_X(geom_n), REP3(PETSC_DECIDE), dof, s, REP3(nullptr), &da_));
   PetscCall(DMSetUp(da_));
 
+#if THERE_ARE_FIELDS
   PetscCall(DMCreateGlobalVector(da_, &E_));
   PetscCall(DMCreateGlobalVector(da_, &B_));
   PetscCall(DMCreateMatrix(da_, &rot_dt_p));
@@ -23,6 +24,7 @@ PetscErrorCode Simulation::initialize_implementation() {
 
   PetscCall(setup_positive_rotor());
   PetscCall(setup_negative_rotor());
+#endif
 
   Diagnostics_builder diagnostics_builder(*this);
   PetscCall(diagnostics_builder.build(diagnostics_));
@@ -137,6 +139,7 @@ PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
 PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
   PetscFunctionBeginUser;
 
+#if THERE_ARE_FIELDS
   // Field source
   PetscCall(VecSetValue(B_, index(geom_nx / 2, geom_ny / 2, geom_nz / 2, Z), 1.0, ADD_VALUES));
   PetscCall(VecAssemblyBegin(B_));
@@ -145,6 +148,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
   // Solving Maxwell's equations using FDTD
   PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // rot(E) = - ∂B / ∂t
   PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // rot(B) = + ∂E / ∂t
+#endif
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -3,7 +3,7 @@ CFLAGS := -std=c++20 -fpic -fopenmp -pthread
 
 # `filter X, A B` return those of A, B that are equal to X
 ifeq ($(VERSION), $(filter $(VERSION), "DEBUG" ""))
-CFLAGS += -O0 -ggdb -Wall -Wextra -Wpedantic -Wno-unused-parameter -Werror
+CFLAGS += -O0 -ggdb -Wall -Wextra -Wpedantic -Wno-unused-parameter -Wno-unused-variable -Werror
 PETSC_ARCH := linux-mpi-debug
 endif
 
