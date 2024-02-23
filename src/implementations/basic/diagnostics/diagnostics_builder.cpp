@@ -53,7 +53,7 @@ PetscErrorCode Diagnostics_builder::build_fields_energy(const Configuration::jso
 const Vec& Diagnostics_builder::get_field(const std::string& name) const {
   if (name == "E") return simulation_.E_;
   if (name == "B") return simulation_.B_;
-  throw std::runtime_error("Unknown field name!");
+  throw std::runtime_error("Unknown field name " + name);
 }
 
 /// @todo Lots of Field_view specific utilities, maybe should be moved into a single class
@@ -61,7 +61,7 @@ Axis get_component(const std::string& name) {
   if (name == "x") return X;
   if (name == "y") return Y;
   if (name == "z") return Z;
-  throw std::runtime_error("Unknown component name!");
+  throw std::runtime_error("Unknown component name " + name);
 }
 
 struct Field_description {
@@ -78,11 +78,17 @@ PetscErrorCode parse_field_info(const Configuration::json_t& json, Field_descrip
   std::string message;
   try {
     json.at("field").get_to(desc.field_name);
-    json.at("comp").get_to(desc.component_name);
 
-    /// @todo can be skipped to diagnose all three components
-    desc.region.start[3] = get_component(desc.component_name);
-    desc.region.size[3] = 1;
+    desc.region.start[3] = 0;
+    desc.region.size[3] = 3;
+
+    if (json.contains("comp")) {
+      json.at("comp").get_to(desc.component_name);
+      if (!desc.component_name.empty()) {
+        desc.region.start[3] = get_component(desc.component_name);
+        desc.region.size[3] = 1;
+      }
+    }
 
     const Configuration::array_t& start = json.at("start");
     const Configuration::array_t& size = json.at("size");
@@ -104,10 +110,10 @@ PetscErrorCode parse_field_info(const Configuration::json_t& json, Field_descrip
       "Usage: The structure of the field_view diagnostic description\n"
       "{\n"
       "  \"field\": \"E\", -- Diagnosed field that is represented in the `Simulation` class. Values: E, B.\n"
-      "  \"comp\":  \"x\", -- Diagnosed field component. Values: x, y, z.\n"
-      "  \"start\": [ox, oy, oz], -- Starting point of a diagnostic in _global_ coordinates.\n"
-      "  \"size\":  [sx, sy, sz], -- Sizes of a diagnosed region along each coordinate in _global_ coordinates.\n"
-      "  [\"__units\": \"c/w_pe\"]  -- Optional, describes the units of a start/size point.\n"
+      "  \"comp\":  \"x\", -- Diagnosed field component, bounded by `DMDAGetDof()`. Optional, or empty value\n"
+      "                   can be used explicitly to print all three components at once. Values: x, y, z or \"\".\n"
+      "  \"start\": [ox, oy, oz], -- Starting point of a diagnostic in _global_ coordinates of units c/w_pe.\n"
+      "  \"size\":  [sx, sy, sz]  -- Sizes of a diagnosed region along each coordinate in _global_ coordinates of units c/w_pe.\n"
       "}";
     throw std::runtime_error(message);
   }
@@ -118,11 +124,17 @@ PetscErrorCode check_field_description(const Field_description& desc) {
   PetscFunctionBegin;
   std::string message;
 
-  bool is_field_name_correct = (desc.field_name == "E") || (desc.field_name == "B");
+  bool is_field_name_correct =
+    desc.field_name == "E" ||
+    desc.field_name == "B";
   message = "Unknown field name for Field_view diagnostics.";
   PetscCheck(is_field_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  bool is_component_name_correct = (desc.component_name == "x") || (desc.component_name == "y") || (desc.component_name == "z");
+  bool is_component_name_correct =
+    desc.component_name == "x" ||
+    desc.component_name == "y" ||
+    desc.component_name == "z" ||
+    desc.component_name == "";
   message = "Unknown component name for Field_view diagnostic of " + desc.field_name + " field.";
   PetscCheck(is_component_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
