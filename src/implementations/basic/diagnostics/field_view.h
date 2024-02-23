@@ -12,12 +12,10 @@
 
 namespace basic {
 
-/// @todo Custom `MPI_Comm` should be freed somewhere!
 class Field_view : public interfaces::Diagnostic {
 public:
   struct Region {
-    // Provided by DMDAGetInfo(da_, &ndim, ...)
-    static constexpr PetscInt ndim = 4;
+    static constexpr PetscInt ndim = 4; // Provided by DMDAGetInfo(da_, &ndim, ...)
     PetscInt start[ndim];
     PetscInt size[ndim];
   };

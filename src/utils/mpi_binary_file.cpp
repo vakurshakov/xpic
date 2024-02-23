@@ -16,7 +16,8 @@ MPI_binary_file::~MPI_binary_file() {
   if (file_ != MPI_FILE_NULL)
     close();
 
-  comm_ = MPI_COMM_NULL;
+  if (comm_ != MPI_COMM_NULL)
+    MPI_Comm_free(&comm_);
 }
 
 PetscErrorCode MPI_binary_file::open(MPI_Comm comm, const std::string& directory_path, const std::string& file_name) {

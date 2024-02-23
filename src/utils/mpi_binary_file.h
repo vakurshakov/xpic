@@ -16,8 +16,7 @@ public:
   PetscErrorCode flush();
   PetscErrorCode close();
 
-  /// should be set only once, other set(s) are no-op since type is already commited
-  /// PetscReal type (with MPIU_REAL size) is the only assumed type
+  /// @note Should be set only once, other sets are no-op since type is already commited.
   PetscErrorCode set_memview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]);
   PetscErrorCode set_fileview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]);
 
