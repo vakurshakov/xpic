@@ -1,7 +1,7 @@
 #include "diagnostics_builder.h"
 
-#include "src/implementations/basic/diagnostics/fields_energy.h"
-#include "src/implementations/basic/diagnostics/field_view.h"
+#include "src/impls/basic/diagnostics/fields_energy.h"
+#include "src/impls/basic/diagnostics/field_view.h"
 #include "src/utils/utils.h"
 
 #define FIELDS_DIAGNOSTICS    (THERE_ARE_FIELDS && FIELDS_ARE_DIAGNOSED)

@@ -2,7 +2,7 @@
 
 #include "src/utils/utils.h"
 #include "src/vectors/vector_classes.h"
-#include "src/implementations/basic/diagnostics/diagnostics_builder.h"
+#include "src/impls/basic/diagnostics/diagnostics_builder.h"
 
 namespace basic {
 

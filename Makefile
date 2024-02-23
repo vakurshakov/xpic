@@ -48,13 +48,13 @@ SRCS +=                                \
   src/utils/mpi_binary_file.cpp        \
   src/utils/sync_binary_file.cpp       \
 
-SRCS +=                                     \
-  src/implementations/basic/simulation.cpp  \
+SRCS +=                                \
+  src/impls/basic/simulation.cpp       \
 
-SRCS +=													                                 \
-	src/implementations/basic/diagnostics/field_view.cpp           \
-	src/implementations/basic/diagnostics/fields_energy.cpp        \
-	src/implementations/basic/diagnostics/diagnostics_builder.cpp  \
+SRCS +=													                       \
+	src/impls/basic/diagnostics/field_view.cpp           \
+	src/impls/basic/diagnostics/fields_energy.cpp        \
+	src/impls/basic/diagnostics/diagnostics_builder.cpp  \
 
 OBJS := $(SRCS:%.cpp=$(OBJDIR)/%.o)
 DEPS := $(SRCS:%.cpp=$(OBJDIR)/%.d)

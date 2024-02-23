@@ -5,8 +5,8 @@
 
 #include "src/pch.h"
 #include "src/vectors/vector_classes.h"
-#include "src/implementations/basic/simulation.h"
-#include "src/implementations/basic/diagnostics/field_view.h"
+#include "src/impls/basic/simulation.h"
+#include "src/impls/basic/diagnostics/field_view.h"
 
 namespace basic {
 

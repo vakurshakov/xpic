@@ -1,6 +1,6 @@
 #include "simulation.h"
 
-#include "src/implementations/basic/simulation.h"
+#include "src/impls/basic/simulation.h"
 
 namespace interfaces {
 
