@@ -7,12 +7,20 @@
 #include <petscvec.h>
 #include <petscmat.h>
 
+#include "src/impls/basic/particles.h"
+
 namespace basic {
 
 class Simulation : public interfaces::Simulation {
 public:
   Simulation() = default;
   ~Simulation() override;
+
+  const DM& da() const;
+  const Vec& E() const;
+  const Vec& B() const;
+  Vec& E();
+  Vec& B();
 
 protected:
   PetscErrorCode initialize_implementation() override;
@@ -31,6 +39,8 @@ private:
   Vec B_;
   Mat rot_dt_p;
   Mat rot_dt_m;
+
+  std::vector<Particles> particles_;
 };
 
 }

@@ -39,8 +39,10 @@ SRCS :=              \
 	src/main.cpp       \
 	src/constants.cpp  \
 
-SRCS +=                                \
-  src/interfaces/simulation.cpp        \
+SRCS +=                                    \
+  src/interfaces/simulation.cpp            \
+	src/interfaces/particles/particle.cpp    \
+	src/interfaces/particles/parameters.cpp  \
 
 SRCS +=                                \
   src/utils/log.cpp                    \
@@ -50,6 +52,7 @@ SRCS +=                                \
 
 SRCS +=                                \
   src/impls/basic/simulation.cpp       \
+	src/impls/basic/particles.cpp        \
 
 SRCS +=													                       \
 	src/impls/basic/diagnostics/field_view.cpp           \

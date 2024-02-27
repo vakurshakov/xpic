@@ -10,7 +10,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
 
   const PetscInt dof = Vector3_dim;
-  const PetscInt s = 1; // stencil width (should depend on particle size)
+  const PetscInt s = Particles_parameters::shape_radius;
 
   // We can specify in our config DMBoundaryType and procs number and map it to Create3d
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3(DM_BOUNDARY_NONE), DMDA_STENCIL_BOX, REP3_X(geom_n), REP3(PETSC_DECIDE), dof, s, REP3(nullptr), &da_));
@@ -25,6 +25,16 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(setup_positive_rotor());
   PetscCall(setup_negative_rotor());
 #endif
+
+  Particles_parameters parameters = {
+    .Np = 1,
+    .n  = +1.0,
+    .q  = -1.0,
+    .m  = +1.0,
+    .sort_name = "electrons"
+  };
+  auto& sort = particles_.emplace_back(*this, parameters);
+  sort.add_particle({geom_x / 2, geom_y / 2, geom_z / 2}, {1.0, 0.0, 0.0});
 
   Diagnostics_builder diagnostics_builder(*this);
   PetscCall(diagnostics_builder.build(diagnostics_));
@@ -150,8 +160,22 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
   PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // rot(B) = + ∂E / ∂t
 #endif
 
+#if THERE_ARE_PARTICLES
+  for (auto& sort : particles_) {
+    sort.push();
+  }
+#endif
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+
+const DM& Simulation::da() const { return da_; }
+const Vec& Simulation::E() const { return E_; }
+const Vec& Simulation::B() const { return B_; }
+Vec& Simulation::E() { return E_; }
+Vec& Simulation::B() { return B_; }
+
 
 Simulation::~Simulation() {
   PetscFunctionBeginUser;
