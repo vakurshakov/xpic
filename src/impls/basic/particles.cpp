@@ -5,50 +5,63 @@
 namespace basic {
 
 Particles::Particles(const Simulation& simulation, const Particles_parameters& parameters)
-  : simulation_(simulation), parameters_(parameters) {}
-
-void Particles::add_particle(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p) {
+  : simulation_(simulation), parameters_(parameters) {
   const DM& da = simulation_.da();
 
-  Vector3<PetscInt> start, end;
-  PetscCallVoid(DMDAGetCorners(da, REP3_A(&start), REP3_A(&end)));
-  end += start;
+	PetscCallVoid(DMDAGetNeighbors(da, &neighbours));
 
-  if (start.x() * dx <= r.x() && r.x() < end.x() * dx &&
-      start.y() * dy <= r.y() && r.y() < end.y() * dy &&
-      start.z() * dz <= r.z() && r.z() < end.z() * dz) {
+  Vector3<PetscInt> start, size;
+  PetscCallVoid(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+
+	l_start.x() = (PetscReal)start.x() * dx;
+	l_start.y() = (PetscReal)start.y() * dy;
+	l_start.z() = (PetscReal)start.z() * dz;
+
+	l_end.x() = l_start.x() + (PetscReal)size.x() * dx;
+	l_end.y() = l_start.y() + (PetscReal)size.y() * dy;
+	l_end.z() = l_start.z() + (PetscReal)size.z() * dz;
+}
+
+PetscErrorCode Particles::add_particle(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p) {
+	PetscFunctionBeginUser;
+  if (l_start.x() <= r.x() && r.x() < l_end.x() &&
+      l_start.y() <= r.y() && r.y() < l_end.y() &&
+      l_start.z() <= r.z() && r.z() < l_end.z()) {
     #pragma omp critical
     particles_.emplace_back(r, p, parameters_);
   }
+	PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void Particles::push() {
+PetscErrorCode Particles::push() {
+	PetscFunctionBegin;
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
   for (auto it = particles_.begin(); it != particles_.end(); ++it) {
     // Vector3<PetscReal> r0 = it->r;
-    Vector3<PetscReal> local_E = Vector3<PetscReal>::null;
-    Vector3<PetscReal> local_B = Vector3<PetscReal>::null;
+    Vector3<PetscReal> local_E = 0.0;
+    Vector3<PetscReal> local_B = 0.0;
 
     push(*it, local_E, local_B);
   }
+	PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void Particles::push(Particle& particle, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const
-{
-  const double alpha = 0.5 * dt * particle.q();
-  const double m = particle.m();
+void Particles::push(Particle& particle, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const {
+  PetscReal alpha = 0.5 * dt * particle.q();
+  PetscReal m = particle.m();
+
   Vector3<PetscReal>& r = particle.r;
   Vector3<PetscReal>& p = particle.p;
 
   const Vector3<PetscReal> w = p + local_E * alpha;
 
-  double energy = sqrt(m * m + w.dot(w));
+  PetscReal energy = sqrt(m * m + w.dot(w));
 
   const Vector3<PetscReal> h = local_B * alpha / energy;
 
-  const Vector3<PetscReal> s = h * 2. / (1. + h.dot(h));
+  const Vector3<PetscReal> s = h * 2.0 / (1.0 + h.dot(h));
 
-  p = local_E * alpha + w * (1. - h.dot(s)) + w.cross(s) + h * (s.dot(w));
+  p = local_E * alpha + w * (1.0 - h.dot(s)) + w.cross(s) + h * (s.dot(w));
 
   energy = sqrt(m * m + p.dot(p));
 

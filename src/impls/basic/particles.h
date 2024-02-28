@@ -19,13 +19,19 @@ class Particles {
 public:
   Particles(const Simulation& simulation, const Particles_parameters& parameters);
 
-  void add_particle(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p);
-  void push();
+  PetscErrorCode add_particle(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p);
+
+  PetscErrorCode push();
 
 private:
   void push(Particle& particle, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const;
 
   const Simulation& simulation_;
+
+  const PetscMPIInt* neighbours;
+  Vector3<PetscReal> l_start;
+  Vector3<PetscReal> l_end;
+
   Particles_parameters parameters_;
   std::vector<Particle> particles_;
 };

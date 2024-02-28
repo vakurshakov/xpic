@@ -26,6 +26,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(setup_negative_rotor());
 #endif
 
+#if THERE_ARE_PARTICLES
   Particles_parameters parameters = {
     .Np = 1,
     .n  = +1.0,
@@ -35,6 +36,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   };
   auto& sort = particles_.emplace_back(*this, parameters);
   sort.add_particle({geom_x / 2, geom_y / 2, geom_z / 2}, {1.0, 0.0, 0.0});
+#endif
 
   Diagnostics_builder diagnostics_builder(*this);
   PetscCall(diagnostics_builder.build(diagnostics_));
@@ -162,7 +164,8 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 
 #if THERE_ARE_PARTICLES
   for (auto& sort : particles_) {
-    sort.push();
+    PetscCall(sort.push());
+    PetscCall(sort.communicate());
   }
 #endif
 
