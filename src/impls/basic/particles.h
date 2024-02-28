@@ -6,7 +6,7 @@
 #include <petscdm.h>
 
 #include "src/vectors/vector_classes.h"
-#include "src/interfaces/particles/particle.h"
+#include "src/interfaces/particles/point.h"
 #include "src/interfaces/particles/parameters.h"
 
 
@@ -16,8 +16,8 @@ class Simulation;
 
 class Particles {
   static constexpr int MPI_TAG_NUMBERS = 2;
-  static constexpr int MPI_TAG_PARTICLES = 4;
-  static constexpr int OMP_CHUNK_SIZE = 16;
+  static constexpr int MPI_TAG_POINTS  = 4;
+  static constexpr int OMP_CHUNK_SIZE  = 16;
 public:
   Particles(const Simulation& simulation, const Particles_parameters& parameters);
 

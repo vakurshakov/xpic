@@ -1,4 +1,4 @@
-#include "particle.h"
+#include "point.h"
 
 Point::Point(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p)
   : r(r), p(p) {}

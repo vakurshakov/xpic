@@ -129,8 +129,8 @@ PetscErrorCode Particles::communicate() {
 		if (s == center_index) continue;
 		PetscInt r = (neighbours_num - 1) - s;
 		incoming[r].resize(i_num[r]);
-		PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, neighbours[s], MPI_TAG_PARTICLES, PETSC_COMM_WORLD, &reqs[req++]));
-		PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, neighbours[r], MPI_TAG_PARTICLES, PETSC_COMM_WORLD, &reqs[req++]));
+		PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, neighbours[s], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
+		PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, neighbours[r], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
 	}
 	PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 

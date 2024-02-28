@@ -1,5 +1,5 @@
-#ifndef SRC_INTERFACES_PARTICLES_PARTICLE_H
-#define SRC_INTERFACES_PARTICLES_PARTICLE_H
+#ifndef SRC_INTERFACES_PARTICLES_POINT_H
+#define SRC_INTERFACES_PARTICLES_POINT_H
 
 #include "src/pch.h"
 #include "src/vectors/vector_classes.h"
@@ -48,4 +48,4 @@ public:
 void g_bound_reflective(Point& point, Axis axis);
 void g_bound_periodic(Point& point, Axis axis);
 
-#endif  // SRC_INTERFACES_PARTICLES_PARTICLE_H
+#endif  // SRC_INTERFACES_PARTICLES_POINT_H
