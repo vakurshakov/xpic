@@ -28,7 +28,7 @@ PetscErrorCode Particles::add_particle(const Vector3<PetscReal>& r, const Vector
       l_start.y() <= r.y() && r.y() < l_end.y() &&
       l_start.z() <= r.z() && r.z() < l_end.z()) {
     #pragma omp critical
-    particles_.emplace_back(r, p, parameters_);
+		points_.emplace_back(r, p);
   }
 	PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -36,7 +36,7 @@ PetscErrorCode Particles::add_particle(const Vector3<PetscReal>& r, const Vector
 PetscErrorCode Particles::push() {
 	PetscFunctionBegin;
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
-  for (auto it = particles_.begin(); it != particles_.end(); ++it) {
+  for (auto it = points_.begin(); it != points_.end(); ++it) {
     // Vector3<PetscReal> r0 = it->r;
     Vector3<PetscReal> local_E = 0.0;
     Vector3<PetscReal> local_B = 0.0;
@@ -46,12 +46,12 @@ PetscErrorCode Particles::push() {
 	PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void Particles::push(Particle& particle, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const {
-  PetscReal alpha = 0.5 * dt * particle.q();
-  PetscReal m = particle.m();
+void Particles::push(Point& point, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const {
+  PetscReal alpha = 0.5 * dt * charge(point);
+  PetscReal m = mass(point);
 
-  Vector3<PetscReal>& r = particle.r;
-  Vector3<PetscReal>& p = particle.p;
+  Vector3<PetscReal>& r = point.r;
+  Vector3<PetscReal>& p = point.p;
 
   const Vector3<PetscReal> w = p + local_E * alpha;
 
@@ -77,16 +77,16 @@ PetscErrorCode Particles::communicate() {
 	constexpr PetscInt dim = 3;
 	constexpr PetscInt neighbours_num = 27;
 
-	std::vector<Particle> outgoing[neighbours_num];
-	std::vector<Particle> incoming[neighbours_num];
+	std::vector<Point> outgoing[neighbours_num];
+	std::vector<Point> incoming[neighbours_num];
 
 	auto set_index = [&](const Vector3<PetscReal>& r, Vector3<PetscInt>& index, Axis axis) {
 		index[axis] = (r[axis] < l_start[axis]) ? 0 : (r[axis] < l_end[axis]) ? 1 : 2;
 	};
 	PetscInt center_index = to_contiguous_index(1, 1, 1);
 
-	auto end = particles_.end();
-	for (auto it = particles_.begin(); it != end; ++it) {
+	auto end = points_.end();
+	for (auto it = points_.begin(); it != end; ++it) {
 		const Vector3<PetscReal>& r = it->r;
 		Vector3<PetscInt> v_index;
 		set_index(r, v_index, X);
@@ -101,7 +101,7 @@ PetscErrorCode Particles::communicate() {
 		--it;
 		--end;
 	}
-	particles_.erase(end, particles_.end());
+	points_.erase(end, points_.end());
 
 	size_t o_num[neighbours_num];
 	size_t i_num[neighbours_num];
@@ -129,29 +129,37 @@ PetscErrorCode Particles::communicate() {
 		if (s == center_index) continue;
 		PetscInt r = (neighbours_num - 1) - s;
 		incoming[r].resize(i_num[r]);
-		PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Particle), MPI_BYTE, neighbours[s], MPI_TAG_PARTICLES, PETSC_COMM_WORLD, &reqs[req++]));
-		PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Particle), MPI_BYTE, neighbours[r], MPI_TAG_PARTICLES, PETSC_COMM_WORLD, &reqs[req++]));
+		PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, neighbours[s], MPI_TAG_PARTICLES, PETSC_COMM_WORLD, &reqs[req++]));
+		PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, neighbours[r], MPI_TAG_PARTICLES, PETSC_COMM_WORLD, &reqs[req++]));
 	}
 	PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
 	for (PetscInt i = 0; i < neighbours_num; ++i) {
 		if (i == center_index) continue;
-		/// @warning It is unsafe to simply insert particles we've get through MPI-call.
-		/// This is since `parameters_` pointer can point to invalid memory.
-
-		/// @note Proofed, since the following code, where we attach only
-		/// particle _point(s)_ to current particles, works...
-		for (size_t j = 0; j < i_num[i]; ++j) {
-			add_particle(incoming[i][j].r, incoming[i][j].p);
-		}
-
-		/// @note ...but the following does not. Here `parameters_`
-		/// pointer from other rank is moved into this rank particles.
-		// particles_.insert(particles_.end(),
-		// 	std::make_move_iterator(incoming[i].begin()),
-		// 	std::make_move_iterator(incoming[i].end()));
+		points_.insert(points_.end(),
+			std::make_move_iterator(incoming[i].begin()),
+			std::make_move_iterator(incoming[i].end()));
 	}
 	PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+PetscReal Particles::density(const Point& /* point */) const {
+	return parameters_.n;
+}
+
+PetscReal Particles::charge(const Point& /* point */) const {
+	return parameters_.q;
+}
+
+PetscReal Particles::mass(const Point& /* point */) const {
+	return parameters_.m;
+}
+
+Vector3<PetscReal> Particles::velocity(const Point& point) const {
+	const Vector3<PetscReal>& p = point.p;
+	PetscReal m = mass(point);
+	return p / sqrt(m * m + p.square());
 }
 
 }

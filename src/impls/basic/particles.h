@@ -22,12 +22,17 @@ public:
   Particles(const Simulation& simulation, const Particles_parameters& parameters);
 
   PetscErrorCode add_particle(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p);
-  PetscErrorCode communicate();
+
+  PetscReal density(const Point& point) const;
+  PetscReal charge(const Point& point) const;
+  PetscReal mass(const Point& point) const;
+  Vector3<PetscReal> velocity(const Point& point) const;
 
   PetscErrorCode push();
+  PetscErrorCode communicate();
 
 private:
-  void push(Particle& particle, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const;
+  void push(Point& point, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const;
 
 	PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
     constexpr PetscInt dim = 3;
@@ -48,7 +53,7 @@ private:
   Vector3<PetscReal> l_end;
 
   Particles_parameters parameters_;
-  std::vector<Particle> particles_;
+  std::vector<Point> points_;
 };
 
 }

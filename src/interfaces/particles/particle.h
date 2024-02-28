@@ -5,20 +5,28 @@
 #include "src/vectors/vector_classes.h"
 #include "src/interfaces/particles/parameters.h"
 
-
-class Particle {
+/**
+ * @brief Describes the point in 6D space of coordinates and momentum.
+ *
+ * @details
+ * The above describes the common use case. It can be a higher order
+ * point in case of compilation with, for example, per-particle density
+ * storage. However, particle related parameters such as density, charge
+ * and mass are available only through `Particles` class.
+ *
+ * The intention behind such separation is the following:
+ * 1) We want to simplify the "moving parts" of the particles, so we
+ *    can easily use standard algorithms without thinking about parameters pointer.
+ * 2) This way we reduce the additional cost of a pointer size or size of a
+ *    particle tag which would be used to address a global parameters.
+ */
+class Point {
 public:
   Vector3<PetscReal> r = 0.0;
   Vector3<PetscReal> p = 0.0;
 
-  Particle() = default;
-  Particle(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p, const Particles_parameters& parameters);
-
-  Particle(const Particle& particle);
-  Particle(Particle&& particle);
-
-  Particle& operator=(const Particle& particle);
-  Particle& operator=(Particle&& particle);
+  Point() = default;
+  Point(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p);
 
   constexpr PetscReal& x() { return r.x(); }
   constexpr PetscReal& y() { return r.y(); }
@@ -35,20 +43,9 @@ public:
   constexpr PetscReal px() const { return p.x(); }
   constexpr PetscReal py() const { return p.y(); }
   constexpr PetscReal pz() const { return p.z(); }
-
-  constexpr PetscReal n() const { return parameters->n; }
-  constexpr PetscReal q() const { return parameters->q; }
-  constexpr PetscReal m() const { return parameters->m; }
-
-  Vector3<PetscReal> velocity() const {
-    return p / sqrt(m() * m() + p.square());
-  }
-
-private:
-  const Particles_parameters* parameters = nullptr;
 };
 
-void g_bound_reflective(Particle& particle, Axis axis);
-void g_bound_periodic(Particle& particle, Axis axis);
+void g_bound_reflective(Point& point, Axis axis);
+void g_bound_periodic(Point& point, Axis axis);
 
 #endif  // SRC_INTERFACES_PARTICLES_PARTICLE_H
