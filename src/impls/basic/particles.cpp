@@ -85,9 +85,8 @@ PetscErrorCode Particles::communicate() {
 	};
 	PetscInt center_index = to_contiguous_index(1, 1, 1);
 
-	/// @todo Here we can iterate only up to current end point, not the end of the whole vector
 	auto end = particles_.end();
-	for (auto it = particles_.begin(); it != particles_.end(); ++it) {
+	for (auto it = particles_.begin(); it != end; ++it) {
 		const Vector3<PetscReal>& r = it->r;
 		Vector3<PetscInt> v_index;
 		set_index(r, v_index, X);
@@ -99,6 +98,7 @@ PetscErrorCode Particles::communicate() {
 
 		outgoing[index].emplace_back(std::move(*it));
 		std::swap(*it, *(end - 1));
+		--it;
 		--end;
 	}
 	particles_.erase(end, particles_.end());
