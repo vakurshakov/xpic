@@ -8,9 +8,10 @@
 
 class Particle {
 public:
-  Vector3<PetscReal> r;
-  Vector3<PetscReal> p;
+  Vector3<PetscReal> r = 0.0;
+  Vector3<PetscReal> p = 0.0;
 
+  Particle() = default;
   Particle(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p, const Particles_parameters& parameters);
 
   Particle(const Particle& particle);
@@ -44,7 +45,7 @@ public:
   }
 
 private:
-  const Particles_parameters* parameters;
+  const Particles_parameters* parameters = nullptr;
 };
 
 void g_bound_reflective(Particle& particle, Axis axis);

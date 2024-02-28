@@ -35,7 +35,7 @@ PetscErrorCode Simulation::initialize_implementation() {
     .sort_name = "electrons"
   };
   auto& sort = particles_.emplace_back(*this, parameters);
-  sort.add_particle({geom_x / 2, geom_y / 2, geom_z / 2}, {1.0, 0.0, 0.0});
+  sort.add_particle({geom_x / 2, geom_y / 4, geom_z / 2}, {0.0, 1.0, 0.0});
 #endif
 
   Diagnostics_builder diagnostics_builder(*this);
