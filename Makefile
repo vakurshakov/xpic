@@ -43,6 +43,7 @@ SRCS +=                                    \
   src/interfaces/simulation.cpp            \
 	src/interfaces/particles/point.cpp       \
 	src/interfaces/particles/parameters.cpp  \
+	src/interfaces/particles/particles.cpp   \
 
 SRCS +=                                \
   src/utils/log.cpp                    \

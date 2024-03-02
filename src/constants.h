@@ -6,6 +6,8 @@
 
 #define THERE_ARE_PARTICLES           true
 #define PARTICLES_ARE_DIAGNOSED       true
+#define PARTICLES_LOCAL_PNUM          false
+#define PARTICLES_LOCAL_DENSITY       false
 #define PARTICLES_FORM_FACTOR         2
 
 #define LOGGING                       true

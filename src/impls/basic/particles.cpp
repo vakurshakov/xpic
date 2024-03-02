@@ -22,13 +22,14 @@ Particles::Particles(const Simulation& simulation, const Particles_parameters& p
 	l_end.z() = l_start.z() + (PetscReal)size.z() * dz;
 }
 
-PetscErrorCode Particles::add_particle(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p) {
+PetscErrorCode Particles::add_particle(const Point& point) {
 	PetscFunctionBeginUser;
+	const Vector3<PetscReal>& r = point.r;
   if (l_start.x() <= r.x() && r.x() < l_end.x() &&
       l_start.y() <= r.y() && r.y() < l_end.y() &&
       l_start.z() <= r.z() && r.z() < l_end.z()) {
     #pragma omp critical
-		points_.emplace_back(r, p);
+		points_.emplace_back(point);
   }
 	PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -141,25 +142,6 @@ PetscErrorCode Particles::communicate() {
 			std::make_move_iterator(incoming[i].end()));
 	}
 	PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-PetscReal Particles::density(const Point& /* point */) const {
-	return parameters_.n;
-}
-
-PetscReal Particles::charge(const Point& /* point */) const {
-	return parameters_.q;
-}
-
-PetscReal Particles::mass(const Point& /* point */) const {
-	return parameters_.m;
-}
-
-Vector3<PetscReal> Particles::velocity(const Point& point) const {
-	const Vector3<PetscReal>& p = point.p;
-	PetscReal m = mass(point);
-	return p / sqrt(m * m + p.square());
 }
 
 }

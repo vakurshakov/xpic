@@ -5,6 +5,8 @@
 #include "src/vectors/vector_classes.h"
 #include "src/interfaces/particles/parameters.h"
 
+namespace interfaces { class Particles; }
+
 /**
  * @brief Describes the point in 6D space of coordinates and momentum.
  *
@@ -12,7 +14,7 @@
  * The above describes the common use case. It can be a higher order
  * point in case of compilation with, for example, per-particle density
  * storage. However, particle related parameters such as density, charge
- * and mass are available only through `Particles` class.
+ * and mass are available only through `interfaces::Particles` class.
  *
  * The intention behind such separation is the following:
  * 1) We want to simplify the "moving parts" of the particles, so we
@@ -26,7 +28,16 @@ public:
   Vector3<PetscReal> p = 0.0;
 
   Point() = default;
-  Point(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p);
+  Point(
+    const Vector3<PetscReal>& r,
+    const Vector3<PetscReal>& p
+#if PARTICLES_LOCAL_PNUM
+    , PetscInt Np
+#endif
+#if PARTICLES_LOCAL_DENSITY
+    , PetscReal n
+#endif
+  );
 
   constexpr PetscReal& x() { return r.x(); }
   constexpr PetscReal& y() { return r.y(); }
@@ -43,6 +54,16 @@ public:
   constexpr PetscReal px() const { return p.x(); }
   constexpr PetscReal py() const { return p.y(); }
   constexpr PetscReal pz() const { return p.z(); }
+
+private:
+  friend class interfaces::Particles;
+
+#if PARTICLES_LOCAL_PNUM
+  PetscReal __Np;
+#endif
+#if PARTICLES_LOCAL_DENSITY
+  PetscReal __n;
+#endif
 };
 
 void g_bound_reflective(Point& point, Axis axis);

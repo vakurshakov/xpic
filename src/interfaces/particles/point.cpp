@@ -1,7 +1,25 @@
 #include "point.h"
 
-Point::Point(const Vector3<PetscReal>& r, const Vector3<PetscReal>& p)
-  : r(r), p(p) {}
+Point::Point(
+  const Vector3<PetscReal>& r,
+  const Vector3<PetscReal>& p
+#if PARTICLES_LOCAL_PNUM
+  , PetscInt Np
+#endif
+#if PARTICLES_LOCAL_DENSITY
+  , PetscReal n
+#endif
+  )
+  : r(r)
+  , p(p)
+#if PARTICLES_LOCAL_PNUM
+  , __Np(Np)
+#endif
+#if PARTICLES_LOCAL_DENSITY
+  , __n(n)
+#endif
+{
+}
 
 void g_bound_reflective(Point& point, Axis axis) {
   PetscReal& s = point.r[axis];

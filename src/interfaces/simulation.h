@@ -9,7 +9,6 @@ namespace interfaces {
 
 class Simulation {
 public:
-  Simulation() = default;
   virtual ~Simulation() = default;
 
   virtual PetscErrorCode initialize();
