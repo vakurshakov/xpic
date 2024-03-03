@@ -3,6 +3,21 @@
 
 #include "src/pch.h"
 
+struct Particles_parameters {
+  PetscInt Np;         // Number of particles in a cell.
+  PetscReal n;         // Reference density of the particles.
+  PetscReal q;         // Reference charge of the particles.
+  PetscReal m;         // Mass of the particles in a sort.
+  PetscReal px = 0.0;  // Inital impulse in x direction.
+  PetscReal py = 0.0;  // Inital impulse in y direction.
+  PetscReal pz = 0.0;  // Inital impulse in z direction.
+  PetscReal Tx = 0.0;  // Temperature in x direction.
+  PetscReal Ty = 0.0;  // Temperature in y direction.
+  PetscReal Tz = 0.0;  // Temperature in z direction.
+  std::string sort_name = {};
+};
+
+
 #pragma omp declare simd notinbranch
 PetscReal __0th_order_spline(PetscReal s);
 
@@ -20,20 +35,6 @@ PetscReal __4th_order_spline(PetscReal s);
 
 #pragma omp declare simd notinbranch
 PetscReal __5th_order_spline(PetscReal s);
-
-
-struct Particles_parameters {
-  PetscInt Np;         // Number of particles in a cell.
-  PetscReal n;         // Reference density of the particles.
-  PetscReal q;         // Reference charge of the particles.
-  PetscReal m;         // Mass of the particles in a sort.
-  PetscReal px = 0.0;  // Inital impulse in x direction.
-  PetscReal py = 0.0;  // Inital impulse in y direction.
-  PetscReal pz = 0.0;  // Inital impulse in z direction.
-  PetscReal Tx = 0.0;  // Temperature in x direction.
-  PetscReal Ty = 0.0;  // Temperature in y direction.
-  PetscReal Tz = 0.0;  // Temperature in z direction.
-  std::string sort_name = {};
 
 #if (PARTICLES_FORM_FACTOR == 0)
   static constexpr PetscInt shape_radius = 1;
@@ -57,6 +58,6 @@ struct Particles_parameters {
   #error "Unknown PARTICLES_FORM_FACTOR is specified!"
 #endif
 
-};
+static constexpr PetscInt shape_width = 2 * shape_radius + 1;
 
 #endif // SRC_INTERFACES_PARTICLES_PARAMETERS_H

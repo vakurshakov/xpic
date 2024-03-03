@@ -24,6 +24,7 @@ public:
 private:
   static constexpr int OMP_CHUNK_SIZE  = 16;
 
+  void interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const;
   void push(Point& point, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const;
 
 	PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {

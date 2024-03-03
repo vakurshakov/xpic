@@ -10,7 +10,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
 
   const PetscInt dof = Vector3_dim;
-  const PetscInt s = Particles_parameters::shape_radius;
+  const PetscInt s = shape_radius;
 
   // We can specify in our config DMBoundaryType and procs number and map it to Create3d
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3(DM_BOUNDARY_NONE), DMDA_STENCIL_BOX, REP3_X(geom_n), REP3(PETSC_DECIDE), dof, s, REP3(nullptr), &da_));
