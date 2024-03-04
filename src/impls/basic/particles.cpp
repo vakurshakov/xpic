@@ -56,9 +56,9 @@ enum Shift : PetscInt {
 
 // `Vector3_dim` is used as a coordinate space dimensionality
 
-#pragma omp declare simd linear(x, y, z: 1), notinbranch
-constexpr PetscInt index(PetscInt x, PetscInt y, PetscInt z, PetscInt comp, PetscInt shift) {
-  return (((z * shape_width + y) * shape_width + x) * Vector3_dim + comp) * 2 + shift;
+#pragma omp declare simd linear(i: 1), notinbranch
+constexpr PetscInt index(PetscInt i, PetscInt comp, PetscInt shift) {
+  return (i * Vector3_dim + comp) * 2 + shift;
 }
 
 void Particles::interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const {
@@ -72,21 +72,22 @@ void Particles::interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& lo
   PetscInt node_gx, node_gy, node_gz;
 
   #pragma omp simd collapse(Vector3_dim)
-	for(PetscInt z = 0; z < shape_width; ++z) {
-  for(PetscInt y = 0; y < shape_width; ++y) {
-	for(PetscInt x = 0; x < shape_width; ++x) {
-      node_gx = node_px + x;
-      node_gy = node_py + y;
-      node_gz = node_pz + z;
+	for (PetscInt z = 0; z < shape_width; ++z) {
+  for (PetscInt y = 0; y < shape_width; ++y) {
+	for (PetscInt x = 0; x < shape_width; ++x) {
+		PetscInt i = ((z * shape_width + y) * shape_width + x);
+		node_gx = node_px + x;
+		node_gy = node_py + y;
+		node_gz = node_pz + z;
 
-      /// @todo check the size_s == 1
-      shape[index(x, y, z, X, NO)] = shape_function(r0.x() / dx - node_gx);
-      shape[index(x, y, z, Y, NO)] = shape_function(r0.y() / dy - node_gy);
-      shape[index(x, y, z, Z, NO)] = shape_function(r0.z() / dz - node_gz);
+		/// @todo check the size_s == 1
+		shape[index(i, X, NO)] = shape_function(r0.x() / dx - node_gx);
+		shape[index(i, Y, NO)] = shape_function(r0.y() / dy - node_gy);
+		shape[index(i, Z, NO)] = shape_function(r0.z() / dz - node_gz);
 
-      shape[index(x, y, z, X, SH)] = shape_function(r0.x() / dx - (node_gx + 0.5));
-      shape[index(x, y, z, Y, SH)] = shape_function(r0.y() / dy - (node_gy + 0.5));
-      shape[index(x, y, z, Z, SH)] = shape_function(r0.z() / dz - (node_gz + 0.5));
+		shape[index(i, X, SH)] = shape_function(r0.x() / dx - (node_gx + 0.5));
+		shape[index(i, Y, SH)] = shape_function(r0.y() / dy - (node_gy + 0.5));
+		shape[index(i, Z, SH)] = shape_function(r0.z() / dz - (node_gz + 0.5));
 	}}}
 
   Vector3<PetscReal> ***E, ***B;
@@ -94,21 +95,21 @@ void Particles::interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& lo
   PetscCallVoid(DMDAVecGetArrayRead(simulation_.da(), simulation_.B(), &B));
 
   // #pragma omp simd collapse(Vector3_dim)
-	for(PetscInt z = 0; z < shape_width; ++z) {
-  for(PetscInt y = 0; y < shape_width; ++y) {
-	for(PetscInt x = 0; x < shape_width; ++x) {
+	for (PetscInt z = 0; z < shape_width; ++z) {
+  for (PetscInt y = 0; y < shape_width; ++y) {
+	for (PetscInt x = 0; x < shape_width; ++x) {
+		PetscInt i = ((z * shape_width + y) * shape_width + x);
 		node_gx = node_px + x;
 		node_gy = node_py + y;
 		node_gz = node_pz + z;
 
-		/// @todo convert it something smaller?
-		local_E.x() += E[node_gz][node_gy][node_gx].x() * shape[index(x, y, z, Z, NO)] * shape[index(x, y, z, Y, NO)] * shape[index(x, y, z, X, SH)];
-		local_E.y() += E[node_gz][node_gy][node_gx].y() * shape[index(x, y, z, Z, NO)] * shape[index(x, y, z, Y, SH)] * shape[index(x, y, z, X, NO)];
-		local_E.z() += E[node_gz][node_gy][node_gx].z() * shape[index(x, y, z, Z, SH)] * shape[index(x, y, z, Y, NO)] * shape[index(x, y, z, X, NO)];
+		local_E.x() += E[node_gz][node_gy][node_gx].x() * shape[index(i, Z, NO)] * shape[index(i, Y, NO)] * shape[index(i, X, SH)];
+		local_E.y() += E[node_gz][node_gy][node_gx].y() * shape[index(i, Z, NO)] * shape[index(i, Y, SH)] * shape[index(i, X, NO)];
+		local_E.z() += E[node_gz][node_gy][node_gx].z() * shape[index(i, Z, SH)] * shape[index(i, Y, NO)] * shape[index(i, X, NO)];
 
-		local_B.x() += B[node_gz][node_gy][node_gx].x() * shape[index(x, y, z, Z, SH)] * shape[index(x, y, z, Y, SH)] * shape[index(x, y, z, X, NO)];
-		local_B.y() += B[node_gz][node_gy][node_gx].y() * shape[index(x, y, z, Z, SH)] * shape[index(x, y, z, Y, NO)] * shape[index(x, y, z, X, SH)];
-		local_B.z() += B[node_gz][node_gy][node_gx].z() * shape[index(x, y, z, Z, NO)] * shape[index(x, y, z, Y, SH)] * shape[index(x, y, z, X, SH)];
+		local_B.x() += B[node_gz][node_gy][node_gx].x() * shape[index(i, Z, SH)] * shape[index(i, Y, SH)] * shape[index(i, X, NO)];
+		local_B.y() += B[node_gz][node_gy][node_gx].y() * shape[index(i, Z, SH)] * shape[index(i, Y, NO)] * shape[index(i, X, SH)];
+		local_B.z() += B[node_gz][node_gy][node_gx].z() * shape[index(i, Z, NO)] * shape[index(i, Y, SH)] * shape[index(i, X, SH)];
 	}}}
 }
 
