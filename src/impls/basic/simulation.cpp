@@ -12,8 +12,14 @@ PetscErrorCode Simulation::initialize_implementation() {
   const PetscInt dof = Vector3_dim;
   const PetscInt s = shape_radius;
 
+  const Vector3<DMBoundaryType> bound = {
+    DM_BOUNDARY_GHOSTED,
+    DM_BOUNDARY_GHOSTED,
+    DM_BOUNDARY_GHOSTED,
+  };
+
   // We can specify in our config DMBoundaryType and procs number and map it to Create3d
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3(DM_BOUNDARY_NONE), DMDA_STENCIL_BOX, REP3_X(geom_n), REP3(PETSC_DECIDE), dof, s, REP3(nullptr), &da_));
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bound), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3(PETSC_DECIDE), dof, s, REP3(nullptr), &da_));
   PetscCall(DMSetUp(da_));
 
 #if THERE_ARE_FIELDS

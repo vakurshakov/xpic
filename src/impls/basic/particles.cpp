@@ -36,6 +36,11 @@ PetscErrorCode Particles::add_particle(const Point& point) {
 
 PetscErrorCode Particles::push() {
   PetscFunctionBegin;
+
+  // Vec E;
+  // PetscCallVoid(DMGetLocalVector(simulation_.da(), &E));
+  // PetscCallVoid(DMRestoreLocalVector(simulation_.da(), &E));
+
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
   for (auto it = points_.begin(); it != points_.end(); ++it) {
     Vector3<PetscReal> r0 = it->r;
@@ -68,6 +73,9 @@ void Particles::interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& lo
   /// @note This structure would be useful for current decomposition too
   static thread_local Shape shape;
 
+  /// @todo We should gather local vectors first
+  // PetscCallVoid(DMGlobalToLocalBegin(simulation_.da(), simulation_.E(), INSERT_VALUES, nullptr));
+  // PetscCallVoid(DMGlobalToLocalBegin(simulation_.da(), simulation_.B(), INSERT_VALUES, nullptr));
 
   // Subtracting `shape_radius` to use indexing in range `[0, shape_width)`
   const PetscInt node_px = TO_STEP(r0.x(), dx) - shape_radius;
