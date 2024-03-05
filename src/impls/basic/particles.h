@@ -27,17 +27,17 @@ private:
   void interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const;
   void push(Point& point, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const;
 
-	PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
+  PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
     constexpr PetscInt dim = 3;
-		return (z * dim + y) * dim + x;
-	}
+    return (z * dim + y) * dim + x;
+  }
 
-	void from_contiguous_index(PetscInt index, PetscInt& x, PetscInt& y, PetscInt& z) {
+  void from_contiguous_index(PetscInt index, PetscInt& x, PetscInt& y, PetscInt& z) {
     constexpr PetscInt dim = 3;
-		x = (index) % dim;
-		y = (index / dim) % dim;
-		z = (index / dim) / dim;
-	}
+    x = (index) % dim;
+    y = (index / dim) % dim;
+    z = (index / dim) / dim;
+  }
 
   const Simulation& simulation_;
 
