@@ -29,6 +29,6 @@ struct Triplet {
 #define REP3_AP(A) A[2], A[1], A[0]
 #define REP4_AP(A) A[2], A[1], A[0], A[3]
 
-#define TO_STEP(s, ds) static_cast<PetscInt>(round(s / ds))
+#define TO_STEP(s, ds) static_cast<PetscInt>(std::round((s) / (ds)))
 
 #endif // SRC_UTILS_UTILS_H
