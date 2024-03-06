@@ -13,9 +13,9 @@ struct Particles::Shape {
   // `Vector3_dim` is used as a coordinate space dimensionality
   PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim * 2];
 
-  #pragma omp declare simd linear(g: 1), notinbranch
-  constexpr PetscReal& operator()(PetscInt g, PetscInt comp, PetscInt shift) {
-    return shape[(g * Vector3_dim + comp) * 2 + shift];
+  #pragma omp declare simd linear(i: 1), notinbranch
+  constexpr PetscReal& operator()(PetscInt i, PetscInt comp, PetscInt shift) {
+    return shape[(i * Vector3_dim + comp) * 2 + shift];
   }
 };
 
@@ -98,6 +98,7 @@ PetscErrorCode Particles::push() {
     Vector3<PetscReal> point_B = 0.0;
     interpolate(p_g, shape, point_E, point_B);
     push(point_E, point_B, *it);
+    decompose(shape, *it);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
@@ -123,6 +124,7 @@ void Particles::fill_shape(const Vector3<PetscReal>& p_r, const Vector3<PetscInt
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
 
+    /// @todo move this check into `shape_function(PetscReal, Axis)`
     shape(i, X, NO) = (geom_nx > 1) ? shape_function(p_r.x() - g_x) : 1.0;
     shape(i, Y, NO) = (geom_ny > 1) ? shape_function(p_r.y() - g_y) : 1.0;
     shape(i, Z, NO) = (geom_nz > 1) ? shape_function(p_r.z() - g_z) : 1.0;
@@ -181,6 +183,69 @@ void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>
   if (geom_nx == 1) r.x() = 0.5;
   if (geom_ny == 1) r.y() = 0.5;
   if (geom_nz == 1) r.z() = 0.5;
+}
+
+
+/// @todo Create a equivalent of `Node` structure for p_r, p_g
+/// @note Implementation for `decompose_x()`
+void Particles::decompose(Shape& old_shape, const Point& point) {
+  static PetscReal temp_Jx[shape_width][shape_width];
+  #pragma omp threadprivate(temp_Jx)
+
+  const PetscReal qx = charge(point) * density(point) / particles_number(point) * dx / (6 * dt);
+
+  const Vector3<PetscReal> p_r{
+    point.r.x() / dx,
+    point.r.y() / dy,
+    point.r.z() / dz,
+  };
+
+  const Vector3<PetscInt> p_g{
+    (geom_nx > 1) ? ROUND(p_r.x()) - shape_radius : 0,
+    (geom_ny > 1) ? ROUND(p_r.y()) - shape_radius : 0,
+    (geom_nz > 1) ? ROUND(p_r.z()) - shape_radius : 0,
+  };
+
+  /// @note Only non-shifted coordinates are used!
+  static Shape new_shape;
+  #pragma omp threadprivate(new_shape)
+
+  fill_shape(p_r, p_g, new_shape);
+
+  PetscInt g_x, g_y, g_z;
+  g_x = p_g[X];
+
+  auto compute_Jx = [&](PetscInt i) {
+    return - qx * (new_shape(i, X, NO) - old_shape(i, X, NO)) * (
+      new_shape(i, Y, NO) * (2.0 * new_shape(i, Z, NO) + old_shape(i, Z, NO)) +
+      old_shape(i, Y, NO) * (2.0 * old_shape(i, Z, NO) + new_shape(i, Z, NO)));
+  };
+
+  for (PetscInt z = 0; z < l_width[Z]; ++z) {
+  for (PetscInt y = 0; y < l_width[Y]; ++y) {
+    PetscInt i = ((z * shape_width + y) * shape_width + 0);
+    g_y = p_g[Y] + y;
+    g_z = p_g[Z] + z;
+
+    temp_Jx[z][y] = compute_Jx(i);
+
+    #pragma omp atomic update
+    J[g_z][g_y][g_x].x() += temp_Jx[z][y];
+  }}
+
+  for (PetscInt z = 0; z < l_width[Z]; ++z) {
+  for (PetscInt y = 0; y < l_width[Y]; ++y) {
+  for (PetscInt x = 1; x < l_width[X]; ++x) {
+    PetscInt i = ((z * shape_width + y) * shape_width + x);
+    g_x = p_g[X] + x;
+    g_y = p_g[Y] + y;
+    g_z = p_g[Z] + z;
+
+    temp_Jx[z][y] += compute_Jx(i);
+
+    #pragma omp atomic update
+    J[g_z][g_y][g_x].x() += temp_Jx[z][y];
+  }}}
 }
 
 
