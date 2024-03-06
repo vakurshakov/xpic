@@ -71,16 +71,29 @@ PetscErrorCode Particles::push() {
 
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
   for (auto it = points_.begin(); it != points_.end(); ++it) {
-    const Vector3<PetscReal> r0 = it->r;
+    // Particle's coordinate (global) in `PetscReal` units of dx, dy, dz
+    const Vector3<PetscReal> p_r{
+      it->r.x() / dx,
+      it->r.y() / dy,
+      it->r.z() / dz,
+    };
+
+    // Nearest grid point to particle. Shifted by `shape_radius`
+    // to use indexing in range `[0, shape_width)` later
+    const Vector3<PetscInt> p_g{
+      ROUND(p_r.x()) - shape_radius,
+      ROUND(p_r.y()) - shape_radius,
+      ROUND(p_r.z()) - shape_radius,
+    };
 
     static Shape shape;
     #pragma omp threadprivate(shape)
 
-    fill_shape(r0, shape);
+    fill_shape(p_r, p_g, shape);
 
     Vector3<PetscReal> point_E = 0.0;
     Vector3<PetscReal> point_B = 0.0;
-    interpolate(r0, shape, point_E, point_B);
+    interpolate(p_g, shape, point_E, point_B);
     push(point_E, point_B, *it);
   }
 
@@ -93,58 +106,48 @@ PetscErrorCode Particles::push() {
 }
 
 
-void Particles::fill_shape(const Vector3<PetscReal>& r0, Shape& shape) {
-  // Subtracting `shape_radius` to use indexing in range `[0, shape_width)`
-  const PetscInt node_px = TO_STEP(r0.x(), dx) - shape_radius;
-  const PetscInt node_py = TO_STEP(r0.y(), dy) - shape_radius;
-  const PetscInt node_pz = TO_STEP(r0.z(), dz) - shape_radius;
-
-  PetscInt node_gx, node_gy, node_gz;
+void Particles::fill_shape(const Vector3<PetscReal>& p_r, const Vector3<PetscInt>& p_g, Shape& shape) {
+  PetscInt g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3_dim)
-  for (PetscInt z = 0; z < l_width.z(); ++z) {
-  for (PetscInt y = 0; y < l_width.y(); ++y) {
-  for (PetscInt x = 0; x < l_width.x(); ++x) {
-    PetscInt g = ((z * shape_width + y) * shape_width + x);
-    node_gx = node_px + x;
-    node_gy = node_py + y;
-    node_gz = node_pz + z;
+  for (PetscInt z = 0; z < l_width[Z]; ++z) {
+  for (PetscInt y = 0; y < l_width[Y]; ++y) {
+  for (PetscInt x = 0; x < l_width[X]; ++x) {
+    PetscInt i = ((z * shape_width + y) * shape_width + x);
+    g_x = p_g[X] + x;
+    g_y = p_g[Y] + y;
+    g_z = p_g[Z] + z;
 
-    shape(g, X, NO) = (geom_nx > 1) ? shape_function(r0.x() / dx - node_gx) : 1.0;
-    shape(g, Y, NO) = (geom_ny > 1) ? shape_function(r0.y() / dy - node_gy) : 1.0;
-    shape(g, Z, NO) = (geom_nz > 1) ? shape_function(r0.z() / dz - node_gz) : 1.0;
+    shape(i, X, NO) = (geom_nx > 1) ? shape_function(p_r.x() - g_x) : 1.0;
+    shape(i, Y, NO) = (geom_ny > 1) ? shape_function(p_r.y() - g_y) : 1.0;
+    shape(i, Z, NO) = (geom_nz > 1) ? shape_function(p_r.z() - g_z) : 1.0;
 
-    shape(g, X, SH) = (geom_nx > 1) ? shape_function(r0.x() / dx - (node_gx + 0.5)) : 1.0;
-    shape(g, Y, SH) = (geom_ny > 1) ? shape_function(r0.y() / dy - (node_gy + 0.5)) : 1.0;
-    shape(g, Z, SH) = (geom_nz > 1) ? shape_function(r0.z() / dz - (node_gz + 0.5)) : 1.0;
+    shape(i, X, SH) = (geom_nx > 1) ? shape_function(p_r.x() - (g_x + 0.5)) : 1.0;
+    shape(i, Y, SH) = (geom_ny > 1) ? shape_function(p_r.y() - (g_y + 0.5)) : 1.0;
+    shape(i, Z, SH) = (geom_nz > 1) ? shape_function(p_r.z() - (g_z + 0.5)) : 1.0;
   }}}
 }
 
 
-void Particles::interpolate(const Vector3<PetscReal>& r0, Shape& shape, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const {
-  // Subtracting `shape_radius` to use indexing in range `[0, shape_width)`
-  const PetscInt node_px = TO_STEP(r0.x(), dx) - shape_radius;
-  const PetscInt node_py = TO_STEP(r0.y(), dy) - shape_radius;
-  const PetscInt node_pz = TO_STEP(r0.z(), dz) - shape_radius;
-
-  PetscInt node_gx, node_gy, node_gz;
+void Particles::interpolate(const Vector3<PetscInt>& p_g, Shape& shape, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const {
+  PetscInt g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3_dim)
-  for (PetscInt z = 0; z < l_width.z(); ++z) {
-  for (PetscInt y = 0; y < l_width.y(); ++y) {
-  for (PetscInt x = 0; x < l_width.x(); ++x) {
-    PetscInt g = ((z * shape_width + y) * shape_width + x);
-    node_gx = node_px + x;
-    node_gy = node_py + y;
-    node_gz = node_pz + z;
+  for (PetscInt z = 0; z < l_width[Z]; ++z) {
+  for (PetscInt y = 0; y < l_width[Y]; ++y) {
+  for (PetscInt x = 0; x < l_width[X]; ++x) {
+    PetscInt i = ((z * shape_width + y) * shape_width + x);
+    g_x = p_g[X] + x;
+    g_y = p_g[Y] + y;
+    g_z = p_g[Z] + z;
 
-    point_E.x() += E[node_gz][node_gy][node_gx].x() * shape(g, Z, NO) * shape(g, Y, NO) * shape(g, X, SH);
-    point_E.y() += E[node_gz][node_gy][node_gx].y() * shape(g, Z, NO) * shape(g, Y, SH) * shape(g, X, NO);
-    point_E.z() += E[node_gz][node_gy][node_gx].z() * shape(g, Z, SH) * shape(g, Y, NO) * shape(g, X, NO);
+    point_E.x() += E[g_z][g_y][g_x].x() * shape(i, Z, NO) * shape(i, Y, NO) * shape(i, X, SH);
+    point_E.y() += E[g_z][g_y][g_x].y() * shape(i, Z, NO) * shape(i, Y, SH) * shape(i, X, NO);
+    point_E.z() += E[g_z][g_y][g_x].z() * shape(i, Z, SH) * shape(i, Y, NO) * shape(i, X, NO);
 
-    point_B.x() += B[node_gz][node_gy][node_gx].x() * shape(g, Z, SH) * shape(g, Y, SH) * shape(g, X, NO);
-    point_B.y() += B[node_gz][node_gy][node_gx].y() * shape(g, Z, SH) * shape(g, Y, NO) * shape(g, X, SH);
-    point_B.z() += B[node_gz][node_gy][node_gx].z() * shape(g, Z, NO) * shape(g, Y, SH) * shape(g, X, SH);
+    point_B.x() += B[g_z][g_y][g_x].x() * shape(i, Z, SH) * shape(i, Y, SH) * shape(i, X, NO);
+    point_B.y() += B[g_z][g_y][g_x].y() * shape(i, Z, SH) * shape(i, Y, NO) * shape(i, X, SH);
+    point_B.z() += B[g_z][g_y][g_x].z() * shape(i, Z, NO) * shape(i, Y, SH) * shape(i, X, SH);
   }}}
 }
 
