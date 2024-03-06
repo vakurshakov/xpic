@@ -2,6 +2,7 @@
 #define SRC_INTERFACES_PARTICLES_PARAMETERS_H
 
 #include "src/pch.h"
+#include "src/vectors/vector_classes.h"
 
 struct Particles_parameters {
   PetscInt Np;         // Number of particles in a cell.
@@ -19,22 +20,22 @@ struct Particles_parameters {
 
 
 #pragma omp declare simd notinbranch
-PetscReal __0th_order_spline(PetscReal s);
+PetscReal __0th_order_spline(PetscReal s, Axis a);
 
 #pragma omp declare simd notinbranch
-PetscReal __1st_order_spline(PetscReal s);
+PetscReal __1st_order_spline(PetscReal s, Axis a);
 
 #pragma omp declare simd notinbranch
-PetscReal __2nd_order_spline(PetscReal s);
+PetscReal __2nd_order_spline(PetscReal s, Axis a);
 
 #pragma omp declare simd notinbranch
-PetscReal __3rd_order_spline(PetscReal s);
+PetscReal __3rd_order_spline(PetscReal s, Axis a);
 
 #pragma omp declare simd notinbranch
-PetscReal __4th_order_spline(PetscReal s);
+PetscReal __4th_order_spline(PetscReal s, Axis a);
 
 #pragma omp declare simd notinbranch
-PetscReal __5th_order_spline(PetscReal s);
+PetscReal __5th_order_spline(PetscReal s, Axis a);
 
 #if (PARTICLES_FORM_FACTOR == 0)
   static constexpr PetscInt shape_radius = 1;

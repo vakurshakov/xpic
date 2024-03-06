@@ -140,14 +140,13 @@ void Particles::fill_shape(const Node& node, Shape& shape) {
     g_y = node.g[Y] + y;
     g_z = node.g[Z] + z;
 
-    /// @todo move this check into `shape_function(PetscReal, Axis)`
-    shape(i, X, NO) = (geom_nx > 1) ? shape_function(node.r.x() - g_x) : 1.0;
-    shape(i, Y, NO) = (geom_ny > 1) ? shape_function(node.r.y() - g_y) : 1.0;
-    shape(i, Z, NO) = (geom_nz > 1) ? shape_function(node.r.z() - g_z) : 1.0;
+    shape(i, X, NO) = shape_function(node.r.x() - g_x, X);
+    shape(i, Y, NO) = shape_function(node.r.y() - g_y, Y);
+    shape(i, Z, NO) = shape_function(node.r.z() - g_z, Z);
 
-    shape(i, X, SH) = (geom_nx > 1) ? shape_function(node.r.x() - (g_x + 0.5)) : 1.0;
-    shape(i, Y, SH) = (geom_ny > 1) ? shape_function(node.r.y() - (g_y + 0.5)) : 1.0;
-    shape(i, Z, SH) = (geom_nz > 1) ? shape_function(node.r.z() - (g_z + 0.5)) : 1.0;
+    shape(i, X, SH) = shape_function(node.r.x() - (g_x + 0.5), X);
+    shape(i, Y, SH) = shape_function(node.r.y() - (g_y + 0.5), Y);
+    shape(i, Z, SH) = shape_function(node.r.z() - (g_z + 0.5), Z);
   }}}
 }
 
