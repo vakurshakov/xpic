@@ -71,14 +71,15 @@ PetscErrorCode Particles::push() {
 
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
   for (auto it = points_.begin(); it != points_.end(); ++it) {
-    Vector3<PetscReal> r0 = it->r;
-    Vector3<PetscReal> point_E = 0.0;
-    Vector3<PetscReal> point_B = 0.0;
+    const Vector3<PetscReal> r0 = it->r;
 
     static Shape shape;
     #pragma omp threadprivate(shape)
 
     fill_shape(r0, shape);
+
+    Vector3<PetscReal> point_E = 0.0;
+    Vector3<PetscReal> point_B = 0.0;
     interpolate(r0, shape, point_E, point_B);
     push(point_E, point_B, *it);
   }
