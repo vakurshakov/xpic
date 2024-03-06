@@ -61,13 +61,16 @@ PetscErrorCode Particles::push() {
   const DM& da = simulation_.da();
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
+  PetscCall(DMGetLocalVector(da, &local_J));
 
-  /// @note May we can put `DMGlobalToLocalEnd()` into `Particles::interpolate()`?
+  /// @note Maybe we can put `DMGlobalToLocalEnd()` into `Particles::interpolate()`?
   PetscCall(DMGlobalToLocal(da, simulation_.E(), INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, simulation_.B(), INSERT_VALUES, local_B));
+  PetscCall(VecSet(local_J, 0.0));
 
   PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
   PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecGetArrayWrite(da, local_J, &J));
 
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
   for (auto it = points_.begin(); it != points_.end(); ++it) {
@@ -99,9 +102,11 @@ PetscErrorCode Particles::push() {
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
+  PetscCall(DMRestoreLocalVector(da, &local_J));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

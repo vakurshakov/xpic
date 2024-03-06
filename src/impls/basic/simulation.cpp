@@ -25,6 +25,7 @@ PetscErrorCode Simulation::initialize_implementation() {
 #if THERE_ARE_FIELDS
   PetscCall(DMCreateGlobalVector(da_, &E_));
   PetscCall(DMCreateGlobalVector(da_, &B_));
+  PetscCall(DMCreateGlobalVector(da_, &J_));
   PetscCall(DMCreateMatrix(da_, &rot_dt_p));
   PetscCall(DMCreateMatrix(da_, &rot_dt_m));
 
@@ -165,6 +166,8 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 
   // Solving Maxwell's equations using FDTD
   PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // rot(E) = - ∂B / ∂t
+
+  /// @todo Include a source current
   PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // rot(B) = + ∂E / ∂t
 #endif
 
@@ -182,14 +185,17 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 const DM& Simulation::da() const { return da_; }
 const Vec& Simulation::E() const { return E_; }
 const Vec& Simulation::B() const { return B_; }
+const Vec& Simulation::J() const { return J_; }
 Vec& Simulation::E() { return E_; }
 Vec& Simulation::B() { return B_; }
+Vec& Simulation::J() { return J_; }
 
 
 Simulation::~Simulation() {
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&E_));
   PetscCallVoid(VecDestroy(&B_));
+  PetscCallVoid(VecDestroy(&J_));
   PetscCallVoid(MatDestroy(&rot_dt_p));
   PetscCallVoid(MatDestroy(&rot_dt_m));
   PetscFunctionReturnVoid();

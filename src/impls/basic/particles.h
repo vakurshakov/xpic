@@ -46,8 +46,8 @@ private:
   std::vector<Point> points_;
 
   const Simulation& simulation_;
-  Vec local_E, local_B;
-  Vector3<PetscReal> ***E, ***B;
+  Vec local_E, local_B, local_J;
+  Vector3<PetscReal> ***E, ***B, ***J;
 
   const PetscMPIInt* neighbours;
   Vector3<PetscReal> l_start;

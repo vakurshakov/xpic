@@ -19,8 +19,10 @@ public:
   const DM& da() const;
   const Vec& E() const;
   const Vec& B() const;
+  const Vec& J() const;
   Vec& E();
   Vec& B();
+  Vec& J();
 
 protected:
   PetscErrorCode initialize_implementation() override;
@@ -37,6 +39,7 @@ private:
   DM da_;
   Vec E_;
   Vec B_;
+  Vec J_;
   Mat rot_dt_p;
   Mat rot_dt_m;
 
