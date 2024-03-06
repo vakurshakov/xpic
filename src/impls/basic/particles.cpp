@@ -4,6 +4,29 @@
 
 namespace basic {
 
+struct Particles::Node {
+  // Particle's coordinate (global) in `PetscReal` units of dx, dy, dz
+  Vector3<PetscReal> r;
+
+  // Nearest grid point to particle shifted by `shape_radius`
+  // to use indexing in range `[0, shape_width)` later
+  Vector3<PetscInt> g;
+
+  Node(const Vector3<PetscReal>& __r) {
+    r = {
+      __r.x() / dx,
+      __r.y() / dy,
+      __r.z() / dz,
+    };
+
+    g = {
+      (geom_nx > 1) ? ROUND(r.x()) - shape_radius : 0,
+      (geom_ny > 1) ? ROUND(r.y()) - shape_radius : 0,
+      (geom_nz > 1) ? ROUND(r.z()) - shape_radius : 0,
+    };
+  }
+};
+
 enum Shift : PetscInt {
   NO = 0,  // shape[x - i]
   SH = 1   // shape[x - (i + 0.5)]
@@ -74,31 +97,24 @@ PetscErrorCode Particles::push() {
 
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
   for (auto it = points_.begin(); it != points_.end(); ++it) {
-    // Particle's coordinate (global) in `PetscReal` units of dx, dy, dz
-    const Vector3<PetscReal> p_r{
-      it->r.x() / dx,
-      it->r.y() / dy,
-      it->r.z() / dz,
-    };
+    Vector3<PetscReal> point_E = 0.0;
+    Vector3<PetscReal> point_B = 0.0;
 
-    // Nearest grid point to particle. Shifted by `shape_radius`
-    // to use indexing in range `[0, shape_width)` later
-    const Vector3<PetscInt> p_g{
-      (geom_nx > 1) ? ROUND(p_r.x()) - shape_radius : 0,
-      (geom_ny > 1) ? ROUND(p_r.y()) - shape_radius : 0,
-      (geom_nz > 1) ? ROUND(p_r.z()) - shape_radius : 0,
-    };
-
+    const Node node(it->r);
     static Shape shape;
     #pragma omp threadprivate(shape)
 
-    fill_shape(p_r, p_g, shape);
+    fill_shape(node, shape);
+    interpolate(node.g, shape, point_E, point_B);
 
-    Vector3<PetscReal> point_E = 0.0;
-    Vector3<PetscReal> point_B = 0.0;
-    interpolate(p_g, shape, point_E, point_B);
     push(point_E, point_B, *it);
-    decompose(shape, *it);
+
+    const Node new_node(it->r);
+    static Shape new_shape;
+    #pragma omp threadprivate(new_shape)
+
+    fill_shape(new_node, new_shape);
+    decompose(new_node.g, new_shape, shape, *it);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
@@ -112,7 +128,7 @@ PetscErrorCode Particles::push() {
 }
 
 
-void Particles::fill_shape(const Vector3<PetscReal>& p_r, const Vector3<PetscInt>& p_g, Shape& shape) {
+void Particles::fill_shape(const Node& node, Shape& shape) {
   PetscInt g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3_dim)
@@ -120,18 +136,18 @@ void Particles::fill_shape(const Vector3<PetscReal>& p_r, const Vector3<PetscInt
   for (PetscInt y = 0; y < l_width[Y]; ++y) {
   for (PetscInt x = 0; x < l_width[X]; ++x) {
     PetscInt i = ((z * shape_width + y) * shape_width + x);
-    g_x = p_g[X] + x;
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
+    g_x = node.g[X] + x;
+    g_y = node.g[Y] + y;
+    g_z = node.g[Z] + z;
 
     /// @todo move this check into `shape_function(PetscReal, Axis)`
-    shape(i, X, NO) = (geom_nx > 1) ? shape_function(p_r.x() - g_x) : 1.0;
-    shape(i, Y, NO) = (geom_ny > 1) ? shape_function(p_r.y() - g_y) : 1.0;
-    shape(i, Z, NO) = (geom_nz > 1) ? shape_function(p_r.z() - g_z) : 1.0;
+    shape(i, X, NO) = (geom_nx > 1) ? shape_function(node.r.x() - g_x) : 1.0;
+    shape(i, Y, NO) = (geom_ny > 1) ? shape_function(node.r.y() - g_y) : 1.0;
+    shape(i, Z, NO) = (geom_nz > 1) ? shape_function(node.r.z() - g_z) : 1.0;
 
-    shape(i, X, SH) = (geom_nx > 1) ? shape_function(p_r.x() - (g_x + 0.5)) : 1.0;
-    shape(i, Y, SH) = (geom_ny > 1) ? shape_function(p_r.y() - (g_y + 0.5)) : 1.0;
-    shape(i, Z, SH) = (geom_nz > 1) ? shape_function(p_r.z() - (g_z + 0.5)) : 1.0;
+    shape(i, X, SH) = (geom_nx > 1) ? shape_function(node.r.x() - (g_x + 0.5)) : 1.0;
+    shape(i, Y, SH) = (geom_ny > 1) ? shape_function(node.r.y() - (g_y + 0.5)) : 1.0;
+    shape(i, Z, SH) = (geom_nz > 1) ? shape_function(node.r.z() - (g_z + 0.5)) : 1.0;
   }}}
 }
 
@@ -186,31 +202,14 @@ void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>
 }
 
 
-/// @todo Create a equivalent of `Node` structure for p_r, p_g
+/// @note Only non-shifted coordinates are used for shapes!
 /// @note Implementation for `decompose_x()`
-void Particles::decompose(Shape& old_shape, const Point& point) {
+void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point) {
+  /// @note we should zero this array!
   static PetscReal temp_Jx[shape_width][shape_width];
   #pragma omp threadprivate(temp_Jx)
 
   const PetscReal qx = charge(point) * density(point) / particles_number(point) * dx / (6 * dt);
-
-  const Vector3<PetscReal> p_r{
-    point.r.x() / dx,
-    point.r.y() / dy,
-    point.r.z() / dz,
-  };
-
-  const Vector3<PetscInt> p_g{
-    (geom_nx > 1) ? ROUND(p_r.x()) - shape_radius : 0,
-    (geom_ny > 1) ? ROUND(p_r.y()) - shape_radius : 0,
-    (geom_nz > 1) ? ROUND(p_r.z()) - shape_radius : 0,
-  };
-
-  /// @note Only non-shifted coordinates are used!
-  static Shape new_shape;
-  #pragma omp threadprivate(new_shape)
-
-  fill_shape(p_r, p_g, new_shape);
 
   PetscInt g_x, g_y, g_z;
   g_x = p_g[X];
