@@ -58,25 +58,36 @@ PetscErrorCode Particles::add_particle(const Point& point) {
 
 PetscErrorCode Particles::push() {
   PetscFunctionBegin;
+  const DM& da = simulation_.da();
+  PetscCall(DMGetLocalVector(da, &local_E));
+  PetscCall(DMGetLocalVector(da, &local_B));
 
-  // Vec E;
-  // PetscCallVoid(DMGetLocalVector(simulation_.da(), &E));
-  // PetscCallVoid(DMRestoreLocalVector(simulation_.da(), &E));
+  /// @note May we can put `DMGlobalToLocalEnd()` into `Particles::interpolate()`?
+  PetscCall(DMGlobalToLocal(da, simulation_.E(), INSERT_VALUES, local_E));
+  PetscCall(DMGlobalToLocal(da, simulation_.B(), INSERT_VALUES, local_B));
+
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
 
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
   for (auto it = points_.begin(); it != points_.end(); ++it) {
     Vector3<PetscReal> r0 = it->r;
-    Vector3<PetscReal> local_E = 0.0;
-    Vector3<PetscReal> local_B = 0.0;
+    Vector3<PetscReal> point_E = 0.0;
+    Vector3<PetscReal> point_B = 0.0;
 
     static Shape shape;
     #pragma omp threadprivate(shape)
 
     fill_shape(r0, shape);
-
-    interpolate(r0, shape, local_E, local_B);
-    push(local_E, local_B, *it);
+    interpolate(r0, shape, point_E, point_B);
+    push(point_E, point_B, *it);
   }
+
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
+
+  PetscCall(DMRestoreLocalVector(da, &local_E));
+  PetscCall(DMRestoreLocalVector(da, &local_B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -109,15 +120,7 @@ void Particles::fill_shape(const Vector3<PetscReal>& r0, Shape& shape) {
 }
 
 
-void Particles::interpolate(const Vector3<PetscReal>& r0, Shape& shape, Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const {
-  /// @todo We should gather local vectors first
-  // PetscCallVoid(DMGlobalToLocalBegin(simulation_.da(), simulation_.E(), INSERT_VALUES, nullptr));
-  // PetscCallVoid(DMGlobalToLocalBegin(simulation_.da(), simulation_.B(), INSERT_VALUES, nullptr));
-
-  Vector3<PetscReal> ***E, ***B;
-  PetscCallVoid(DMDAVecGetArrayRead(simulation_.da(), simulation_.E(), &E));
-  PetscCallVoid(DMDAVecGetArrayRead(simulation_.da(), simulation_.B(), &B));
-
+void Particles::interpolate(const Vector3<PetscReal>& r0, Shape& shape, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const {
   // Subtracting `shape_radius` to use indexing in range `[0, shape_width)`
   const PetscInt node_px = TO_STEP(r0.x(), dx) - shape_radius;
   const PetscInt node_py = TO_STEP(r0.y(), dy) - shape_radius;
@@ -134,35 +137,33 @@ void Particles::interpolate(const Vector3<PetscReal>& r0, Shape& shape, Vector3<
     node_gy = node_py + y;
     node_gz = node_pz + z;
 
-    local_E.x() += E[node_gz][node_gy][node_gx].x() * shape(g, Z, NO) * shape(g, Y, NO) * shape(g, X, SH);
-    local_E.y() += E[node_gz][node_gy][node_gx].y() * shape(g, Z, NO) * shape(g, Y, SH) * shape(g, X, NO);
-    local_E.z() += E[node_gz][node_gy][node_gx].z() * shape(g, Z, SH) * shape(g, Y, NO) * shape(g, X, NO);
+    point_E.x() += E[node_gz][node_gy][node_gx].x() * shape(g, Z, NO) * shape(g, Y, NO) * shape(g, X, SH);
+    point_E.y() += E[node_gz][node_gy][node_gx].y() * shape(g, Z, NO) * shape(g, Y, SH) * shape(g, X, NO);
+    point_E.z() += E[node_gz][node_gy][node_gx].z() * shape(g, Z, SH) * shape(g, Y, NO) * shape(g, X, NO);
 
-    local_B.x() += B[node_gz][node_gy][node_gx].x() * shape(g, Z, SH) * shape(g, Y, SH) * shape(g, X, NO);
-    local_B.y() += B[node_gz][node_gy][node_gx].y() * shape(g, Z, SH) * shape(g, Y, NO) * shape(g, X, SH);
-    local_B.z() += B[node_gz][node_gy][node_gx].z() * shape(g, Z, NO) * shape(g, Y, SH) * shape(g, X, SH);
+    point_B.x() += B[node_gz][node_gy][node_gx].x() * shape(g, Z, SH) * shape(g, Y, SH) * shape(g, X, NO);
+    point_B.y() += B[node_gz][node_gy][node_gx].y() * shape(g, Z, SH) * shape(g, Y, NO) * shape(g, X, SH);
+    point_B.z() += B[node_gz][node_gy][node_gx].z() * shape(g, Z, NO) * shape(g, Y, SH) * shape(g, X, SH);
   }}}
-  PetscCallVoid(DMDAVecRestoreArrayRead(simulation_.da(), simulation_.E(), &E));
-  PetscCallVoid(DMDAVecRestoreArrayRead(simulation_.da(), simulation_.B(), &B));
 }
 
 
-void Particles::push(const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B, Point& point) const {
+void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>& point_B, Point& point) const {
   PetscReal alpha = 0.5 * dt * charge(point);
   PetscReal m = mass(point);
 
   Vector3<PetscReal>& r = point.r;
   Vector3<PetscReal>& p = point.p;
 
-  const Vector3<PetscReal> w = p + local_E * alpha;
+  const Vector3<PetscReal> w = p + point_E * alpha;
 
   PetscReal energy = sqrt(m * m + w.dot(w));
 
-  const Vector3<PetscReal> h = local_B * alpha / energy;
+  const Vector3<PetscReal> h = point_B * alpha / energy;
 
   const Vector3<PetscReal> s = h * 2.0 / (1.0 + h.dot(h));
 
-  p = local_E * alpha + w * (1.0 - h.dot(s)) + w.cross(s) + h * (s.dot(w));
+  p = point_E * alpha + w * (1.0 - h.dot(s)) + w.cross(s) + h * (s.dot(w));
 
   energy = sqrt(m * m + p.dot(p));
 

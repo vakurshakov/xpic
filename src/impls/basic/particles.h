@@ -27,10 +27,8 @@ private:
   struct Shape;
   void fill_shape(const Vector3<PetscReal>& r0, Shape& shape);
 
-  void interpolate(const Vector3<PetscReal>& r0, Shape& shape,
-    Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const;
-
-  void push(const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B, Point& point) const;
+  void interpolate(const Vector3<PetscReal>& r0, Shape& shape, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const;
+  void push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>& point_B, Point& point) const;
 
   PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
     constexpr PetscInt dim = 3;
@@ -48,6 +46,8 @@ private:
   std::vector<Point> points_;
 
   const Simulation& simulation_;
+  Vec local_E, local_B;
+  Vector3<PetscReal> ***E, ***B;
 
   const PetscMPIInt* neighbours;
   Vector3<PetscReal> l_start;
