@@ -1,8 +1,8 @@
 #include "parameters.h"
+#include "src/utils/utils.h"
 
 PetscReal __0th_order_spline(PetscReal s, Axis a) {
-  if (Geom_n[a] == 1)
-    return 1.0;
+  if (Geom_n[a] == 1) { return 1.0; }
 
   s = std::abs(s);
 
@@ -13,8 +13,7 @@ PetscReal __0th_order_spline(PetscReal s, Axis a) {
 }
 
 PetscReal __1st_order_spline(PetscReal s, Axis a) {
-  if (Geom_n[a] == 1)
-    return 1.0;
+  if (Geom_n[a] == 1) { return 1.0; }
 
   s = std::abs(s);
 
@@ -25,8 +24,7 @@ PetscReal __1st_order_spline(PetscReal s, Axis a) {
 }
 
 PetscReal __2nd_order_spline(PetscReal s, Axis a) {
-  if (Geom_n[a] == 1)
-    return 1.0;
+  if (Geom_n[a] == 1) { return 1.0; }
 
   s = std::abs(s);
 
@@ -40,12 +38,11 @@ PetscReal __2nd_order_spline(PetscReal s, Axis a) {
 }
 
 PetscReal __3rd_order_spline(PetscReal s, Axis a) {
-  if (Geom_n[a] == 1)
-    return 1.0;
+  if (Geom_n[a] == 1) { return 1.0; }
 
   s = std::abs(s);
-  PetscReal s2 = s * s;
-  PetscReal s3 = s * s * s;
+  PetscReal s2 = POW2(s);
+  PetscReal s3 = POW3(s);
 
   if (s < 1.0) {
     return (4. - 6. * s2 + 3. * s3) / 6.;
@@ -57,13 +54,12 @@ PetscReal __3rd_order_spline(PetscReal s, Axis a) {
 }
 
 PetscReal __4th_order_spline(PetscReal s, Axis a) {
-  if (Geom_n[a] == 1)
-    return 1.0;
+  if (Geom_n[a] == 1) { return 1.0; }
 
   s = std::abs(s);
-  PetscReal s2 = s * s;
-  PetscReal s3 = s * s * s;
-  PetscReal s4 = s * s * s * s;
+  PetscReal s2 = POW2(s);
+  PetscReal s3 = POW3(s);
+  PetscReal s4 = POW4(s);
 
   if (s <= 0.5) {
     return (115. / 192. - 5. / 8. * s2 + 1. / 4. * s4);
@@ -78,14 +74,13 @@ PetscReal __4th_order_spline(PetscReal s, Axis a) {
 }
 
 PetscReal __5th_order_spline(PetscReal s, Axis a) {
-  if (Geom_n[a] == 1)
-    return 1.0;
+  if (Geom_n[a] == 1) { return 1.0; }
 
   s  = std::abs(s);
-  PetscReal s2 = s * s;
-  PetscReal s3 = s * s * s;
-  PetscReal s4 = s * s * s * s;
-  PetscReal s5 = s * s * s * s * s;
+  PetscReal s2 = POW2(s);
+  PetscReal s3 = POW3(s);
+  PetscReal s4 = POW4(s);
+  PetscReal s5 = POW5(s);
 
   if (s <= 1.0) {
     return (11. / 20. - 0.5 * s2 + 0.25 * s4 - 1. / 12. * s5);
