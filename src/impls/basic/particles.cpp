@@ -188,7 +188,7 @@ PetscErrorCode Particles::communicate() {
   std::vector<Point> incoming[neighbours_num];
 
   auto set_index = [&](const Vector3<PetscReal>& r, Vector3<PetscInt>& index, Axis axis) {
-    index[axis] = (r[axis] < l_start[axis]) ? 0 : (r[axis] < l_end[axis]) ? 1 : 2;
+    index[axis] = (r[axis] <= l_start[axis]) ? 0 : (r[axis] < l_end[axis]) ? 1 : 2;
   };
   PetscInt center_index = to_contiguous_index(1, 1, 1);
 
