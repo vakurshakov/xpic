@@ -4,8 +4,24 @@
 
 namespace basic {
 
+enum Shift : PetscInt {
+  NO = 0,  // shape[x - i]
+  SH = 1   // shape[x - (i + 0.5)]
+};
+
+struct Particles::Shape {
+  // `Vector3_dim` is used as a coordinate space dimensionality
+  PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim * 2];
+
+  #pragma omp declare simd linear(g: 1), notinbranch
+  constexpr PetscReal& operator()(PetscInt g, PetscInt comp, PetscInt shift) {
+    return shape[(g * Vector3_dim + comp) * 2 + shift];
+  }
+};
+
+
 Particles::Particles(const Simulation& simulation, const Particles_parameters& parameters)
-  : simulation_(simulation), parameters_(parameters) {
+  : parameters_(parameters), simulation_(simulation) {
   const DM& da = simulation_.da();
 
   PetscCallVoid(DMDAGetNeighbors(da, &neighbours));
@@ -20,7 +36,12 @@ Particles::Particles(const Simulation& simulation, const Particles_parameters& p
   l_end.x() = l_start.x() + (PetscReal)size.x() * dx;
   l_end.y() = l_start.y() + (PetscReal)size.y() * dy;
   l_end.z() = l_start.z() + (PetscReal)size.z() * dz;
+
+  l_width.x() = std::min(shape_width, geom_nx);
+  l_width.y() = std::min(shape_width, geom_ny);
+  l_width.z() = std::min(shape_width, geom_nz);
 }
+
 
 PetscErrorCode Particles::add_particle(const Point& point) {
   PetscFunctionBeginUser;
@@ -33,6 +54,7 @@ PetscErrorCode Particles::add_particle(const Point& point) {
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 PetscErrorCode Particles::push() {
   PetscFunctionBegin;
@@ -47,51 +69,30 @@ PetscErrorCode Particles::push() {
     Vector3<PetscReal> local_E = 0.0;
     Vector3<PetscReal> local_B = 0.0;
 
-    interpolate(r0, local_E, local_B);
-    push(*it, local_E, local_B);
+    static Shape shape;
+    #pragma omp threadprivate(shape)
+
+    fill_shape(r0, shape);
+
+    interpolate(r0, shape, local_E, local_B);
+    push(local_E, local_B, *it);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-enum Shift : PetscInt {
-  NO = 0,  // shape[x - i]
-  SH = 1   // shape[x - (i + 0.5)]
-};
-
-struct Shape {
-  // `Vector3_dim` is used as a coordinate space dimensionality
-  PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim * 2];
-
-  #pragma omp declare simd linear(g: 1), notinbranch
-  constexpr PetscReal& operator()(PetscInt g, PetscInt comp, PetscInt shift) {
-    return shape[(g * Vector3_dim + comp) * 2 + shift];
-  }
-};
-
-void Particles::interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const {
-  /// @note This structure would be useful for current decomposition too
-  static thread_local Shape shape;
-
-  /// @todo We should gather local vectors first
-  // PetscCallVoid(DMGlobalToLocalBegin(simulation_.da(), simulation_.E(), INSERT_VALUES, nullptr));
-  // PetscCallVoid(DMGlobalToLocalBegin(simulation_.da(), simulation_.B(), INSERT_VALUES, nullptr));
-
+void Particles::fill_shape(const Vector3<PetscReal>& r0, Shape& shape) {
   // Subtracting `shape_radius` to use indexing in range `[0, shape_width)`
   const PetscInt node_px = TO_STEP(r0.x(), dx) - shape_radius;
   const PetscInt node_py = TO_STEP(r0.y(), dy) - shape_radius;
   const PetscInt node_pz = TO_STEP(r0.z(), dz) - shape_radius;
 
-  const PetscInt width_x = std::min(shape_width, geom_nx);
-  const PetscInt width_y = std::min(shape_width, geom_ny);
-  const PetscInt width_z = std::min(shape_width, geom_nz);
-
   PetscInt node_gx, node_gy, node_gz;
 
   #pragma omp simd collapse(Vector3_dim)
-  for (PetscInt z = 0; z < width_z; ++z) {
-  for (PetscInt y = 0; y < width_y; ++y) {
-  for (PetscInt x = 0; x < width_x; ++x) {
+  for (PetscInt z = 0; z < l_width.z(); ++z) {
+  for (PetscInt y = 0; y < l_width.y(); ++y) {
+  for (PetscInt x = 0; x < l_width.x(); ++x) {
     PetscInt g = ((z * shape_width + y) * shape_width + x);
     node_gx = node_px + x;
     node_gy = node_py + y;
@@ -105,15 +106,29 @@ void Particles::interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& lo
     shape(g, Y, SH) = (geom_ny > 1) ? shape_function(r0.y() / dy - (node_gy + 0.5)) : 1.0;
     shape(g, Z, SH) = (geom_nz > 1) ? shape_function(r0.z() / dz - (node_gz + 0.5)) : 1.0;
   }}}
+}
+
+
+void Particles::interpolate(const Vector3<PetscReal>& r0, Shape& shape, Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const {
+  /// @todo We should gather local vectors first
+  // PetscCallVoid(DMGlobalToLocalBegin(simulation_.da(), simulation_.E(), INSERT_VALUES, nullptr));
+  // PetscCallVoid(DMGlobalToLocalBegin(simulation_.da(), simulation_.B(), INSERT_VALUES, nullptr));
 
   Vector3<PetscReal> ***E, ***B;
   PetscCallVoid(DMDAVecGetArrayRead(simulation_.da(), simulation_.E(), &E));
   PetscCallVoid(DMDAVecGetArrayRead(simulation_.da(), simulation_.B(), &B));
 
+  // Subtracting `shape_radius` to use indexing in range `[0, shape_width)`
+  const PetscInt node_px = TO_STEP(r0.x(), dx) - shape_radius;
+  const PetscInt node_py = TO_STEP(r0.y(), dy) - shape_radius;
+  const PetscInt node_pz = TO_STEP(r0.z(), dz) - shape_radius;
+
+  PetscInt node_gx, node_gy, node_gz;
+
   #pragma omp simd collapse(Vector3_dim)
-  for (PetscInt z = 0; z < width_z; ++z) {
-  for (PetscInt y = 0; y < width_y; ++y) {
-  for (PetscInt x = 0; x < width_x; ++x) {
+  for (PetscInt z = 0; z < l_width.z(); ++z) {
+  for (PetscInt y = 0; y < l_width.y(); ++y) {
+  for (PetscInt x = 0; x < l_width.x(); ++x) {
     PetscInt g = ((z * shape_width + y) * shape_width + x);
     node_gx = node_px + x;
     node_gy = node_py + y;
@@ -132,7 +147,7 @@ void Particles::interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& lo
 }
 
 
-void Particles::push(Point& point, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const {
+void Particles::push(const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B, Point& point) const {
   PetscReal alpha = 0.5 * dt * charge(point);
   PetscReal m = mass(point);
 

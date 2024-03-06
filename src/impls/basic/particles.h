@@ -24,8 +24,13 @@ public:
 private:
   static constexpr int OMP_CHUNK_SIZE  = 16;
 
-  void interpolate(const Vector3<PetscReal>& r0, Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const;
-  void push(Point& point, const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B) const;
+  struct Shape;
+  void fill_shape(const Vector3<PetscReal>& r0, Shape& shape);
+
+  void interpolate(const Vector3<PetscReal>& r0, Shape& shape,
+    Vector3<PetscReal>& local_E, Vector3<PetscReal>& local_B) const;
+
+  void push(const Vector3<PetscReal>& local_E, const Vector3<PetscReal>& local_B, Point& point) const;
 
   PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
     constexpr PetscInt dim = 3;
@@ -39,14 +44,15 @@ private:
     z = (index / dim) / dim;
   }
 
+  Particles_parameters parameters_;
+  std::vector<Point> points_;
+
   const Simulation& simulation_;
 
   const PetscMPIInt* neighbours;
   Vector3<PetscReal> l_start;
   Vector3<PetscReal> l_end;
-
-  Particles_parameters parameters_;
-  std::vector<Point> points_;
+  Vector3<PetscInt>  l_width;
 };
 
 }
