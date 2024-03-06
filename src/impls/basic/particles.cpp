@@ -81,9 +81,9 @@ PetscErrorCode Particles::push() {
     // Nearest grid point to particle. Shifted by `shape_radius`
     // to use indexing in range `[0, shape_width)` later
     const Vector3<PetscInt> p_g{
-      ROUND(p_r.x()) - shape_radius,
-      ROUND(p_r.y()) - shape_radius,
-      ROUND(p_r.z()) - shape_radius,
+      (geom_nx > 1) ? ROUND(p_r.x()) - shape_radius : 0,
+      (geom_ny > 1) ? ROUND(p_r.y()) - shape_radius : 0,
+      (geom_nz > 1) ? ROUND(p_r.z()) - shape_radius : 0,
     };
 
     static Shape shape;
