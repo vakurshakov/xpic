@@ -16,10 +16,7 @@ public:
   Simulation() = default;
   ~Simulation() override;
 
-  const DM& da() const;
-  const Vec& E() const;
-  const Vec& B() const;
-  const Vec& J() const;
+  DM& da();
   Vec& E();
   Vec& B();
   Vec& J();

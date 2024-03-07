@@ -182,10 +182,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 }
 
 
-const DM& Simulation::da() const { return da_; }
-const Vec& Simulation::E() const { return E_; }
-const Vec& Simulation::B() const { return B_; }
-const Vec& Simulation::J() const { return J_; }
+DM& Simulation::da() { return da_; }
 Vec& Simulation::E() { return E_; }
 Vec& Simulation::B() { return B_; }
 Vec& Simulation::J() { return J_; }

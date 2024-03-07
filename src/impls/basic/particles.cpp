@@ -43,8 +43,10 @@ struct Particles::Shape {
 };
 
 
-Particles::Particles(const Simulation& simulation, const Particles_parameters& parameters)
-  : parameters_(parameters), simulation_(simulation) {
+Particles::Particles(Simulation& simulation, const Particles_parameters& parameters)
+  : simulation_(simulation) {
+  parameters_ = parameters;
+
   const DM& da = simulation_.da();
 
   PetscCallVoid(DMDAGetNeighbors(da, &neighbours));
@@ -128,6 +130,7 @@ PetscErrorCode Particles::push() {
 }
 
 
+/// @todo Split onto NO/SH set, @see `Particles::decompose()`
 void Particles::fill_shape(const Node& node, Shape& shape) {
   PetscInt g_x, g_y, g_z;
 
@@ -201,23 +204,23 @@ void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>
 }
 
 
-/// @note Only non-shifted coordinates are used for shapes!
 /// @note Implementation for `decompose_x()`
 void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point) {
   /// @note we should zero this array!
   static PetscReal temp_Jx[shape_width][shape_width];
   #pragma omp threadprivate(temp_Jx)
 
-  const PetscReal qx = charge(point) * density(point) / particles_number(point) * dx / (6 * dt);
-
-  PetscInt g_x, g_y, g_z;
-  g_x = p_g[X];
-
   auto compute_Jx = [&](PetscInt i) {
+    const PetscReal qx = charge(point) * density(point) / particles_number(point) * dx / (6.0 * dt);
+
+    /// @note Only non-shifted coordinates are used for shapes!
     return - qx * (new_shape(i, X, NO) - old_shape(i, X, NO)) * (
       new_shape(i, Y, NO) * (2.0 * new_shape(i, Z, NO) + old_shape(i, Z, NO)) +
       old_shape(i, Y, NO) * (2.0 * old_shape(i, Z, NO) + new_shape(i, Z, NO)));
   };
+
+  PetscInt g_x, g_y, g_z;
+  g_x = p_g[X];
 
   for (PetscInt z = 0; z < l_width[Z]; ++z) {
   for (PetscInt y = 0; y < l_width[Y]; ++y) {

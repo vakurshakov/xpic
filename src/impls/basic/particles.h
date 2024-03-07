@@ -14,7 +14,7 @@ class Simulation;
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(const Simulation& simulation, const Particles_parameters& parameters);
+  Particles(Simulation& simulation, const Particles_parameters& parameters);
 
   PetscErrorCode add_particle(const Point& point);
 
@@ -44,10 +44,9 @@ private:
     z = (index / dim) / dim;
   }
 
-  Particles_parameters parameters_;
   std::vector<Point> points_;
 
-  const Simulation& simulation_;
+  Simulation& simulation_;
   Vec local_E, local_B, local_J;
   Vector3<PetscReal> ***E, ***B, ***J;
 
