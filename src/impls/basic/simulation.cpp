@@ -22,7 +22,6 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bound), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3(PETSC_DECIDE), dof, s, REP3(nullptr), &da_));
   PetscCall(DMSetUp(da_));
 
-#if THERE_ARE_FIELDS
   PetscCall(DMCreateGlobalVector(da_, &E_));
   PetscCall(DMCreateGlobalVector(da_, &B_));
   PetscCall(DMCreateGlobalVector(da_, &J_));
@@ -31,7 +30,6 @@ PetscErrorCode Simulation::initialize_implementation() {
 
   PetscCall(setup_positive_rotor());
   PetscCall(setup_negative_rotor());
-#endif
 
 #if THERE_ARE_PARTICLES
   Particles_parameters parameters = {
@@ -158,25 +156,16 @@ PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
 PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
   PetscFunctionBeginUser;
 
-#if THERE_ARE_FIELDS
-  // Field source
-  PetscCall(VecSetValue(B_, index(geom_nx / 2, geom_ny / 2, geom_nz / 2, Z), 1.0, ADD_VALUES));
-  PetscCall(VecAssemblyBegin(B_));
-  PetscCall(VecAssemblyEnd(B_));
+  PetscCall(VecSet(J_, 0.0));
 
-  // Solving Maxwell's equations using FDTD
-  PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // rot(E) = - ∂B / ∂t
-
-  /// @todo Include a source current
-  PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // rot(B) = + ∂E / ∂t
-#endif
-
-#if THERE_ARE_PARTICLES
   for (auto& sort : particles_) {
     PetscCall(sort.push());
     PetscCall(sort.communicate());
   }
-#endif
+
+  PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // B (n+1) = B(n) - rot(E) * dt
+  PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // E'(n+1) = E(n) + rot(B) * dt
+  PetscCall(VecAXPY(E_, -1, J_));               // E (n+1) = E'(n+1) - J
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

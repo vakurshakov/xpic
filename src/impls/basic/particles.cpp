@@ -124,6 +124,8 @@ PetscErrorCode Particles::push() {
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
   PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
 
+  PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J()));
+
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
   PetscCall(DMRestoreLocalVector(da, &local_J));
@@ -293,6 +295,7 @@ PetscErrorCode Particles::communicate() {
     PetscInt index = to_contiguous_index(v_index[X], v_index[Y], v_index[Z]);
     if (index == center_index) continue;  // Particle didn't cross local boundaries
 
+    /// @todo Coordinate correction is needed for periodic boundaries
     outgoing[index].emplace_back(std::move(*it));
     std::swap(*it, *(end - 1));
     --it;
