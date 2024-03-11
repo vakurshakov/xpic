@@ -88,7 +88,6 @@ PetscErrorCode Particles::push() {
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGetLocalVector(da, &local_J));
 
-  /// @note Maybe we can put `DMGlobalToLocalEnd()` into `Particles::interpolate()`?
   PetscCall(DMGlobalToLocal(da, simulation_.E(), INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, simulation_.B(), INSERT_VALUES, local_B));
   PetscCall(VecSet(local_J, 0.0));
