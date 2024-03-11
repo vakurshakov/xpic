@@ -30,7 +30,9 @@ private:
 
   void interpolate(const Vector3<PetscInt>& p_g, Shape& shape, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const;
   void push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>& point_B, Point& point) const;
+
   void decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point);
+  void decompose_x(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point);
 
   PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
     constexpr PetscInt dim = 3;

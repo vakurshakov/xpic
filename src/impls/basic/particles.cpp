@@ -204,9 +204,11 @@ void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>
 }
 
 
-/// @note Implementation for `decompose_x()`
 void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point) {
-  /// @note we should zero this array!
+  decompose_x(p_g, new_shape, old_shape, point);
+}
+
+void Particles::decompose_x(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point) {
   static PetscReal temp_Jx[shape_width][shape_width];
   #pragma omp threadprivate(temp_Jx)
 
@@ -228,6 +230,7 @@ void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape&
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
 
+    temp_Jx[z][y] = 0.0;
     temp_Jx[z][y] = compute_Jx(i);
 
     #pragma omp atomic update
