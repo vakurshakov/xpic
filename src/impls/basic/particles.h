@@ -24,13 +24,10 @@ public:
 private:
   static constexpr int OMP_CHUNK_SIZE  = 16;
 
-  struct Node;
   struct Shape;
-  void fill_shape(const Node& node, Shape& shape);
-
-  void interpolate(const Vector3<PetscInt>& p_g, Shape& shape, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const;
+  void fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, int shift);
+  void interpolate(const Vector3<PetscInt>& p_g, Shape& no, Shape& sh, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const;
   void push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>& point_B, Point& point) const;
-
   void decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point);
   void decompose_x(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point);
 

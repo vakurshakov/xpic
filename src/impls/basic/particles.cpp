@@ -4,7 +4,7 @@
 
 namespace basic {
 
-struct Particles::Node {
+struct Node {
   // Particle's coordinate (global) in `PetscReal` units of dx, dy, dz
   Vector3<PetscReal> r;
 
@@ -34,11 +34,11 @@ enum Shift : PetscInt {
 
 struct Particles::Shape {
   // `Vector3_dim` is used as a coordinate space dimensionality
-  PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim * 2];
+  PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim];
 
   #pragma omp declare simd linear(i: 1), notinbranch
-  constexpr PetscReal& operator()(PetscInt i, PetscInt comp, PetscInt shift) {
-    return shape[(i * Vector3_dim + comp) * 2 + shift];
+  constexpr PetscReal& operator()(PetscInt i, PetscInt comp) {
+    return shape[i * Vector3_dim + comp];
   }
 };
 
@@ -103,11 +103,12 @@ PetscErrorCode Particles::push() {
     Vector3<PetscReal> point_B = 0.0;
 
     const Node node(it->r);
-    static Shape shape;
+    static Shape shape[2];
     #pragma omp threadprivate(shape)
 
-    fill_shape(node, shape);
-    interpolate(node.g, shape, point_E, point_B);
+    fill_shape(node.g, node.r, shape[NO], NO);
+    fill_shape(node.g, node.r, shape[SH], SH);
+    interpolate(node.g, shape[NO], shape[SH], point_E, point_B);
 
     push(point_E, point_B, *it);
 
@@ -115,8 +116,9 @@ PetscErrorCode Particles::push() {
     static Shape new_shape;
     #pragma omp threadprivate(new_shape)
 
-    fill_shape(new_node, new_shape);
-    decompose(new_node.g, new_shape, shape, *it);
+    /// @note Only non-shifted coordinates are used for shapes!
+    fill_shape(new_node.g, new_node.r, new_shape, NO);
+    decompose(new_node.g, new_shape, shape[NO], *it);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
@@ -130,31 +132,31 @@ PetscErrorCode Particles::push() {
 }
 
 
-/// @todo Split onto NO/SH set, @see `Particles::decompose()`
-void Particles::fill_shape(const Node& node, Shape& shape) {
-  PetscInt g_x, g_y, g_z;
+void Particles::fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, int shift) {
+  PetscReal g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3_dim)
   for (PetscInt z = 0; z < l_width[Z]; ++z) {
   for (PetscInt y = 0; y < l_width[Y]; ++y) {
   for (PetscInt x = 0; x < l_width[X]; ++x) {
     PetscInt i = ((z * shape_width + y) * shape_width + x);
-    g_x = node.g[X] + x;
-    g_y = node.g[Y] + y;
-    g_z = node.g[Z] + z;
+    g_x = p_g[X] + x;
+    g_y = p_g[Y] + y;
+    g_z = p_g[Z] + z;
 
-    shape(i, X, NO) = shape_function(node.r.x() - g_x, X);
-    shape(i, Y, NO) = shape_function(node.r.y() - g_y, Y);
-    shape(i, Z, NO) = shape_function(node.r.z() - g_z, Z);
-
-    shape(i, X, SH) = shape_function(node.r.x() - (g_x + 0.5), X);
-    shape(i, Y, SH) = shape_function(node.r.y() - (g_y + 0.5), Y);
-    shape(i, Z, SH) = shape_function(node.r.z() - (g_z + 0.5), Z);
+    if (shift == SH) {
+      g_x += 0.5;
+      g_y += 0.5;
+      g_z += 0.5;
+    }
+    shape(i, X) = shape_function(p_r.x() - g_x, X);
+    shape(i, Y) = shape_function(p_r.y() - g_y, Y);
+    shape(i, Z) = shape_function(p_r.z() - g_z, Z);
   }}}
 }
 
 
-void Particles::interpolate(const Vector3<PetscInt>& p_g, Shape& shape, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const {
+void Particles::interpolate(const Vector3<PetscInt>& p_g, Shape& no, Shape& sh, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const {
   PetscInt g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3_dim)
@@ -166,13 +168,13 @@ void Particles::interpolate(const Vector3<PetscInt>& p_g, Shape& shape, Vector3<
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
 
-    point_E.x() += E[g_z][g_y][g_x].x() * shape(i, Z, NO) * shape(i, Y, NO) * shape(i, X, SH);
-    point_E.y() += E[g_z][g_y][g_x].y() * shape(i, Z, NO) * shape(i, Y, SH) * shape(i, X, NO);
-    point_E.z() += E[g_z][g_y][g_x].z() * shape(i, Z, SH) * shape(i, Y, NO) * shape(i, X, NO);
+    point_E.x() += E[g_z][g_y][g_x].x() * no(i, Z) * no(i, Y) * sh(i, X);
+    point_E.y() += E[g_z][g_y][g_x].y() * no(i, Z) * sh(i, Y) * no(i, X);
+    point_E.z() += E[g_z][g_y][g_x].z() * sh(i, Z) * no(i, Y) * no(i, X);
 
-    point_B.x() += B[g_z][g_y][g_x].x() * shape(i, Z, SH) * shape(i, Y, SH) * shape(i, X, NO);
-    point_B.y() += B[g_z][g_y][g_x].y() * shape(i, Z, SH) * shape(i, Y, NO) * shape(i, X, SH);
-    point_B.z() += B[g_z][g_y][g_x].z() * shape(i, Z, NO) * shape(i, Y, SH) * shape(i, X, SH);
+    point_B.x() += B[g_z][g_y][g_x].x() * sh(i, Z) * sh(i, Y) * no(i, X);
+    point_B.y() += B[g_z][g_y][g_x].y() * sh(i, Z) * no(i, Y) * sh(i, X);
+    point_B.z() += B[g_z][g_y][g_x].z() * no(i, Z) * sh(i, Y) * sh(i, X);
   }}}
 }
 
@@ -214,11 +216,9 @@ void Particles::decompose_x(const Vector3<PetscInt>& p_g, Shape& new_shape, Shap
 
   auto compute_Jx = [&](PetscInt i) {
     const PetscReal qx = charge(point) * density(point) / particles_number(point) * dx / (6.0 * dt);
-
-    /// @note Only non-shifted coordinates are used for shapes!
-    return - qx * (new_shape(i, X, NO) - old_shape(i, X, NO)) * (
-      new_shape(i, Y, NO) * (2.0 * new_shape(i, Z, NO) + old_shape(i, Z, NO)) +
-      old_shape(i, Y, NO) * (2.0 * old_shape(i, Z, NO) + new_shape(i, Z, NO)));
+    return - qx * (new_shape(i, X) - old_shape(i, X)) * (
+      new_shape(i, Y) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
+      old_shape(i, Y) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
   };
 
   PetscInt g_x, g_y, g_z;
