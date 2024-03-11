@@ -187,17 +187,13 @@ void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>
   Vector3<PetscReal>& p = point.p;
 
   const Vector3<PetscReal> w = p + point_E * alpha;
-
   PetscReal energy = sqrt(m * m + w.dot(w));
 
   const Vector3<PetscReal> h = point_B * alpha / energy;
-
   const Vector3<PetscReal> s = h * 2.0 / (1.0 + h.dot(h));
-
   p = point_E * alpha + w * (1.0 - h.dot(s)) + w.cross(s) + h * (s.dot(w));
 
   energy = sqrt(m * m + p.dot(p));
-
   r += p * dt / energy;
 
   if (geom_nx == 1) r.x() = 0.5;
