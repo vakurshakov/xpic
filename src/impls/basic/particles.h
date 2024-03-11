@@ -28,8 +28,11 @@ private:
   void fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, int shift);
   void interpolate(const Vector3<PetscInt>& p_g, Shape& no, Shape& sh, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const;
   void push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>& point_B, Point& point) const;
+
   void decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point);
-  void decompose_x(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point);
+
+  using Compute_j = std::function<PetscReal(PetscInt, PetscInt, PetscInt, PetscReal*)>;
+  void decompose_dir(const Vector3<PetscInt>& p_g, const Compute_j& compute_j, Axis dir);
 
   PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
     constexpr PetscInt dim = 3;

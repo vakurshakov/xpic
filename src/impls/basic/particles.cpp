@@ -207,48 +207,69 @@ void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>
 
 
 void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point) {
-  decompose_x(p_g, new_shape, old_shape, point);
-}
+  const PetscReal alpha = charge(point) * density(point) / particles_number(point) / (6.0 * dt);
+  const PetscReal qx = alpha * dx;
+  const PetscReal qy = alpha * dy;
+  const PetscReal qz = alpha * dz;
 
-void Particles::decompose_x(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point) {
-  static PetscReal temp_Jx[shape_width][shape_width];
-  #pragma omp threadprivate(temp_Jx)
+  auto compute_Jx = [&](PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) {
+    PetscInt i = ((z * shape_width + y) * shape_width + x);
+    PetscInt j = (z * shape_width + y);
 
-  auto compute_Jx = [&](PetscInt i) {
-    const PetscReal qx = charge(point) * density(point) / particles_number(point) * dx / (6.0 * dt);
-    return - qx * (new_shape(i, X) - old_shape(i, X)) * (
+    PetscReal p_jx = - qx * (new_shape(i, X) - old_shape(i, X)) * (
       new_shape(i, Y) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
       old_shape(i, Y) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
+
+    temp_jx[j] = ((x > 0) * temp_jx[j]) + p_jx;
+    return temp_jx[j];
   };
 
-  PetscInt g_x, g_y, g_z;
-  g_x = p_g[X];
-
-  for (PetscInt z = 0; z < l_width[Z]; ++z) {
-  for (PetscInt y = 0; y < l_width[Y]; ++y) {
-    PetscInt i = ((z * shape_width + y) * shape_width + 0);
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
-
-    temp_Jx[z][y] = 0.0;
-    temp_Jx[z][y] = compute_Jx(i);
-
-    #pragma omp atomic update
-    J[g_z][g_y][g_x].x() += temp_Jx[z][y];
-  }}
-
-  for (PetscInt z = 0; z < l_width[Z]; ++z) {
-  for (PetscInt y = 0; y < l_width[Y]; ++y) {
-  for (PetscInt x = 1; x < l_width[X]; ++x) {
+  auto compute_Jy = [&](PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jy) {
     PetscInt i = ((z * shape_width + y) * shape_width + x);
+    PetscInt j = (z * shape_width + x);
+
+    PetscReal p_jy = - qy * (new_shape(i, Y) - old_shape(i, Y)) * (
+      new_shape(i, X) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
+      old_shape(i, X) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
+
+    temp_jy[j] = ((y > 0) * temp_jy[j]) + p_jy;
+    return temp_jy[j];
+  };
+
+  auto compute_Jz = [&](PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jz) {
+    PetscInt i = ((z * shape_width + y) * shape_width + x);
+    PetscInt j = (y * shape_width + x);
+
+    PetscReal p_jz = - qz * (new_shape(i, Z) - old_shape(i, Z)) * (
+      new_shape(i, Y) * (2.0 * new_shape(i, X) + old_shape(i, X)) +
+      old_shape(i, Y) * (2.0 * old_shape(i, X) + new_shape(i, X)));
+
+    temp_jz[j] = ((z > 0) * temp_jz[j]) + p_jz;
+    return temp_jz[j];
+  };
+
+  decompose_dir(p_g, compute_Jx, X);
+  decompose_dir(p_g, compute_Jy, Y);
+  decompose_dir(p_g, compute_Jz, Z);
+}
+
+void Particles::decompose_dir(const Vector3<PetscInt>& p_g, const Compute_j& compute_j, Axis dir) {
+  static PetscReal temp_j[shape_width * shape_width];
+  #pragma omp threadprivate(temp_j)
+
+  PetscInt g_x, g_y, g_z;
+
+  for (PetscInt z = 0; z < l_width[Z]; ++z) {
+  for (PetscInt y = 0; y < l_width[Y]; ++y) {
+  for (PetscInt x = 0; x < l_width[X]; ++x) {
     g_x = p_g[X] + x;
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
 
-    temp_Jx[z][y] += compute_Jx(i);
+    PetscReal p_j = compute_j(x, y, z, temp_j);
 
     #pragma omp atomic update
-    J[g_z][g_y][g_x].x() += temp_Jx[z][y];
+    J[g_z][g_y][g_x][dir] += p_j;
   }}}
 }
 
