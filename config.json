@@ -12,7 +12,15 @@
     "size_z": 1.0,  "dz": 1.0,  "__units.z": "c/w_pe",
     "size_t": 1.0,  "dt": 0.5,  "__units.t": "1/w_pe",
 
-    "diagnose_period": 2.5,  "__units.dp": "1/w_pe"
+    "diagnose_period": 2.5,  "__units.dp": "1/w_pe",
+
+    "da_boundary_x": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_z": "DM_BOUNDARY_PERIODIC",
+
+    "da_processors_x": -1,
+    "da_processors_y": -1,
+    "da_processors_z": -1
   },
 
   "Diagnostics": {

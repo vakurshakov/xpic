@@ -12,14 +12,32 @@ PetscErrorCode Simulation::initialize_implementation() {
   const PetscInt dof = Vector3_dim;
   const PetscInt s = shape_radius;
 
-  const Vector3<DMBoundaryType> bound = {
-    DM_BOUNDARY_GHOSTED,
-    DM_BOUNDARY_GHOSTED,
-    DM_BOUNDARY_GHOSTED,
+  const Configuration& config = CONFIG();
+  const Configuration::json_t& geometry = config.json.at("Geometry");
+
+  std::string boundary_type_str[3];
+  geometry.at("da_boundary_x").get_to(boundary_type_str[X]);
+  geometry.at("da_boundary_y").get_to(boundary_type_str[Y]);
+  geometry.at("da_boundary_z").get_to(boundary_type_str[Z]);
+
+  auto to_boundary_type = [](const std::string& str) {
+    if (str == "DM_BOUNDARY_PERIODIC") return DM_BOUNDARY_PERIODIC;
+    if (str == "DM_BOUNDARY_GHOSTED") return DM_BOUNDARY_GHOSTED;
+    return DM_BOUNDARY_NONE;
   };
 
-  // We can specify in our config DMBoundaryType and procs number and map it to Create3d
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bound), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3(PETSC_DECIDE), dof, s, REP3(nullptr), &da_));
+  DMBoundaryType bounds[3] = {
+    to_boundary_type(boundary_type_str[X]),
+    to_boundary_type(boundary_type_str[Y]),
+    to_boundary_type(boundary_type_str[Z]),
+  };
+
+  PetscInt procs[3];
+  geometry.at("da_processors_x").get_to(procs[X]);
+  geometry.at("da_processors_y").get_to(procs[Y]);
+  geometry.at("da_processors_z").get_to(procs[Z]);
+
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da_));
   PetscCall(DMSetUp(da_));
 
   PetscCall(DMCreateGlobalVector(da_, &E_));
