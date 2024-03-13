@@ -86,6 +86,8 @@ PetscErrorCode Particles::push() {
   const DM& da = simulation_.da();
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
+
+  /// @note This local current is local to each particle! It's can be useful for diagnosing it.
   PetscCall(DMGetLocalVector(da, &local_J));
 
   PetscCall(DMGlobalToLocal(da, simulation_.E(), INSERT_VALUES, local_E));
@@ -213,11 +215,11 @@ void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape&
     PetscInt i = ((z * shape_width + y) * shape_width + x);
     PetscInt j = (z * shape_width + y);
 
-    PetscReal p_jx = - qx * (new_shape(i, X) - old_shape(i, X)) * (
+    PetscReal p_wx = - qx * (new_shape(i, X) - old_shape(i, X)) * (
       new_shape(i, Y) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
       old_shape(i, Y) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
 
-    temp_jx[j] = ((x > 0) * temp_jx[j]) + p_jx;
+    temp_jx[j] = ((x > 0) * temp_jx[j]) + p_wx;
     return temp_jx[j];
   };
 
@@ -225,11 +227,11 @@ void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape&
     PetscInt i = ((z * shape_width + y) * shape_width + x);
     PetscInt j = (z * shape_width + x);
 
-    PetscReal p_jy = - qy * (new_shape(i, Y) - old_shape(i, Y)) * (
+    PetscReal p_wy = - qy * (new_shape(i, Y) - old_shape(i, Y)) * (
       new_shape(i, X) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
       old_shape(i, X) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
 
-    temp_jy[j] = ((y > 0) * temp_jy[j]) + p_jy;
+    temp_jy[j] = ((y > 0) * temp_jy[j]) + p_wy;
     return temp_jy[j];
   };
 
@@ -237,11 +239,11 @@ void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape&
     PetscInt i = ((z * shape_width + y) * shape_width + x);
     PetscInt j = (y * shape_width + x);
 
-    PetscReal p_jz = - qz * (new_shape(i, Z) - old_shape(i, Z)) * (
+    PetscReal p_wz = - qz * (new_shape(i, Z) - old_shape(i, Z)) * (
       new_shape(i, Y) * (2.0 * new_shape(i, X) + old_shape(i, X)) +
       old_shape(i, Y) * (2.0 * old_shape(i, X) + new_shape(i, X)));
 
-    temp_jz[j] = ((z > 0) * temp_jz[j]) + p_jz;
+    temp_jz[j] = ((z > 0) * temp_jz[j]) + p_wz;
     return temp_jz[j];
   };
 
