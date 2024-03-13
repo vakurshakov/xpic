@@ -47,8 +47,7 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   : simulation_(simulation) {
   parameters_ = parameters;
 
-  const DM& da = simulation_.da();
-
+  const DM& da = simulation_.da_;
   PetscCallVoid(DMDAGetNeighbors(da, &neighbours));
 
   Vector3<PetscInt> start, size;
@@ -83,15 +82,15 @@ PetscErrorCode Particles::add_particle(const Point& point) {
 
 PetscErrorCode Particles::push() {
   PetscFunctionBegin;
-  const DM& da = simulation_.da();
+  const DM& da = simulation_.da_;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
 
   /// @note This local current is local to each particle! It's can be useful for diagnosing it.
   PetscCall(DMGetLocalVector(da, &local_J));
 
-  PetscCall(DMGlobalToLocal(da, simulation_.E(), INSERT_VALUES, local_E));
-  PetscCall(DMGlobalToLocal(da, simulation_.B(), INSERT_VALUES, local_B));
+  PetscCall(DMGlobalToLocal(da, simulation_.E_, INSERT_VALUES, local_E));
+  PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
   PetscCall(VecSet(local_J, 0.0));
 
   PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
@@ -126,7 +125,7 @@ PetscErrorCode Particles::push() {
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
   PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
 
-  PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J()));
+  PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J_));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
@@ -282,8 +281,15 @@ PetscErrorCode Particles::communicate() {
   std::vector<Point> incoming[neighbours_num];
 
   auto set_index = [&](const Vector3<PetscReal>& r, Vector3<PetscInt>& index, Axis axis) {
-    index[axis] = (r[axis] <= l_start[axis]) ? 0 : (r[axis] < l_end[axis]) ? 1 : 2;
+    index[axis] = (r[axis] < l_start[axis]) ? 0 : (r[axis] < l_end[axis]) ? 1 : 2;
   };
+
+  auto correct_coordinates = [&](Point& point) {
+    if (simulation_.bounds[X] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, X);
+    if (simulation_.bounds[Y] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Y);
+    if (simulation_.bounds[Z] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Z);
+  };
+
   PetscInt center_index = to_contiguous_index(1, 1, 1);
 
   auto end = points_.end();
@@ -297,7 +303,7 @@ PetscErrorCode Particles::communicate() {
     PetscInt index = to_contiguous_index(v_index[X], v_index[Y], v_index[Z]);
     if (index == center_index) continue;  // Particle didn't cross local boundaries
 
-    /// @todo Coordinate correction is needed for periodic boundaries
+    correct_coordinates(*it);
     outgoing[index].emplace_back(std::move(*it));
     std::swap(*it, *(end - 1));
     --it;

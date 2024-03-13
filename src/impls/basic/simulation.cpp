@@ -201,12 +201,6 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 }
 
 
-DM& Simulation::da() { return da_; }
-Vec& Simulation::E() { return E_; }
-Vec& Simulation::B() { return B_; }
-Vec& Simulation::J() { return J_; }
-
-
 Simulation::~Simulation() {
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&E_));
