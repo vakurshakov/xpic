@@ -26,7 +26,7 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
     }
   }
 
-  for (const Field_description& desc : fields_desc) {
+  for (const Field_description& desc : fields_desc_) {
     LOG_INFO("Field view diagnostic is added for {}{}", desc.field_name, desc.component_name);
 
     std::string res_dir = CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
@@ -148,7 +148,7 @@ PetscErrorCode Field_view_builder::attach_field_description(const DM& da, Field_
 
   desc.comm = new_comm;
 
-  fields_desc.emplace_back(std::move(desc));
+  fields_desc_.emplace_back(std::move(desc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
