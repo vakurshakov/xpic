@@ -16,6 +16,11 @@ public:
     diagnostics_.emplace_back(std::make_unique<Fields_energy>(CONFIG().out_dir + "/", simulation_.da_, simulation_.E_, simulation_.B_));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
+
+private:
+  constexpr std::string usage_message() const override {
+    return "\n" "Usage: Simply add `\"fields_energy\": {}` into configuration file, no addition description is needed.";
+  }
 };
 
 }

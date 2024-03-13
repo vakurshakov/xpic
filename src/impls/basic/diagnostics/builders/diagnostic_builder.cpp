@@ -33,7 +33,7 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, Diagnostics_vecto
   PetscFunctionBegin;
 
 #if !FIELDS_DIAGNOSTICS && !PARTICLES_DIAGNOSTICS
-  return PetscFunctionReturn(PETSC_SUCCESS);
+  PetscFunctionReturn(PETSC_SUCCESS);
 #endif
 
   LOG_TRACE("Building diagnostics");

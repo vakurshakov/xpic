@@ -13,6 +13,18 @@ public:
   PetscErrorCode build(const Configuration::json_t& diag_info) override;
 
 private:
+  constexpr std::string usage_message() const override {
+    return "\n"
+      "Usage: The structure of the field_view diagnostic description\n"
+      "{\n"
+      "  \"field\": \"E\", -- Diagnosed field that is represented in the `Simulation` class. Values: E, B.\n"
+      "  \"comp\":  \"x\", -- Diagnosed field component, bounded by `DMDAGetDof()`. Optional, or empty value\n"
+      "                   can be used explicitly to print all three components at once. Values: x, y, z or \"\".\n"
+      "  \"start\": [ox, oy, oz], -- Starting point of a diagnostic in _global_ coordinates of units c/w_pe.\n"
+      "  \"size\":  [sx, sy, sz]  -- Sizes of a diagnosed region along each coordinate in _global_ coordinates of units c/w_pe.\n"
+      "}";
+  }
+
   struct Field_description {
     std::string field_name;
     std::string component_name;
