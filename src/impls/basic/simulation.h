@@ -41,6 +41,8 @@ private:
   Mat rot_dt_m;
 
   std::vector<Particles> particles_;
+
+  DMBoundaryType bounds[3];
 };
 
 }

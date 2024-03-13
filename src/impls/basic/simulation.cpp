@@ -26,11 +26,9 @@ PetscErrorCode Simulation::initialize_implementation() {
     return DM_BOUNDARY_NONE;
   };
 
-  DMBoundaryType bounds[3] = {
-    to_boundary_type(boundary_type_str[X]),
-    to_boundary_type(boundary_type_str[Y]),
-    to_boundary_type(boundary_type_str[Z]),
-  };
+  bounds[X] = to_boundary_type(boundary_type_str[X]);
+  bounds[Y] = to_boundary_type(boundary_type_str[Y]);
+  bounds[Z] = to_boundary_type(boundary_type_str[Z]);
 
   PetscInt procs[3];
   geometry.at("da_processors_x").get_to(procs[X]);
@@ -74,6 +72,15 @@ PetscErrorCode Simulation::setup_positive_rotor() {
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;  // Petsc returns size, not end point
 
+  /// @todo Check remap for periodic boundaries and geom_ns == 1 (ADD_VALUES)
+  auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
+    bool success = false;
+    if (bounds[X] == DM_BOUNDARY_PERIODIC && x >= geom_nx) { x -= geom_nx; success = true; }
+    if (bounds[Y] == DM_BOUNDARY_PERIODIC && y >= geom_ny) { y -= geom_ny; success = true; }
+    if (bounds[Z] == DM_BOUNDARY_PERIODIC && z >= geom_nz) { z -= geom_nz; success = true; }
+    return success;
+  };
+
   std::vector<Triplet> triplets;
   for (PetscInt z = start.z(); z < end.z(); ++z) {
   for (PetscInt y = start.y(); y < end.y(); ++y) {
@@ -82,10 +89,8 @@ PetscErrorCode Simulation::setup_positive_rotor() {
     PetscInt yp = (geom_ny > 1) ? (y + 1) : y;
     PetscInt zp = (geom_nz > 1) ? (z + 1) : z;
 
-    // Simplest boundary condition
-    if (xp >= geom_nx) continue;
-    if (yp >= geom_ny) continue;
-    if (zp >= geom_nz) continue;
+    if (bool success = remap_with_boundaries(xp, yp, zp); !success)
+      continue;
 
     PetscInt cur = index(x, y, z, X);
     triplets.emplace_back(cur, index(x,  yp, z,  Z), +1.0 / dy);
@@ -124,6 +129,14 @@ PetscErrorCode Simulation::setup_negative_rotor() {
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;  // Petsc returns size, not end point
 
+  auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
+    bool success = false;
+    if (bounds[X] == DM_BOUNDARY_PERIODIC && x < 0) { x += geom_nx; success = true; }
+    if (bounds[Y] == DM_BOUNDARY_PERIODIC && y < 0) { y += geom_ny; success = true; }
+    if (bounds[Z] == DM_BOUNDARY_PERIODIC && z < 0) { z += geom_nz; success = true; }
+    return success;
+  };
+
   std::vector<Triplet> triplets;
   for (PetscInt z = start.z(); z < end.z(); ++z) {
   for (PetscInt y = start.y(); y < end.y(); ++y) {
@@ -132,9 +145,8 @@ PetscErrorCode Simulation::setup_negative_rotor() {
     PetscInt ym = (geom_ny > 1) ? (y - 1) : y;
     PetscInt zm = (geom_nz > 1) ? (z - 1) : z;
 
-    if (xm < 0) continue;
-    if (ym < 0) continue;
-    if (zm < 0) continue;
+    if (bool success = remap_with_boundaries(xm, ym, zm); !success)
+      continue;
 
     PetscInt cur = index(x, y, z, X);
     triplets.emplace_back(cur, index(x,  y,  z,  Z), +1.0 / dx);
