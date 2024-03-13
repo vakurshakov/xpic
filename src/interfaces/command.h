@@ -30,14 +30,16 @@ public:
 };
 
 /// @brief Used to execute command once in the simulation cycle.
-class Command_once final : public Command {
+class Command_once : public Command {
 public:
   virtual ~Command_once() = default;
 
   /// @brief Since command is executed once, it always return true.
-  bool needs_to_be_removed(timestep_t timestep) const override { return true; }
+  bool needs_to_be_removed(timestep_t timestep) const final { return true; }
 };
 
 }
+
+using Command_up = std::unique_ptr<interfaces::Command>;
 
 #endif  // SRC_INTERFACES_COMMAND_H

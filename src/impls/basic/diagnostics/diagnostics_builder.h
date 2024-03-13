@@ -14,14 +14,13 @@ class Diagnostics_builder {
 public:
   Diagnostics_builder(const Simulation& simulation);
 
-  PetscErrorCode build(std::vector<std::unique_ptr<interfaces::Diagnostic>>& diagnostics);
+  PetscErrorCode build(std::vector<Diagnostic_up>& diagnostics);
 
 private:
   const Simulation& simulation_;
 
   const Vec& get_field(const std::string& name) const;
 
-  using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
   using Diagnostics_vector = std::vector<Diagnostic_up>;
   PetscErrorCode build_fields_energy(const Configuration::json_t& diag_info, Diagnostics_vector& result);
   PetscErrorCode build_fields_view(const Configuration::json_t& diag_info, Diagnostics_vector& result);

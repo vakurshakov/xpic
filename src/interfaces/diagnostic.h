@@ -20,4 +20,6 @@ protected:
 
 }
 
+using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
+
 #endif  // SRC_INTERFACES_DIAGNOSTIC_H

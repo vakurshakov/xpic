@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     const Configuration& config = CONFIG();
     LOG_INIT(config.out_dir + "/simulation.log");
 
-    std::unique_ptr<interfaces::Simulation> simulation = interfaces::build_simulation();
+    Simulation_up simulation = build_simulation();
 
     PetscCall(simulation->initialize());
     PetscCall(simulation->calculate());

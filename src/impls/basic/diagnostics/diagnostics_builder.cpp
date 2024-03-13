@@ -14,7 +14,6 @@ Diagnostics_builder::Diagnostics_builder(const Simulation& simulation)
   : simulation_(simulation) {}
 
 
-using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
 using Diagnostics_vector = std::vector<Diagnostic_up>;
 
 PetscErrorCode Diagnostics_builder::build(Diagnostics_vector& result) {

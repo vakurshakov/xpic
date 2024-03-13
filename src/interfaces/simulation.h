@@ -23,16 +23,15 @@ protected:
 
   timestep_t start_ = 0u;
 
-  using Diagnostic_up = std::unique_ptr<Diagnostic>;
   std::vector<Diagnostic_up> diagnostics_;
-
-  using Command_up = std::unique_ptr<Command>;
   std::list<Command_up> step_presets_;
 };
 
-/// @returns Concrete simulation using `config` specification
-std::unique_ptr<Simulation> build_simulation();
-
 }
+
+using Simulation_up = std::unique_ptr<interfaces::Simulation>;
+
+/// @returns Concrete simulation using `config` specification
+Simulation_up build_simulation();
 
 #endif  // SRC_INTERFACES_SIMULATION_H

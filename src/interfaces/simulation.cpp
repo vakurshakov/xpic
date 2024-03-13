@@ -67,8 +67,7 @@ PetscErrorCode Simulation::diagnose(timestep_t timestep) const {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
-using Simulation_up = std::unique_ptr<Simulation>;
+}
 
 Simulation_up build_simulation() {
   Simulation_up simulation = nullptr;
@@ -83,6 +82,4 @@ Simulation_up build_simulation() {
   }
 
   throw std::runtime_error("Unkown simulation is used: " + simulation_str);
-}
-
 }
