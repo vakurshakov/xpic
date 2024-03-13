@@ -30,6 +30,8 @@
       { "field": "E", "comp": "x", "start": [1, 1, 0], "size": [3, 3, 1], "__units": "c/w_pe" },
       { "field": "E", "comp": "y", "start": [1, 1, 0], "size": [3, 3, 1], "__units": "c/w_pe" },
       { "field": "E", "comp": "z", "start": [1, 1, 0], "size": [3, 3, 1], "__units": "c/w_pe" }
-    ]
+    ],
+
+    "density": { "sort": "electrons", "start": [1, 1, 0], "size": [3, 3, 1], "__units": "c/w_pe" }
   }
 }

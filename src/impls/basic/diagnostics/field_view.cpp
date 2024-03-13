@@ -3,8 +3,6 @@
 #include "src/utils/utils.h"
 #include "src/vectors/vector_classes.h"
 
-namespace fs = std::filesystem;
-
 namespace basic {
 
 Field_view::Field_view(MPI_Comm comm, const std::string& result_directory, const DM& da, const Vec& field)
@@ -39,6 +37,8 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
 }
 
 PetscErrorCode Field_view::diagnose(timestep_t t) {
+  if (t % diagnose_period != 0)
+    PetscFunctionReturn(PETSC_SUCCESS);
   PetscFunctionBeginUser;
 
   int time_width = std::to_string(geom_nt).size();

@@ -2,6 +2,7 @@
 
 #include "src/impls/basic/diagnostics/builders/fields_energy_builder.h"
 #include "src/impls/basic/diagnostics/builders/field_view_builder.h"
+#include "src/impls/basic/diagnostics/builders/distribution_moment_builder.h"
 
 #define FIELDS_DIAGNOSTICS    (THERE_ARE_FIELDS && FIELDS_ARE_DIAGNOSED)
 #define PARTICLES_DIAGNOSTICS (THERE_ARE_PARTICLES && PARTICLES_ARE_DIAGNOSED)
@@ -45,17 +46,28 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, Diagnostics_vecto
   for (const auto& [diag_name, diag_info] : descriptions.items()) {
 #if FIELDS_DIAGNOSTICS
     if (diag_name == "fields_energy") {
-      LOG_INFO("Add fields energy diagnostic");
+      LOG_INFO("Adding fields energy diagnostic");
       builder = std::make_unique<Fields_energy_builder>(simulation, result);
       PetscCall(builder->build(diag_info));
     }
     else if (diag_name == "field_view") {
-      LOG_INFO("Add field view diagnostic");
+      LOG_INFO("Adding field view diagnostic(s)");
       builder = std::make_unique<Field_view_builder>(simulation, result);
       PetscCall(builder->build(diag_info));
     }
 #endif
+
+#if PARTICLES_DIAGNOSTICS
+    if (diag_name == "density") {
+      LOG_INFO("Adding density diagnostic(s)");
+      builder = std::make_unique<Distribution_moment_builder>(simulation, result, "zeroth_moment", "XY");
+      PetscCall(builder->build(diag_info));
+    }
+#endif
+    /// @todo Implement exception on unkown diagnostic
   }
+
+  /// @todo Check uniqueness of result directories
   result.shrink_to_fit();
   PetscFunctionReturn(PETSC_SUCCESS);
 }

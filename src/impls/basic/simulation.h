@@ -31,6 +31,7 @@ private:
   friend class Diagnostic_builder;
   friend class Fields_energy_builder;
   friend class Field_view_builder;
+  friend class Distribution_moment_builder;
 
   DM da_;
   DMBoundaryType bounds[3];

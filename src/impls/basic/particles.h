@@ -17,6 +17,7 @@ public:
   Particles(Simulation& simulation, const Particles_parameters& parameters);
 
   PetscErrorCode add_particle(const Point& point);
+  const std::vector<Point>& get_points() const { return points_; }
 
   PetscErrorCode push();
   PetscErrorCode communicate();

@@ -13,6 +13,7 @@ namespace basic {
 class Diagnostic_builder {
 public:
   Diagnostic_builder(const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
+  virtual ~Diagnostic_builder() = default;
 
   virtual PetscErrorCode build(const Configuration::json_t& diag_info) = 0;
 

@@ -58,10 +58,12 @@ SRCS +=                                \
 SRCS +=													                       \
 	src/impls/basic/diagnostics/field_view.cpp           \
 	src/impls/basic/diagnostics/fields_energy.cpp        \
+	src/impls/basic/diagnostics/distribution_moment.cpp  \
 
-SRCS +=																												 \
-	src/impls/basic/diagnostics/builders/diagnostic_builder.cpp  \
-	src/impls/basic/diagnostics/builders/field_view_builder.cpp  \
+SRCS +=																												          \
+	src/impls/basic/diagnostics/builders/diagnostic_builder.cpp           \
+	src/impls/basic/diagnostics/builders/field_view_builder.cpp           \
+	src/impls/basic/diagnostics/builders/distribution_moment_builder.cpp  \
 
 OBJS := $(SRCS:%.cpp=$(OBJDIR)/%.o)
 DEPS := $(SRCS:%.cpp=$(OBJDIR)/%.d)
