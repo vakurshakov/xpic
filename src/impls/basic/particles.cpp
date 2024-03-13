@@ -4,12 +4,12 @@
 
 namespace basic {
 
+/**
+ * @brief Storage for particle's coordinate - `r` (global, in PetscReal units of dx, dy, dz),
+ * and a nearest grid point to particle - `g` (rounded, shifted by `shape_radius`).
+ */
 struct Node {
-  // Particle's coordinate (global) in `PetscReal` units of dx, dy, dz
   Vector3<PetscReal> r;
-
-  // Nearest grid point to particle shifted by `shape_radius`
-  // to use indexing in range `[0, shape_width)` later
   Vector3<PetscInt> g;
 
   Node(const Vector3<PetscReal>& __r) {
@@ -32,8 +32,8 @@ enum Shift : PetscInt {
   SH = 1   // shape[x - (i + 0.5)]
 };
 
+/// @note `Vector3_dim` is used as a coordinate space dimensionality
 struct Particles::Shape {
-  // `Vector3_dim` is used as a coordinate space dimensionality
   PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim];
 
   #pragma omp declare simd linear(i: 1), notinbranch
