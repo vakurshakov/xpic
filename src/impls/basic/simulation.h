@@ -26,7 +26,11 @@ private:
   PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
 
   friend class Particles;
-  friend class Diagnostics_builder;
+
+  // evil-evil bad-bad-bad
+  friend class Diagnostic_builder;
+  friend class Fields_energy_builder;
+  friend class Field_view_builder;
 
   DM da_;
   DMBoundaryType bounds[3];

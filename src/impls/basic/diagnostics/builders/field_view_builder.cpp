@@ -1,78 +1,47 @@
-#include "diagnostics_builder.h"
-
-#include "src/impls/basic/diagnostics/fields_energy.h"
-#include "src/impls/basic/diagnostics/field_view.h"
-#include "src/utils/utils.h"
-
-#define FIELDS_DIAGNOSTICS    (THERE_ARE_FIELDS && FIELDS_ARE_DIAGNOSED)
-#define PARTICLES_DIAGNOSTICS (THERE_ARE_PARTICLES && PARTICLES_ARE_DIAGNOSED)
-#define INIT_CONFIGURATION    (FIELDS_DIAGNOSTICS || PARTICLES_DIAGNOSTICS)
+#include "field_view_builder.h"
 
 namespace basic {
 
-Diagnostics_builder::Diagnostics_builder(const Simulation& simulation)
-  : simulation_(simulation) {}
+Field_view_builder::Field_view_builder(const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
+  : Diagnostic_builder(simulation, diagnostics) {}
 
-
-using Diagnostics_vector = std::vector<Diagnostic_up>;
-
-PetscErrorCode Diagnostics_builder::build(Diagnostics_vector& result) {
+PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info) {
   PetscFunctionBegin;
 
-#if INIT_CONFIGURATION
-  LOG_TRACE("Building diagnostics");
-  const Configuration& config = CONFIG();
-  const Configuration::json_t& descriptions = config.json.at("Diagnostics");
-#endif
+  auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
+    PetscFunctionBegin;
+    Field_description desc;
+    PetscCall(parse_field_info(info, desc));
+    PetscCall(check_field_description(desc));
+    PetscCall(attach_field_description(simulation_.da_, std::move(desc)));
+    PetscFunctionReturn(PETSC_SUCCESS);
+  };
 
-  for (const auto& [diag_name, diag_info] : descriptions.items()) {
-#if FIELDS_DIAGNOSTICS
-    if (diag_name == "fields_energy") {
-      LOG_INFO("Add fields energy diagnostic");
-      PetscCall(build_fields_energy(diag_info, result));
-    }
-    else if (diag_name == "field_view") {
-      LOG_INFO("Add field view diagnostic");
-      PetscCall(build_fields_view(diag_info, result));
-    }
-#endif
+  if (!diag_info.is_array()) {
+    PetscCall(parse_info(diag_info));
   }
-  result.shrink_to_fit();
+  else {
+    for (const Configuration::json_t& info : diag_info) {
+      PetscCall(parse_info(info));
+    }
+  }
+
+  for (const Field_description& desc : fields_desc) {
+    LOG_INFO("Field view diagnostic is added for {}{}", desc.field_name, desc.component_name);
+
+    std::string res_dir = CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
+
+    std::unique_ptr<Field_view>&& diag = std::make_unique<Field_view>(
+      desc.comm, res_dir, simulation_.da_, get_field(desc.field_name));
+
+    PetscCall(diag->set_diagnosed_region(desc.region));
+
+    diagnostics_.emplace_back(std::move(diag));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
-PetscErrorCode Diagnostics_builder::build_fields_energy(const Configuration::json_t& /* diag_info */, Diagnostics_vector& result) {
-  PetscFunctionBegin;
-  result.emplace_back(std::make_unique<Fields_energy>(CONFIG().out_dir + "/", simulation_.da_, simulation_.E_, simulation_.B_));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-const Vec& Diagnostics_builder::get_field(const std::string& name) const {
-  if (name == "E") return simulation_.E_;
-  if (name == "B") return simulation_.B_;
-  throw std::runtime_error("Unknown field name " + name);
-}
-
-/// @todo Lots of Field_view specific utilities, maybe should be moved into a single class
-Axis get_component(const std::string& name) {
-  if (name == "x") return X;
-  if (name == "y") return Y;
-  if (name == "z") return Z;
-  throw std::runtime_error("Unknown component name " + name);
-}
-
-struct Field_description {
-  std::string field_name;
-  std::string component_name;
-  Field_view::Region region;
-  MPI_Comm comm;
-};
-
-using Fields_description = std::vector<Field_description>;
-
-PetscErrorCode parse_field_info(const Configuration::json_t& json, Field_description& desc) {
+PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t& json, Field_description& desc) {
   PetscFunctionBegin;
   std::string message;
   try {
@@ -119,7 +88,7 @@ PetscErrorCode parse_field_info(const Configuration::json_t& json, Field_descrip
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode check_field_description(const Field_description& desc) {
+PetscErrorCode Field_view_builder::check_field_description(const Field_description& desc) {
   PetscFunctionBegin;
   std::string message;
 
@@ -157,7 +126,7 @@ PetscErrorCode check_field_description(const Field_description& desc) {
 }
 
 // Attach diagnostic only to those processes, where `desc.region` lies
-PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, Fields_description& result) {
+PetscErrorCode Field_view_builder::attach_field_description(const DM& da, Field_description&& desc) {
   PetscFunctionBegin;
   Vector3<PetscInt> start;
   Vector3<PetscInt> end;
@@ -187,44 +156,7 @@ PetscErrorCode attach_field_description(const DM& da, Field_description&& desc, 
 
   desc.comm = new_comm;
 
-  result.emplace_back(std::move(desc));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Diagnostics_builder::build_fields_view(const Configuration::json_t& diag_info, Diagnostics_vector& result) {
-  PetscFunctionBegin;
-  Fields_description fields_desc;
-
-  auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
-    PetscFunctionBegin;
-    Field_description desc;
-    PetscCall(parse_field_info(info, desc));
-    PetscCall(check_field_description(desc));
-    PetscCall(attach_field_description(simulation_.da_, std::move(desc), fields_desc));
-    PetscFunctionReturn(PETSC_SUCCESS);
-  };
-
-  if (!diag_info.is_array()) {
-    PetscCall(parse_info(diag_info));
-  }
-  else {
-    for (const Configuration::json_t& info : diag_info) {
-      PetscCall(parse_info(info));
-    }
-  }
-
-  for (const Field_description& desc : fields_desc) {
-    LOG_INFO("Field view diagnostic is added for {}{}", desc.field_name, desc.component_name);
-
-    std::string res_dir = CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
-
-    std::unique_ptr<Field_view>&& diag = std::make_unique<Field_view>(
-      desc.comm, res_dir, simulation_.da_, get_field(desc.field_name));
-
-    PetscCall(diag->set_diagnosed_region(desc.region));
-
-    result.emplace_back(std::move(diag));
-  }
+  fields_desc.emplace_back(std::move(desc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

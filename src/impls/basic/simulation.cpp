@@ -2,7 +2,7 @@
 
 #include "src/utils/utils.h"
 #include "src/vectors/vector_classes.h"
-#include "src/impls/basic/diagnostics/diagnostics_builder.h"
+#include "src/impls/basic/diagnostics/builders/diagnostic_builder.h"
 
 namespace basic {
 
@@ -59,9 +59,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   sort.add_particle(Point{{geom_x / 2, geom_y / 4, geom_z / 2}, {0.0, 1.0, 0.0}});
 #endif
 
-  Diagnostics_builder diagnostics_builder(*this);
-  PetscCall(diagnostics_builder.build(diagnostics_));
-
+  PetscCall(build_diagnostics(*this, diagnostics_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
