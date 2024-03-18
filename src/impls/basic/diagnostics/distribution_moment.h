@@ -33,10 +33,18 @@ public:
   PetscErrorCode set_diagnosed_region(const Region& region);
   PetscErrorCode diagnose(timestep_t t) override;
 
-protected:
+private:
   PetscErrorCode collect();
   PetscErrorCode clear();
 
+  PetscInt index(PetscInt x, PetscInt y, PetscInt z) const {
+    return
+      ((z - region_.start[Z]) * region_.size[Y] +
+      (y - region_.start[Y])) * region_.size[X] +
+      (x - region_.start[X]);
+  }
+
+private:
   const DM& da_;
   const Particles& particles_;
 
@@ -82,6 +90,7 @@ struct Projector {
   using getter = PetscReal(*)(const Particles&, const Point&);
   getter get_x = nullptr;
   getter get_y = nullptr;
+  getter get_z = nullptr;
 };
 
 }

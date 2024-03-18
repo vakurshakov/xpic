@@ -60,7 +60,7 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, Diagnostics_vecto
 #if PARTICLES_DIAGNOSTICS
     if (diag_name == "density") {
       LOG_INFO("Adding density diagnostic(s)");
-      builder = std::make_unique<Distribution_moment_builder>(simulation, result, "zeroth_moment", "XY");
+      builder = std::make_unique<Distribution_moment_builder>(simulation, result, "zeroth_moment", "(x_y_z)");
       PetscCall(builder->build(diag_info));
     }
 #endif

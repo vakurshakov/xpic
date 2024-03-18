@@ -177,7 +177,7 @@ PetscErrorCode Simulation::setup_negative_rotor() {
 }
 
 PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
-  return ((geom_ny * z + y) * geom_nx + x) * Vector3_dim + c;
+  return ((z * geom_ny + y) * geom_nx + x) * Vector3_dim + c;
 }
 
 

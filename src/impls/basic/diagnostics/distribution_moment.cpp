@@ -18,8 +18,9 @@ PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&l_size)));
 
   l_start.to_petsc_order();
-  g_start.to_petsc_order();
   l_size.to_petsc_order();
+
+  g_start.to_petsc_order();
   g_size.to_petsc_order();
 
   l_start = max(g_start, l_start);
@@ -28,6 +29,8 @@ PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
 
   region_.start = Vector3<PetscInt>{l_start};
   region_.size = Vector3<PetscInt>{l_size};
+  region_.start.to_petsc_order();
+  region_.size.to_petsc_order();
   region_.dp = region.dp;
 
   data_.resize(l_size[X] * l_size[Y] * l_size[Z]);
@@ -42,25 +45,15 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
     PetscFunctionReturn(PETSC_SUCCESS);
   PetscFunctionBeginUser;
 
-  // PetscCall(clear());
-  // PetscCall(collect());
+  PetscCall(clear());
+  PetscCall(collect());
 
   int time_width = std::to_string(geom_nt).size();
   std::stringstream ss;
   ss << std::setw(time_width) << std::setfill('0') << t;
   PetscCall(file_.open(PETSC_COMM_WORLD, result_directory_, ss.str()));
 
-  int rank;
-  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-
-  Vector3<PetscInt> size = region_.size;
-  for (PetscInt z = 0; z < size[Z]; ++z) {
-  for (PetscInt y = 0; y < size[Y]; ++y) {
-  for (PetscInt x = 0; x < size[X]; ++x) {
-    PetscInt i = ((z * size[Y] + y) * size[X] + x);
-    data_[i] = pow(i, rank + 1);
-  }}}
-
+  const Vector3<PetscInt> size = region_.size;
   PetscCall(file_.write_floats(data_.data(), (size[X] * size[Y] * size[Z])));
   PetscCall(file_.close());
 
@@ -69,51 +62,59 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
 
 PetscErrorCode Distribution_moment::collect() {
   PetscFunctionBeginUser;
-  const PetscInt Np = particles_.parameters().Np;
-
   const PetscReal reg_dx = region_.dp[X];
   const PetscReal reg_dy = region_.dp[Y];
+  const PetscReal reg_dz = region_.dp[Z];
 
-  // #pragma omp parallel for
+  #pragma omp parallel for
   for (const Point& point : particles_.get_points()) {
-    // It is a node structure from `basic::Particles`
+    /// @todo It is a `Node` structure from `basic::Particles` except for region_.dp
     PetscReal p_rx = projector_->get_x(particles_, point) / reg_dx;
     PetscReal p_ry = projector_->get_y(particles_, point) / reg_dy;
+    PetscReal p_rz = projector_->get_z(particles_, point) / reg_dz;
 
     PetscInt p_gx = ROUND(p_rx) - shape_radius;
     PetscInt p_gy = ROUND(p_ry) - shape_radius;
+    PetscInt p_gz = ROUND(p_rz) - shape_radius;
 
-    for (PetscInt y = 0; y < shape_width; ++y) {
-    for (PetscInt x = 0; x < shape_width; ++x) {
+    /// @todo Here we can use std::min()
+    for (PetscInt g_z = p_gz; g_z < p_gz + shape_width; ++g_z) {
+    for (PetscInt g_y = p_gy; g_y < p_gy + shape_width; ++g_y) {
+    for (PetscInt g_x = p_gx; g_x < p_gx + shape_width; ++g_x) {
       bool in_bounds =
-        (region_.start[X] <= x && x < region_.start[X] + region_.size[X]) &&
-        (region_.start[Y] <= y && y < region_.start[Y] + region_.size[Y]);
+        (region_.start[X] <= g_x && g_x < region_.start[X] + region_.size[X]) &&
+        (region_.start[Y] <= g_y && g_y < region_.start[Y] + region_.size[Y]) &&
+        (region_.start[Z] <= g_z && g_z < region_.start[Z] + region_.size[Z]);
 
       if (!in_bounds)
         continue;
 
-      // #pragma omp atomic
-      // data_[(y - min_[Y]) * (max_[X] - min_[X]) + (x - min_[X])] +=
-      //   moment_->get(particles_, point) *
-      //   particles_.density(point) / Np *
-      //   shape_function(p_rx - x, X) *
-      //   shape_function(p_ry - y, Y);
-    }}
+      PetscReal n = particles_.density(point) / particles_.particles_number(point);
+
+      #pragma omp atomic update
+      data_[index(g_x, g_y, g_z)] +=
+        moment_->get(particles_, point) * n *
+        shape_function(p_rx - g_x, X) *
+        shape_function(p_ry - g_y, Y) *
+        shape_function(p_rz - g_z, Z);
+    }}}
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Distribution_moment::clear() {
   PetscFunctionBeginUser;
-  // #pragma omp parallel for
-  // for (auto npy = 0; npy < (max_[Y] - min_[Y]); ++npy) {
-  // for (auto npx = 0; npx < (max_[X] - min_[X]); ++npx) {
-  //   data_[npy * (max_[X] - min_[X]) + npx] = 0;
-  // }}
+  #pragma omp parallel for
+  for (PetscInt z = 0; z < region_.size[Z]; ++z) {
+  for (PetscInt y = 0; y < region_.size[Y]; ++y) {
+  for (PetscInt x = 0; x < region_.size[X]; ++x) {
+    data_[index(x, y, z)] = 0.0;
+  }}}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
+/// @todo Maybe it would be better to move getters into *.h file and set them in the builder.
 inline PetscReal get_zeroth(const Particles&, const Point&) {
   return 1.0;
 }
@@ -126,6 +127,10 @@ inline PetscReal get_Vy(const Particles& particles, const Point& point) {
   return particles.velocity(point).y();
 }
 
+inline PetscReal get_Vz(const Particles& particles, const Point& point) {
+  return particles.velocity(point).z();
+}
+
 inline PetscReal get_mVxVx(const Particles& particles, const Point& point) {
   return particles.mass(point) * get_Vx(particles, point) * get_Vx(particles, point);
 }
@@ -134,8 +139,20 @@ inline PetscReal get_mVxVy(const Particles& particles, const Point& point) {
   return particles.mass(point) * get_Vx(particles, point) * get_Vy(particles, point);
 }
 
+inline PetscReal get_mVxVz(const Particles& particles, const Point& point) {
+  return particles.mass(point) * get_Vx(particles, point) * get_Vz(particles, point);
+}
+
 inline PetscReal get_mVyVy(const Particles& particles, const Point& point) {
   return particles.mass(point) * get_Vy(particles, point) * get_Vy(particles, point);
+}
+
+inline PetscReal get_mVyVz(const Particles& particles, const Point& point) {
+  return particles.mass(point) * get_Vy(particles, point) * get_Vz(particles, point);
+}
+
+inline PetscReal get_mVzVz(const Particles& particles, const Point& point) {
+  return particles.mass(point) * get_Vz(particles, point) * get_Vz(particles, point);
 }
 
 inline PetscReal get_Vr(const Particles& particles, const Point& point) {
@@ -184,14 +201,26 @@ Moment::Moment(const Particles& particles, const std::string& name) : particles_
   else if (name == "Vy_moment") {
     get = get_Vy;
   }
+  else if (name == "Vz_moment") {
+    get = get_Vz;
+  }
   else if (name == "mVxVx_moment") {
     get = get_mVxVx;
   }
   else if (name == "mVxVy_moment") {
     get = get_mVxVy;
   }
+  else if (name == "mVxVz_moment") {
+    get = get_mVxVz;
+  }
   else if (name == "mVyVy_moment") {
     get = get_mVyVy;
+  }
+  else if (name == "mVyVz_moment") {
+    get = get_mVyVz;
+  }
+  else if (name == "mVzVz_moment") {
+    get = get_mVzVz;
   }
   else if (name == "Vr_moment") {
     get = get_Vr;
@@ -219,19 +248,25 @@ inline PetscReal project_to_y(const Particles&, const Point& point) {
   return point.y();
 }
 
+inline PetscReal project_to_z(const Particles&, const Point& point) {
+  return point.z();
+}
 
 Projector::Projector(const Particles& particles, const std::string& axes_names) : particles_(particles) {
-  if (axes_names == "XY") {
+  if (axes_names == "(x_y_z)") {
     get_x = project_to_x;
     get_y = project_to_y;
+    get_z = project_to_z;
   }
-  else if (axes_names == "VxVy") {
+  else if (axes_names == "(Vx_Vy_Vz)") {
     get_x = get_Vx;
     get_y = get_Vy;
+    get_z = get_Vz;
   }
-  else if (axes_names == "VrVphi") {
+  else if (axes_names == "(Vr_Vphi_Vz)") {
     get_x = get_Vr;
     get_y = get_Vphi;
+    get_z = get_Vz;
   }
 }
 

@@ -7,10 +7,10 @@
   "Simulation": "basic",
 
   "Geometry": {
-    "size_x": 4.0,  "dx": 1.0,  "__units.x": "c/w_pe",
-    "size_y": 4.0,  "dy": 1.0,  "__units.y": "c/w_pe",
-    "size_z": 1.0,  "dz": 1.0,  "__units.z": "c/w_pe",
-    "size_t": 1.0,  "dt": 0.5,  "__units.t": "1/w_pe",
+    "size_x": 10.0,  "dx": 1.0,  "__units.x": "c/w_pe",
+    "size_y": 10.0,  "dy": 1.0,  "__units.y": "c/w_pe",
+    "size_z": 10.0,  "dz": 1.0,  "__units.z": "c/w_pe",
+    "size_t": 10.0,  "dt": 0.5,  "__units.t": "1/w_pe",
 
     "diagnose_period": 2.5,  "__units.dp": "1/w_pe",
 
@@ -32,6 +32,6 @@
       { "field": "E", "comp": "z", "start": [1, 1, 0], "size": [3, 3, 1], "__units": "c/w_pe" }
     ],
 
-    "density": { "sort": "electrons", "start": [1, 1, 0], "size": [3, 3, 1], "__units": "c/w_pe" }
+    "density": { "sort": "electrons", "start": [0, 0, 0], "size": [10, 10, 10], "dp": [1, 1, 1], "__units": "c/w_pe" }
   }
 }
