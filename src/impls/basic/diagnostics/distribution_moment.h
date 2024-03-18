@@ -21,8 +21,8 @@ using Projector_up = std::unique_ptr<Projector>;
 class Distribution_moment : public interfaces::Diagnostic {
 public:
   struct Region {
-    Vector3<PetscInt> min;
-    Vector3<PetscInt> max;
+    Vector3<PetscInt> start;
+    Vector3<PetscInt> size;
     Vector3<PetscReal> dp;
   };
 
@@ -30,6 +30,7 @@ public:
     const std::string& result_directory, const DM& da, const Particles& particles,
     Moment_up moment, Projector_up projector);
 
+  PetscErrorCode set_diagnosed_region(const Region& region);
   PetscErrorCode diagnose(timestep_t t) override;
 
 protected:
@@ -39,7 +40,7 @@ protected:
   const DM& da_;
   const Particles& particles_;
 
-  Vec data_;
+  std::vector<PetscReal> data_;
   Region region_;
 
   Moment_up moment_;

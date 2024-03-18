@@ -11,13 +11,58 @@ Distribution_moment::Distribution_moment(
     : Diagnostic(result_directory), da_(da), particles_(particles),
       moment_(std::move(moment)), projector_(std::move(projector)) {}
 
+PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
+  PetscFunctionBegin;
+  Vector3<PetscInt> l_start, g_start = region.start;
+  Vector3<PetscInt> l_size, g_size = region.size;
+  PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&l_size)));
+
+  l_start.to_petsc_order();
+  g_start.to_petsc_order();
+  l_size.to_petsc_order();
+  g_size.to_petsc_order();
+
+  l_start = max(g_start, l_start);
+  l_size  = min(g_start + g_size, l_start + l_size) - l_start;
+  g_start = l_start - g_start;
+
+  region_.start = Vector3<PetscInt>{l_start};
+  region_.size = Vector3<PetscInt>{l_size};
+  region_.dp = region.dp;
+
+  data_.resize(l_size[X] * l_size[Y] * l_size[Z]);
+
+  PetscCall(file_.set_memview_subarray(3, l_size, l_size, Vector3<PetscInt>::null));
+  PetscCall(file_.set_fileview_subarray(3, g_size, l_size, g_start));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
   if (t % diagnose_period != 0)
     PetscFunctionReturn(PETSC_SUCCESS);
   PetscFunctionBeginUser;
 
-  PetscCall(clear());
-  PetscCall(collect());
+  // PetscCall(clear());
+  // PetscCall(collect());
+
+  int time_width = std::to_string(geom_nt).size();
+  std::stringstream ss;
+  ss << std::setw(time_width) << std::setfill('0') << t;
+  PetscCall(file_.open(PETSC_COMM_WORLD, result_directory_, ss.str()));
+
+  int rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+
+  Vector3<PetscInt> size = region_.size;
+  for (PetscInt z = 0; z < size[Z]; ++z) {
+  for (PetscInt y = 0; y < size[Y]; ++y) {
+  for (PetscInt x = 0; x < size[X]; ++x) {
+    PetscInt i = ((z * size[Y] + y) * size[X] + x);
+    data_[i] = pow(i, rank + 1);
+  }}}
+
+  PetscCall(file_.write_floats(data_.data(), (size[X] * size[Y] * size[Z])));
+  PetscCall(file_.close());
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -41,8 +86,8 @@ PetscErrorCode Distribution_moment::collect() {
     for (PetscInt y = 0; y < shape_width; ++y) {
     for (PetscInt x = 0; x < shape_width; ++x) {
       bool in_bounds =
-        (region_.min[X] <= x && x < region_.max[X]) &&
-        (region_.min[Y] <= y && y < region_.max[Y]);
+        (region_.start[X] <= x && x < region_.start[X] + region_.size[X]) &&
+        (region_.start[Y] <= y && y < region_.start[Y] + region_.size[Y]);
 
       if (!in_bounds)
         continue;

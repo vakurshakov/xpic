@@ -16,10 +16,19 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
 
   std::string res_dir = CONFIG().out_dir + "/" + moment_name + "_of_" + proj_name;
 
-  diagnostics_.emplace_back(std::make_unique<Distribution_moment>(
+  std::unique_ptr<Distribution_moment>&& diag = std::make_unique<Distribution_moment>(
     res_dir, simulation_.da_, particles,
     std::make_unique<Moment>(particles, moment_name),
-    std::make_unique<Projector>(particles, proj_name)));
+    std::make_unique<Projector>(particles, proj_name));
+
+  Distribution_moment::Region region;
+  region.start = Vector3<PetscInt>::null;
+  region.size = Vector3<PetscInt>{Geom_n};
+  region.dp = Vector3<PetscReal>{Dx};
+
+  PetscCall(diag->set_diagnosed_region(region));
+
+  diagnostics_.emplace_back(std::move(diag));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
