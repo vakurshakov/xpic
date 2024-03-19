@@ -68,7 +68,6 @@ PetscErrorCode Distribution_moment::collect() {
 
   #pragma omp parallel for
   for (const Point& point : particles_.get_points()) {
-    /// @todo It is a `Node` structure from `basic::Particles` except for region_.dp
     PetscReal p_rx = projector_->get_x(particles_, point) / reg_dx;
     PetscReal p_ry = projector_->get_y(particles_, point) / reg_dy;
     PetscReal p_rz = projector_->get_z(particles_, point) / reg_dz;
@@ -77,7 +76,6 @@ PetscErrorCode Distribution_moment::collect() {
     PetscInt p_gy = ROUND(p_ry) - shape_radius;
     PetscInt p_gz = ROUND(p_rz) - shape_radius;
 
-    /// @todo Here we can use std::min()
     for (PetscInt g_z = p_gz; g_z < p_gz + shape_width; ++g_z) {
     for (PetscInt g_y = p_gy; g_y < p_gy + shape_width; ++g_y) {
     for (PetscInt g_x = p_gx; g_x < p_gx + shape_width; ++g_x) {
