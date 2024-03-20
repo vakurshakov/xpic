@@ -18,6 +18,13 @@ struct Projector;
 using Moment_up = std::unique_ptr<Moment>;
 using Projector_up = std::unique_ptr<Projector>;
 
+/**
+ * @todo To complete the description of our particle distribution function,
+ * we should implement the `Integration_region` restrictions. This will allow
+ * us to collect the distribution moment on projected axis, with constrains on
+ * the integration variables. For example, it will allow us to collect velocity
+ * distribution over a specified region of space.
+ */
 class Distribution_moment : public interfaces::Diagnostic {
 public:
   struct Region {
