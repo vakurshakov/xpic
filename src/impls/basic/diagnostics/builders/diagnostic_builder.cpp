@@ -7,9 +7,7 @@
 
 namespace basic {
 
-using Diagnostics_vector = std::vector<Diagnostic_up>;
-
-Diagnostic_builder::Diagnostic_builder(const Simulation& simulation, Diagnostics_vector& diagnostics)
+Diagnostic_builder::Diagnostic_builder(const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
   : simulation_(simulation), diagnostics_(diagnostics) {}
 
 
@@ -28,7 +26,7 @@ Axis Diagnostic_builder::get_component(const std::string& name) const {
 }
 
 
-PetscErrorCode build_diagnostics(const Simulation& simulation, Diagnostics_vector& result) {
+PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagnostic_up>& result) {
   PetscFunctionBegin;
 
 #if !THERE_ARE_FIELDS && !THERE_ARE_PARTICLES
