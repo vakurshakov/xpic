@@ -27,11 +27,11 @@ private:
   static constexpr int OMP_CHUNK_SIZE  = 16;
 
   struct Shape;
-  void fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, int shift);
+  void fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, bool shift);
   void interpolate(const Vector3<PetscInt>& p_g, Shape& no, Shape& sh, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const;
   void push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>& point_B, Point& point) const;
 
-  void decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point);
+  void decompose(const Vector3<PetscInt>& p_g, Shape& old_shape, Shape& new_shape, const Point& point);
 
   using Compute_j = std::function<PetscReal(PetscInt, PetscInt, PetscInt, PetscReal*)>;
   void decompose_dir(const Vector3<PetscInt>& p_g, const Compute_j& compute_j, Axis dir);

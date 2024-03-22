@@ -27,11 +27,6 @@ struct Node {
   }
 };
 
-enum Shift : PetscInt {
-  NO = 0,  // shape[x - i]
-  SH = 1   // shape[x - (i + 0.5)]
-};
-
 /// @note `Vector3_dim` is used as a coordinate space dimensionality
 struct Particles::Shape {
   PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim];
@@ -111,22 +106,21 @@ PetscErrorCode Particles::push() {
     Vector3<PetscReal> point_B = 0.0;
 
     const Node node(it->r);
+
     static Shape shape[2];
     #pragma omp threadprivate(shape)
 
-    fill_shape(node.g, node.r, shape[NO], NO);
-    fill_shape(node.g, node.r, shape[SH], SH);
-    interpolate(node.g, shape[NO], shape[SH], point_E, point_B);
+    fill_shape(node.g, node.r, shape[0], false);
+    fill_shape(node.g, node.r, shape[1], true);
+    interpolate(node.g, shape[0], shape[1], point_E, point_B);
 
     push(point_E, point_B, *it);
 
     const Node new_node(it->r);
-    static Shape new_shape;
-    #pragma omp threadprivate(new_shape)
 
-    /// @note Only non-shifted coordinates are used for shapes!
-    fill_shape(new_node.g, new_node.r, new_shape, NO);
-    decompose(new_node.g, new_shape, shape[NO], *it);
+    fill_shape(new_node.g, node.r,     shape[0], false);
+    fill_shape(new_node.g, new_node.r, shape[1], false);
+    decompose(new_node.g, shape[0], shape[1], *it);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
@@ -141,7 +135,8 @@ PetscErrorCode Particles::push() {
 }
 
 
-void Particles::fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, int shift) {
+/// @note If shift is false we'll get shape[x - i], shape[x - (i + 0.5)] otherwise
+void Particles::fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, bool shift) {
   PetscReal g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3_dim)
@@ -153,7 +148,7 @@ void Particles::fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
 
-    if (shift == SH) {
+    if (shift) {
       g_x += 0.5;
       g_y += 0.5;
       g_z += 0.5;
@@ -211,7 +206,7 @@ void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>
 }
 
 
-void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& new_shape, Shape& old_shape, const Point& point) {
+void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& old_shape, Shape& new_shape, const Point& point) {
   const PetscReal alpha = charge(point) * density(point) / particles_number(point) / (6.0 * dt);
   const PetscReal qx = alpha * dx;
   const PetscReal qy = alpha * dy;
