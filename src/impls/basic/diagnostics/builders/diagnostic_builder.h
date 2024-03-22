@@ -24,6 +24,9 @@ protected:
   const Vec& get_field(const std::string& name) const;
   Axis get_component(const std::string& name) const;
 
+  const Particles& get_sort(const std::string& name) const;
+  Vector3<PetscReal> parse_vector(const Configuration::json_t& json, const std::string& name) const;
+
   using Diagnostics_vector = std::vector<Diagnostic_up>;
   Diagnostics_vector& diagnostics_;
 };

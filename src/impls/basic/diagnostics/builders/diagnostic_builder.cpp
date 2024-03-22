@@ -25,6 +25,42 @@ Axis Diagnostic_builder::get_component(const std::string& name) const {
   throw std::runtime_error("Unknown component name " + name);
 }
 
+const Particles& Diagnostic_builder::get_sort(const std::string& name) const {
+  const std::vector<Particles>& particles = simulation_.particles_;
+
+  auto it = std::find_if(particles.begin(), particles.end(), [&](const Particles& sort) {
+    return sort.parameters().sort_name == name;
+  });
+
+  if (it == particles.end()) {
+    throw std::runtime_error("No particles with name " + name);
+  }
+  return *it;
+}
+
+Vector3<PetscReal> Diagnostic_builder::parse_vector(const Configuration::json_t& json, const std::string& name) const {
+  std::string message;
+  try {
+    const Configuration::array_t& arr = json.at(name);
+
+    if (arr.size() != 3) {
+      message = name + " as array should be of size 3.";
+      throw std::runtime_error(message);
+    }
+
+    Vector3<PetscReal> result;
+    for (int i = 0; i < 3; ++i) {
+      arr[i].get_to(result[i]);
+    }
+    return result;
+  }
+  catch (const std::exception& e) {
+    message = e.what();
+    message += usage_message();
+    throw std::runtime_error(message);
+  }
+}
+
 
 PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagnostic_up>& result) {
   PetscFunctionBegin;

@@ -58,18 +58,12 @@ PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t&
       }
     }
 
-    const Configuration::array_t& start = json.at("start");
-    const Configuration::array_t& size = json.at("size");
+    Vector3<PetscReal> start = parse_vector(json, "start");
+    Vector3<PetscReal> size = parse_vector(json, "size");
 
-    /// @todo Maybe exception throws would be a bit clearer
-    bool sizes_are_correct = (start.size() == 3) && (size.size() == 3);
-    message = "Start and size as arrays should be of size 3, representing all of 3 dimensions.";
-    PetscCheck(sizes_are_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
-
-    // Region in the configuration file is in global coordinates, in c/w_pe units
     for (int i = 0; i < 3; ++i) {
-      desc.region.start[i] = TO_STEP(start[i].get<PetscReal>(), Dx[i]);
-      desc.region.size[i] = TO_STEP(size[i].get<PetscReal>(), Dx[i]);
+      desc.region.start[i] = TO_STEP(start[i], Dx[i]);
+      desc.region.size[i] = TO_STEP(size[i], Dx[i]);
     }
   }
   catch (const std::exception& e) {
