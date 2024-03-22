@@ -26,16 +26,16 @@ PetscErrorCode Simulation::initialize_implementation() {
     return DM_BOUNDARY_NONE;
   };
 
-  bounds[X] = to_boundary_type(boundary_type_str[X]);
-  bounds[Y] = to_boundary_type(boundary_type_str[Y]);
-  bounds[Z] = to_boundary_type(boundary_type_str[Z]);
+  bounds_[X] = to_boundary_type(boundary_type_str[X]);
+  bounds_[Y] = to_boundary_type(boundary_type_str[Y]);
+  bounds_[Z] = to_boundary_type(boundary_type_str[Z]);
 
   PetscInt procs[3];
   geometry.at("da_processors_x").get_to(procs[X]);
   geometry.at("da_processors_y").get_to(procs[Y]);
   geometry.at("da_processors_z").get_to(procs[Z]);
 
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da_));
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds_), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da_));
   PetscCall(DMSetUp(da_));
 
   PetscCall(DMCreateGlobalVector(da_, &E_));
@@ -56,7 +56,7 @@ PetscErrorCode Simulation::initialize_implementation() {
     .sort_name = "electrons"
   };
   auto& sort = particles_.emplace_back(*this, parameters);
-  sort.add_particle(Point{{geom_x / 2, geom_y / 4, geom_z / 2}, {0.0, 1.0, 0.0}});
+  sort.add_particle(Point{{geom_x / 2, geom_y / 4, geom_z / 2}, {0.0, 0.9, 0.0}});
 #endif
 
   PetscCall(build_diagnostics(*this, diagnostics_));
@@ -73,9 +73,9 @@ PetscErrorCode Simulation::setup_positive_rotor() {
   /// @todo Check remap for periodic boundaries and geom_ns == 1 (ADD_VALUES)
   auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
     bool success = false;
-    if (bounds[X] == DM_BOUNDARY_PERIODIC && x >= geom_nx) { x -= geom_nx; success = true; }
-    if (bounds[Y] == DM_BOUNDARY_PERIODIC && y >= geom_ny) { y -= geom_ny; success = true; }
-    if (bounds[Z] == DM_BOUNDARY_PERIODIC && z >= geom_nz) { z -= geom_nz; success = true; }
+    if (bounds_[X] == DM_BOUNDARY_PERIODIC && x >= geom_nx) { x -= geom_nx; success = true; }
+    if (bounds_[Y] == DM_BOUNDARY_PERIODIC && y >= geom_ny) { y -= geom_ny; success = true; }
+    if (bounds_[Z] == DM_BOUNDARY_PERIODIC && z >= geom_nz) { z -= geom_nz; success = true; }
     return success;
   };
 
@@ -129,9 +129,9 @@ PetscErrorCode Simulation::setup_negative_rotor() {
 
   auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
     bool success = false;
-    if (bounds[X] == DM_BOUNDARY_PERIODIC && x < 0) { x += geom_nx; success = true; }
-    if (bounds[Y] == DM_BOUNDARY_PERIODIC && y < 0) { y += geom_ny; success = true; }
-    if (bounds[Z] == DM_BOUNDARY_PERIODIC && z < 0) { z += geom_nz; success = true; }
+    if (bounds_[X] == DM_BOUNDARY_PERIODIC && x < 0) { x += geom_nx; success = true; }
+    if (bounds_[Y] == DM_BOUNDARY_PERIODIC && y < 0) { y += geom_ny; success = true; }
+    if (bounds_[Z] == DM_BOUNDARY_PERIODIC && z < 0) { z += geom_nz; success = true; }
     return success;
   };
 

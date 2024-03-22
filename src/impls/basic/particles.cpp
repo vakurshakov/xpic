@@ -292,9 +292,9 @@ PetscErrorCode Particles::communicate() {
   };
 
   auto correct_coordinates = [&](Point& point) {
-    if (simulation_.bounds[X] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, X);
-    if (simulation_.bounds[Y] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Y);
-    if (simulation_.bounds[Z] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Z);
+    if (simulation_.bounds_[X] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, X);
+    if (simulation_.bounds_[Y] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Y);
+    if (simulation_.bounds_[Z] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Z);
   };
 
   PetscInt center_index = to_contiguous_index(1, 1, 1);

@@ -16,6 +16,7 @@ Diagnostic_builder::Diagnostic_builder(const Simulation& simulation, Diagnostics
 const Vec& Diagnostic_builder::get_field(const std::string& name) const {
   if (name == "E") return simulation_.E_;
   if (name == "B") return simulation_.B_;
+  if (name == "J") return simulation_.J_;
   throw std::runtime_error("Unknown field name " + name);
 }
 

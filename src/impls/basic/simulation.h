@@ -16,6 +16,13 @@ public:
   Simulation() = default;
   ~Simulation() override;
 
+  DM da_;
+  Vec E_;
+  Vec B_;
+  Vec J_;
+  DMBoundaryType bounds_[3];
+  std::vector<Particles> particles_;
+
 private:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(timestep_t timestep) override;
@@ -25,24 +32,8 @@ private:
 
   PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
 
-  friend class Particles;
-
-  // evil-evil bad-bad-bad
-  friend class Diagnostic_builder;
-  friend class Fields_energy_builder;
-  friend class Field_view_builder;
-  friend class Distribution_moment_builder;
-
-  DM da_;
-  DMBoundaryType bounds[3];
-
-  Vec E_;
-  Vec B_;
-  Vec J_;
   Mat rot_dt_p;
   Mat rot_dt_m;
-
-  std::vector<Particles> particles_;
 };
 
 }

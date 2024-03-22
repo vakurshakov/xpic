@@ -86,7 +86,8 @@ PetscErrorCode Field_view_builder::check_field_description(const Field_descripti
 
   bool is_field_name_correct =
     desc.field_name == "E" ||
-    desc.field_name == "B";
+    desc.field_name == "B" ||
+    desc.field_name == "J";
   message = "Unknown field name for Field_view diagnostics.";
   PetscCheck(is_field_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
