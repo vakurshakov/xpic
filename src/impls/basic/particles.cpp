@@ -45,9 +45,10 @@ struct Particles::Shape {
 
 Particles::Particles(Simulation& simulation, const Particles_parameters& parameters)
   : simulation_(simulation) {
+  PetscFunctionBeginUser;
   parameters_ = parameters;
 
-  const DM& da = simulation_.da_;
+  DM& da = simulation_.da_;
   PetscCallVoid(DMDAGetNeighbors(da, &neighbours));
 
   Vector3<PetscInt> start, size;
@@ -64,6 +65,16 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   l_width.x() = std::min(shape_width, geom_nx);
   l_width.y() = std::min(shape_width, geom_ny);
   l_width.z() = std::min(shape_width, geom_nz);
+
+  /// @note This local current is local to each particle! It's can be useful for diagnosing it.
+  PetscCallVoid(DMCreateLocalVector(da, &local_J));
+  PetscFunctionReturnVoid();
+}
+
+Particles::~Particles() {
+  PetscFunctionBeginUser;
+  PetscCallVoid(VecDestroy(&local_J));
+  PetscFunctionReturnVoid();
 }
 
 
@@ -85,9 +96,6 @@ PetscErrorCode Particles::push() {
   const DM& da = simulation_.da_;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
-
-  /// @note This local current is local to each particle! It's can be useful for diagnosing it.
-  PetscCall(DMGetLocalVector(da, &local_J));
 
   PetscCall(DMGlobalToLocal(da, simulation_.E_, INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
@@ -129,7 +137,6 @@ PetscErrorCode Particles::push() {
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
-  PetscCall(DMRestoreLocalVector(da, &local_J));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

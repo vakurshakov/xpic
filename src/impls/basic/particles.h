@@ -15,6 +15,7 @@ class Simulation;
 class Particles : public interfaces::Particles {
 public:
   Particles(Simulation& simulation, const Particles_parameters& parameters);
+  ~Particles() override;
 
   PetscErrorCode add_particle(const Point& point);
   const std::vector<Point>& get_points() const { return points_; }
