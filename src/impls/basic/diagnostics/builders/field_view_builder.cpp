@@ -78,34 +78,13 @@ PetscErrorCode Field_view_builder::check_field_description(const Field_descripti
   PetscFunctionBegin;
   std::string message;
 
-  bool is_field_name_correct =
-    desc.field_name == "E" ||
-    desc.field_name == "B" ||
-    desc.field_name == "J";
-  message = "Unknown field name for Field_view diagnostics.";
-  PetscCheck(is_field_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
-
-  bool is_component_name_correct =
-    desc.component_name == "x" ||
-    desc.component_name == "y" ||
-    desc.component_name == "z" ||
-    desc.component_name == "";
-  message = "Unknown component name for Field_view diagnostic of " + desc.field_name + " field.";
-  PetscCheck(is_component_name_correct, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
-
-  const Field_view::Region& reg = desc.region;
-  bool is_region_in_global_bounds =
-    (0 <= reg.start[X] && reg.start[X] < geom_nx) &&
-    (0 <= reg.start[Y] && reg.start[Y] < geom_ny) &&
-    (0 <= reg.start[Z] && reg.start[Z] < geom_nz) &&
-    (0 <= (reg.start[X] + reg.size[X]) && (reg.start[X] + reg.size[X]) <= geom_nx) &&
-    (0 <= (reg.start[Y] + reg.size[Y]) && (reg.start[Y] + reg.size[Y]) <= geom_ny) &&
-    (0 <= (reg.start[Z] + reg.size[Z]) && (reg.start[Z] + reg.size[Z]) <= geom_nz);
-
+  const Vector3<PetscInt>& r_start = desc.region.start;
+  const Vector3<PetscInt>& r_size = desc.region.size;
+  bool is_region_in_global_bounds = is_region_within_bounds(r_start, r_size, 0, Geom_n);
   message = "Region is not in global boundaries for " + desc.field_name + desc.component_name + " diagnostic.";
   PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  bool are_sizes_positive = (reg.size[X] > 0) && (reg.size[Y] > 0) && (reg.size[Z] > 0);
+  bool are_sizes_positive = (r_size[X] > 0) && (r_size[Y] > 0) && (r_size[Z] > 0);
   message = "Sizes are invalid for " + desc.field_name + desc.component_name + " diagnostic.";
   PetscCheck(are_sizes_positive, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
@@ -116,19 +95,12 @@ PetscErrorCode Field_view_builder::check_field_description(const Field_descripti
 PetscErrorCode Field_view_builder::attach_field_description(Field_description&& desc) {
   PetscFunctionBegin;
   Vector3<PetscInt> start;
-  Vector3<PetscInt> end;
-  PetscCall(DMDAGetCorners(simulation_.da_, REP3_A(&start), REP3_A(&end)));
-  end += start;
+  Vector3<PetscInt> size;
+  PetscCall(DMDAGetCorners(simulation_.da_, REP3_A(&start), REP3_A(&size)));
 
-  Vector3<PetscInt> r_start = desc.region.start;
-  Vector3<PetscInt> r_end = desc.region.size;
-  r_end += r_start;
-
-  // checking intersection between local domain and `desc.region`
-  bool is_local_start_in_bounds =
-    r_start[X] < end[X] && r_end[X] > start[X] &&
-    r_start[Y] < end[Y] && r_end[Y] > start[Y] &&
-    r_start[Z] < end[Z] && r_end[Z] > start[Z];
+  const Vector3<PetscInt>& r_start = desc.region.start;
+  const Vector3<PetscInt>& r_size = desc.region.size;
+  bool is_local_start_in_bounds = is_region_intersect_bounds(r_start, r_size, start, size);
 
   PetscMPIInt color = is_local_start_in_bounds ? 1 : MPI_UNDEFINED;
 

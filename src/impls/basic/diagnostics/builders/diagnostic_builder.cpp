@@ -61,6 +61,31 @@ Vector3<PetscReal> Diagnostic_builder::parse_vector(const Configuration::json_t&
   }
 }
 
+bool Diagnostic_builder::is_region_within_bounds(
+    const Vector3<PetscInt>& r_start, const Vector3<PetscInt>& r_size,
+    const Vector3<PetscInt>& b_start, const Vector3<PetscInt>& b_size) const {
+  Vector3<PetscInt> r_end = r_start + r_size;
+  Vector3<PetscInt> b_end = b_start + b_size;
+  return
+    (b_start[X] <= r_start[X] && r_start[X] < b_end[X]) &&
+    (b_start[Y] <= r_start[Y] && r_start[Y] < b_end[Y]) &&
+    (b_start[Z] <= r_start[Z] && r_start[Z] < b_end[Z]) &&
+    (b_start[X] <= r_end[X] && r_end[X] <= b_end[X]) &&
+    (b_start[Y] <= r_end[Y] && r_end[Y] <= b_end[Y]) &&
+    (b_start[Z] <= r_end[Z] && r_end[Z] <= b_end[Z]);
+}
+
+bool Diagnostic_builder::is_region_intersect_bounds(
+    const Vector3<PetscInt>& r_start, const Vector3<PetscInt>& r_size,
+    const Vector3<PetscInt>& b_start, const Vector3<PetscInt>& b_size) const {
+  Vector3<PetscInt> r_end = r_start + r_size;
+  Vector3<PetscInt> b_end = b_start + b_size;
+  return
+    r_start[X] < b_end[X] && r_end[X] > b_start[X] &&
+    r_start[Y] < b_end[Y] && r_end[Y] > b_start[Y] &&
+    r_start[Z] < b_end[Z] && r_end[Z] > b_start[Z];
+}
+
 
 PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagnostic_up>& result) {
   PetscFunctionBegin;

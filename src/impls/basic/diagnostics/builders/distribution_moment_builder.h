@@ -50,8 +50,8 @@ private:
   Moments_description moments_desc_;
 
   PetscErrorCode parse_moment_info(const Configuration::json_t& json, Moment_description& desc);
-  // PetscErrorCode check_moment_description(const Moment_description& desc);
-  // PetscErrorCode attach_moment_description(const DM& da, Moment_description&& desc);
+  PetscErrorCode check_moment_description(const Moment_description& desc);
+  PetscErrorCode attach_moment_description(Moment_description&& desc);
 };
 
 }
