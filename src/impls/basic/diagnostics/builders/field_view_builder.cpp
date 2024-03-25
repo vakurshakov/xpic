@@ -13,7 +13,7 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
     Field_description desc;
     PetscCall(parse_field_info(info, desc));
     PetscCall(check_field_description(desc));
-    PetscCall(attach_field_description(simulation_.da_, std::move(desc)));
+    PetscCall(attach_field_description(std::move(desc)));
     PetscFunctionReturn(PETSC_SUCCESS);
   };
 
@@ -113,11 +113,11 @@ PetscErrorCode Field_view_builder::check_field_description(const Field_descripti
 }
 
 // Attach diagnostic only to those processes, where `desc.region` lies
-PetscErrorCode Field_view_builder::attach_field_description(const DM& da, Field_description&& desc) {
+PetscErrorCode Field_view_builder::attach_field_description(Field_description&& desc) {
   PetscFunctionBegin;
   Vector3<PetscInt> start;
   Vector3<PetscInt> end;
-  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&end)));
+  PetscCall(DMDAGetCorners(simulation_.da_, REP3_A(&start), REP3_A(&end)));
   end += start;
 
   Vector3<PetscInt> r_start = desc.region.start;
