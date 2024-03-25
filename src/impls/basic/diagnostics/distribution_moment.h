@@ -33,8 +33,8 @@ public:
     Vector3<PetscReal> dp;
   };
 
-  Distribution_moment(
-    const std::string& result_directory, const DM& da, const Particles& particles,
+  Distribution_moment(MPI_Comm comm, const std::string& result_directory,
+    const DM& da, const Particles& particles,
     Moment_up moment, Projector_up projector);
 
   PetscErrorCode set_diagnosed_region(const Region& region);

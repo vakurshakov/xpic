@@ -6,10 +6,11 @@
 namespace basic {
 
 Distribution_moment::Distribution_moment(
-  const std::string& result_directory, const DM& da, const Particles& particles,
+  MPI_Comm comm, const std::string& result_directory,
+  const DM& da, const Particles& particles,
   Moment_up moment, Projector_up projector)
     : Diagnostic(result_directory), da_(da), particles_(particles),
-      moment_(std::move(moment)), projector_(std::move(projector)) {}
+      moment_(std::move(moment)), projector_(std::move(projector)), comm_(comm) {}
 
 PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
   PetscFunctionBegin;
@@ -51,7 +52,7 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
   int time_width = std::to_string(geom_nt).size();
   std::stringstream ss;
   ss << std::setw(time_width) << std::setfill('0') << t;
-  PetscCall(file_.open(PETSC_COMM_WORLD, result_directory_, ss.str()));
+  PetscCall(file_.open(comm_, result_directory_, ss.str()));
 
   const Vector3<PetscInt> size = region_.size;
   PetscCall(file_.write_floats(data_.data(), (size[X] * size[Y] * size[Z])));
@@ -106,7 +107,10 @@ PetscErrorCode Distribution_moment::clear() {
   for (PetscInt z = 0; z < region_.size[Z]; ++z) {
   for (PetscInt y = 0; y < region_.size[Y]; ++y) {
   for (PetscInt x = 0; x < region_.size[X]; ++x) {
-    data_[index(x, y, z)] = 0.0;
+    data_[index(
+      region_.start[X] + x,
+      region_.start[Y] + y,
+      region_.start[Z] + z)] = 0.0;
   }}}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
