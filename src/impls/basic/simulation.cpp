@@ -56,7 +56,7 @@ PetscErrorCode Simulation::initialize_implementation() {
     .sort_name = "electrons"
   };
   auto& sort = particles_.emplace_back(*this, parameters);
-  sort.add_particle(Point{{geom_x / 2, geom_y / 4, geom_z / 2}, {0.0, 0.9, 0.0}});
+  sort.add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 4}, {0.0, 0.0, 0.9}});
 #endif
 
   PetscCall(build_diagnostics(*this, diagnostics_));
