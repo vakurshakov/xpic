@@ -12,7 +12,7 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
   PetscFunctionBeginUser;
 
   auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
-    PetscFunctionBegin;
+    PetscFunctionBeginHot;
     Moment_description desc;
     PetscCall(parse_moment_info(info, desc));
     PetscCall(check_moment_description(desc));
@@ -43,7 +43,7 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
 }
 
 PetscErrorCode Distribution_moment_builder::parse_moment_info(const Configuration::json_t& json, Moment_description& desc) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   std::string message;
   try {
     json.at("sort").get_to(desc.particles_name);
@@ -67,7 +67,7 @@ PetscErrorCode Distribution_moment_builder::parse_moment_info(const Configuratio
 
 /// @todo We can move check and attach into base class too
 PetscErrorCode Distribution_moment_builder::check_moment_description(const Moment_description& desc) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   std::string message;
 
   const Vector3<PetscInt>& r_start = desc.region.start;
@@ -84,7 +84,7 @@ PetscErrorCode Distribution_moment_builder::check_moment_description(const Momen
 }
 
 PetscErrorCode Distribution_moment_builder::attach_moment_description(Moment_description&& desc) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   Vector3<PetscInt> start;
   Vector3<PetscInt> size;
   PetscCall(DMDAGetCorners(simulation_.da_, REP3_A(&start), REP3_A(&size)));

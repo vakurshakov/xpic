@@ -52,7 +52,7 @@ PetscErrorCode MPI_binary_file::close() {
 }
 
 PetscErrorCode create_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[], MPI_Datatype* type) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   PetscMPIInt d;
   PetscCall(PetscMPIIntCast(ndim, &d));
 
@@ -68,13 +68,13 @@ PetscErrorCode create_subarray(PetscInt ndim, const PetscInt sizes[], const Pets
 }
 
 PetscErrorCode MPI_binary_file::set_memview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   PetscCall(create_subarray(ndim, sizes, subsizes, starts, &memview_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode MPI_binary_file::set_fileview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   PetscCall(create_subarray(ndim, sizes, subsizes, starts, &fileview_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

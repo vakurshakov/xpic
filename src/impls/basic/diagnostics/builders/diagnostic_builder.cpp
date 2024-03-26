@@ -88,7 +88,7 @@ bool Diagnostic_builder::is_region_intersect_bounds(
 
 
 PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagnostic_up>& result) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
 #if !THERE_ARE_FIELDS && !THERE_ARE_PARTICLES
   PetscFunctionReturn(PETSC_SUCCESS);

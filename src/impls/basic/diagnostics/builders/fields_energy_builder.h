@@ -12,7 +12,7 @@ public:
     : Diagnostic_builder(simulation, diagnostics) {}
 
   PetscErrorCode build(const Configuration::json_t& /* diag_info */) override {
-    PetscFunctionBegin;
+    PetscFunctionBeginUser;
     diagnostics_.emplace_back(std::make_unique<Fields_energy>(CONFIG().out_dir + "/", simulation_.da_, simulation_.E_, simulation_.B_));
     PetscFunctionReturn(PETSC_SUCCESS);
   }

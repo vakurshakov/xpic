@@ -87,7 +87,7 @@ PetscErrorCode Particles::add_particle(const Point& point) {
 
 
 PetscErrorCode Particles::push() {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   const DM& da = simulation_.da_;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
@@ -275,7 +275,7 @@ void Particles::decompose_dir(const Vector3<PetscInt>& p_g, const Compute_j& com
 
 
 PetscErrorCode Particles::communicate() {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   constexpr PetscInt dim = 3;
   constexpr PetscInt neighbours_num = 27;
 

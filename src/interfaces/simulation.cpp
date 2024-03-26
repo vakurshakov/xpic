@@ -58,7 +58,7 @@ PetscErrorCode Simulation::calculate() {
 }
 
 PetscErrorCode Simulation::diagnose(timestep_t timestep) const {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   for (const Diagnostic_up& diagnostic : diagnostics_) {
     PetscCall(diagnostic->diagnose(timestep));

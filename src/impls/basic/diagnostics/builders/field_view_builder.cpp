@@ -6,10 +6,10 @@ Field_view_builder::Field_view_builder(const Simulation& simulation, std::vector
   : Diagnostic_builder(simulation, diagnostics) {}
 
 PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
 
   auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
-    PetscFunctionBegin;
+    PetscFunctionBeginUser;
     Field_description desc;
     PetscCall(parse_field_info(info, desc));
     PetscCall(check_field_description(desc));
@@ -42,7 +42,7 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
 }
 
 PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t& json, Field_description& desc) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   std::string message;
   try {
     json.at("field").get_to(desc.field_name);
@@ -75,7 +75,7 @@ PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t&
 }
 
 PetscErrorCode Field_view_builder::check_field_description(const Field_description& desc) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   std::string message;
 
   const Vector3<PetscInt>& r_start = desc.region.start;
@@ -93,7 +93,7 @@ PetscErrorCode Field_view_builder::check_field_description(const Field_descripti
 
 // Attach diagnostic only to those processes, where `desc.region` lies
 PetscErrorCode Field_view_builder::attach_field_description(Field_description&& desc) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   Vector3<PetscInt> start;
   Vector3<PetscInt> size;
   PetscCall(DMDAGetCorners(simulation_.da_, REP3_A(&start), REP3_A(&size)));

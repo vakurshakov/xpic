@@ -9,7 +9,7 @@ Field_view::Field_view(MPI_Comm comm, const std::string& result_directory, const
   : interfaces::Diagnostic(result_directory), da_(da), field_(field), comm_(comm) {}
 
 PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   Vector4<PetscInt> l_start, g_start = region.start;
   Vector4<PetscInt> m_size, f_size = region.size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));

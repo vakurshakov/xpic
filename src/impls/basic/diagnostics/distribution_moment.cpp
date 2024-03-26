@@ -13,7 +13,7 @@ Distribution_moment::Distribution_moment(
       moment_(std::move(moment)), projector_(std::move(projector)), comm_(comm) {}
 
 PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   Vector3<PetscInt> l_start, g_start = region.start;
   Vector3<PetscInt> l_size, g_size = region.size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&l_size)));
