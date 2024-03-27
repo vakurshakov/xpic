@@ -42,7 +42,6 @@ static constexpr PetscInt Vector4_dim = 4;
   T dot(const VEC_T& other) const;            \
   T square() const;                           \
   \
-  VEC_T to_petsc_order() const;               \
   void to_petsc_order();                      \
 
 #define COMP1                                      \

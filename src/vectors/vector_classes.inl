@@ -147,19 +147,6 @@ RETURN_REAL_LENGTH(Vector3)
 RETURN_REAL_LENGTH(Vector4)
 
 
-#define RETURN_NEW_TO_PETSC_ORDER(VEC_T, N)   \
-  template<typename T>                        \
-  VEC_T<T> VEC_T<T>::to_petsc_order() const { \
-    return {                                  \
-      REP##N##_AP(data)                       \
-    };                                        \
-  }                                           \
-
-RETURN_NEW_TO_PETSC_ORDER(Vector2, 2)
-RETURN_NEW_TO_PETSC_ORDER(Vector3, 3)
-RETURN_NEW_TO_PETSC_ORDER(Vector4, 4)
-
-
 #define SWAP_TO_PETSC2(A) A[X], A[Y]
 #define SWAP_TO_PETSC3(A) A[X], A[Z]
 #define SWAP_TO_PETSC4(A) A[X], A[Z]
