@@ -10,7 +10,7 @@
     "size_x": 1.0,  "dx": 0.05,  "__units.x": "c/w_pe",
     "size_y": 1.0,  "dy": 0.05,  "__units.y": "c/w_pe",
     "size_z": 1.0,  "dz": 0.05,  "__units.z": "c/w_pe",
-    "size_t": 1.0,  "dt": 0.025,  "__units.t": "1/w_pe",
+    "size_t": 3.0,  "dt": 0.025,  "__units.t": "1/w_pe",
 
     "diagnose_period": 0.025,  "__units.dp": "1/w_pe",
 
@@ -36,6 +36,6 @@
       { "field": "J", "comp": "z", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" }
     ],
 
-    "density": { "sort": "electrons", "start": [0, 0, 0], "size": [1, 1, 1], "dp": [0.05, 0.05, 0.05], "__units": "c/w_pe" }
+    "density": { "sort": "electrons", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" }
   }
 }

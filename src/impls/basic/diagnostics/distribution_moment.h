@@ -20,7 +20,6 @@ public:
   struct Region {
     Vector3<PetscInt> start;
     Vector3<PetscInt> size;
-    Vector3<PetscReal> dp;
   };
 
   Distribution_moment(MPI_Comm comm, const std::string& result_directory,

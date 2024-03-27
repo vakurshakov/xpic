@@ -48,11 +48,10 @@ PetscErrorCode Distribution_moment_builder::parse_moment_info(const Configuratio
 
     Vector3<PetscReal> start = parse_vector(json, "start");
     Vector3<PetscReal> size = parse_vector(json, "size");
-    desc.region.dp = parse_vector(json, "dp");
 
     for (int i = 0; i < 3; ++i) {
-      desc.region.start[i] = TO_STEP(start[i], desc.region.dp[i]);
-      desc.region.size[i] = TO_STEP(size[i], desc.region.dp[i]);
+      desc.region.start[i] = TO_STEP(start[i], Dx[i]);
+      desc.region.size[i] = TO_STEP(size[i], Dx[i]);
     }
   }
   catch (const std::exception& e) {

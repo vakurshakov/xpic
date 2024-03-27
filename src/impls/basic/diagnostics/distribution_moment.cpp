@@ -32,7 +32,6 @@ PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
   region_.size = Vector3<PetscInt>{l_size};
   region_.start.to_petsc_order();
   region_.size.to_petsc_order();
-  region_.dp = region.dp;
 
   data_.resize(l_size[X] * l_size[Y] * l_size[Z]);
 
@@ -71,15 +70,11 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
  */
 PetscErrorCode Distribution_moment::collect() {
   PetscFunctionBeginUser;
-  const PetscReal reg_dx = region_.dp[X];
-  const PetscReal reg_dy = region_.dp[Y];
-  const PetscReal reg_dz = region_.dp[Z];
-
   #pragma omp parallel for
   for (const Point& point : particles_.get_points()) {
-    PetscReal p_rx = point.x() / reg_dx;
-    PetscReal p_ry = point.y() / reg_dy;
-    PetscReal p_rz = point.z() / reg_dz;
+    PetscReal p_rx = point.x() / dx;
+    PetscReal p_ry = point.y() / dy;
+    PetscReal p_rz = point.z() / dz;
 
     PetscInt p_gx = ROUND(p_rx) - shape_radius;
     PetscInt p_gy = ROUND(p_ry) - shape_radius;

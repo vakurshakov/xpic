@@ -23,7 +23,6 @@ private:
       "  \"sort\": \"electrons\", -- Particles sort name, must match names from particles section.\n"
       "  \"start\": [ox, oy, oz], -- Starting point of a diagnostic in _global_ coordinates.\n"
       "  \"size\":  [sx, sy, sz], -- Sizes of a diagnosed region along each coordinate in _global_ coordinates.\n"
-      "  \"dp\":    [dx, dy, dz]  -- Grid steps of a diagnosed region along each coordinate in _global_ coordinates.\n"
       "}\n"
       "\n"
       "Available distribution moment names are:\n"
