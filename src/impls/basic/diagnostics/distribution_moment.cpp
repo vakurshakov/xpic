@@ -7,10 +7,10 @@ namespace basic {
 
 Distribution_moment::Distribution_moment(
   MPI_Comm comm, const std::string& result_directory,
-  const DM& da, const Particles& particles,
-  Moment_up moment, Projector_up projector)
-    : Diagnostic(result_directory), da_(da), particles_(particles),
-      moment_(std::move(moment)), projector_(std::move(projector)), comm_(comm) {}
+  const DM& da, const Particles& particles, Moment_up moment)
+  : interfaces::Diagnostic(result_directory),
+    da_(da), particles_(particles),
+    moment_(std::move(moment)), comm_(comm) {}
 
 PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
   PetscFunctionBeginUser;
@@ -61,6 +61,14 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/**
+ * @todo Communication is needed to prevent data losses. Moreover, the type of
+ * data exchanges is dictated by the coordinates of the moment (`Projector`).
+ * For example, if we collect particles density on (x, y, z) coordinates, we
+ * need to exchange the values that are placed in ghost cells. But if we are
+ * collecting velocity distribution on (Vx, Vy, Vz) coordinates, the equivalent
+ * of `MPI_Allreduce()` operation is needed.
+ */
 PetscErrorCode Distribution_moment::collect() {
   PetscFunctionBeginUser;
   const PetscReal reg_dx = region_.dp[X];
@@ -69,9 +77,9 @@ PetscErrorCode Distribution_moment::collect() {
 
   #pragma omp parallel for
   for (const Point& point : particles_.get_points()) {
-    PetscReal p_rx = projector_->get_x(particles_, point) / reg_dx;
-    PetscReal p_ry = projector_->get_y(particles_, point) / reg_dy;
-    PetscReal p_rz = projector_->get_z(particles_, point) / reg_dz;
+    PetscReal p_rx = point.x() / reg_dx;
+    PetscReal p_ry = point.y() / reg_dy;
+    PetscReal p_rz = point.z() / reg_dz;
 
     PetscInt p_gx = ROUND(p_rx) - shape_radius;
     PetscInt p_gy = ROUND(p_ry) - shape_radius;
@@ -238,37 +246,6 @@ Moment::Moment(const Particles& particles, const std::string& name) : particles_
   }
   else if (name == "mVphiVphi_moment") {
     get = get_mVphiVphi;
-  }
-}
-
-
-inline PetscReal project_to_x(const Particles&, const Point& point) {
-  return point.x();
-}
-
-inline PetscReal project_to_y(const Particles&, const Point& point) {
-  return point.y();
-}
-
-inline PetscReal project_to_z(const Particles&, const Point& point) {
-  return point.z();
-}
-
-Projector::Projector(const Particles& particles, const std::string& axes_names) : particles_(particles) {
-  if (axes_names == "(x_y_z)") {
-    get_x = project_to_x;
-    get_y = project_to_y;
-    get_z = project_to_z;
-  }
-  else if (axes_names == "(Vx_Vy_Vz)") {
-    get_x = get_Vx;
-    get_y = get_Vy;
-    get_z = get_Vz;
-  }
-  else if (axes_names == "(Vr_Vphi_Vz)") {
-    get_x = get_Vr;
-    get_y = get_Vphi;
-    get_z = get_Vz;
   }
 }
 

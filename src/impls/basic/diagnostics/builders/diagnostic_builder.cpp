@@ -138,11 +138,6 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagn
       builder = std::make_unique<Distribution_moment_builder>(simulation, result, moment_name, "(x_y_z)");
       PetscCall(builder->build(diag_info));
     }
-    else if (diag_name == "velocity") {
-      LOG_INFO("Adding {} diagnostics(s)", diag_name);
-      builder = std::make_unique<Distribution_moment_builder>(simulation, result, "zeroth_moment", "(Vx_Vy_Vz)");
-      PetscCall(builder->build(diag_info));
-    }
 #endif
 #if THERE_ARE_FIELDS || THERE_ARE_PARTICLES
     else

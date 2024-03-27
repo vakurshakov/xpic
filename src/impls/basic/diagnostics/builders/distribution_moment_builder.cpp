@@ -31,9 +31,7 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
     const Particles& particles = get_sort(desc.particles_name);
 
     std::unique_ptr<Distribution_moment>&& diag = std::make_unique<Distribution_moment>(
-      desc.comm, res_dir, simulation_.da_, particles,
-      std::make_unique<Moment>(particles, moment_name),
-      std::make_unique<Projector>(particles, proj_name));
+      desc.comm, res_dir, simulation_.da_, particles, std::make_unique<Moment>(particles, moment_name));
 
     PetscCall(diag->set_diagnosed_region(desc.region));
 

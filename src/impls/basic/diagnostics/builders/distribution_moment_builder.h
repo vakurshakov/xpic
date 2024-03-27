@@ -28,13 +28,11 @@ private:
       "\n"
       "Available distribution moment names are:\n"
       "  - density (zeroth_moment for x, y, z);\n"
-      "  - velocity (zeroth_moment for Vx, Vy, Vz);\n"
       "  - Vx_moment and moments of Vy, Vz, Vr, Vphi;\n"
       "  - mVxVx_moment and right-first combinations with Vy, Vz, Vr, Vphi, i.e. mVxVy, mVxVz, ...\n"
       "\n"
       "The region, described by \"start\", \"size\" and \"dp\", should use units coherent with distribution moment:\n"
-      "  - density, Vx_moment, mVxVy_moment, etc. collect moments onto (x, y, z) coordinates in units of c/w_pe.\n"
-      "  - velocity collects zeroth moment onto (Vx, Vy, Vz) coordinates in units of c.";
+      "  - density, Vx_moment, mVxVy_moment, etc. collect moments onto (x, y, z) coordinates in units of c/w_pe.\n";
   }
 
   std::string moment_name;
