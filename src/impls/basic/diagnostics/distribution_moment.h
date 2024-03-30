@@ -25,27 +25,21 @@ public:
   Distribution_moment(MPI_Comm comm, const std::string& result_directory,
     const DM& da, const Particles& particles, Moment_up moment);
 
+  ~Distribution_moment();
+
   PetscErrorCode set_diagnosed_region(const Region& region);
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
+  PetscErrorCode setup_da();
   PetscErrorCode collect();
-  PetscErrorCode clear();
 
-  PetscInt index(PetscInt x, PetscInt y, PetscInt z) const {
-    return
-      ((z - region_.start[Z]) * region_.size[Y] +
-      (y - region_.start[Y])) * region_.size[X] +
-      (x - region_.start[X]);
-  }
-
-private:
-  const DM& da_;
-  const Particles& particles_;
-
-  std::vector<PetscReal> data_;
+  DM da_;
+  Vec local_;
+  Vec global_;
   Region region_;
 
+  const Particles& particles_;
   Moment_up moment_;
 
   MPI_Comm comm_;

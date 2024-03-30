@@ -3,7 +3,7 @@
 #include <cmath>  // for sqrt
 
 #define VECTOR_DEFAULT_CONSTRUCTORS_IMPL(VEC_T, N)                                                \
-  template<typename T> constexpr VEC_T<T>::VEC_T() : data{REP##N(0)} {}                           \
+  template<typename T> constexpr VEC_T<T>::VEC_T() : data{REP##N(T(0))} {}                        \
   template<typename T> constexpr VEC_T<T>::VEC_T(const T& v) : data{REP##N(v)} {}                 \
   template<typename T> constexpr VEC_T<T>::VEC_T(REP##N##_N(const T& x)) : data{REP##N##_N(x)} {} \
   template<typename T> constexpr VEC_T<T>::VEC_T(const T v[VEC_T##_dim]) : data{REP##N##_A(v)} {} \

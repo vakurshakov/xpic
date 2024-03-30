@@ -15,7 +15,7 @@ namespace basic {
 class Field_view : public interfaces::Diagnostic {
 public:
   struct Region {
-    static constexpr PetscInt ndim = 4; // Provided by DMDAGetInfo(da_, &ndim, ...)
+    static constexpr PetscInt ndim = 4;
     PetscInt start[ndim];
     PetscInt size[ndim];
   };

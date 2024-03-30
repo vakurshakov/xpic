@@ -9,56 +9,120 @@ Distribution_moment::Distribution_moment(
   MPI_Comm comm, const std::string& result_directory,
   const DM& da, const Particles& particles, Moment_up moment)
   : interfaces::Diagnostic(result_directory),
-    da_(da), particles_(particles),
-    moment_(std::move(moment)), comm_(comm) {}
+    da_(da), particles_(particles), moment_(std::move(moment)), comm_(comm) {}
+
+Distribution_moment::~Distribution_moment() {
+  PetscFunctionBeginUser;
+  PetscCallVoid(DMDestroy(&da_));
+  PetscCallVoid(VecDestroy(&local_));
+  PetscCallVoid(VecDestroy(&global_));
+  PetscFunctionReturnVoid();
+}
 
 PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
   PetscFunctionBeginUser;
+
+  region_ = region;
+  PetscCall(setup_da());
+
+  /// @todo Replace it with Field_view::set_diagnosed_region();
+  ///
   Vector3<PetscInt> l_start, g_start = region.start;
-  Vector3<PetscInt> l_size, g_size = region.size;
-  PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&l_size)));
+  Vector3<PetscInt> m_size, f_size = region.size;
+  PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));
 
   l_start.to_petsc_order();
-  l_size.to_petsc_order();
-
   g_start.to_petsc_order();
-  g_size.to_petsc_order();
+  m_size.to_petsc_order();
+  f_size.to_petsc_order();
 
-  l_start = max(g_start, l_start);
-  l_size  = min(g_start + g_size, l_start + l_size) - l_start;
-  g_start = l_start - g_start;
+  Vector3<PetscInt> m_start = max(g_start, l_start);
+  Vector3<PetscInt> l_size = min(g_start + f_size, l_start + m_size) - m_start;
+  Vector3<PetscInt> f_start = m_start;
 
-  region_.start = Vector3<PetscInt>{l_start};
-  region_.size = Vector3<PetscInt>{l_size};
-  region_.start.to_petsc_order();
-  region_.size.to_petsc_order();
+  f_start -= g_start;  // file start is in global coordinates, but we remove offset
+  m_start -= l_start;  // memory start is in local coordinates
 
-  data_.resize(l_size[X] * l_size[Y] * l_size[Z]);
-
-  PetscCall(file_.set_memview_subarray(3, l_size, l_size, Vector3<PetscInt>::null));
-  PetscCall(file_.set_fileview_subarray(3, g_size, l_size, g_start));
+  PetscCall(file_.set_memview_subarray(3, m_size, l_size, m_start));
+  PetscCall(file_.set_fileview_subarray(3, f_size, l_size, f_start));
+  ///
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode Distribution_moment::setup_da() {
+  PetscFunctionBeginUser;
+  Vector3<PetscInt> g_start = region_.start;
+  Vector3<PetscInt> g_size = region_.size;
+  Vector3<PetscInt> g_end = g_start + g_size;
+
+  PetscInt dim, s;
+  DMDAStencilType st;
+  Vector3<PetscInt> size;
+  Vector3<PetscInt> proc;
+  Vector3<DMBoundaryType> bound;
+  PetscCall(DMDAGetInfo(da_, &dim, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
+
+  Vector3<const PetscInt*> ownership;
+  PetscCall(DMDAGetOwnershipRanges(da_, REP3_A(&ownership)));
+
+  Vector3<PetscInt> l_proc;
+  Vector3<DMBoundaryType> l_bound = DM_BOUNDARY_GHOSTED;
+  Vector3<std::vector<PetscInt>> l_ownership;
+
+  // Collecting number of processes and ownership ranges using global DMDA
+  for (PetscInt i = 0; i < dim; ++i) {
+    PetscInt start = 0;
+    PetscInt end = ownership[i][0];
+
+    for (PetscInt s = 0; s < proc[i]; ++s) {
+      if (start < g_end[i] && end > g_start[i]) {
+        l_proc[i]++;
+        l_ownership[i].emplace_back(std::min(g_end[i], end) - start);
+      }
+      start += ownership[i][s];
+      end += start;
+    }
+
+    // Mimic global boundaries, if we touch them
+    if (g_size[i] == size[i]) {
+      l_bound[i] = bound[i];
+    }
+  }
+
+  PetscCall(DMDACreate3d(comm_, REP3_A(l_bound), st, REP3_A(g_size), REP3_A(l_proc), 1, s, l_ownership[X].data(), l_ownership[Y].data(), l_ownership[Z].data(), &da_));
+  PetscCall(DMSetUp(da_));
+  PetscCall(DMCreateLocalVector(da_, &local_));
+  PetscCall(DMCreateGlobalVector(da_, &global_));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
   if (t % diagnose_period != 0)
     PetscFunctionReturn(PETSC_SUCCESS);
   PetscFunctionBeginUser;
 
-  PetscCall(clear());
   PetscCall(collect());
 
+  /// @todo Replace with Field_view::diagnose(t)
+  ///
   int time_width = std::to_string(geom_nt).size();
   std::stringstream ss;
   ss << std::setw(time_width) << std::setfill('0') << t;
   PetscCall(file_.open(comm_, result_directory_, ss.str()));
 
-  const Vector3<PetscInt> size = region_.size;
-  PetscCall(file_.write_floats(data_.data(), (size[X] * size[Y] * size[Z])));
-  PetscCall(file_.close());
+  const PetscReal *arr;
+  PetscCall(VecGetArrayRead(global_, &arr));
 
+  Vector3<PetscInt> size;
+  PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
+
+  PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z])));
+  PetscCall(file_.close());
+  ///
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 /**
  * @todo Communication is needed to prevent data losses. Moreover, the type of
@@ -70,6 +134,13 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
  */
 PetscErrorCode Distribution_moment::collect() {
   PetscFunctionBeginUser;
+
+  PetscCall(VecSet(local_, 0.0));
+  PetscCall(VecSet(global_, 0.0));
+
+  PetscReal ***arr;
+  PetscCall(DMDAVecGetArrayWrite(da_, local_, &arr));
+
   #pragma omp parallel for
   for (const Point& point : particles_.get_points()) {
     PetscReal p_rx = point.x() / dx;
@@ -83,38 +154,29 @@ PetscErrorCode Distribution_moment::collect() {
     for (PetscInt g_z = p_gz; g_z < p_gz + shape_width; ++g_z) {
     for (PetscInt g_y = p_gy; g_y < p_gy + shape_width; ++g_y) {
     for (PetscInt g_x = p_gx; g_x < p_gx + shape_width; ++g_x) {
-      bool in_bounds =
-        (region_.start[X] <= g_x && g_x < region_.start[X] + region_.size[X]) &&
-        (region_.start[Y] <= g_y && g_y < region_.start[Y] + region_.size[Y]) &&
-        (region_.start[Z] <= g_z && g_z < region_.start[Z] + region_.size[Z]);
-
-      if (!in_bounds)
-        continue;
+      /// @todo It is possible to implement region restrictions, but it would be a memory overkill
+      //
+      // bool in_bounds =
+      //   (region_.start[X] <= g_x && g_x < region_.start[X] + region_.size[X]) &&
+      //   (region_.start[Y] <= g_y && g_y < region_.start[Y] + region_.size[Y]) &&
+      //   (region_.start[Z] <= g_z && g_z < region_.start[Z] + region_.size[Z]);
+      //
+      // if (!in_bounds)
+      //   continue;
 
       PetscReal n = particles_.density(point) / particles_.particles_number(point);
 
       #pragma omp atomic update
-      data_[index(g_x, g_y, g_z)] +=
+      arr[g_z][g_y][g_x] +=
         moment_->get(particles_, point) * n *
         shape_function(p_rx - g_x, X) *
         shape_function(p_ry - g_y, Y) *
         shape_function(p_rz - g_z, Z);
     }}}
   }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
-PetscErrorCode Distribution_moment::clear() {
-  PetscFunctionBeginUser;
-  #pragma omp parallel for
-  for (PetscInt z = 0; z < region_.size[Z]; ++z) {
-  for (PetscInt y = 0; y < region_.size[Y]; ++y) {
-  for (PetscInt x = 0; x < region_.size[X]; ++x) {
-    data_[index(
-      region_.start[X] + x,
-      region_.start[Y] + y,
-      region_.start[Z] + z)] = 0.0;
-  }}}
+  PetscCall(DMDAVecRestoreArrayWrite(da_, local_, &arr));
+  PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, global_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
