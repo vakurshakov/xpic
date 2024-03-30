@@ -48,6 +48,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(setup_negative_rotor());
 
 #if THERE_ARE_PARTICLES
+  /// @todo Particles parametrisation is needed!
   Particles_parameters parameters = {
     .Np = 1,
     .n  = +1.0,
@@ -59,6 +60,8 @@ PetscErrorCode Simulation::initialize_implementation() {
   sort.add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 4}, {0.0, 0.0, 0.9}});
 #endif
 
+  /// @todo Create a particles_energy diagnostics!
+  /// @todo Create a charge_conservation diagnostic!
   PetscCall(build_diagnostics(*this, diagnostics_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
