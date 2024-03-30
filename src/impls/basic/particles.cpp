@@ -4,29 +4,6 @@
 
 namespace basic {
 
-/**
- * @brief Storage for particle's coordinate - `r` (global, in PetscReal units of dx, dy, dz),
- * and a nearest grid point to particle - `g` (rounded, shifted by `shape_radius`).
- */
-struct Node {
-  Vector3<PetscReal> r;
-  Vector3<PetscInt> g;
-
-  Node(const Vector3<PetscReal>& __r) {
-    r = {
-      __r.x() / dx,
-      __r.y() / dy,
-      __r.z() / dz,
-    };
-
-    g = {
-      (geom_nx > 1) ? ROUND(r.x()) - shape_radius : 0,
-      (geom_ny > 1) ? ROUND(r.y()) - shape_radius : 0,
-      (geom_nz > 1) ? ROUND(r.z()) - shape_radius : 0,
-    };
-  }
-};
-
 /// @note `Vector3_dim` is used as a coordinate space dimensionality
 struct Particles::Shape {
   PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim];

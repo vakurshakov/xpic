@@ -46,6 +46,10 @@ PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
   PetscCall(file_.set_memview_subarray(3, m_size, l_size, m_start));
   PetscCall(file_.set_fileview_subarray(3, f_size, l_size, f_start));
   ///
+
+  // Later we'll use `Node` structure that uses shifted coordinates
+  region_.start -= shape_radius;
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -77,7 +81,7 @@ PetscErrorCode Distribution_moment::setup_da() {
     for (PetscInt s = 0; s < proc[i]; ++s) {
       if (start < g_end[i] && end > g_start[i]) {
         l_proc[i]++;
-        l_ownership[i].emplace_back(std::min(g_end[i], end) - start);
+        l_ownership[i].emplace_back(std::min(g_end[i], end) - std::max(g_start[i], start));
       }
       start += ownership[i][s];
       end += start;
@@ -90,6 +94,7 @@ PetscErrorCode Distribution_moment::setup_da() {
   }
 
   PetscCall(DMDACreate3d(comm_, REP3_A(l_bound), st, REP3_A(g_size), REP3_A(l_proc), 1, s, l_ownership[X].data(), l_ownership[Y].data(), l_ownership[Z].data(), &da_));
+  PetscCall(DMDASetOffset(da_, REP3_A(g_start), 0, 0, 0));
   PetscCall(DMSetUp(da_));
   PetscCall(DMCreateLocalVector(da_, &local_));
   PetscCall(DMCreateGlobalVector(da_, &global_));
@@ -143,38 +148,36 @@ PetscErrorCode Distribution_moment::collect() {
 
   #pragma omp parallel for
   for (const Point& point : particles_.get_points()) {
-    PetscReal p_rx = point.x() / dx;
-    PetscReal p_ry = point.y() / dy;
-    PetscReal p_rz = point.z() / dz;
+    Node node(point.r);
 
-    PetscInt p_gx = ROUND(p_rx) - shape_radius;
-    PetscInt p_gy = ROUND(p_ry) - shape_radius;
-    PetscInt p_gz = ROUND(p_rz) - shape_radius;
+    /// @todo This can be moved into utilities
+    bool in_bounds =
+      (region_.start[X] <= node.g[X] && node.g[X] <= region_.start[X] + region_.size[X]) &&
+      (region_.start[Y] <= node.g[Y] && node.g[Y] <= region_.start[Y] + region_.size[Y]) &&
+      (region_.start[Z] <= node.g[Z] && node.g[Z] <= region_.start[Z] + region_.size[Z]);
 
-    for (PetscInt g_z = p_gz; g_z < p_gz + shape_width; ++g_z) {
-    for (PetscInt g_y = p_gy; g_y < p_gy + shape_width; ++g_y) {
-    for (PetscInt g_x = p_gx; g_x < p_gx + shape_width; ++g_x) {
-      /// @todo It is possible to implement region restrictions, but it would be a memory overkill
-      //
-      // bool in_bounds =
-      //   (region_.start[X] <= g_x && g_x < region_.start[X] + region_.size[X]) &&
-      //   (region_.start[Y] <= g_y && g_y < region_.start[Y] + region_.size[Y]) &&
-      //   (region_.start[Z] <= g_z && g_z < region_.start[Z] + region_.size[Z]);
-      //
-      // if (!in_bounds)
-      //   continue;
+    if (!in_bounds)
+      continue;
 
-      PetscReal n = particles_.density(point) / particles_.particles_number(point);
+    PetscReal n = particles_.density(point) / particles_.particles_number(point);
+
+    PetscInt g_x, g_y, g_z;
+
+    for (PetscInt z = 0; z < shape_width; ++z) {
+    for (PetscInt y = 0; y < shape_width; ++y) {
+    for (PetscInt x = 0; x < shape_width; ++x) {
+      g_x = node.g[X] + x;
+      g_y = node.g[Y] + y;
+      g_z = node.g[Z] + z;
 
       #pragma omp atomic update
       arr[g_z][g_y][g_x] +=
         moment_->get(particles_, point) * n *
-        shape_function(p_rx - g_x, X) *
-        shape_function(p_ry - g_y, Y) *
-        shape_function(p_rz - g_z, Z);
+          shape_function(node.r[X] - g_x, X) *
+          shape_function(node.r[Y] - g_y, Y) *
+          shape_function(node.r[Z] - g_z, Z);
     }}}
   }
-
   PetscCall(DMDAVecRestoreArrayWrite(da_, local_, &arr));
   PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, global_));
   PetscFunctionReturn(PETSC_SUCCESS);
