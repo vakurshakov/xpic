@@ -22,7 +22,7 @@ public:
   PetscReal charge(const Point& point) const;
   PetscReal mass(const Point& point) const;
 
-  Vector3<PetscReal> velocity(const Point& point) const;
+  Vector3R velocity(const Point& point) const;
 
 protected:
   static constexpr int MPI_TAG_NUMBERS = 2;

@@ -27,8 +27,8 @@ PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
 
   /// @todo Replace it with Field_view::set_diagnosed_region();
   ///
-  Vector3<PetscInt> l_start, g_start = region.start;
-  Vector3<PetscInt> m_size, f_size = region.size;
+  Vector3I l_start, g_start = region.start;
+  Vector3I m_size, f_size = region.size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));
 
   l_start.swap_order();
@@ -36,9 +36,9 @@ PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
   m_size.swap_order();
   f_size.swap_order();
 
-  Vector3<PetscInt> m_start = max(g_start, l_start);
-  Vector3<PetscInt> l_size = min(g_start + f_size, l_start + m_size) - m_start;
-  Vector3<PetscInt> f_start = m_start;
+  Vector3I m_start = max(g_start, l_start);
+  Vector3I l_size = min(g_start + f_size, l_start + m_size) - m_start;
+  Vector3I f_start = m_start;
 
   f_start -= g_start;  // file start is in global coordinates, but we remove offset
   m_start -= l_start;  // memory start is in local coordinates
@@ -55,21 +55,21 @@ PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
 
 PetscErrorCode Distribution_moment::setup_da() {
   PetscFunctionBeginUser;
-  Vector3<PetscInt> g_start = region_.start;
-  Vector3<PetscInt> g_size = region_.size;
-  Vector3<PetscInt> g_end = g_start + g_size;
+  Vector3I g_start = region_.start;
+  Vector3I g_size = region_.size;
+  Vector3I g_end = g_start + g_size;
 
   PetscInt dim, s;
   DMDAStencilType st;
-  Vector3<PetscInt> size;
-  Vector3<PetscInt> proc;
+  Vector3I size;
+  Vector3I proc;
   Vector3<DMBoundaryType> bound;
   PetscCall(DMDAGetInfo(da_, &dim, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
 
   Vector3<const PetscInt*> ownership;
   PetscCall(DMDAGetOwnershipRanges(da_, REP3_A(&ownership)));
 
-  Vector3<PetscInt> l_proc;
+  Vector3I l_proc;
   Vector3<DMBoundaryType> l_bound = DM_BOUNDARY_GHOSTED;
   Vector3<std::vector<PetscInt>> l_ownership;
 
@@ -119,7 +119,7 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
   const PetscReal *arr;
   PetscCall(VecGetArrayRead(global_, &arr));
 
-  Vector3<PetscInt> size;
+  Vector3I size;
   PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
 
   PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z])));

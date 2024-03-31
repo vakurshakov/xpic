@@ -27,14 +27,14 @@ private:
   static constexpr int OMP_CHUNK_SIZE  = 16;
 
   struct Shape;
-  void fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, bool shift);
-  void interpolate(const Vector3<PetscInt>& p_g, Shape& no, Shape& sh, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const;
-  void push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>& point_B, Point& point) const;
+  void fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shape, bool shift);
+  void interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B) const;
+  void push(const Vector3R& point_E, const Vector3R& point_B, Point& point) const;
 
-  void decompose(const Vector3<PetscInt>& p_g, Shape& old_shape, Shape& new_shape, const Point& point);
+  void decompose(const Vector3I& p_g, Shape& old_shape, Shape& new_shape, const Point& point);
 
   using Compute_j = std::function<PetscReal(PetscInt, PetscInt, PetscInt, PetscReal*)>;
-  void decompose_dir(const Vector3<PetscInt>& p_g, const Compute_j& compute_j, Axis dir);
+  void decompose_dir(const Vector3I& p_g, const Compute_j& compute_j, Axis dir);
 
   PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
     constexpr PetscInt dim = 3;
@@ -52,12 +52,12 @@ private:
 
   Simulation& simulation_;
   Vec local_E, local_B, local_J;
-  Vector3<PetscReal> ***E, ***B, ***J;
+  Vector3R ***E, ***B, ***J;
 
   const PetscMPIInt* neighbours;
-  Vector3<PetscReal> l_start;
-  Vector3<PetscReal> l_end;
-  Vector3<PetscInt>  l_width;
+  Vector3R l_start;
+  Vector3R l_end;
+  Vector3I  l_width;
 };
 
 
@@ -66,10 +66,10 @@ private:
  * and a nearest grid point to particle - `g` (rounded, shifted by `shape_radius`).
  */
 struct Node {
-  Vector3<PetscReal> r;
-  Vector3<PetscInt> g;
+  Vector3R r;
+  Vector3I g;
 
-  Node(const Vector3<PetscReal>& __r) {
+  Node(const Vector3R& __r) {
     r = {
       __r.x() / dx,
       __r.y() / dy,

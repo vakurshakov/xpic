@@ -24,13 +24,13 @@ namespace interfaces { class Particles; }
  */
 class Point {
 public:
-  Vector3<PetscReal> r = 0.0;
-  Vector3<PetscReal> p = 0.0;
+  Vector3R r = 0.0;
+  Vector3R p = 0.0;
 
   Point() = default;
   Point(
-    const Vector3<PetscReal>& r,
-    const Vector3<PetscReal>& p
+    const Vector3R& r,
+    const Vector3R& p
 #if PARTICLES_LOCAL_PNUM
     , PetscInt Np
 #endif

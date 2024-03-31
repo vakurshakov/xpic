@@ -10,8 +10,8 @@ Field_view::Field_view(MPI_Comm comm, const std::string& result_directory, const
 
 PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   PetscFunctionBeginUser;
-  Vector4<PetscInt> l_start, g_start = region.start;
-  Vector4<PetscInt> m_size, f_size = region.size;
+  Vector4I l_start, g_start = region.start;
+  Vector4I m_size, f_size = region.size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));
   PetscCall(DMDAGetDof(da_, &m_size[3]));
 
@@ -20,9 +20,9 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   m_size.swap_order();
   f_size.swap_order();
 
-  Vector4<PetscInt> m_start = max(g_start, l_start);
-  Vector4<PetscInt> l_size = min(g_start + f_size, l_start + m_size) - m_start;
-  Vector4<PetscInt> f_start = m_start;
+  Vector4I m_start = max(g_start, l_start);
+  Vector4I l_size = min(g_start + f_size, l_start + m_size) - m_start;
+  Vector4I f_start = m_start;
 
   f_start -= g_start;  // file start is in global coordinates, but we remove offset
   m_start -= l_start;  // memory start is in local coordinates
@@ -49,7 +49,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   const PetscReal *arr;
   PetscCall(VecGetArrayRead(field_, &arr));
 
-  Vector3<PetscInt> size;
+  Vector3I size;
   PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
 
   PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z] * Region::ndim)));

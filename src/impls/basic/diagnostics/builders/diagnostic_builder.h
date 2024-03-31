@@ -24,15 +24,15 @@ protected:
   Axis get_component(const std::string& name) const;
 
   const Particles& get_sort(const std::string& name) const;
-  Vector3<PetscReal> parse_vector(const Configuration::json_t& json, const std::string& name) const;
+  Vector3R parse_vector(const Configuration::json_t& json, const std::string& name) const;
 
   bool is_region_within_bounds(
-    const Vector3<PetscInt>& r_start, const Vector3<PetscInt>& r_size,
-    const Vector3<PetscInt>& b_start, const Vector3<PetscInt>& b_size) const;
+    const Vector3I& r_start, const Vector3I& r_size,
+    const Vector3I& b_start, const Vector3I& b_size) const;
 
   bool is_region_intersect_bounds(
-    const Vector3<PetscInt>& r_start, const Vector3<PetscInt>& r_size,
-    const Vector3<PetscInt>& b_start, const Vector3<PetscInt>& b_size) const;
+    const Vector3I& r_start, const Vector3I& r_size,
+    const Vector3I& b_start, const Vector3I& b_size) const;
 
 protected:
   const Simulation& simulation_;

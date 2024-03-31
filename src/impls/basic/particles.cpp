@@ -23,7 +23,7 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   DM& da = simulation_.da_;
   PetscCallVoid(DMDAGetNeighbors(da, &neighbours));
 
-  Vector3<PetscInt> start, size;
+  Vector3I start, size;
   PetscCallVoid(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
   l_start.x() = (PetscReal)start.x() * dx;
@@ -52,7 +52,7 @@ Particles::~Particles() {
 
 PetscErrorCode Particles::add_particle(const Point& point) {
   PetscFunctionBeginUser;
-  const Vector3<PetscReal>& r = point.r;
+  const Vector3R& r = point.r;
   if (l_start.x() <= r.x() && r.x() < l_end.x() &&
       l_start.y() <= r.y() && r.y() < l_end.y() &&
       l_start.z() <= r.z() && r.z() < l_end.z()) {
@@ -79,8 +79,8 @@ PetscErrorCode Particles::push() {
 
   #pragma omp for schedule(monotonic: dynamic, OMP_CHUNK_SIZE)
   for (auto it = points_.begin(); it != points_.end(); ++it) {
-    Vector3<PetscReal> point_E = 0.0;
-    Vector3<PetscReal> point_B = 0.0;
+    Vector3R point_E = 0.0;
+    Vector3R point_B = 0.0;
 
     const Node node(it->r);
 
@@ -113,7 +113,7 @@ PetscErrorCode Particles::push() {
 
 
 /// @note If shift is false we'll get shape[x - i], shape[x - (i + 0.5)] otherwise
-void Particles::fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, bool shift) {
+void Particles::fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shape, bool shift) {
   PetscReal g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3I::dim)
@@ -137,7 +137,7 @@ void Particles::fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal
 }
 
 
-void Particles::interpolate(const Vector3<PetscInt>& p_g, Shape& no, Shape& sh, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const {
+void Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B) const {
   PetscInt g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3I::dim)
@@ -160,18 +160,18 @@ void Particles::interpolate(const Vector3<PetscInt>& p_g, Shape& no, Shape& sh, 
 }
 
 
-void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>& point_B, Point& point) const {
+void Particles::push(const Vector3R& point_E, const Vector3R& point_B, Point& point) const {
   PetscReal alpha = 0.5 * dt * charge(point);
   PetscReal m = mass(point);
 
-  Vector3<PetscReal>& r = point.r;
-  Vector3<PetscReal>& p = point.p;
+  Vector3R& r = point.r;
+  Vector3R& p = point.p;
 
-  const Vector3<PetscReal> w = p + point_E * alpha;
+  const Vector3R w = p + point_E * alpha;
   PetscReal energy = sqrt(m * m + w.dot(w));
 
-  const Vector3<PetscReal> h = point_B * alpha / energy;
-  const Vector3<PetscReal> s = h * 2.0 / (1.0 + h.dot(h));
+  const Vector3R h = point_B * alpha / energy;
+  const Vector3R s = h * 2.0 / (1.0 + h.dot(h));
   p = point_E * alpha + w * (1.0 - h.dot(s)) + w.cross(s) + h * (s.dot(w));
 
   energy = sqrt(m * m + p.dot(p));
@@ -183,7 +183,7 @@ void Particles::push(const Vector3<PetscReal>& point_E, const Vector3<PetscReal>
 }
 
 
-void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& old_shape, Shape& new_shape, const Point& point) {
+void Particles::decompose(const Vector3I& p_g, Shape& old_shape, Shape& new_shape, const Point& point) {
   const PetscReal alpha = charge(point) * density(point) / particles_number(point) / (6.0 * dt);
   const PetscReal qx = alpha * dx;
   const PetscReal qy = alpha * dy;
@@ -230,7 +230,7 @@ void Particles::decompose(const Vector3<PetscInt>& p_g, Shape& old_shape, Shape&
   decompose_dir(p_g, compute_Jz, Z);
 }
 
-void Particles::decompose_dir(const Vector3<PetscInt>& p_g, const Compute_j& compute_j, Axis dir) {
+void Particles::decompose_dir(const Vector3I& p_g, const Compute_j& compute_j, Axis dir) {
   static PetscReal temp_j[shape_width * shape_width];
   #pragma omp threadprivate(temp_j)
 
@@ -259,7 +259,7 @@ PetscErrorCode Particles::communicate() {
   std::vector<Point> outgoing[neighbours_num];
   std::vector<Point> incoming[neighbours_num];
 
-  auto set_index = [&](const Vector3<PetscReal>& r, Vector3<PetscInt>& index, Axis axis) {
+  auto set_index = [&](const Vector3R& r, Vector3I& index, Axis axis) {
     index[axis] = (r[axis] < l_start[axis]) ? 0 : (r[axis] < l_end[axis]) ? 1 : 2;
   };
 
@@ -273,8 +273,8 @@ PetscErrorCode Particles::communicate() {
 
   auto end = points_.end();
   for (auto it = points_.begin(); it != end; ++it) {
-    const Vector3<PetscReal>& r = it->r;
-    Vector3<PetscInt> v_index;
+    const Vector3R& r = it->r;
+    Vector3I v_index;
     set_index(r, v_index, X);
     set_index(r, v_index, Y);
     set_index(r, v_index, Z);

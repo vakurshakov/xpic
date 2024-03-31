@@ -69,7 +69,7 @@ PetscErrorCode Simulation::initialize_implementation() {
 PetscErrorCode Simulation::setup_positive_rotor() {
   PetscFunctionBeginUser;
 
-  Vector3<PetscInt> start, end;
+  Vector3I start, end;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;  // Petsc returns size, not end point
 
@@ -126,7 +126,7 @@ PetscErrorCode Simulation::setup_positive_rotor() {
 PetscErrorCode Simulation::setup_negative_rotor() {
   PetscFunctionBeginUser;
 
-  Vector3<PetscInt> start, end;
+  Vector3I start, end;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;  // Petsc returns size, not end point
 

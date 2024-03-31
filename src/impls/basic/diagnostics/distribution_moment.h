@@ -18,8 +18,8 @@ using Moment_up = std::unique_ptr<Moment>;
 class Distribution_moment : public interfaces::Diagnostic {
 public:
   struct Region {
-    Vector3<PetscInt> start;
-    Vector3<PetscInt> size;
+    Vector3I start;
+    Vector3I size;
   };
 
   Distribution_moment(MPI_Comm comm, const std::string& result_directory,

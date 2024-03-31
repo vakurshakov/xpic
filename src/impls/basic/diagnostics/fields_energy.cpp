@@ -15,11 +15,11 @@ Fields_energy::Fields_energy(const std::string& result_directory, const DM da, c
 PetscErrorCode Fields_energy::diagnose(timestep_t t) {
   PetscFunctionBeginUser;
 
-  Vector3<PetscReal> ***E, ***B;
+  Vector3R ***E, ***B;
   PetscCall(DMDAVecGetArrayRead(da_, E_, &E));
   PetscCall(DMDAVecGetArrayRead(da_, B_, &B));
 
-  Vector3<PetscInt> start, end;
+  Vector3I start, end;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;
 

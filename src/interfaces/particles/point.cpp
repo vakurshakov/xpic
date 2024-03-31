@@ -1,8 +1,8 @@
 #include "point.h"
 
 Point::Point(
-  const Vector3<PetscReal>& r,
-  const Vector3<PetscReal>& p
+  const Vector3R& r,
+  const Vector3R& p
 #if PARTICLES_LOCAL_PNUM
   , PetscInt Np
 #endif

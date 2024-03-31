@@ -46,8 +46,8 @@ PetscErrorCode Distribution_moment_builder::parse_moment_info(const Configuratio
   try {
     json.at("sort").get_to(desc.particles_name);
 
-    Vector3<PetscReal> start = parse_vector(json, "start");
-    Vector3<PetscReal> size = parse_vector(json, "size");
+    Vector3R start = parse_vector(json, "start");
+    Vector3R size = parse_vector(json, "size");
 
     for (int i = 0; i < 3; ++i) {
       desc.region.start[i] = TO_STEP(start[i], Dx[i]);
@@ -67,8 +67,8 @@ PetscErrorCode Distribution_moment_builder::check_moment_description(const Momen
   PetscFunctionBeginUser;
   std::string message;
 
-  const Vector3<PetscInt>& r_start = desc.region.start;
-  const Vector3<PetscInt>& r_size = desc.region.size;
+  const Vector3I& r_start = desc.region.start;
+  const Vector3I& r_size = desc.region.size;
   bool is_region_in_global_bounds = is_region_within_bounds(r_start, r_size, 0, Geom_n);
   message = "Region is not in global boundaries for " + moment_name + " diagnostic.";
   PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
@@ -82,12 +82,12 @@ PetscErrorCode Distribution_moment_builder::check_moment_description(const Momen
 
 PetscErrorCode Distribution_moment_builder::attach_moment_description(Moment_description&& desc) {
   PetscFunctionBeginUser;
-  Vector3<PetscInt> start;
-  Vector3<PetscInt> size;
+  Vector3I start;
+  Vector3I size;
   PetscCall(DMDAGetCorners(simulation_.da_, REP3_A(&start), REP3_A(&size)));
 
-  const Vector3<PetscInt>& r_start = desc.region.start;
-  const Vector3<PetscInt>& r_size = desc.region.size;
+  const Vector3I& r_start = desc.region.start;
+  const Vector3I& r_size = desc.region.size;
   bool is_local_start_in_bounds = is_region_intersect_bounds(r_start, r_size, start, size);
 
   PetscMPIInt color = is_local_start_in_bounds ? 1 : MPI_UNDEFINED;

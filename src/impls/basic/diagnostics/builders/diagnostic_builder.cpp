@@ -38,7 +38,7 @@ const Particles& Diagnostic_builder::get_sort(const std::string& name) const {
   return *it;
 }
 
-Vector3<PetscReal> Diagnostic_builder::parse_vector(const Configuration::json_t& json, const std::string& name) const {
+Vector3R Diagnostic_builder::parse_vector(const Configuration::json_t& json, const std::string& name) const {
   std::string message;
   try {
     const Configuration::array_t& arr = json.at(name);
@@ -48,7 +48,7 @@ Vector3<PetscReal> Diagnostic_builder::parse_vector(const Configuration::json_t&
       throw std::runtime_error(message);
     }
 
-    Vector3<PetscReal> result;
+    Vector3R result;
     for (int i = 0; i < 3; ++i) {
       arr[i].get_to(result[i]);
     }
@@ -62,10 +62,10 @@ Vector3<PetscReal> Diagnostic_builder::parse_vector(const Configuration::json_t&
 }
 
 bool Diagnostic_builder::is_region_within_bounds(
-    const Vector3<PetscInt>& r_start, const Vector3<PetscInt>& r_size,
-    const Vector3<PetscInt>& b_start, const Vector3<PetscInt>& b_size) const {
-  Vector3<PetscInt> r_end = r_start + r_size;
-  Vector3<PetscInt> b_end = b_start + b_size;
+    const Vector3I& r_start, const Vector3I& r_size,
+    const Vector3I& b_start, const Vector3I& b_size) const {
+  Vector3I r_end = r_start + r_size;
+  Vector3I b_end = b_start + b_size;
   return
     (b_start[X] <= r_start[X] && r_start[X] < b_end[X]) &&
     (b_start[Y] <= r_start[Y] && r_start[Y] < b_end[Y]) &&
@@ -76,10 +76,10 @@ bool Diagnostic_builder::is_region_within_bounds(
 }
 
 bool Diagnostic_builder::is_region_intersect_bounds(
-    const Vector3<PetscInt>& r_start, const Vector3<PetscInt>& r_size,
-    const Vector3<PetscInt>& b_start, const Vector3<PetscInt>& b_size) const {
-  Vector3<PetscInt> r_end = r_start + r_size;
-  Vector3<PetscInt> b_end = b_start + b_size;
+    const Vector3I& r_start, const Vector3I& r_size,
+    const Vector3I& b_start, const Vector3I& b_size) const {
+  Vector3I r_end = r_start + r_size;
+  Vector3I b_end = b_start + b_size;
   return
     r_start[X] < b_end[X] && r_end[X] > b_start[X] &&
     r_start[Y] < b_end[Y] && r_end[Y] > b_start[Y] &&
