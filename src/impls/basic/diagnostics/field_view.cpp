@@ -15,10 +15,10 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));
   PetscCall(DMDAGetDof(da_, &m_size[3]));
 
-  l_start.to_petsc_order();
-  g_start.to_petsc_order();
-  m_size.to_petsc_order();
-  f_size.to_petsc_order();
+  l_start.swap_order();
+  g_start.swap_order();
+  m_size.swap_order();
+  f_size.swap_order();
 
   Vector4<PetscInt> m_start = max(g_start, l_start);
   Vector4<PetscInt> l_size = min(g_start + f_size, l_start + m_size) - m_start;

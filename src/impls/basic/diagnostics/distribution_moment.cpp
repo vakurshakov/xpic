@@ -31,10 +31,10 @@ PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
   Vector3<PetscInt> m_size, f_size = region.size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));
 
-  l_start.to_petsc_order();
-  g_start.to_petsc_order();
-  m_size.to_petsc_order();
-  f_size.to_petsc_order();
+  l_start.swap_order();
+  g_start.swap_order();
+  m_size.swap_order();
+  f_size.swap_order();
 
   Vector3<PetscInt> m_start = max(g_start, l_start);
   Vector3<PetscInt> l_size = min(g_start + f_size, l_start + m_size) - m_start;

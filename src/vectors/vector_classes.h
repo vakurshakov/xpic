@@ -12,37 +12,33 @@ enum Axis : PetscInt {
 };
 
 
-static constexpr PetscInt Vector2_dim = 2;
-static constexpr PetscInt Vector3_dim = 3;
-static constexpr PetscInt Vector4_dim = 4;
+#define VECTOR_DEFAULT_CONSTRUCTORS(N)               \
+  constexpr Vector##N();                             \
+  constexpr Vector##N(const T&);                     \
+  constexpr Vector##N(REP##N##_N(const T& x));       \
+  constexpr Vector##N(const T[Vector##N::dim]);      \
 
-#define VECTOR_DEFAULT_CONSTRUCTORS(VEC_T, N) \
-  constexpr VEC_T();                          \
-  constexpr VEC_T(const T&);                  \
-  constexpr VEC_T(REP##N##_N(const T& x));    \
-  constexpr VEC_T(const T[VEC_T##_dim]);      \
-
-#define VECTOR_DEFAULT_OPERATIONS(VEC_T)      \
-  operator const T*() const { return data; }  \
-  operator T*() { return data; }              \
+#define VECTOR_DEFAULT_OPERATIONS(N)                 \
+  operator const T*() const { return data; }         \
+  operator T*() { return data; }                     \
   \
-  VEC_T& operator+=(const VEC_T& other);      \
-  VEC_T& operator-=(const VEC_T& other);      \
-  VEC_T& operator*=(T scalar);                \
+  Vector##N& operator+=(const Vector##N& other);     \
+  Vector##N& operator-=(const Vector##N& other);     \
+  Vector##N& operator*=(const Vector##N& other);     \
+  Vector##N& operator*=(T scalar);                   \
   \
-  VEC_T operator+(const VEC_T& other) const;  \
-  VEC_T operator-(const VEC_T& other) const;  \
-  VEC_T operator+() const;                    \
-  VEC_T operator-() const;                    \
+  Vector##N operator+(const Vector##N& other) const; \
+  Vector##N operator-(const Vector##N& other) const; \
+  Vector##N operator*(const Vector##N& other) const; \
   \
-  VEC_T<PetscReal> operator/(T scalar) const; \
-  VEC_T<PetscReal> normalized() const;        \
-  PetscReal length() const;                   \
+  Vector##N<PetscReal> operator/(T scalar) const;    \
+  Vector##N<PetscReal> normalized() const;           \
+  PetscReal length() const;                          \
   \
-  T dot(const VEC_T& other) const;            \
-  T square() const;                           \
+  T dot(const Vector##N& other) const;               \
+  T square() const;                                  \
   \
-  void to_petsc_order();                      \
+  void swap_order();                                 \
 
 #define COMP1                                      \
   constexpr const T& x() const { return data[X]; } \
@@ -62,67 +58,54 @@ static constexpr PetscInt Vector4_dim = 4;
 
 #define VECTOR_DEFAULT_ACCESS(N) COMP##N
 
-#define VECTOR_COMMUTATIVE_MULTIPLICATION(VEC_T)                             \
-  template<typename T> VEC_T<T> operator*(const VEC_T<T>& vector, T scalar); \
-  template<typename T> VEC_T<T> operator*(T scalar, const VEC_T<T>& vector); \
+#define VECTOR_COMMUTATIVE_MULTIPLICATION(N)                                         \
+  template<typename T> Vector##N<T> operator*(const Vector##N<T>& vector, T scalar); \
+  template<typename T> Vector##N<T> operator*(T scalar, const Vector##N<T>& vector); \
 
-#define VECTOR_MINMAX_COMPARISON(VEC_T)                                        \
-  template<typename T> VEC_T<T> min(const VEC_T<T>& lhs, const VEC_T<T>& rhs); \
-  template<typename T> VEC_T<T> max(const VEC_T<T>& lhs, const VEC_T<T>& rhs); \
-
-
-template<typename T>
-struct Vector2 {
-  static constexpr Vector2   null{0, 0};
-  static constexpr Vector2 orth_x{1, 0};
-  static constexpr Vector2 orth_y{0, 1};
-
-  T data[Vector2_dim];
-
-  VECTOR_DEFAULT_CONSTRUCTORS(Vector2, 2)
-  VECTOR_DEFAULT_OPERATIONS(Vector2)
-  VECTOR_DEFAULT_ACCESS(2)
-};
-VECTOR_COMMUTATIVE_MULTIPLICATION(Vector2)
-VECTOR_MINMAX_COMPARISON(Vector2)
+#define VECTOR_MINMAX_COMPARISON(N)                                                        \
+  template<typename T> Vector##N<T> min(const Vector##N<T>& lhs, const Vector##N<T>& rhs); \
+  template<typename T> Vector##N<T> max(const Vector##N<T>& lhs, const Vector##N<T>& rhs); \
 
 
 template<typename T>
 struct Vector3 {
-  static constexpr Vector3   null{0, 0, 0};
-  static constexpr Vector3 orth_x{1, 0, 0};
-  static constexpr Vector3 orth_y{0, 1, 0};
-  static constexpr Vector3 orth_z{0, 0, 1};
+  static const PetscInt dim = 3;
+  T data[dim];
 
-  T data[Vector3_dim];
-
-  VECTOR_DEFAULT_CONSTRUCTORS(Vector3, 3)
-  VECTOR_DEFAULT_OPERATIONS(Vector3)
+  VECTOR_DEFAULT_CONSTRUCTORS(3)
+  VECTOR_DEFAULT_OPERATIONS(3)
   VECTOR_DEFAULT_ACCESS(3)
 
-  Vector3 cross(const Vector3& other) const;
-  Vector2<T> squeeze_along(Axis axis) const;
+  Vector3 cross(const Vector3& other) const {
+    return {
+      + (data[Y] * other[Z] - data[Z] * other[Y]),
+      - (data[X] * other[Z] - data[Z] * other[X]),
+      + (data[X] * other[Y] - data[Y] * other[X]),
+    };
+  }
 };
-VECTOR_COMMUTATIVE_MULTIPLICATION(Vector3)
-VECTOR_MINMAX_COMPARISON(Vector3)
+VECTOR_COMMUTATIVE_MULTIPLICATION(3)
+VECTOR_MINMAX_COMPARISON(3)
+
+using Vector3R = Vector3<PetscReal>;
+using Vector3I = Vector3<PetscInt>;
 
 
 template<typename T>
 struct Vector4 {
-  static constexpr Vector4   null{0, 0, 0, 0};
-  static constexpr Vector4 orth_x{1, 0, 0, 0};
-  static constexpr Vector4 orth_y{0, 1, 0, 0};
-  static constexpr Vector4 orth_z{0, 0, 1, 0};
-  static constexpr Vector4 orth_c{0, 0, 0, 1};
+  static const PetscInt dim = 4;
+  T data[dim];
 
-  T data[Vector4_dim];
-
-  VECTOR_DEFAULT_CONSTRUCTORS(Vector4, 4)
-  VECTOR_DEFAULT_OPERATIONS(Vector4)
+  VECTOR_DEFAULT_CONSTRUCTORS(4)
+  VECTOR_DEFAULT_OPERATIONS(4)
   VECTOR_DEFAULT_ACCESS(4)
 };
-VECTOR_COMMUTATIVE_MULTIPLICATION(Vector4)
-VECTOR_MINMAX_COMPARISON(Vector4)
+VECTOR_COMMUTATIVE_MULTIPLICATION(4)
+VECTOR_MINMAX_COMPARISON(4)
+
+using Vector4R = Vector4<PetscReal>;
+using Vector4I = Vector4<PetscInt>;
+
 
 #include "vector_classes.inl"
 

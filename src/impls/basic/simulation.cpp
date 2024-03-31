@@ -9,7 +9,7 @@ namespace basic {
 PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
 
-  const PetscInt dof = Vector3_dim;
+  const PetscInt dof = Vector3I::dim;
   const PetscInt s = shape_radius;
 
   const Configuration& config = CONFIG();
@@ -180,7 +180,7 @@ PetscErrorCode Simulation::setup_negative_rotor() {
 }
 
 PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
-  return ((z * geom_ny + y) * geom_nx + x) * Vector3_dim + c;
+  return ((z * geom_ny + y) * geom_nx + x) * Vector3I::dim + c;
 }
 
 

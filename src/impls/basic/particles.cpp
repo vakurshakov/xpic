@@ -4,13 +4,13 @@
 
 namespace basic {
 
-/// @note `Vector3_dim` is used as a coordinate space dimensionality
+/// @note `Vector3I::dim` is used as a coordinate space dimensionality
 struct Particles::Shape {
-  PetscReal shape[shape_width * shape_width * shape_width * Vector3_dim];
+  PetscReal shape[shape_width * shape_width * shape_width * Vector3I::dim];
 
   #pragma omp declare simd linear(i: 1), notinbranch
   constexpr PetscReal& operator()(PetscInt i, PetscInt comp) {
-    return shape[i * Vector3_dim + comp];
+    return shape[i * Vector3I::dim + comp];
   }
 };
 
@@ -116,7 +116,7 @@ PetscErrorCode Particles::push() {
 void Particles::fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal>& p_r, Shape& shape, bool shift) {
   PetscReal g_x, g_y, g_z;
 
-  #pragma omp simd collapse(Vector3_dim)
+  #pragma omp simd collapse(Vector3I::dim)
   for (PetscInt z = 0; z < l_width[Z]; ++z) {
   for (PetscInt y = 0; y < l_width[Y]; ++y) {
   for (PetscInt x = 0; x < l_width[X]; ++x) {
@@ -140,7 +140,7 @@ void Particles::fill_shape(const Vector3<PetscInt>& p_g, const Vector3<PetscReal
 void Particles::interpolate(const Vector3<PetscInt>& p_g, Shape& no, Shape& sh, Vector3<PetscReal>& point_E, Vector3<PetscReal>& point_B) const {
   PetscInt g_x, g_y, g_z;
 
-  #pragma omp simd collapse(Vector3_dim)
+  #pragma omp simd collapse(Vector3I::dim)
   for (PetscInt z = 0; z < l_width[Z]; ++z) {
   for (PetscInt y = 0; y < l_width[Y]; ++y) {
   for (PetscInt x = 0; x < l_width[X]; ++x) {
