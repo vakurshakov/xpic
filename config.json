@@ -1,15 +1,15 @@
 {
-  "__description": "Testing charge conservation with particle crossing MPI boundary",
-  "__date": "March 25, 2024",
+  "__description": "Constructing L.F. Ricketson and L. Chacon scheme (2020)",
+  "__date": "April 02, 2024",
 
-  "Out_dir": "results/simple_rectangle/",
+  "Out_dir": "results/ricketson/",
 
-  "Simulation": "basic",
+  "Simulation": "ricketson",
 
   "Geometry": {
-    "size_x": 1.0,  "dx": 0.05,  "__units.x": "c/w_pe",
-    "size_y": 1.0,  "dy": 0.05,  "__units.y": "c/w_pe",
-    "size_z": 1.0,  "dz": 0.05,  "__units.z": "c/w_pe",
+    "size_x": 1.0,  "dx": 0.05,   "__units.x": "c/w_pe",
+    "size_y": 1.0,  "dy": 0.05,   "__units.y": "c/w_pe",
+    "size_z": 1.0,  "dz": 0.05,   "__units.z": "c/w_pe",
     "size_t": 3.0,  "dt": 0.025,  "__units.t": "1/w_pe",
 
     "diagnose_period": 0.025,  "__units.dp": "1/w_pe",
@@ -23,19 +23,5 @@
     "da_processors_z": -1
   },
 
-  "Diagnostics": {
-    "fields_energy": {},
-
-    "field_view": [
-      { "field": "E", "comp": "x", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" },
-      { "field": "E", "comp": "y", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" },
-      { "field": "E", "comp": "z", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" },
-
-      { "field": "J", "comp": "x", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" },
-      { "field": "J", "comp": "y", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" },
-      { "field": "J", "comp": "z", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" }
-    ],
-
-    "density": { "sort": "electrons", "start": [0, 0, 0], "size": [1, 1, 1], "__units": "c/w_pe" }
-  }
+  "Diagnostics": {}
 }

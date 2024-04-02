@@ -53,6 +53,7 @@ Particles::~Particles() {
 PetscErrorCode Particles::add_particle(const Point& point) {
   PetscFunctionBeginUser;
   const Vector3R& r = point.r;
+  /// @todo This check should be moved, probably, into particle initializer
   if (l_start.x() <= r.x() && r.x() < l_end.x() &&
       l_start.y() <= r.y() && r.y() < l_end.y() &&
       l_start.z() <= r.z() && r.z() < l_end.z()) {

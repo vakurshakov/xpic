@@ -9,7 +9,7 @@ namespace basic {
 PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
 
-  const PetscInt dof = Vector3I::dim;
+  const PetscInt dof = Vector3R::dim;
   const PetscInt s = shape_radius;
 
   const Configuration& config = CONFIG();
@@ -204,6 +204,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 
 Simulation::~Simulation() {
   PetscFunctionBeginUser;
+  PetscCallVoid(DMDestroy(&da_));
   PetscCallVoid(VecDestroy(&E_));
   PetscCallVoid(VecDestroy(&B_));
   PetscCallVoid(VecDestroy(&J_));
