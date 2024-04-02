@@ -69,9 +69,8 @@ PetscErrorCode Simulation::initialize_implementation() {
 PetscErrorCode Simulation::setup_positive_rotor() {
   PetscFunctionBeginUser;
 
-  Vector3I start, end;
-  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
-  end += start;  // Petsc returns size, not end point
+  PetscInt start[3], size[3];
+  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
 
   /// @todo Check remap for periodic boundaries and geom_ns == 1 (ADD_VALUES)
   auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
@@ -83,9 +82,9 @@ PetscErrorCode Simulation::setup_positive_rotor() {
   };
 
   std::vector<Triplet> triplets;
-  for (PetscInt z = start.z(); z < end.z(); ++z) {
-  for (PetscInt y = start.y(); y < end.y(); ++y) {
-  for (PetscInt x = start.x(); x < end.x(); ++x) {
+  for (PetscInt z = start[Z]; z < start[Z] + size[Z]; ++z) {
+  for (PetscInt y = start[Y]; y < start[Y] + size[Y]; ++y) {
+  for (PetscInt x = start[X]; x < start[X] + size[X]; ++x) {
     PetscInt xp = (geom_nx > 1) ? (x + 1) : x;
     PetscInt yp = (geom_ny > 1) ? (y + 1) : y;
     PetscInt zp = (geom_nz > 1) ? (z + 1) : z;
@@ -126,9 +125,8 @@ PetscErrorCode Simulation::setup_positive_rotor() {
 PetscErrorCode Simulation::setup_negative_rotor() {
   PetscFunctionBeginUser;
 
-  Vector3I start, end;
-  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
-  end += start;  // Petsc returns size, not end point
+  PetscInt start[3], size[3];
+  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
 
   auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
     bool success = false;
@@ -139,9 +137,9 @@ PetscErrorCode Simulation::setup_negative_rotor() {
   };
 
   std::vector<Triplet> triplets;
-  for (PetscInt z = start.z(); z < end.z(); ++z) {
-  for (PetscInt y = start.y(); y < end.y(); ++y) {
-  for (PetscInt x = start.x(); x < end.x(); ++x) {
+  for (PetscInt z = start[Z]; z < start[Z] + size[Z]; ++z) {
+  for (PetscInt y = start[Y]; y < start[Y] + size[Y]; ++y) {
+  for (PetscInt x = start[X]; x < start[X] + size[X]; ++x) {
     PetscInt xm = (geom_nx > 1) ? (x - 1) : x;
     PetscInt ym = (geom_ny > 1) ? (y - 1) : y;
     PetscInt zm = (geom_nz > 1) ? (z - 1) : z;
@@ -150,22 +148,22 @@ PetscErrorCode Simulation::setup_negative_rotor() {
       continue;
 
     PetscInt cur = index(x, y, z, X);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), +1.0 / dx);
-    triplets.emplace_back(cur, index(x,  ym, z,  Z), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  zm, Y), +1.0 / dx);
+    triplets.emplace_back(cur, index(x,  y,  z,  Z), +1.0 / dy);
+    triplets.emplace_back(cur, index(x,  ym, z,  Z), -1.0 / dy);
+    triplets.emplace_back(cur, index(x,  y,  z,  Y), -1.0 / dz);
+    triplets.emplace_back(cur, index(x,  y,  zm, Y), +1.0 / dz);
 
     cur = index(x, y, z, Y);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), +1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  zm, X), -1.0 / dx);
+    triplets.emplace_back(cur, index(x,  y,  z,  X), +1.0 / dz);
+    triplets.emplace_back(cur, index(x,  y,  zm, X), -1.0 / dz);
     triplets.emplace_back(cur, index(x,  y,  z,  Z), -1.0 / dx);
     triplets.emplace_back(cur, index(xm, y,  z,  Z), +1.0 / dx);
 
     cur = index(x, y, z, Z);
     triplets.emplace_back(cur, index(x,  y,  z,  Y), +1.0 / dx);
     triplets.emplace_back(cur, index(xm, y,  z,  Y), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  ym, z,  X), +1.0 / dx);
+    triplets.emplace_back(cur, index(x,  y,  z,  X), -1.0 / dy);
+    triplets.emplace_back(cur, index(x,  ym, z,  X), +1.0 / dy);
   }}}
 
   for (const auto& [row, col, value] : triplets) {
