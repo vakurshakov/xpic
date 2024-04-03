@@ -54,7 +54,7 @@ PetscErrorCode Simulation::initialize_implementation() {
     .m  = +1.0,
     .sort_name = "electrons"
   };
-  auto& sort = particles_.emplace_back(parameters);
+  auto& sort = particles_.emplace_back(*this, parameters);
   sort.add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 4}, {0.0, 0.0, 0.5}});
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -110,7 +110,8 @@ PetscErrorCode Simulation::setup_norm_gradient() {
   PetscCall(MatSetType(norm_gradient_, mtype));
   PetscCall(MatSetUp(norm_gradient_));
 
-  // The following is the setup of \vec{∇-} operator for |\vec{B}|
+  /// @note The following is the setup of \vec{∇-} operator for |\vec{B}|. By defining
+  /// negative derivative on Yee stencil, we set |\vec{B}| in (i+0.5, j+0.5, k+0.5).
   auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
     bool success = false;
     if (bounds_[X] == DM_BOUNDARY_PERIODIC && x < 0) { x += geom_nx; success = true; }

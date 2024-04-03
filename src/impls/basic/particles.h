@@ -11,6 +11,7 @@
 namespace basic {
 
 class Simulation;
+struct Shape;
 
 class Particles : public interfaces::Particles {
 public:
@@ -26,7 +27,6 @@ public:
 private:
   static constexpr int OMP_CHUNK_SIZE  = 16;
 
-  struct Shape;
   void fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shape, bool shift);
   void interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B) const;
   void push(const Vector3R& point_E, const Vector3R& point_B, Point& point) const;
@@ -81,6 +81,16 @@ struct Node {
       (geom_ny > 1) ? ROUND(r.y()) - shape_radius : 0,
       (geom_nz > 1) ? ROUND(r.z()) - shape_radius : 0,
     };
+  }
+};
+
+struct Shape {
+  /// @note `Vector3I::dim` is used as a coordinate space dimensionality
+  PetscReal shape[shape_width * shape_width * shape_width * Vector3I::dim];
+
+  #pragma omp declare simd linear(i: 1), notinbranch
+  constexpr PetscReal& operator()(PetscInt i, PetscInt comp) {
+    return shape[i * Vector3I::dim + comp];
   }
 };
 

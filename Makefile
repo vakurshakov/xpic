@@ -45,15 +45,15 @@ SRCS +=                                    \
 	src/interfaces/particles/parameters.cpp  \
 	src/interfaces/particles/particles.cpp   \
 
-SRCS +=                                \
-  src/utils/log.cpp                    \
-  src/utils/configuration.cpp          \
-  src/utils/mpi_binary_file.cpp        \
-  src/utils/sync_binary_file.cpp       \
+SRCS +=                           \
+  src/utils/log.cpp               \
+  src/utils/configuration.cpp     \
+  src/utils/mpi_binary_file.cpp   \
+  src/utils/sync_binary_file.cpp  \
 
-SRCS +=                                \
-  src/impls/basic/simulation.cpp       \
-	src/impls/basic/particles.cpp        \
+SRCS +=                           \
+  src/impls/basic/simulation.cpp  \
+	src/impls/basic/particles.cpp   \
 
 SRCS +=													                       \
 	src/impls/basic/diagnostics/field_view.cpp           \
@@ -64,6 +64,11 @@ SRCS +=																												          \
 	src/impls/basic/diagnostics/builders/diagnostic_builder.cpp           \
 	src/impls/basic/diagnostics/builders/field_view_builder.cpp           \
 	src/impls/basic/diagnostics/builders/distribution_moment_builder.cpp  \
+
+# @todo Separate makefiles and CMake
+SRCS +=                               \
+  src/impls/ricketson/simulation.cpp  \
+	src/impls/ricketson/particles.cpp   \
 
 OBJS := $(SRCS:%.cpp=$(OBJDIR)/%.o)
 DEPS := $(SRCS:%.cpp=$(OBJDIR)/%.d)

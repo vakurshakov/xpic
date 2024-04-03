@@ -4,17 +4,6 @@
 
 namespace basic {
 
-/// @note `Vector3I::dim` is used as a coordinate space dimensionality
-struct Particles::Shape {
-  PetscReal shape[shape_width * shape_width * shape_width * Vector3I::dim];
-
-  #pragma omp declare simd linear(i: 1), notinbranch
-  constexpr PetscReal& operator()(PetscInt i, PetscInt comp) {
-    return shape[i * Vector3I::dim + comp];
-  }
-};
-
-
 Particles::Particles(Simulation& simulation, const Particles_parameters& parameters)
   : simulation_(simulation) {
   PetscFunctionBeginUser;
