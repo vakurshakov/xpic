@@ -136,15 +136,17 @@ PetscErrorCode Particles::adaptive_time_stepping(const Vector3R& point_E, const 
   /// @todo SOLVE THE CONFLICT IN POINT CLASS, IT'S NOT A MOMENTUM HERE
   Vector3R v = point.p;
 
-  /// @todo Move this calculations into Vector classes, this would be useful
-  Vector3R v_p = v.dot(point_B) * point_B;  // (p) -- parallel to the magnetic field
-  Vector3R v_t = v - v_p;                   // (t) -- transverse to the magnetic field
+  Vector3R v_p = v.parallel_to(point_B);
+  Vector3R v_t = v.transverse_to(point_B);
 
-  Vector3R DB_p = point_DB.dot(point_B) * point_B;
-  Vector3R DB_t = point_DB - DB_p;
+  Vector3R DB_p = point_DB.parallel_to(point_B);
+  Vector3R DB_t = point_DB.transverse_to(point_B);
 
+  // (E) -- related to ExB particle drift
   Vector3R v_E = point_E.cross(point_B) / point_B.square();
-  Vector3R u = v_t - v_E;  // It's assumed that the movement is dominated by ExB drift and gyration
+
+  // it's assumed that the movement is dominated by ExB drift `v_E`, gyration `u` and parallel velocity `v_p`
+  Vector3R u = v_t - v_E;
 
   PetscReal B_norm = point_B.length();
   PetscReal Omega = parameters_.q * B_norm / parameters_.m;

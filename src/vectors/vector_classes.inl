@@ -120,6 +120,21 @@ RETURN_REAL_LENGTH(3)
 RETURN_REAL_LENGTH(4)
 
 
+#define RETURN_NEW_PROJECTIONS(N)                                      \
+  template<typename T>                                                 \
+  Vector##N<T> Vector##N<T>::parallel_to(const Vector##N& ref) const { \
+    return (*this).dot(ref) * ref;                                     \
+  }                                                                    \
+  \
+  template<typename T>                                                   \
+  Vector##N<T> Vector##N<T>::transverse_to(const Vector##N& ref) const { \
+    return (*this) - parallel_to(ref);                                   \
+  }                                                                      \
+
+RETURN_NEW_PROJECTIONS(3)
+RETURN_NEW_PROJECTIONS(4)
+
+
 #define SWAP3(A) A[X], A[Z]
 #define SWAP4(A) A[X], A[Z]
 

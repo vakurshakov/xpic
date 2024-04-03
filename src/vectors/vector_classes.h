@@ -12,49 +12,52 @@ enum Axis : PetscInt {
 };
 
 
-#define VECTOR_DEFAULT_CONSTRUCTORS(N)               \
-  constexpr Vector##N();                             \
-  constexpr Vector##N(const T&);                     \
-  constexpr Vector##N(REP##N##_N(const T& x));       \
-  constexpr Vector##N(const T[Vector##N::dim]);      \
+#define VECTOR_DEFAULT_CONSTRUCTORS(N)                 \
+  constexpr Vector##N();                               \
+  constexpr Vector##N(const T&);                       \
+  constexpr Vector##N(REP##N##_N(const T& x));         \
+  constexpr Vector##N(const T[Vector##N::dim]);        \
 
-#define VECTOR_DEFAULT_OPERATIONS(N)                 \
-  operator const T*() const { return data; }         \
-  operator T*() { return data; }                     \
+#define VECTOR_DEFAULT_OPERATIONS(N)                   \
+  operator const T*() const { return data; }           \
+  operator T*() { return data; }                       \
   \
-  Vector##N& operator+=(const Vector##N& other);     \
-  Vector##N& operator-=(const Vector##N& other);     \
-  Vector##N& operator*=(const Vector##N& other);     \
-  Vector##N& operator*=(T scalar);                   \
+  Vector##N& operator+=(const Vector##N& other);       \
+  Vector##N& operator-=(const Vector##N& other);       \
+  Vector##N& operator*=(const Vector##N& other);       \
+  Vector##N& operator*=(T scalar);                     \
   \
-  Vector##N operator+(const Vector##N& other) const; \
-  Vector##N operator-(const Vector##N& other) const; \
-  Vector##N operator*(const Vector##N& other) const; \
+  Vector##N operator+(const Vector##N& other) const;   \
+  Vector##N operator-(const Vector##N& other) const;   \
+  Vector##N operator*(const Vector##N& other) const;   \
   \
-  Vector##N<PetscReal> operator/(T scalar) const;    \
-  Vector##N<PetscReal> normalized() const;           \
-  PetscReal length() const;                          \
+  Vector##N<PetscReal> operator/(T scalar) const;      \
+  Vector##N<PetscReal> normalized() const;             \
+  PetscReal length() const;                            \
   \
-  T dot(const Vector##N& other) const;               \
-  T square() const;                                  \
+  T dot(const Vector##N& other) const;                 \
+  T square() const;                                    \
   \
-  void swap_order();                                 \
+  Vector##N parallel_to(const Vector##N& ref) const;   \
+  Vector##N transverse_to(const Vector##N& ref) const; \
+  \
+  void swap_order();                                   \
 
-#define COMP1                                      \
-  constexpr const T& x() const { return data[X]; } \
-  constexpr T& x() { return data[X]; }             \
+#define COMP1                                          \
+  constexpr const T& x() const { return data[X]; }     \
+  constexpr T& x() { return data[X]; }                 \
 
-#define COMP2 COMP1                                \
-  constexpr const T& y() const { return data[Y]; } \
-  constexpr T& y() { return data[Y]; }             \
+#define COMP2 COMP1                                    \
+  constexpr const T& y() const { return data[Y]; }     \
+  constexpr T& y() { return data[Y]; }                 \
 
-#define COMP3 COMP2                                \
-  constexpr const T& z() const { return data[Z]; } \
-  constexpr T& z() { return data[Z]; }             \
+#define COMP3 COMP2                                    \
+  constexpr const T& z() const { return data[Z]; }     \
+  constexpr T& z() { return data[Z]; }                 \
 
-#define COMP4 COMP3                                \
-  constexpr const T& c() const { return data[C]; } \
-  constexpr T& c() { return data[C]; }             \
+#define COMP4 COMP3                                    \
+  constexpr const T& c() const { return data[C]; }     \
+  constexpr T& c() { return data[C]; }                 \
 
 #define VECTOR_DEFAULT_ACCESS(N) COMP##N
 
