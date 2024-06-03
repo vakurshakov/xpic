@@ -27,11 +27,6 @@ private:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(timestep_t timestep) override;
 
-  PetscErrorCode setup_positive_rotor();
-  PetscErrorCode setup_negative_rotor();
-
-  PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
-
   Mat rot_dt_p;
   Mat rot_dt_m;
 };

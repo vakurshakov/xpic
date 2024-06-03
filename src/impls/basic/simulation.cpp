@@ -2,6 +2,7 @@
 
 #include "src/utils/utils.h"
 #include "src/vectors/vector_classes.h"
+#include "src/vectors/rotor.h"
 #include "src/impls/basic/diagnostics/builders/diagnostic_builder.h"
 
 namespace basic {
@@ -44,8 +45,13 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(DMCreateMatrix(da_, &rot_dt_p));
   PetscCall(DMCreateMatrix(da_, &rot_dt_m));
 
-  PetscCall(setup_positive_rotor());
-  PetscCall(setup_negative_rotor());
+  Rotor rotor(da_);
+  PetscCall(rotor.set_positive(rot_dt_p));
+  PetscCall(rotor.set_negative(rot_dt_m));
+  PetscCall(MatScale(rot_dt_p, -dt));
+  PetscCall(MatScale(rot_dt_m, +dt));
+
+  MatView(rot_dt_p, PETSC_VIEWER_STDOUT_WORLD);
 
 #if THERE_ARE_PARTICLES
   /// @todo Particles parametrisation is needed!
@@ -64,121 +70,6 @@ PetscErrorCode Simulation::initialize_implementation() {
   /// @todo Create a charge_conservation diagnostic!
   PetscCall(build_diagnostics(*this, diagnostics_));
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::setup_positive_rotor() {
-  PetscFunctionBeginUser;
-
-  PetscInt start[3], size[3];
-  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
-
-  /// @todo Check remap for periodic boundaries and geom_ns == 1 (ADD_VALUES)
-  auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
-    bool success = false;
-    if (bounds_[X] == DM_BOUNDARY_PERIODIC && x >= geom_nx) { x -= geom_nx; success = true; }
-    if (bounds_[Y] == DM_BOUNDARY_PERIODIC && y >= geom_ny) { y -= geom_ny; success = true; }
-    if (bounds_[Z] == DM_BOUNDARY_PERIODIC && z >= geom_nz) { z -= geom_nz; success = true; }
-    return success;
-  };
-
-  std::vector<Triplet> triplets;
-  for (PetscInt z = start[Z]; z < start[Z] + size[Z]; ++z) {
-  for (PetscInt y = start[Y]; y < start[Y] + size[Y]; ++y) {
-  for (PetscInt x = start[X]; x < start[X] + size[X]; ++x) {
-    PetscInt xp = (geom_nx > 1) ? (x + 1) : x;
-    PetscInt yp = (geom_ny > 1) ? (y + 1) : y;
-    PetscInt zp = (geom_nz > 1) ? (z + 1) : z;
-
-    if (bool success = remap_with_boundaries(xp, yp, zp); !success)
-      continue;
-
-    PetscInt cur = index(x, y, z, X);
-    triplets.emplace_back(cur, index(x,  yp, z,  Z), +1.0 / dy);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), -1.0 / dy);
-    triplets.emplace_back(cur, index(x,  y,  zp, Y), -1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), +1.0 / dz);
-
-    cur = index(x, y, z, Y);
-    triplets.emplace_back(cur, index(x,  y,  zp, X), +1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), -1.0 / dz);
-    triplets.emplace_back(cur, index(xp, y,  z,  Z), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), +1.0 / dx);
-
-    cur = index(x, y, z, Z);
-    triplets.emplace_back(cur, index(xp, y,  z,  Y), +1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  yp, z,  X), -1.0 / dy);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), +1.0 / dy);
-  }}}
-
-  for (const auto& [row, col, value] : triplets) {
-    // We use `ADD_VALUES` to cancel out values in case of Nx = 1 (or Ny, Nz)
-    PetscCall(MatSetValues(rot_dt_p, 1, &row, 1, &col, &value, ADD_VALUES));
-  }
-  PetscCall(MatAssemblyBegin(rot_dt_p, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(rot_dt_p, MAT_FINAL_ASSEMBLY));
-
-  PetscCall(MatScale(rot_dt_p, -dt));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::setup_negative_rotor() {
-  PetscFunctionBeginUser;
-
-  PetscInt start[3], size[3];
-  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
-
-  auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
-    bool success = false;
-    if (bounds_[X] == DM_BOUNDARY_PERIODIC && x < 0) { x += geom_nx; success = true; }
-    if (bounds_[Y] == DM_BOUNDARY_PERIODIC && y < 0) { y += geom_ny; success = true; }
-    if (bounds_[Z] == DM_BOUNDARY_PERIODIC && z < 0) { z += geom_nz; success = true; }
-    return success;
-  };
-
-  std::vector<Triplet> triplets;
-  for (PetscInt z = start[Z]; z < start[Z] + size[Z]; ++z) {
-  for (PetscInt y = start[Y]; y < start[Y] + size[Y]; ++y) {
-  for (PetscInt x = start[X]; x < start[X] + size[X]; ++x) {
-    PetscInt xm = (geom_nx > 1) ? (x - 1) : x;
-    PetscInt ym = (geom_ny > 1) ? (y - 1) : y;
-    PetscInt zm = (geom_nz > 1) ? (z - 1) : z;
-
-    if (bool success = remap_with_boundaries(xm, ym, zm); !success)
-      continue;
-
-    PetscInt cur = index(x, y, z, X);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), +1.0 / dy);
-    triplets.emplace_back(cur, index(x,  ym, z,  Z), -1.0 / dy);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), -1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  zm, Y), +1.0 / dz);
-
-    cur = index(x, y, z, Y);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), +1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  zm, X), -1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), -1.0 / dx);
-    triplets.emplace_back(cur, index(xm, y,  z,  Z), +1.0 / dx);
-
-    cur = index(x, y, z, Z);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), +1.0 / dx);
-    triplets.emplace_back(cur, index(xm, y,  z,  Y), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), -1.0 / dy);
-    triplets.emplace_back(cur, index(x,  ym, z,  X), +1.0 / dy);
-  }}}
-
-  for (const auto& [row, col, value] : triplets) {
-    // We use `ADD_VALUES` to cancel out values in case of Nx = 1 (or Ny, Nz)
-    PetscCall(MatSetValues(rot_dt_m, 1, &row, 1, &col, &value, ADD_VALUES));
-  }
-  PetscCall(MatAssemblyBegin(rot_dt_m, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(rot_dt_m, MAT_FINAL_ASSEMBLY));
-
-  PetscCall(MatScale(rot_dt_m, +dt));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
-  return ((z * geom_ny + y) * geom_nx + x) * Vector3I::dim + c;
 }
 
 

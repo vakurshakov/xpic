@@ -51,6 +51,9 @@ SRCS +=                           \
   src/utils/mpi_binary_file.cpp   \
   src/utils/sync_binary_file.cpp  \
 
+SRCS +=               	\
+	src/vectors/rotor.cpp \
+
 SRCS +=                           \
   src/impls/basic/simulation.cpp  \
 	src/impls/basic/particles.cpp   \
