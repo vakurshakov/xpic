@@ -3,56 +3,49 @@
 #include "src/pch.h"
 #include "src/vectors/vector_classes.h"
 
-Rotor::Rotor(DM da) : da_(da) {
-  PetscCallVoid(DMDAGetInfo(da_, nullptr, REP3(nullptr), REP3(nullptr), nullptr, nullptr, REP3_A(&bounds_), nullptr));
+Rotor::Rotor(DM da) :
+  values_x{+1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz},
+  values_y{+1.0 / dz, -1.0 / dz, -1.0 / dx, +1.0 / dx},
+  values_z{+1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy},
+  da_(da)
+{
+  /// @todo DMDAGetGhostCorners()?
   PetscCallVoid(DMDAGetCorners(da_, REP3_A(&start_), REP3_A(&size_)));
 }
 
 PetscErrorCode Rotor::set_positive(Mat mat) {
   PetscFunctionBeginUser;
-  PetscCall(MatSetOption(mat, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
-  PetscCall(MatSetOption(mat, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_FALSE));
-
-  std::vector<Triplet> triplets;
+  MatStencil row, col[4];
   for (PetscInt z = start_[Z]; z < start_[Z] + size_[Z]; ++z) {
   for (PetscInt y = start_[Y]; y < start_[Y] + size_[Y]; ++y) {
   for (PetscInt x = start_[X]; x < start_[X] + size_[X]; ++x) {
+    // Periodic boundaries are handled by PETSc internally
     PetscInt xp = (geom_nx > 1) ? (x + 1) : x;
     PetscInt yp = (geom_ny > 1) ? (y + 1) : y;
     PetscInt zp = (geom_nz > 1) ? (z + 1) : z;
 
-    if (bool success = remap_positive(xp, yp, zp); !success)
-      continue;
-
-    PetscInt cur = index(x, y, z, X);
-    PetscPrintf(MPI_COMM_SELF, "[%d] (%d %d %d %d)=%3d", x, y, z, (int)X, cur);
-
-    triplets.emplace_back(cur, index(x,  yp, z,  Z), +1.0 / dy);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), -1.0 / dy);
-    triplets.emplace_back(cur, index(x,  y,  zp, Y), -1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), +1.0 / dz);
-
-    cur = index(x, y, z, Y);
-    PetscPrintf(MPI_COMM_SELF, "[%d] (%d %d %d %d)=%3d", x, y, z, (int)Y, cur);
-
-    triplets.emplace_back(cur, index(x,  y,  zp, X), +1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), -1.0 / dz);
-    triplets.emplace_back(cur, index(xp, y,  z,  Z), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), +1.0 / dx);
-
-    cur = index(x, y, z, Z);
-    PetscPrintf(MPI_COMM_SELF, "[%d] (%d %d %d %d)=%3d", x, y, z, (int)Z, cur);
-
-    triplets.emplace_back(cur, index(xp, y,  z,  Y), +1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  yp, z,  X), -1.0 / dy);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), +1.0 / dy);
-  }}}
-
-  for (const auto& [row, col, value] : triplets) {
+    row = {z, y, x, X};
+    col[0] = {z,  yp, x,  Z};
+    col[1] = {z,  y,  x,  Z};
+    col[2] = {zp, y,  x,  Y};
+    col[3] = {z,  y,  x,  Y};
     // We use `ADD_VALUES` to cancel out values in case of Nx = 1 (or Ny, Nz)
-    PetscCall(MatSetValues(mat, 1, &row, 1, &col, &value, ADD_VALUES));
-  }
+    PetscCall(MatSetValuesStencil(mat, 1, &row, 4, col, values_x, ADD_VALUES));
+
+    row = {z, y, x, Y};
+    col[0] = {zp, y,  x,  X};
+    col[1] = {z,  y,  x,  X};
+    col[2] = {z,  y,  xp, Z};
+    col[3] = {z,  y,  x,  Z};
+    PetscCall(MatSetValuesStencil(mat, 1, &row, 4, col, values_y, ADD_VALUES));
+
+    row = {z, y, x, Z};
+    col[0] = {z,  y,  xp, Y};
+    col[1] = {z,  y,  x,  Y};
+    col[2] = {z,  yp, x,  X};
+    col[3] = {z,  y,  x,  X};
+    PetscCall(MatSetValuesStencil(mat, 1, &row, 4, col, values_z, ADD_VALUES));
+  }}}
   PetscCall(MatAssemblyBegin(mat, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(mat, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -60,10 +53,7 @@ PetscErrorCode Rotor::set_positive(Mat mat) {
 
 PetscErrorCode Rotor::set_negative(Mat mat) {
   PetscFunctionBeginUser;
-  PetscCall(MatSetOption(mat, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
-  PetscCall(MatSetOption(mat, MAT_NEW_NONZERO_LOCATION_ERR, PETSC_FALSE));
-
-  std::vector<Triplet> triplets;
+  MatStencil row, col[4];
   for (PetscInt z = start_[Z]; z < start_[Z] + size_[Z]; ++z) {
   for (PetscInt y = start_[Y]; y < start_[Y] + size_[Y]; ++y) {
   for (PetscInt x = start_[X]; x < start_[X] + size_[X]; ++x) {
@@ -71,32 +61,27 @@ PetscErrorCode Rotor::set_negative(Mat mat) {
     PetscInt ym = (geom_ny > 1) ? (y - 1) : y;
     PetscInt zm = (geom_nz > 1) ? (z - 1) : z;
 
-    if (bool success = remap_negative(xm, ym, zm); !success)
-      continue;
+    row = {z, y, x, X};
+    col[0] = {z,  y,  x,  Z};
+    col[1] = {z,  ym, x,  Z};
+    col[2] = {z,  y,  x,  Y};
+    col[3] = {zm, y,  x,  Y};
+    PetscCall(MatSetValuesStencil(mat, 1, &row, 4, col, values_x, ADD_VALUES));
 
-    PetscInt cur = index(x, y, z, X);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), +1.0 / dy);
-    triplets.emplace_back(cur, index(x,  ym, z,  Z), -1.0 / dy);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), -1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  zm, Y), +1.0 / dz);
+    row = {z, y, x, Y};
+    col[0] = {z,  y,  x,  X};
+    col[1] = {zm, y,  x,  X};
+    col[2] = {z,  y,  x,  Z};
+    col[3] = {z,  y,  xm, Z};
+    PetscCall(MatSetValuesStencil(mat, 1, &row, 4, col, values_y, ADD_VALUES));
 
-    cur = index(x, y, z, Y);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), +1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  zm, X), -1.0 / dz);
-    triplets.emplace_back(cur, index(x,  y,  z,  Z), -1.0 / dx);
-    triplets.emplace_back(cur, index(xm, y,  z,  Z), +1.0 / dx);
-
-    cur = index(x, y, z, Z);
-    triplets.emplace_back(cur, index(x,  y,  z,  Y), +1.0 / dx);
-    triplets.emplace_back(cur, index(xm, y,  z,  Y), -1.0 / dx);
-    triplets.emplace_back(cur, index(x,  y,  z,  X), -1.0 / dy);
-    triplets.emplace_back(cur, index(x,  ym, z,  X), +1.0 / dy);
+    row = {z, y, x, Z};
+    col[0] = {z,  y,  x,  Y};
+    col[0] = {z,  y,  xm, Y};
+    col[0] = {z,  y,  x,  X};
+    col[0] = {z,  ym, x,  X};
+    PetscCall(MatSetValuesStencil(mat, 1, &row, 4, col, values_z, ADD_VALUES));
   }}}
-
-  for (const auto& [row, col, value] : triplets) {
-    // We use `ADD_VALUES` to cancel out values in case of Nx = 1 (or Ny, Nz)
-    PetscCall(MatSetValues(mat, 1, &row, 1, &col, &value, ADD_VALUES));
-  }
   PetscCall(MatAssemblyBegin(mat, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(mat, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -104,22 +89,4 @@ PetscErrorCode Rotor::set_negative(Mat mat) {
 
 PetscInt Rotor::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
   return ((z * geom_ny + y) * geom_nx + x) * Vector3I::dim + c;
-}
-
-
-/// @todo Check remap for periodic boundaries and geom_ns == 1 (ADD_VALUES)
-bool Rotor::remap_positive(PetscInt& x, PetscInt& y, PetscInt& z) {
-  bool success = false;
-  if (bounds_[X] == DM_BOUNDARY_PERIODIC && x >= geom_nx) { x -= geom_nx; success = true; }
-  if (bounds_[Y] == DM_BOUNDARY_PERIODIC && y >= geom_ny) { y -= geom_ny; success = true; }
-  if (bounds_[Z] == DM_BOUNDARY_PERIODIC && z >= geom_nz) { z -= geom_nz; success = true; }
-  return success;
-}
-
-bool Rotor::remap_negative(PetscInt& x, PetscInt& y, PetscInt& z) {
-  bool success = false;
-  if (bounds_[X] == DM_BOUNDARY_PERIODIC && x < 0) { x += geom_nx; success = true; }
-  if (bounds_[Y] == DM_BOUNDARY_PERIODIC && y < 0) { y += geom_ny; success = true; }
-  if (bounds_[Z] == DM_BOUNDARY_PERIODIC && z < 0) { z += geom_nz; success = true; }
-  return success;
 }

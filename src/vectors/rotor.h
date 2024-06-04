@@ -14,13 +14,14 @@ public:
   PetscErrorCode set_negative(Mat mat);
 
 private:
-  bool remap_positive(PetscInt& x, PetscInt& y, PetscInt& z);
-  bool remap_negative(PetscInt& x, PetscInt& y, PetscInt& z);
+  /// @note in natural ordering, debug purpose
+  PetscInt index(PetscInt x, PetscInt y, PetscInt z, PetscInt c);
 
-  PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
+  const PetscReal values_x[4];
+  const PetscReal values_y[4];
+  const PetscReal values_z[4];
 
   DM da_;
-  DMBoundaryType bounds_[3];
   PetscInt start_[3], size_[3];
 };
 

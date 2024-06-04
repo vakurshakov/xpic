@@ -51,8 +51,6 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(MatScale(rot_dt_p, -dt));
   PetscCall(MatScale(rot_dt_m, +dt));
 
-  MatView(rot_dt_p, PETSC_VIEWER_STDOUT_WORLD);
-
 #if THERE_ARE_PARTICLES
   /// @todo Particles parametrisation is needed!
   Particles_parameters parameters = {
