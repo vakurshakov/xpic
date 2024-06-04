@@ -9,6 +9,13 @@ struct Triplet {
   PetscReal value;
 };
 
+enum Axis : PetscInt {
+  X = 0,
+  Y = 1,
+  Z = 2,
+  C = 3,
+};
+
 #define REP2(A) A, A
 #define REP3(A) A, A, A
 #define REP4(A) A, A, A, A

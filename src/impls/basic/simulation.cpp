@@ -1,7 +1,7 @@
 #include "simulation.h"
 
 #include "src/utils/utils.h"
-#include "src/vectors/vector_classes.h"
+#include "src/vectors/vector3.h"
 #include "src/vectors/rotor.h"
 #include "src/impls/basic/diagnostics/builders/diagnostic_builder.h"
 

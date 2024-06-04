@@ -2,7 +2,7 @@
 #define SRC_INTERFACES_PARTICLES_POINT_H
 
 #include "src/pch.h"
-#include "src/vectors/vector_classes.h"
+#include "src/vectors/vector3.h"
 #include "src/interfaces/particles/parameters.h"
 
 namespace interfaces { class Particles; }
@@ -39,21 +39,21 @@ public:
 #endif
   );
 
-  constexpr PetscReal& x() { return r.x(); }
-  constexpr PetscReal& y() { return r.y(); }
-  constexpr PetscReal& z() { return r.z(); }
+  PetscReal& x() { return r.x(); }
+  PetscReal& y() { return r.y(); }
+  PetscReal& z() { return r.z(); }
 
-  constexpr PetscReal x() const { return r.x(); }
-  constexpr PetscReal y() const { return r.y(); }
-  constexpr PetscReal z() const { return r.z(); }
+  PetscReal x() const { return r.x(); }
+  PetscReal y() const { return r.y(); }
+  PetscReal z() const { return r.z(); }
 
-  constexpr PetscReal& px() { return p.x(); }
-  constexpr PetscReal& py() { return p.y(); }
-  constexpr PetscReal& pz() { return p.z(); }
+  PetscReal& px() { return p.x(); }
+  PetscReal& py() { return p.y(); }
+  PetscReal& pz() { return p.z(); }
 
-  constexpr PetscReal px() const { return p.x(); }
-  constexpr PetscReal py() const { return p.y(); }
-  constexpr PetscReal pz() const { return p.z(); }
+  PetscReal px() const { return p.x(); }
+  PetscReal py() const { return p.y(); }
+  PetscReal pz() const { return p.z(); }
 
 private:
   friend class interfaces::Particles;

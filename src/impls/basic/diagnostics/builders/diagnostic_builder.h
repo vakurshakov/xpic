@@ -5,7 +5,7 @@
 
 #include "src/pch.h"
 #include "src/impls/basic/simulation.h"
-#include "src/vectors/vector_classes.h"
+#include "src/vectors/vector3.h"
 #include "src/utils/configuration.h"
 
 namespace basic {
