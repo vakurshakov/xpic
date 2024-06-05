@@ -7,9 +7,9 @@ namespace fs = std::filesystem;
 
 namespace basic {
 
-Fields_energy::Fields_energy(const std::string& result_directory, DM da, Vec E, Vec B)
-  : interfaces::Diagnostic(result_directory), da_(da), E_(E), B_(B) {
-  file_ = Sync_binary_file(result_directory_, "fields_energy");
+Fields_energy::Fields_energy(const std::string& out_dir, DM da, Vec E, Vec B)
+  : interfaces::Diagnostic(out_dir), da_(da), E_(E), B_(B) {
+  file_ = Sync_binary_file(out_dir_, "fields_energy");
 }
 
 PetscErrorCode Fields_energy::diagnose(timestep_t t) {

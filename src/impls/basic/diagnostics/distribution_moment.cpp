@@ -6,9 +6,9 @@
 namespace basic {
 
 Distribution_moment::Distribution_moment(
-  MPI_Comm comm, const std::string& result_directory,
+  MPI_Comm comm, const std::string& out_dir,
   const DM& da, const Particles& particles, Moment_up moment)
-  : interfaces::Diagnostic(result_directory),
+  : interfaces::Diagnostic(out_dir),
     da_(da), particles_(particles), moment_(std::move(moment)), comm_(comm) {}
 
 Distribution_moment::~Distribution_moment() {
@@ -114,7 +114,7 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
   int time_width = std::to_string(geom_nt).size();
   std::stringstream ss;
   ss << std::setw(time_width) << std::setfill('0') << t;
-  PetscCall(file_.open(comm_, result_directory_, ss.str()));
+  PetscCall(file_.open(comm_, out_dir_, ss.str()));
 
   const PetscReal *arr;
   PetscCall(VecGetArrayRead(global_, &arr));

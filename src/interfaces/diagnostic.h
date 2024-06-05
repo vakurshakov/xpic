@@ -9,13 +9,13 @@ class Diagnostic {
 public:
   virtual ~Diagnostic() = default;
 
-  Diagnostic(const std::string& result_directory)
-    : result_directory_(result_directory) {}
+  Diagnostic(const std::string& out_dir)
+    : out_dir_(out_dir) {}
 
   virtual PetscErrorCode diagnose(timestep_t t) = 0;
 
 protected:
-  std::string result_directory_;
+  std::string out_dir_;
 };
 
 }

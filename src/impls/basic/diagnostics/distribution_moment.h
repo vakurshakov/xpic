@@ -22,7 +22,7 @@ public:
     Vector3I size;
   };
 
-  Distribution_moment(MPI_Comm comm, const std::string& result_directory,
+  Distribution_moment(MPI_Comm comm, const std::string& out_dir,
     const DM& da, const Particles& particles, Moment_up moment);
 
   ~Distribution_moment();

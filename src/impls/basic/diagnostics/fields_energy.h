@@ -13,7 +13,7 @@ namespace basic {
 
 class Fields_energy : public interfaces::Diagnostic {
 public:
-  Fields_energy(const std::string& result_directory, DM da, Vec E, Vec B);
+  Fields_energy(const std::string& out_dir, DM da, Vec E, Vec B);
 
   PetscErrorCode diagnose(timestep_t t) override;
 
