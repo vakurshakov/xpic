@@ -143,16 +143,16 @@ template<typename T> Vector3<T> operator*(T scalar, const Vector3<T>& vector) {
 template<typename T> Vector3<T> min(const Vector3<T>& lhs, const Vector3<T>& rhs) {
   return {
     std::min(lhs[X], rhs[X]),
-    std::max(lhs[Y], rhs[Y]),
+    std::min(lhs[Y], rhs[Y]),
     std::min(lhs[Z], rhs[Z]),
   };
 }
 
 template<typename T> Vector3<T> max(const Vector3<T>& lhs, const Vector3<T>& rhs) {
   return {
-    std::min(lhs[X], rhs[X]),
-    std::min(lhs[Y], rhs[Y]),
-    std::min(lhs[Z], rhs[Z]),
+    std::max(lhs[X], rhs[X]),
+    std::max(lhs[Y], rhs[Y]),
+    std::max(lhs[Z], rhs[Z]),
   };
 }
 
