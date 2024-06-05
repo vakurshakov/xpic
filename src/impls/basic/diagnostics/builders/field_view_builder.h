@@ -37,7 +37,6 @@ private:
 
   PetscErrorCode parse_field_info(const Configuration::json_t& json, Field_description& desc);
   PetscErrorCode check_field_description(const Field_description& desc);
-  PetscErrorCode attach_field_description(Field_description&& desc);
 };
 
 }

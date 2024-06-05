@@ -39,7 +39,6 @@ protected:
 
   using Diagnostics_vector = std::vector<Diagnostic_up>;
   Diagnostics_vector& diagnostics_;
-
 };
 
 using Diagnostic_builder_up = std::unique_ptr<Diagnostic_builder>;

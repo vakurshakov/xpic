@@ -10,7 +10,6 @@
 #include "src/utils/mpi_binary_file.h"
 #include "src/vectors/vector3.h"
 
-namespace basic {
 
 class Field_view : public interfaces::Diagnostic {
 public:
@@ -20,19 +19,25 @@ public:
     PetscInt size[ndim];
   };
 
-  Field_view(MPI_Comm comm, const std::string& out_dir, DM da, Vec field);
+  /**
+   * @brief Constructs `Field_view` diagnostic of a particular `field`.
+   * @note Result _can_ be `nullptr`, if region doesn't touch the local part of DM.
+   */
+  static std::unique_ptr<Field_view> create(const std::string& out_dir, DM da, Vec field, const Region& region);
 
-  PetscErrorCode set_diagnosed_region(const Region& region);
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
+  static PetscErrorCode get_local_communicator(DM da, const Region& region, MPI_Comm* newcomm);
+
+  Field_view(const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm);
+  PetscErrorCode set_data_views(const Region& region);
+
   DM da_;
   Vec field_;
 
   MPI_Comm comm_;
   MPI_binary_file file_;
 };
-
-}
 
 #endif  // SRC_BASIC_DIAGNOSTICS_FIELD_VIEW_H

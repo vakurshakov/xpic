@@ -3,12 +3,44 @@
 #include "src/utils/utils.h"
 #include "src/vectors/vector4.h"
 
-namespace basic {
 
-Field_view::Field_view(MPI_Comm comm, const std::string& out_dir, DM da, Vec field)
-  : interfaces::Diagnostic(out_dir), da_(da), field_(field), comm_(comm) {}
+std::unique_ptr<Field_view> Field_view::create(const std::string& out_dir, DM da, Vec field, const Region& region) {
+  PetscFunctionBeginUser;
+  MPI_Comm newcomm;
+  PetscCallThrow(get_local_communicator(da, region, &newcomm));
+  if (newcomm == MPI_COMM_NULL)
+    PetscFunctionReturn(nullptr);
 
-PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
+  auto* diagnostic = new Field_view(out_dir, da, field, newcomm);
+  PetscCallThrow(diagnostic->set_data_views(region));
+  PetscFunctionReturn(std::unique_ptr<Field_view>(diagnostic));
+}
+
+
+/// @returns Non-null communicator for those processes, where region intersects with local boundaries of DM.
+PetscErrorCode Field_view::get_local_communicator(DM da, const Region& region, MPI_Comm* newcomm) {
+  PetscFunctionBeginUser;
+  Vector3I r_start = region.start, r_size = region.size, start, size;
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+
+  bool is_region_intersect_bounds =
+    r_start[X] < (start[X] + size[X]) && (r_start[X] + r_size[X]) > start[X] &&
+    r_start[Y] < (start[Y] + size[Y]) && (r_start[Y] + r_size[Y]) > start[Y] &&
+    r_start[Z] < (start[Z] + size[Z]) && (r_start[Z] + r_size[Z]) > start[Z];
+  PetscMPIInt color = is_region_intersect_bounds ? 1 : MPI_UNDEFINED;
+
+  PetscMPIInt rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+  PetscCallMPI(MPI_Comm_split(PETSC_COMM_WORLD, color, rank, newcomm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+Field_view::Field_view(const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm)
+  : interfaces::Diagnostic(out_dir), da_(da), field_(field), comm_(newcomm) {}
+
+
+PetscErrorCode Field_view::set_data_views(const Region& region) {
   PetscFunctionBeginUser;
   Vector4I l_start, g_start = region.start;
   Vector4I m_size, f_size = region.size;
@@ -36,6 +68,7 @@ PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
 PetscErrorCode Field_view::diagnose(timestep_t t) {
   if (t % diagnose_period != 0)
     PetscFunctionReturn(PETSC_SUCCESS);
@@ -57,6 +90,4 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
 
   PetscCall(VecRestoreArrayRead(field_, &arr));
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 }

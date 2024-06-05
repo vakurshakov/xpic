@@ -13,7 +13,7 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
     Field_description desc;
     PetscCall(parse_field_info(info, desc));
     PetscCall(check_field_description(desc));
-    PetscCall(attach_field_description(std::move(desc)));
+    fields_desc_.emplace_back(std::move(desc));
     PetscFunctionReturn(PETSC_SUCCESS);
   };
 
@@ -31,12 +31,9 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
 
     std::string res_dir = CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
 
-    std::unique_ptr<Field_view>&& diag = std::make_unique<Field_view>(
-      desc.comm, res_dir, simulation_.da_, get_field(desc.field_name));
-
-    PetscCall(diag->set_diagnosed_region(desc.region));
-
-    diagnostics_.emplace_back(std::move(diag));
+    if (auto&& diag = Field_view::create(res_dir, simulation_.da_, get_field(desc.field_name), desc.region)) {
+      diagnostics_.emplace_back(std::move(diag));
+    }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -88,34 +85,6 @@ PetscErrorCode Field_view_builder::check_field_description(const Field_descripti
   message = "Sizes are invalid for " + desc.field_name + desc.component_name + " diagnostic.";
   PetscCheck(are_sizes_positive, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-// Attach diagnostic only to those processes, where `desc.region` lies
-PetscErrorCode Field_view_builder::attach_field_description(Field_description&& desc) {
-  PetscFunctionBeginUser;
-  Vector3I start;
-  Vector3I size;
-  PetscCall(DMDAGetCorners(simulation_.da_, REP3_A(&start), REP3_A(&size)));
-
-  const Vector3I& r_start = desc.region.start;
-  const Vector3I& r_size = desc.region.size;
-  bool is_local_start_in_bounds = is_region_intersect_bounds(r_start, r_size, start, size);
-
-  PetscMPIInt color = is_local_start_in_bounds ? 1 : MPI_UNDEFINED;
-
-  PetscMPIInt rank;
-  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-
-  MPI_Comm new_comm;
-  PetscCallMPI(MPI_Comm_split(PETSC_COMM_WORLD, color, rank, &new_comm));
-
-  if (!is_local_start_in_bounds)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
-  desc.comm = new_comm;
-
-  fields_desc_.emplace_back(std::move(desc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
