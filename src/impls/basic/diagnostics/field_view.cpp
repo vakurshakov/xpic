@@ -5,7 +5,7 @@
 
 namespace basic {
 
-Field_view::Field_view(MPI_Comm comm, const std::string& out_dir, const DM& da, const Vec& field)
+Field_view::Field_view(MPI_Comm comm, const std::string& out_dir, DM da, Vec field)
   : interfaces::Diagnostic(out_dir), da_(da), field_(field), comm_(comm) {}
 
 PetscErrorCode Field_view::set_diagnosed_region(const Region& region) {
