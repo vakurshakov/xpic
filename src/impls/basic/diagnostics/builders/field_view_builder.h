@@ -13,7 +13,7 @@ public:
   PetscErrorCode build(const Configuration::json_t& diag_info) override;
 
 private:
-  constexpr std::string usage_message() const override {
+  const char* usage_message() const override {
     return "\n"
       "Usage: The structure of the field_view diagnostic description\n"
       "{\n"

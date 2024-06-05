@@ -18,7 +18,7 @@ public:
   }
 
 private:
-  constexpr std::string usage_message() const override {
+  const char* usage_message() const override {
     return "\n" "Usage: Simply add `\"fields_energy\": {}` into configuration file, no addition description is needed.";
   }
 };
