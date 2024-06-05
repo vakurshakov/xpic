@@ -13,15 +13,16 @@ namespace basic {
 
 class Fields_energy : public interfaces::Diagnostic {
 public:
-  Fields_energy(const std::string& result_directory, const DM da, const Vec E, const Vec B);
+  Fields_energy(const std::string& result_directory, DM da, Vec E, Vec B);
+
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
   Sync_binary_file file_;
 
-  const DM da_;
-  const Vec E_;
-  const Vec B_;
+  DM da_;
+  Vec E_;
+  Vec B_;
 };
 
 }

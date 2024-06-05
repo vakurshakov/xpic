@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 
 namespace basic {
 
-Fields_energy::Fields_energy(const std::string& result_directory, const DM da, const Vec E, const Vec B)
+Fields_energy::Fields_energy(const std::string& result_directory, DM da, Vec E, Vec B)
   : interfaces::Diagnostic(result_directory), da_(da), E_(E), B_(B) {
   file_ = Sync_binary_file(result_directory_, "fields_energy");
 }
@@ -48,7 +48,7 @@ PetscErrorCode Fields_energy::diagnose(timestep_t t) {
     PetscCallMPI(MPI_Reduce(&w, &sum, 1, MPIU_REAL, MPI_SUM, 0, PETSC_COMM_WORLD));
 
     w = sum; // only for logging
-    PetscCallMPI(file_.write_float(sum));
+    PetscCall(file_.write_float(sum));
     PetscFunctionReturn(PETSC_SUCCESS);
   };
 
@@ -59,7 +59,7 @@ PetscErrorCode Fields_energy::diagnose(timestep_t t) {
   write_reduced(WBz);
 
   PetscReal total = WEx + WEy + WEz + WBx + WBy + WBz;
-  write_reduced(total);
+  PetscCall(file_.write_float(total));
 
   LOG_INFO("Fields energy: Ex = {:.5e}, Ey = {:.5e}, Ez = {:.5e}", WEx, WEy, WEz);
   LOG_INFO("               Bx = {:.5e}, By = {:.5e}, Bz = {:.5e}", WBx, WBy, WBz);

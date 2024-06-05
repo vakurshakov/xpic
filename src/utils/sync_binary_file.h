@@ -6,7 +6,6 @@
 /**
  * @brief Represents synchronous (over `PETSC_COMM_WORLD`) binary file.
  * @note In most cases it should be used for scalar variables diagnostics.
- * @note Function signatures mimics MPI-files calls, so it can be used with `PetscCallMPI()`.
  */
 class Sync_binary_file {
 public:
