@@ -5,58 +5,52 @@
 
 namespace basic {
 
-Distribution_moment::Distribution_moment(
-  MPI_Comm comm, const std::string& out_dir,
-  const DM& da, const Particles& particles, Moment_up moment)
-  : interfaces::Diagnostic(out_dir),
-    da_(da), particles_(particles), moment_(std::move(moment)), comm_(comm) {}
+std::unique_ptr<Distribution_moment> Distribution_moment::create(
+    const std::string& out_dir, DM da, const Particles& particles, Moment_up moment, const Region& region) {
+  PetscFunctionBeginUser;
+  MPI_Comm newcomm;
+  PetscCallThrow(get_local_communicator(da, region, &newcomm));
+  if (newcomm == MPI_COMM_NULL)
+    PetscFunctionReturn(nullptr);
+
+  auto* diagnostic = new Distribution_moment(out_dir, da, particles, std::move(moment), newcomm);
+  PetscCallThrow(diagnostic->set_data_views(region));
+  PetscFunctionReturn(std::unique_ptr<Distribution_moment>(diagnostic));
+}
+
+
+Distribution_moment::Distribution_moment(const std::string& out_dir, DM da,
+  const Particles& particles, Moment_up moment, MPI_Comm newcomm)
+  : Field_view(out_dir, da, nullptr, newcomm), particles_(particles), moment_(std::move(moment)) {}
+
 
 Distribution_moment::~Distribution_moment() {
   PetscFunctionBeginUser;
   PetscCallVoid(DMDestroy(&da_));
   PetscCallVoid(VecDestroy(&local_));
-  PetscCallVoid(VecDestroy(&global_));
+  PetscCallVoid(VecDestroy(&field_));
   PetscFunctionReturnVoid();
 }
 
-PetscErrorCode Distribution_moment::set_diagnosed_region(const Region& region) {
+
+PetscErrorCode Distribution_moment::set_data_views(const Region& region) {
   PetscFunctionBeginUser;
+  PetscCall(set_da(region));
+  PetscCall(DMCreateLocalVector(da_, &local_));
+  PetscCall(DMCreateGlobalVector(da_, &field_));
 
-  region_ = region;
-  PetscCall(setup_da());
-
-  /// @todo Replace it with Field_view::set_diagnosed_region();
-  ///
-  Vector3I l_start, g_start = region.start;
-  Vector3I m_size, f_size = region.size;
-  PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));
-
-  l_start.swap_order();
-  g_start.swap_order();
-  m_size.swap_order();
-  f_size.swap_order();
-
-  Vector3I m_start = max(g_start, l_start);
-  Vector3I l_size = min(g_start + f_size, l_start + m_size) - m_start;
-  Vector3I f_start = m_start;
-
-  f_start -= g_start;  // file start is in global coordinates, but we remove offset
-  m_start -= l_start;  // memory start is in local coordinates
-
-  PetscCall(file_.set_memview_subarray(3, m_size, l_size, m_start));
-  PetscCall(file_.set_fileview_subarray(3, f_size, l_size, f_start));
-  ///
+  PetscCall(Field_view::set_data_views(region));
 
   // Later we'll use `Node` structure that uses shifted coordinates
   region_.start -= shape_radius;
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Distribution_moment::setup_da() {
+
+PetscErrorCode Distribution_moment::set_da(const Region& region) {
   PetscFunctionBeginUser;
-  Vector3I g_start = region_.start;
-  Vector3I g_size = region_.size;
+  Vector3I g_start(region.start);
+  Vector3I g_size(region.size);
   Vector3I g_end = g_start + g_size;
 
   PetscInt dim, s;
@@ -96,35 +90,16 @@ PetscErrorCode Distribution_moment::setup_da() {
   PetscCall(DMDACreate3d(comm_, REP3_A(l_bound), st, REP3_A(g_size), REP3_A(l_proc), 1, s, l_ownership[X].data(), l_ownership[Y].data(), l_ownership[Z].data(), &da_));
   PetscCall(DMDASetOffset(da_, REP3_A(g_start), 0, 0, 0));
   PetscCall(DMSetUp(da_));
-  PetscCall(DMCreateLocalVector(da_, &local_));
-  PetscCall(DMCreateGlobalVector(da_, &global_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
 PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
-  if (t % diagnose_period != 0)
-    PetscFunctionReturn(PETSC_SUCCESS);
   PetscFunctionBeginUser;
-
-  PetscCall(collect());
-
-  /// @todo Replace with Field_view::diagnose(t)
-  ///
-  int time_width = std::to_string(geom_nt).size();
-  std::stringstream ss;
-  ss << std::setw(time_width) << std::setfill('0') << t;
-  PetscCall(file_.open(comm_, out_dir_, ss.str()));
-
-  const PetscReal *arr;
-  PetscCall(VecGetArrayRead(global_, &arr));
-
-  Vector3I size;
-  PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
-
-  PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z])));
-  PetscCall(file_.close());
-  ///
+  if (t % diagnose_period == 0) {
+    PetscCall(collect());
+    PetscCall(Field_view::diagnose(t));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -141,7 +116,7 @@ PetscErrorCode Distribution_moment::collect() {
   PetscFunctionBeginUser;
 
   PetscCall(VecSet(local_, 0.0));
-  PetscCall(VecSet(global_, 0.0));
+  PetscCall(VecSet(field_, 0.0));
 
   PetscReal ***arr;
   PetscCall(DMDAVecGetArrayWrite(da_, local_, &arr));
@@ -179,7 +154,7 @@ PetscErrorCode Distribution_moment::collect() {
     }}}
   }
   PetscCall(DMDAVecRestoreArrayWrite(da_, local_, &arr));
-  PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, global_));
+  PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, field_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -260,6 +235,7 @@ inline PetscReal get_mVrVphi(const Particles& particles, const Point& point) {
 inline PetscReal get_mVphiVphi(const Particles& particles, const Point& point) {
   return particles.mass(point) * get_Vphi(particles, point) * get_Vphi(particles, point);
 }
+
 
 Moment::Moment(const Particles& particles, const std::string& name) : particles_(particles) {
   if (name == "zeroth_moment") {

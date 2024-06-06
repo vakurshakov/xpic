@@ -39,7 +39,7 @@ private:
 
   struct Moment_description {
     std::string particles_name;
-    Distribution_moment::Region region;
+    Field_view::Region region;
     MPI_Comm comm;
   };
 
@@ -48,7 +48,6 @@ private:
 
   PetscErrorCode parse_moment_info(const Configuration::json_t& json, Moment_description& desc);
   PetscErrorCode check_moment_description(const Moment_description& desc);
-  PetscErrorCode attach_moment_description(Moment_description&& desc);
 };
 
 }

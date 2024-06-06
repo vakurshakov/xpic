@@ -8,6 +8,7 @@ Distribution_moment_builder::Distribution_moment_builder(
   : Diagnostic_builder(simulation, diagnostics),
     moment_name(moment_name), proj_name(proj_name) {}
 
+
 PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& diag_info) {
   PetscFunctionBeginUser;
 
@@ -16,7 +17,7 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
     Moment_description desc;
     PetscCall(parse_moment_info(info, desc));
     PetscCall(check_moment_description(desc));
-    PetscCall(attach_moment_description(std::move(desc)));
+    moments_desc_.emplace_back(std::move(desc));
     PetscFunctionReturn(PETSC_SUCCESS);
   };
 
@@ -30,18 +31,20 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
 
     const Particles& particles = get_sort(desc.particles_name);
 
-    std::unique_ptr<Distribution_moment>&& diag = std::make_unique<Distribution_moment>(
-      desc.comm, res_dir, simulation_.da_, particles, std::make_unique<Moment>(particles, moment_name));
+    auto&& moment = std::make_unique<Moment>(particles, moment_name);
 
-    PetscCall(diag->set_diagnosed_region(desc.region));
-
-    diagnostics_.emplace_back(std::move(diag));
+    if (auto&& diag = Distribution_moment::create(res_dir, simulation_.da_, particles, std::move(moment), desc.region)) {
+      diagnostics_.emplace_back(std::move(diag));
+    }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Distribution_moment_builder::parse_moment_info(const Configuration::json_t& json, Moment_description& desc) {
   PetscFunctionBeginUser;
+  desc.region.dim = 3;
+  desc.region.dof = 1;
+
   std::string message;
   try {
     json.at("sort").get_to(desc.particles_name);
@@ -67,8 +70,8 @@ PetscErrorCode Distribution_moment_builder::check_moment_description(const Momen
   PetscFunctionBeginUser;
   std::string message;
 
-  const Vector3I& r_start = desc.region.start;
-  const Vector3I& r_size = desc.region.size;
+  Vector3I r_start(desc.region.start);
+  Vector3I r_size(desc.region.size);
   bool is_region_in_global_bounds = is_region_within_bounds(r_start, r_size, 0, Geom_n);
   message = "Region is not in global boundaries for " + moment_name + " diagnostic.";
   PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
@@ -77,33 +80,6 @@ PetscErrorCode Distribution_moment_builder::check_moment_description(const Momen
   message = "Sizes are invalid for " + moment_name + " diagnostic.";
   PetscCheck(are_sizes_positive, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
 
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Distribution_moment_builder::attach_moment_description(Moment_description&& desc) {
-  PetscFunctionBeginUser;
-  Vector3I start;
-  Vector3I size;
-  PetscCall(DMDAGetCorners(simulation_.da_, REP3_A(&start), REP3_A(&size)));
-
-  const Vector3I& r_start = desc.region.start;
-  const Vector3I& r_size = desc.region.size;
-  bool is_local_start_in_bounds = is_region_intersect_bounds(r_start, r_size, start, size);
-
-  PetscMPIInt color = is_local_start_in_bounds ? 1 : MPI_UNDEFINED;
-
-  PetscMPIInt rank;
-  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-
-  MPI_Comm new_comm;
-  PetscCallMPI(MPI_Comm_split(PETSC_COMM_WORLD, color, rank, &new_comm));
-
-  if (!is_local_start_in_bounds)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
-  desc.comm = new_comm;
-
-  moments_desc_.emplace_back(std::move(desc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

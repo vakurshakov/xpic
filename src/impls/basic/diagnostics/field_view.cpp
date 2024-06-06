@@ -1,7 +1,7 @@
 #include "field_view.h"
 
 #include "src/utils/utils.h"
-#include "src/vectors/vector4.h"
+#include "src/vectors/vector3.h"
 
 
 std::unique_ptr<Field_view> Field_view::create(const std::string& out_dir, DM da, Vec field, const Region& region) {
@@ -20,7 +20,7 @@ std::unique_ptr<Field_view> Field_view::create(const std::string& out_dir, DM da
 /// @returns Non-null communicator for those processes, where region intersects with local boundaries of DM.
 PetscErrorCode Field_view::get_local_communicator(DM da, const Region& region, MPI_Comm* newcomm) {
   PetscFunctionBeginUser;
-  Vector3I r_start = region.start, r_size = region.size, start, size;
+  Vector3I r_start(region.start), r_size(region.size), start, size;
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
   bool is_region_intersect_bounds =
@@ -42,8 +42,10 @@ Field_view::Field_view(const std::string& out_dir, DM da, Vec field, MPI_Comm ne
 
 PetscErrorCode Field_view::set_data_views(const Region& region) {
   PetscFunctionBeginUser;
-  Vector4I l_start, g_start = region.start;
-  Vector4I m_size, f_size = region.size;
+  region_ = region;
+
+  Vector4I l_start, g_start = region_.start;
+  Vector4I m_size, f_size = region_.size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));
   PetscCall(DMDAGetDof(da_, &m_size[3]));
 
@@ -59,12 +61,14 @@ PetscErrorCode Field_view::set_data_views(const Region& region) {
   f_start -= g_start;  // file start is in global coordinates, but we remove offset
   m_start -= l_start;  // memory start is in local coordinates
 
-  f_start[3] = 0;
-  m_start[3] = g_start[3];
-  l_size[3] = f_size[3];
+  if (region_.dim > 3) {
+    f_start[3] = 0;
+    m_start[3] = g_start[3];
+    l_size[3] = f_size[3];
+  }
 
-  PetscCall(file_.set_memview_subarray(Region::ndim, m_size, l_size, m_start));
-  PetscCall(file_.set_fileview_subarray(Region::ndim, f_size, l_size, f_start));
+  PetscCall(file_.set_memview_subarray(region_.dim, m_size, l_size, m_start));
+  PetscCall(file_.set_fileview_subarray(region_.dim, f_size, l_size, f_start));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -85,7 +89,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   Vector3I size;
   PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
 
-  PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z] * Region::ndim)));
+  PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z] * region_.dof)));
   PetscCall(file_.close());
 
   PetscCall(VecRestoreArrayRead(field_, &arr));

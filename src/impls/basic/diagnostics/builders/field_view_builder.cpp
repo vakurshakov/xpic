@@ -40,6 +40,9 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
 
 PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t& json, Field_description& desc) {
   PetscFunctionBeginUser;
+  desc.region.dim = 4;
+  desc.region.dof = 3;
+
   std::string message;
   try {
     json.at("field").get_to(desc.field_name);
@@ -75,8 +78,8 @@ PetscErrorCode Field_view_builder::check_field_description(const Field_descripti
   PetscFunctionBeginUser;
   std::string message;
 
-  const Vector3I& r_start = desc.region.start;
-  const Vector3I& r_size = desc.region.size;
+  Vector3I r_start(desc.region.start);
+  Vector3I r_size(desc.region.size);
   bool is_region_in_global_bounds = is_region_within_bounds(r_start, r_size, 0, Geom_n);
   message = "Region is not in global boundaries for " + desc.field_name + desc.component_name + " diagnostic.";
   PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());

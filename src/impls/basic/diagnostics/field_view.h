@@ -8,26 +8,28 @@
 
 #include "src/pch.h"
 #include "src/utils/mpi_binary_file.h"
-#include "src/vectors/vector3.h"
+
+#include "src/vectors/vector4.h"
 
 
 class Field_view : public interfaces::Diagnostic {
 public:
   struct Region {
-    static const PetscInt ndim = 4;
-    PetscInt start[ndim];
-    PetscInt size[ndim];
+    PetscInt dim;
+    PetscInt dof;
+    Vector4I start;
+    Vector4I size;
   };
 
   /**
    * @brief Constructs `Field_view` diagnostic of a particular `field`.
-   * @note Result _can_ be `nullptr`, if region doesn't touch the local part of DM.
+   * @note Result _can_ be `nullptr`, if `region` doesn't touch the local part of DM.
    */
   static std::unique_ptr<Field_view> create(const std::string& out_dir, DM da, Vec field, const Region& region);
 
   PetscErrorCode diagnose(timestep_t t) override;
 
-private:
+protected:
   static PetscErrorCode get_local_communicator(DM da, const Region& region, MPI_Comm* newcomm);
 
   Field_view(const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm);
@@ -35,6 +37,7 @@ private:
 
   DM da_;
   Vec field_;
+  Region region_;
 
   MPI_Comm comm_;
   MPI_binary_file file_;

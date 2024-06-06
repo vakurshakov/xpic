@@ -1,49 +1,36 @@
 #ifndef SRC_BASIC_DIAGNOSTICS_DISTRIBUTION_MOMENT_H
 #define SRC_BASIC_DIAGNOSTICS_DISTRIBUTION_MOMENT_H
 
-#include "src/interfaces/diagnostic.h"
-
-#include <petscdmda.h>
-#include <petscvec.h>
-
-#include "src/pch.h"
+#include "src/impls/basic/diagnostics/field_view.h"
 #include "src/impls/basic/particles.h"
-#include "src/utils/mpi_binary_file.h"
 
 namespace basic {
 
 struct Moment;
 using Moment_up = std::unique_ptr<Moment>;
 
-class Distribution_moment : public interfaces::Diagnostic {
+class Distribution_moment : public Field_view {
 public:
-  struct Region {
-    Vector3I start;
-    Vector3I size;
-  };
-
-  Distribution_moment(MPI_Comm comm, const std::string& out_dir,
-    const DM& da, const Particles& particles, Moment_up moment);
+  static std::unique_ptr<Distribution_moment> create(const std::string& out_dir,
+    DM da, const Particles& particles, Moment_up moment, const Region& region);
 
   ~Distribution_moment();
 
-  PetscErrorCode set_diagnosed_region(const Region& region);
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
-  PetscErrorCode setup_da();
+  Distribution_moment(const std::string& out_dir, DM da,
+    const Particles& particles, Moment_up moment, MPI_Comm newcomm);
+
+  PetscErrorCode set_data_views(const Region& region);
+  PetscErrorCode set_da(const Region& region);
+
   PetscErrorCode collect();
 
-  DM da_;
   Vec local_;
-  Vec global_;
-  Region region_;
 
   const Particles& particles_;
   Moment_up moment_;
-
-  MPI_Comm comm_;
-  MPI_binary_file file_;
 };
 
 
