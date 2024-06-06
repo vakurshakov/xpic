@@ -50,6 +50,7 @@ SRCS +=                           \
   src/utils/configuration.cpp     \
   src/utils/mpi_binary_file.cpp   \
   src/utils/sync_binary_file.cpp  \
+  src/utils/region_operations.cpp \
 
 SRCS +=               	\
 	src/vectors/rotor.cpp \

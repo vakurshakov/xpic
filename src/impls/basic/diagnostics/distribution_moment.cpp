@@ -1,6 +1,8 @@
 #include "distribution_moment.h"
 
 #include "src/utils/utils.h"
+#include "src/utils/region_operations.h"
+
 #include "src/vectors/vector3.h"
 
 namespace basic {
@@ -125,13 +127,7 @@ PetscErrorCode Distribution_moment::collect() {
   for (const Point& point : particles_.get_points()) {
     Node node(point.r);
 
-    /// @todo This can be moved into utilities
-    bool in_bounds =
-      (region_.start[X] <= node.g[X] && node.g[X] <= region_.start[X] + region_.size[X]) &&
-      (region_.start[Y] <= node.g[Y] && node.g[Y] <= region_.start[Y] + region_.size[Y]) &&
-      (region_.start[Z] <= node.g[Z] && node.g[Z] <= region_.start[Z] + region_.size[Z]);
-
-    if (!in_bounds)
+    if (!is_point_within_bounds(node.g, Vector3I(region_.start), Vector3I(region_.size)))
       continue;
 
     PetscReal n = particles_.density(point) / particles_.particles_number(point);

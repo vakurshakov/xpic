@@ -1,6 +1,8 @@
 #include "field_view.h"
 
 #include "src/utils/utils.h"
+#include "src/utils/region_operations.h"
+
 #include "src/vectors/vector3.h"
 
 
@@ -23,12 +25,7 @@ PetscErrorCode Field_view::get_local_communicator(DM da, const Region& region, M
   Vector3I r_start(region.start), r_size(region.size), start, size;
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
-  bool is_region_intersect_bounds =
-    r_start[X] < (start[X] + size[X]) && (r_start[X] + r_size[X]) > start[X] &&
-    r_start[Y] < (start[Y] + size[Y]) && (r_start[Y] + r_size[Y]) > start[Y] &&
-    r_start[Z] < (start[Z] + size[Z]) && (r_start[Z] + r_size[Z]) > start[Z];
-  PetscMPIInt color = is_region_intersect_bounds ? 1 : MPI_UNDEFINED;
-
+  PetscMPIInt color = is_region_intersect_bounds(r_start, r_size, start, size) ? 1 : MPI_UNDEFINED;
   PetscMPIInt rank;
   PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
   PetscCallMPI(MPI_Comm_split(PETSC_COMM_WORLD, color, rank, newcomm));

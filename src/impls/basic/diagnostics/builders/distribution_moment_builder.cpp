@@ -1,5 +1,8 @@
 #include "distribution_moment_builder.h"
 
+#include "src/utils/utils.h"
+#include "src/utils/region_operations.h"
+
 namespace basic {
 
 Distribution_moment_builder::Distribution_moment_builder(
@@ -65,7 +68,7 @@ PetscErrorCode Distribution_moment_builder::parse_moment_info(const Configuratio
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @todo We can move check and attach into base class too
+/// @todo Move check into base class
 PetscErrorCode Distribution_moment_builder::check_moment_description(const Moment_description& desc) {
   PetscFunctionBeginUser;
   std::string message;

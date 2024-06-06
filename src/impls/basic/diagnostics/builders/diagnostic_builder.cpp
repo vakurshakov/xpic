@@ -25,6 +25,7 @@ Axis Diagnostic_builder::get_component(const std::string& name) const {
   throw std::runtime_error("Unknown component name " + name);
 }
 
+
 const Particles& Diagnostic_builder::get_sort(const std::string& name) const {
   const std::vector<Particles>& particles = simulation_.particles_;
 
@@ -37,6 +38,7 @@ const Particles& Diagnostic_builder::get_sort(const std::string& name) const {
   }
   return *it;
 }
+
 
 Vector3R Diagnostic_builder::parse_vector(const Configuration::json_t& json, const std::string& name) const {
   std::string message;
@@ -59,31 +61,6 @@ Vector3R Diagnostic_builder::parse_vector(const Configuration::json_t& json, con
     message += usage_message();
     throw std::runtime_error(message);
   }
-}
-
-bool Diagnostic_builder::is_region_within_bounds(
-    const Vector3I& r_start, const Vector3I& r_size,
-    const Vector3I& b_start, const Vector3I& b_size) const {
-  Vector3I r_end = r_start + r_size;
-  Vector3I b_end = b_start + b_size;
-  return
-    (b_start[X] <= r_start[X] && r_start[X] < b_end[X]) &&
-    (b_start[Y] <= r_start[Y] && r_start[Y] < b_end[Y]) &&
-    (b_start[Z] <= r_start[Z] && r_start[Z] < b_end[Z]) &&
-    (b_start[X] <= r_end[X] && r_end[X] <= b_end[X]) &&
-    (b_start[Y] <= r_end[Y] && r_end[Y] <= b_end[Y]) &&
-    (b_start[Z] <= r_end[Z] && r_end[Z] <= b_end[Z]);
-}
-
-bool Diagnostic_builder::is_region_intersect_bounds(
-    const Vector3I& r_start, const Vector3I& r_size,
-    const Vector3I& b_start, const Vector3I& b_size) const {
-  Vector3I r_end = r_start + r_size;
-  Vector3I b_end = b_start + b_size;
-  return
-    r_start[X] < b_end[X] && r_end[X] > b_start[X] &&
-    r_start[Y] < b_end[Y] && r_end[Y] > b_start[Y] &&
-    r_start[Z] < b_end[Z] && r_end[Z] > b_start[Z];
 }
 
 

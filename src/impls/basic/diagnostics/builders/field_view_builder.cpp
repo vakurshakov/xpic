@@ -1,5 +1,7 @@
 #include "field_view_builder.h"
 
+#include "src/utils/region_operations.h"
+
 namespace basic {
 
 Field_view_builder::Field_view_builder(const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
@@ -74,6 +76,7 @@ PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t&
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @todo Move check into base class
 PetscErrorCode Field_view_builder::check_field_description(const Field_description& desc) {
   PetscFunctionBeginUser;
   std::string message;
