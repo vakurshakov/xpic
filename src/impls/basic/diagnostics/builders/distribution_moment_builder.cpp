@@ -2,6 +2,7 @@
 
 #include "src/utils/utils.h"
 #include "src/utils/region_operations.h"
+#include "src/vectors/vector_utils.h"
 
 namespace basic {
 
@@ -73,8 +74,8 @@ PetscErrorCode Distribution_moment_builder::check_moment_description(const Momen
   PetscFunctionBeginUser;
   std::string message;
 
-  Vector3I r_start(desc.region.start);
-  Vector3I r_size(desc.region.size);
+  Vector3I r_start = vector_cast(desc.region.start);
+  Vector3I r_size = vector_cast(desc.region.size);
   bool is_region_in_global_bounds = is_region_within_bounds(r_start, r_size, 0, Geom_n);
   message = "Region is not in global boundaries for " + moment_name + " diagnostic.";
   PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());

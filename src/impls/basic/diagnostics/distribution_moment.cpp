@@ -4,6 +4,7 @@
 #include "src/utils/region_operations.h"
 
 #include "src/vectors/vector3.h"
+#include "src/vectors/vector_utils.h"
 
 namespace basic {
 
@@ -51,8 +52,8 @@ PetscErrorCode Distribution_moment::set_data_views(const Region& region) {
 
 PetscErrorCode Distribution_moment::set_da(const Region& region) {
   PetscFunctionBeginUser;
-  Vector3I g_start(region.start);
-  Vector3I g_size(region.size);
+  Vector3I g_start = vector_cast(region.start);
+  Vector3I g_size = vector_cast(region.size);
   Vector3I g_end = g_start + g_size;
 
   PetscInt dim, s;
@@ -127,7 +128,7 @@ PetscErrorCode Distribution_moment::collect() {
   for (const Point& point : particles_.get_points()) {
     Node node(point.r);
 
-    if (!is_point_within_bounds(node.g, Vector3I(region_.start), Vector3I(region_.size)))
+    if (!is_point_within_bounds(node.g, vector_cast(region_.start), vector_cast(region_.size)))
       continue;
 
     PetscReal n = particles_.density(point) / particles_.particles_number(point);
