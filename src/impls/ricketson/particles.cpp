@@ -9,13 +9,10 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscFunctionBeginUser;
   parameters_ = parameters;
 
-  PetscInt size[3];
+  Vector3I size;
   PetscCallVoid(DMDAGetCorners(simulation_.da_, REP3(nullptr), REP3_A(&size)));
 
-  /// @todo Make converters from other types and sizes
-  l_width[X] = std::min(shape_width, size[X]);
-  l_width[Y] = std::min(shape_width, size[Y]);
-  l_width[Z] = std::min(shape_width, size[Z]);
+  l_width = min(Vector3I(shape_width), size);
   PetscFunctionReturnVoid();
 }
 
@@ -47,8 +44,8 @@ PetscErrorCode Particles::push() {
     Node node(it->r);
     Shape shape[2];
 
-    PetscCall(fill_shape(node.g, node.r, shape[0], false));
-    PetscCall(fill_shape(node.g, node.r, shape[1], true));
+    fill_shape(node.g, node.r, l_width, false, shape[0]);
+    fill_shape(node.g, node.r, l_width, true, shape[1]);
 
     Vector3R point_E = 0.0;
     Vector3R point_B = 0.0;
@@ -67,33 +64,6 @@ PetscErrorCode Particles::push() {
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
   PetscCall(DMRestoreLocalVector(da, &local_B_grad));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-PetscErrorCode Particles::fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shape, bool shift) {
-  PetscFunctionBeginUser;
-  PetscReal g_x, g_y, g_z;
-
-  #pragma omp simd collapse(Vector3I::dim)
-  for (PetscInt z = 0; z < l_width[Z]; ++z) {
-  for (PetscInt y = 0; y < l_width[Y]; ++y) {
-  for (PetscInt x = 0; x < l_width[X]; ++x) {
-    g_x = p_g[X] + x;
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
-
-    if (shift) {
-      g_x += 0.5;
-      g_y += 0.5;
-      g_z += 0.5;
-    }
-
-    PetscInt i = Shape::index(x, y, z);
-    shape(i, X) = shape_function(p_r.x() - g_x, X);
-    shape(i, Y) = shape_function(p_r.y() - g_y, Y);
-    shape(i, Z) = shape_function(p_r.z() - g_z, Z);
-  }}}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -76,7 +76,7 @@ PetscReal __4th_order_spline(PetscReal s, Axis a) {
 PetscReal __5th_order_spline(PetscReal s, Axis a) {
   if (Geom_n[a] == 1) { return 1.0; }
 
-  s  = std::abs(s);
+  s = std::abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
   PetscReal s4 = POW4(s);

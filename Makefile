@@ -55,6 +55,9 @@ SRCS +=                           \
 SRCS +=               	\
 	src/vectors/rotor.cpp \
 
+SRCS +=                         \
+  src/impls/particle_shape.cpp  \
+
 SRCS +=                           \
   src/impls/basic/simulation.cpp  \
 	src/impls/basic/particles.cpp   \

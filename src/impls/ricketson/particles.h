@@ -8,16 +8,11 @@
 #include "src/vectors/vector3.h"
 #include "src/interfaces/particles/particles.h"
 
-
-#include "src/impls/basic/particles.h" // Node & Shape structs
+#include "src/impls/particle_shape.h"
 
 namespace ricketson {
 
 class Simulation;
-
-/// @todo Move this into shared-3d directory
-using Node = basic::Node;
-using Shape = basic::Shape;
 
 class Particles : public interfaces::Particles {
 public:
@@ -29,7 +24,6 @@ public:
   PetscErrorCode push();
 
 private:
-  PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shape, bool shift);
   PetscErrorCode interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B, Vector3R& point_DB) const;
 
   PetscErrorCode adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point) const;

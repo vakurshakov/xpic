@@ -77,16 +77,16 @@ PetscErrorCode Particles::push() {
     static Shape shape[2];
     #pragma omp threadprivate(shape)
 
-    fill_shape(node.g, node.r, shape[0], false);
-    fill_shape(node.g, node.r, shape[1], true);
+    fill_shape(node.g, node.r, l_width, false, shape[0]);
+    fill_shape(node.g, node.r, l_width, true, shape[1]);
     interpolate(node.g, shape[0], shape[1], point_E, point_B);
 
     push(point_E, point_B, *it);
 
     const Node new_node(it->r);
 
-    fill_shape(new_node.g, node.r,     shape[0], false);
-    fill_shape(new_node.g, new_node.r, shape[1], false);
+    fill_shape(new_node.g, node.r, l_width, false, shape[0]);
+    fill_shape(new_node.g, new_node.r, l_width, false, shape[1]);
     decompose(new_node.g, shape[0], shape[1], *it);
   }
 
@@ -99,32 +99,6 @@ PetscErrorCode Particles::push() {
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-/// @note If shift is false we'll get shape[x - i], shape[x - (i + 0.5)] otherwise
-void Particles::fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shape, bool shift) {
-  PetscReal g_x, g_y, g_z;
-
-  #pragma omp simd collapse(Vector3I::dim)
-  for (PetscInt z = 0; z < l_width[Z]; ++z) {
-  for (PetscInt y = 0; y < l_width[Y]; ++y) {
-  for (PetscInt x = 0; x < l_width[X]; ++x) {
-    g_x = p_g[X] + x;
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
-
-    if (shift) {
-      g_x += 0.5;
-      g_y += 0.5;
-      g_z += 0.5;
-    }
-
-    PetscInt i = Shape::index(x, y, z);
-    shape(i, X) = shape_function(p_r.x() - g_x, X);
-    shape(i, Y) = shape_function(p_r.y() - g_y, Y);
-    shape(i, Z) = shape_function(p_r.z() - g_z, Z);
-  }}}
 }
 
 

@@ -8,10 +8,11 @@
 #include "src/vectors/vector3.h"
 #include "src/interfaces/particles/particles.h"
 
+#include "src/impls/particle_shape.h"
+
 namespace basic {
 
 class Simulation;
-struct Shape;
 
 class Particles : public interfaces::Particles {
 public:
@@ -27,7 +28,6 @@ public:
 private:
   static constexpr int OMP_CHUNK_SIZE  = 16;
 
-  void fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shape, bool shift);
   void interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B) const;
   void push(const Vector3R& point_E, const Vector3R& point_B, Point& point) const;
 
@@ -57,46 +57,7 @@ private:
   const PetscMPIInt* neighbours;
   Vector3R l_start;
   Vector3R l_end;
-  Vector3I  l_width;
-};
-
-
-/**
- * @brief Storage for particle's coordinate - `r` (global, in PetscReal units of dx, dy, dz),
- * and a nearest grid point to particle - `g` (rounded, shifted by `shape_radius`).
- */
-struct Node {
-  Vector3R r;
-  Vector3I g;
-
-  Node(const Vector3R& __r) {
-    r = {
-      __r.x() / dx,
-      __r.y() / dy,
-      __r.z() / dz,
-    };
-
-    g = {
-      (geom_nx > 1) ? ROUND(r.x()) - shape_radius : 0,
-      (geom_ny > 1) ? ROUND(r.y()) - shape_radius : 0,
-      (geom_nz > 1) ? ROUND(r.z()) - shape_radius : 0,
-    };
-  }
-};
-
-struct Shape {
-  /// @note `Vector3I::dim` is used as a coordinate space dimensionality
-  PetscReal shape[shape_width * shape_width * shape_width * Vector3I::dim];
-
-  #pragma omp declare simd linear(x, y, z: 1), notinbranch
-  static constexpr PetscInt index(PetscInt x, PetscInt y, PetscInt z) {
-    return ((z * shape_width + y) * shape_width + x);
-  }
-
-  #pragma omp declare simd linear(i: 1), notinbranch
-  constexpr PetscReal& operator()(PetscInt index, PetscInt comp) {
-    return shape[index * Vector3I::dim + comp];
-  }
+  Vector3I l_width;
 };
 
 }
