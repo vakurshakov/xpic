@@ -16,7 +16,12 @@ Vector4<T> vector_cast(const Vector3<V>& vector) {
 
 template<typename T>
 Vector4<T> vector_cast(const Vector3<T>& vector) {
-  return vector_cast<T, T>(vector);
+  return {
+    vector[X],
+    vector[Y],
+    vector[Z],
+    0,
+  };
 }
 
 template<typename T, typename V>
@@ -30,7 +35,11 @@ Vector3<T> vector_cast(const Vector4<V>& vector) {
 
 template<typename T>
 Vector3<T> vector_cast(const Vector4<T>& vector) {
-  return vector_cast<T, T>(vector);
+  return {
+    vector[X],
+    vector[Y],
+    vector[Z],
+  };
 }
 
 template<typename T, typename V>
