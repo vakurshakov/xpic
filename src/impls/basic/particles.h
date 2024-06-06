@@ -88,9 +88,14 @@ struct Shape {
   /// @note `Vector3I::dim` is used as a coordinate space dimensionality
   PetscReal shape[shape_width * shape_width * shape_width * Vector3I::dim];
 
+  #pragma omp declare simd linear(x, y, z: 1), notinbranch
+  static constexpr PetscInt index(PetscInt x, PetscInt y, PetscInt z) {
+    return ((z * shape_width + y) * shape_width + x);
+  }
+
   #pragma omp declare simd linear(i: 1), notinbranch
-  constexpr PetscReal& operator()(PetscInt i, PetscInt comp) {
-    return shape[i * Vector3I::dim + comp];
+  constexpr PetscReal& operator()(PetscInt index, PetscInt comp) {
+    return shape[index * Vector3I::dim + comp];
   }
 };
 

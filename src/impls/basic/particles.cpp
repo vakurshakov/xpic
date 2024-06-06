@@ -110,7 +110,6 @@ void Particles::fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shap
   for (PetscInt z = 0; z < l_width[Z]; ++z) {
   for (PetscInt y = 0; y < l_width[Y]; ++y) {
   for (PetscInt x = 0; x < l_width[X]; ++x) {
-    PetscInt i = ((z * shape_width + y) * shape_width + x);
     g_x = p_g[X] + x;
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
@@ -120,6 +119,8 @@ void Particles::fill_shape(const Vector3I& p_g, const Vector3R& p_r, Shape& shap
       g_y += 0.5;
       g_z += 0.5;
     }
+
+    PetscInt i = Shape::index(x, y, z);
     shape(i, X) = shape_function(p_r.x() - g_x, X);
     shape(i, Y) = shape_function(p_r.y() - g_y, Y);
     shape(i, Z) = shape_function(p_r.z() - g_z, Z);
@@ -134,11 +135,11 @@ void Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R&
   for (PetscInt z = 0; z < l_width[Z]; ++z) {
   for (PetscInt y = 0; y < l_width[Y]; ++y) {
   for (PetscInt x = 0; x < l_width[X]; ++x) {
-    PetscInt i = ((z * shape_width + y) * shape_width + x);
     g_x = p_g[X] + x;
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
 
+    PetscInt i = Shape::index(x, y, z);
     point_E.x() += E[g_z][g_y][g_x].x() * no(i, Z) * no(i, Y) * sh(i, X);
     point_E.y() += E[g_z][g_y][g_x].y() * no(i, Z) * sh(i, Y) * no(i, X);
     point_E.z() += E[g_z][g_y][g_x].z() * sh(i, Z) * no(i, Y) * no(i, X);
