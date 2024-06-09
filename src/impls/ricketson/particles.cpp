@@ -7,9 +7,9 @@ namespace ricketson {
 /**
  * @brief Evaluates nonlinear function F(x).
  * @param[in]  snes     the SNES context.
- * @param[in]  x        input vector of k-th iteration.
+ * @param[in]  vx       input vector of k-th iteration.
  * @param[in]  context  optional user-defined context.
- * @param[out] f        function vector to be evaluated.
+ * @param[out] vf       function vector to be evaluated.
  *
  * @note SNESNRICHARDSON will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
  * where lambda -- damping coefficient. It was set to (-1.0) with `SNESLineSearchSetDamping()`.
@@ -62,18 +62,74 @@ PetscErrorCode FormFunction(SNES snes, Vec vx, Vec vf, void* __context) {
 /**
  * @brief Evaluates Jacobian matrix J(x).
  * @param[in]  snes     the SNES context.
- * @param[in]  x        input vector at k-th iteration.
+ * @param[in]  vx       input vector at k-th iteration.
  * @param[in]  context  optional user-defined context.
  * @param[out] jacobian Jacobian matrix
  * @param[out] B        optionally different preconditioning matrix
+ *
+ * @warning This jacobian is computed for non-inverted system of kinetic equations.
  */
-PetscErrorCode FormJacobian(SNES snes, Vec x, Mat jacobian, Mat B, void* context) {
+PetscErrorCode FormJacobian(SNES snes, Vec vx, Mat jacobian, Mat B, void* __context) {
   PetscFunctionBeginUser;
 
-  /// @todo Temporarily set identity matrix
-  PetscInt  i[6] = {0, 1, 2, 3, 4, 5};
-  PetscReal v[6] = {1, 1, 1, 1, 1, 1};
-  PetscCall(MatSetValues(B, 6, i, 6, i, v, INSERT_VALUES));
+  for (PetscInt i = 0; i < 6; ++i) {
+    // row = col = i, so here the jacobian diagonal is filled
+    PetscReal value = 1.0;
+    PetscCall(MatSetValues(B, 1, &i, 1, &i, &value, INSERT_VALUES));
+  }
+
+  for (PetscInt row = 0; row < 3; ++row) {
+  for (PetscInt col = 3; col < 6; ++col) {
+    PetscReal value = -dt;
+    PetscCall(MatSetValues(B, 1, &row, 1, &col, &value, INSERT_VALUES));
+  }}
+
+  // partial derivatives in all three directions, interpolated onto particle
+  Vector3R dE_p[3] = {0.0, 0.0, 0.0};
+  Vector3R dB_p[3] = {0.0, 0.0, 0.0};
+
+  auto* context = (Particles::Context*)__context;
+  Vector3R v_n = context->v_n;
+  PetscReal alpha = context->alpha;
+
+  const PetscReal* x;
+  PetscCall(VecGetArrayRead(vx, &x));
+  Vector3R v_nn = {x[3], x[4], x[5]};
+  PetscCall(VecRestoreArrayRead(vx, &x));
+
+  Vector3R v_half = 0.5 * (v_n + v_nn);
+
+  for (PetscInt col = 0; col < 3; ++col) {
+    PetscInt row[3] = {3, 4, 5};
+    Vector3R value = 2.0 * alpha * (dE_p[col] + v_half.cross(dB_p[col]));
+    PetscCall(MatSetValues(B, 3, row, 1, &col, value, INSERT_VALUES));
+  }
+
+  Vector3R B_p = {0.0, 0.0, 0.0};
+
+  PetscInt row;
+  PetscInt col[2];
+  PetscReal value[2];
+  row = 3;
+  col[0] = 4;
+  col[1] = 5;
+  value[0] = -alpha * B_p[Z];
+  value[1] = +alpha * B_p[Y];
+  PetscCall(MatSetValues(B, 1, &row, 2, col, value, INSERT_VALUES));
+
+  row = 4;
+  col[0] = 3;
+  col[1] = 5;
+  value[0] = +alpha * B_p[Z];
+  value[1] = -alpha * B_p[X];
+  PetscCall(MatSetValues(B, 1, &row, 2, col, value, INSERT_VALUES));
+
+  row = 5;
+  col[0] = 3;
+  col[1] = 4;
+  value[0] = -alpha * B_p[Y];
+  value[1] = +alpha * B_p[X];
+  PetscCall(MatSetValues(B, 1, &row, 2, col, value, INSERT_VALUES));
 
   PetscCall(MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY));
@@ -112,10 +168,6 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscCallVoid(MatSetUp(jacobian_));
 
   PetscCallVoid(SNESSetFunction(snes_, residue_, FormFunction, &context_));
-
-  /// @todo Jacobian should be set properly, `SNESNRICHARDSON` doesn't use derivatives.
-  // PetscCallVoid(SNESSetJacobian(snes_, jacobian_, jacobian_, FormJacobian, nullptr));
-
   PetscFunctionReturnVoid();
 }
 
