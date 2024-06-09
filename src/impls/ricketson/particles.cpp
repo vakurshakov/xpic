@@ -11,37 +11,49 @@ namespace ricketson {
  * @param[in]  context  optional user-defined context.
  * @param[out] f        function vector to be evaluated.
  *
- * @todo We should try to pass the function as a mover class method.
+ * @note SNESNRICHARDSON will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
+ * where lambda -- damping coefficient. It was set to (-1.0) with `SNESLineSearchSetDamping()`.
  */
-PetscErrorCode FormFunction(SNES snes, Vec vx, Vec vf, void* context) {
+PetscErrorCode FormFunction(SNES snes, Vec vx, Vec vf, void* __context) {
   PetscFunctionBeginUser;
-
-  /// @todo Temporary, should be solved via context.
-  PetscReal alpha = dt * (-1.0 / 1.0);  // dt * q / m
-  Vector3R x_n = 0.0;
-  Vector3R v_n = 0.0;
-
-  /// @todo On-particle fields should be interpolated from grid.
-  Vector3R E_p = {0.0, 1.0, 0.0};
-  Vector3R B_p = {0.0, 0.0, 1.0};
+  auto* context = (Particles::Context*)__context;
+  const Vector3R& x_n = context->x_n;
+  const Vector3R& v_n = context->v_n;
+  const PetscReal& alpha = context->alpha;
 
   const PetscReal* x;
   PetscCall(VecGetArrayRead(vx, &x));
+  Vector3R x_nn = {x[0], x[1], x[2]};
+  Vector3R v_nn = {x[3], x[4], x[5]};
+  PetscCall(VecRestoreArrayRead(vx, &x));
+
+  Vector3R x_half = 0.5 * (x_nn + x_n);
+  Vector3R v_half = 0.5 * (v_nn + v_n);
+
+  static Node node(x_half);
+  static Shape shape[2];
+  fill_shape(node.g, node.r, context->width, false, shape[0]);
+  fill_shape(node.g, node.r, context->width, true, shape[1]);
+
+  Vector3R E_p = {0.0, 1.0, 0.0};
+  Vector3R B_p = {0.0, 0.0, 1.0};
+  /// @todo On-particle fields at (t^{n+1/2}, x^{n+1/2, k}) should be interpolated from grid.
+  /// PetscCall(interpolate(node.g, shape[0], shape[1], point_E, point_B, point_DB));
+
+  Vector3R a = v_n + alpha * E_p;
+
+  // velocity on a new half-step, v^{n+1/2, k+1}
+  v_half = (a + alpha * a.cross(B_p) + POW2(alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(alpha * B_p.length()));
 
   PetscReal* f;
   PetscCall(VecGetArray(vf, &f));
+  f[0] = (- x_nn[X]) + x_n[X] + dt * v_half[X];
+  f[1] = (- x_nn[Y]) + x_n[Y] + dt * v_half[Y];
+  f[2] = (- x_nn[Z]) + x_n[Z] + dt * v_half[Z];
 
-  /// @todo To be changed on a proper Picard iteration step.
-  Vector3R v_half = {x[3], x[4], x[5]};
-  f[0] = x_n[X] + dt * v_half[X];
-  f[1] = x_n[Y] + dt * v_half[Y];
-  f[2] = x_n[Z] + dt * v_half[Z];
-
-  f[3] = v_n[X] + alpha * (E_p[X] + v_half.cross(B_p)[X]);
-  f[4] = v_n[Y] + alpha * (E_p[Y] + v_half.cross(B_p)[Y]);
-  f[5] = v_n[Z] + alpha * (E_p[Z] + v_half.cross(B_p)[Z]);
-
-  PetscCall(VecRestoreArrayRead(vx, &x));
+  f[3] = (- v_nn[X]) - 2.0 * v_half[X] + v_n[X];
+  f[4] = (- v_nn[Y]) - 2.0 * v_half[Y] + v_n[Y];
+  f[5] = (- v_nn[Z]) - 2.0 * v_half[Z] + v_n[Z];
   PetscCall(VecRestoreArray(vf, &f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -78,14 +90,18 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscFunctionBeginUser;
   parameters_ = parameters;
 
-  PetscCallVoid(DMDAGetCorners(simulation_.da_, REP3(nullptr), REP3_A(&l_width)));
-  l_width = min(l_width, Vector3I(shape_width));
+  PetscCallVoid(DMDAGetCorners(simulation_.da_, REP3(nullptr), REP3_A(&context_.width)));
+  context_.width = min(context_.width, Vector3I(shape_width));
 
   /// @todo It'd be more reusable to place particle mover into separate class
 
   // Nonlinear solver should be created for each process.
   PetscCallVoid(SNESCreate(PETSC_COMM_SELF, &snes_));
   PetscCallVoid(SNESSetType(snes_, SNESNRICHARDSON));
+
+  SNESLineSearch line_search;
+  PetscCallVoid(SNESGetLineSearch(snes_, &line_search));
+  PetscCallVoid(SNESLineSearchSetDamping(line_search, -1.0));
 
   PetscCallVoid(VecCreate(PETSC_COMM_SELF, &solution_));
   PetscCallVoid(VecSetSizes(solution_, solution_size, solution_size));
@@ -95,8 +111,10 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscCallVoid(MatSetSizes(jacobian_, solution_size, solution_size, solution_size, solution_size));
   PetscCallVoid(MatSetUp(jacobian_));
 
-  PetscCallVoid(SNESSetFunction(snes_, residue_, FormFunction, nullptr));
-  PetscCallVoid(SNESSetJacobian(snes_, jacobian_, jacobian_, FormJacobian, nullptr));
+  PetscCallVoid(SNESSetFunction(snes_, residue_, FormFunction, &context_));
+
+  /// @todo Jacobian should be set properly, `SNESNRICHARDSON` doesn't use derivatives.
+  // PetscCallVoid(SNESSetJacobian(snes_, jacobian_, jacobian_, FormJacobian, nullptr));
 
   PetscFunctionReturnVoid();
 }
@@ -132,17 +150,17 @@ PetscErrorCode Particles::push() {
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.B_grad_, INSERT_VALUES, local_B_grad));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecGetArrayRead(da, local_B_grad, &B_grad));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &context_.E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &context_.B));
+  PetscCall(DMDAVecGetArrayRead(da, local_B_grad, &context_.B_grad));
 
   for (auto it = points_.begin(); it != points_.end(); ++it) {
     PetscCall(push(*it));
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B_grad, &B_grad));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &context_.E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &context_.B));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B_grad, &context_.B_grad));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
@@ -151,21 +169,21 @@ PetscErrorCode Particles::push() {
 }
 
 
+/// @todo Move it into separate structure with multiple E-like and B-like fields to interpolate.
 PetscErrorCode Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B, Vector3R& point_DB) const {
   PetscFunctionBeginUser;
   PetscInt g_x, g_y, g_z;
 
-  for (PetscInt z = 0; z < l_width[Z]; ++z) {
-  for (PetscInt y = 0; y < l_width[Y]; ++y) {
-  for (PetscInt x = 0; x < l_width[X]; ++x) {
-    g_x = p_g[X] + x;
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
-
+  for (PetscInt z = 0; z < context_.width[Z]; ++z) {
+  for (PetscInt y = 0; y < context_.width[Y]; ++y) {
+  for (PetscInt x = 0; x < context_.width[X]; ++x) {
     PetscInt i = Shape::index(x, y, z);
-    point_E.x() += E[g_z][g_y][g_x].x() * no(i, Z) * no(i, Y) * sh(i, X);
-    point_E.y() += E[g_z][g_y][g_x].y() * no(i, Z) * sh(i, Y) * no(i, X);
-    point_E.z() += E[g_z][g_y][g_x].z() * sh(i, Z) * no(i, Y) * no(i, X);
+
+    Vector3R E_shape = {
+      no(i, Z) * no(i, Y) * sh(i, X),
+      no(i, Z) * sh(i, Y) * no(i, X),
+      sh(i, Z) * no(i, Y) * no(i, X),
+    };
 
     Vector3R B_shape = {
       sh(i, Z) * sh(i, Y) * no(i, X),
@@ -173,19 +191,27 @@ PetscErrorCode Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh,
       no(i, Z) * sh(i, Y) * sh(i, X),
     };
 
-    point_B.x() += B[g_z][g_y][g_x].x() * B_shape.x();
-    point_B.y() += B[g_z][g_y][g_x].y() * B_shape.y();
-    point_B.z() += B[g_z][g_y][g_x].z() * B_shape.z();
+    g_x = p_g[X] + x;
+    g_y = p_g[Y] + y;
+    g_z = p_g[Z] + z;
 
-    point_DB.x() += B_grad[g_z][g_y][g_x].x() * B_shape.x();
-    point_DB.y() += B_grad[g_z][g_y][g_x].y() * B_shape.y();
-    point_DB.z() += B_grad[g_z][g_y][g_x].z() * B_shape.z();
+    point_E.x() += context_.E[g_z][g_y][g_x].x() * E_shape.x();
+    point_E.y() += context_.E[g_z][g_y][g_x].y() * E_shape.y();
+    point_E.z() += context_.E[g_z][g_y][g_x].z() * E_shape.z();
+
+    point_B.x() += context_.B[g_z][g_y][g_x].x() * B_shape.x();
+    point_B.y() += context_.B[g_z][g_y][g_x].y() * B_shape.y();
+    point_B.z() += context_.B[g_z][g_y][g_x].z() * B_shape.z();
+
+    point_DB.x() += context_.B_grad[g_z][g_y][g_x].x() * B_shape.x();
+    point_DB.y() += context_.B_grad[g_z][g_y][g_x].y() * B_shape.y();
+    point_DB.z() += context_.B_grad[g_z][g_y][g_x].z() * B_shape.z();
   }}}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-PetscErrorCode Particles::adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point) const {
+PetscErrorCode Particles::adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point) {
   PetscFunctionBeginUser;
   Vector3R v = point.p;
 
@@ -237,28 +263,21 @@ PetscErrorCode Particles::adaptive_time_stepping(const Vector3R& point_E, const 
 }
 
 
-PetscErrorCode Particles::push(Point& point) const {
+PetscErrorCode Particles::push(Point& point) {
   PetscFunctionBeginUser;
 
-  /// @note Initial guess should be explicitly set _before_ `SNESSolve()`.
+  context_.alpha = 0.5 * dt * charge(point) / mass(point);
+
+  /// @note Initial guess should be explicitly set before `SNESSolve()`.
   PetscReal *arr;
   PetscCall(VecGetArrayWrite(solution_, &arr));
-  arr[0] = point.x();
-  arr[1] = point.y();
-  arr[2] = point.z();
-  arr[3] = point.px();
-  arr[4] = point.py();
-  arr[5] = point.pz();
+  arr[0] = context_.x_n[X] = point.x();
+  arr[1] = context_.x_n[Y] = point.y();
+  arr[2] = context_.x_n[Z] = point.z();
+  arr[3] = context_.v_n[X] = point.px();
+  arr[4] = context_.v_n[Y] = point.py();
+  arr[5] = context_.v_n[Z] = point.pz();
   PetscCall(VecRestoreArrayWrite(solution_, &arr));
-
-  /// @todo This is a part of a context
-  // Node node(it->r);
-  // Shape shape[2];
-
-  /// @todo Working with the solver context
-  // fill_shape(node.g, node.r, l_width, false, shape[0]);
-  // fill_shape(node.g, node.r, l_width, true, shape[1]);
-  // PetscCall(interpolate(node.g, shape[0], shape[1], point_E, point_B, point_DB));
 
   /// @todo This should be performed inside the solver
   // PetscCall(adaptive_time_stepping(point_E, point_B, point_DB, *it));
