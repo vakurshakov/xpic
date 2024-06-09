@@ -9,12 +9,11 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscFunctionBeginUser;
   parameters_ = parameters;
 
-  Vector3I size;
-  PetscCallVoid(DMDAGetCorners(simulation_.da_, REP3(nullptr), REP3_A(&size)));
-
-  l_width = min(Vector3I(shape_width), size);
+  PetscCallVoid(DMDAGetCorners(simulation_.da_, REP3(nullptr), REP3_A(&l_width)));
+  l_width = min(l_width, Vector3I(shape_width));
   PetscFunctionReturnVoid();
 }
+
 
 PetscErrorCode Particles::add_particle(const Point& point) {
   PetscFunctionBeginUser;
@@ -104,7 +103,6 @@ PetscErrorCode Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh,
 
 PetscErrorCode Particles::adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point) const {
   PetscFunctionBeginUser;
-  /// @todo SOLVE THE CONFLICT IN POINT CLASS, IT'S NOT A MOMENTUM HERE
   Vector3R v = point.p;
 
   Vector3R v_p = v.parallel_to(point_B);

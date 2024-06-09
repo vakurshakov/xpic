@@ -1,13 +1,12 @@
-#ifndef SRC_RICKETSON_PARTICLES_PARTICLES_H
-#define SRC_RICKETSON_PARTICLES_PARTICLES_H
+#ifndef SRC_RICKETSON_PARTICLES_H
+#define SRC_RICKETSON_PARTICLES_H
 
-#include "src/pch.h"
-
-#include <petscdm.h>
-
-#include "src/vectors/vector3.h"
 #include "src/interfaces/particles/particles.h"
 
+#include <petscsnes.h>
+
+#include "src/pch.h"
+#include "src/vectors/vector3.h"
 #include "src/impls/particle_shape.h"
 
 namespace ricketson {
@@ -40,4 +39,4 @@ private:
 
 }
 
-#endif  // SRC_RICKETSON_PARTICLES_PARTICLES_H
+#endif  // SRC_RICKETSON_PARTICLES_H
