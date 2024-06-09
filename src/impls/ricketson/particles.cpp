@@ -4,6 +4,75 @@
 
 namespace ricketson {
 
+/**
+ * @brief Evaluates nonlinear function F(x).
+ * @param[in]  snes     the SNES context.
+ * @param[in]  x        input vector of k-th iteration.
+ * @param[in]  context  optional user-defined context.
+ * @param[out] f        function vector to be evaluated.
+ *
+ * @todo We should try to pass the function as a mover class method.
+ */
+PetscErrorCode FormFunction(SNES snes, Vec vx, Vec vf, void* context) {
+  PetscFunctionBeginUser;
+
+  /// @todo Temporary, should be solved via context.
+  PetscReal alpha = dt * (-1.0 / 1.0);  // dt * q / m
+  Vector3R x_n = 0.0;
+  Vector3R v_n = 0.0;
+
+  /// @todo On-particle fields should be interpolated from grid.
+  Vector3R E_p = {0.0, 1.0, 0.0};
+  Vector3R B_p = {0.0, 0.0, 1.0};
+
+  const PetscReal* x;
+  PetscCall(VecGetArrayRead(vx, &x));
+
+  PetscReal* f;
+  PetscCall(VecGetArray(vf, &f));
+
+  /// @todo To be changed on a proper Picard iteration step.
+  Vector3R v_half = {x[3], x[4], x[5]};
+  f[0] = x_n[X] + dt * v_half[X];
+  f[1] = x_n[Y] + dt * v_half[Y];
+  f[2] = x_n[Z] + dt * v_half[Z];
+
+  f[3] = v_n[X] + alpha * (E_p[X] + v_half.cross(B_p)[X]);
+  f[4] = v_n[Y] + alpha * (E_p[Y] + v_half.cross(B_p)[Y]);
+  f[5] = v_n[Z] + alpha * (E_p[Z] + v_half.cross(B_p)[Z]);
+
+  PetscCall(VecRestoreArrayRead(vx, &x));
+  PetscCall(VecRestoreArray(vf, &f));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+/**
+ * @brief Evaluates Jacobian matrix J(x).
+ * @param[in]  snes     the SNES context.
+ * @param[in]  x        input vector at k-th iteration.
+ * @param[in]  context  optional user-defined context.
+ * @param[out] jacobian Jacobian matrix
+ * @param[out] B        optionally different preconditioning matrix
+ */
+PetscErrorCode FormJacobian(SNES snes, Vec x, Mat jacobian, Mat B, void* context) {
+  PetscFunctionBeginUser;
+
+  /// @todo Temporarily set identity matrix
+  PetscInt  i[6] = {0, 1, 2, 3, 4, 5};
+  PetscReal v[6] = {1, 1, 1, 1, 1, 1};
+  PetscCall(MatSetValues(B, 6, i, 6, i, v, INSERT_VALUES));
+
+  PetscCall(MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY));
+  if (jacobian != B) {
+    PetscCall(MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY));
+    PetscCall(MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 Particles::Particles(Simulation& simulation, const Particles_parameters& parameters)
   : simulation_(simulation) {
   PetscFunctionBeginUser;
@@ -11,6 +80,34 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
 
   PetscCallVoid(DMDAGetCorners(simulation_.da_, REP3(nullptr), REP3_A(&l_width)));
   l_width = min(l_width, Vector3I(shape_width));
+
+  /// @todo It'd be more reusable to place particle mover into separate class
+
+  // Nonlinear solver should be created for each process.
+  PetscCallVoid(SNESCreate(PETSC_COMM_SELF, &snes_));
+  PetscCallVoid(SNESSetType(snes_, SNESNRICHARDSON));
+
+  PetscCallVoid(VecCreate(PETSC_COMM_SELF, &solution_));
+  PetscCallVoid(VecSetSizes(solution_, solution_size, solution_size));
+  PetscCallVoid(VecDuplicate(solution_, &residue_));
+
+  PetscCallVoid(MatCreate(PETSC_COMM_SELF, &jacobian_));
+  PetscCallVoid(MatSetSizes(jacobian_, solution_size, solution_size, solution_size, solution_size));
+  PetscCallVoid(MatSetUp(jacobian_));
+
+  PetscCallVoid(SNESSetFunction(snes_, residue_, FormFunction, nullptr));
+  PetscCallVoid(SNESSetJacobian(snes_, jacobian_, jacobian_, FormJacobian, nullptr));
+
+  PetscFunctionReturnVoid();
+}
+
+
+Particles::~Particles() {
+  PetscFunctionBeginUser;
+  PetscCallVoid(SNESDestroy(&snes_));
+  PetscCallVoid(VecDestroy(&solution_));
+  PetscCallVoid(VecDestroy(&residue_));
+  PetscCallVoid(MatDestroy(&jacobian_));
   PetscFunctionReturnVoid();
 }
 
@@ -40,20 +137,7 @@ PetscErrorCode Particles::push() {
   PetscCall(DMDAVecGetArrayRead(da, local_B_grad, &B_grad));
 
   for (auto it = points_.begin(); it != points_.end(); ++it) {
-    Node node(it->r);
-    Shape shape[2];
-
-    fill_shape(node.g, node.r, l_width, false, shape[0]);
-    fill_shape(node.g, node.r, l_width, true, shape[1]);
-
-    Vector3R point_E = 0.0;
-    Vector3R point_B = 0.0;
-    Vector3R point_DB = 0.0;
-    PetscCall(interpolate(node.g, shape[0], shape[1], point_E, point_B, point_DB));
-
-    PetscCall(adaptive_time_stepping(point_E, point_B, point_DB, *it));
-
-    PetscCall(push(point_E, point_B, *it));
+    PetscCall(push(*it));
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
@@ -153,18 +237,33 @@ PetscErrorCode Particles::adaptive_time_stepping(const Vector3R& point_E, const 
 }
 
 
-PetscErrorCode Particles::push(const Vector3R& point_E, const Vector3R& point_B, Point& point) const {
+PetscErrorCode Particles::push(Point& point) const {
   PetscFunctionBeginUser;
-  PetscReal alpha = 0.5 * dt * charge(point) / mass(point);
 
-  Vector3R& r = point.r;
-  Vector3R& p = point.p;
+  /// @note Initial guess should be explicitly set _before_ `SNESSolve()`.
+  PetscReal *arr;
+  PetscCall(VecGetArrayWrite(solution_, &arr));
+  arr[0] = point.x();
+  arr[1] = point.y();
+  arr[2] = point.z();
+  arr[3] = point.px();
+  arr[4] = point.py();
+  arr[5] = point.pz();
+  PetscCall(VecRestoreArrayWrite(solution_, &arr));
 
-  /// @todo "If, upon completion of the time-step, it is found that the fractional
-  /// change in magnetic moment exceeds epsilon, shrink the step size by a factor
-  /// of (alpha * epsilon * mu / D_mu) and recompute the step."
-  p += alpha * (point_E + p * point_B);
-  r += p * dt;
+  /// @todo This is a part of a context
+  // Node node(it->r);
+  // Shape shape[2];
+
+  /// @todo Working with the solver context
+  // fill_shape(node.g, node.r, l_width, false, shape[0]);
+  // fill_shape(node.g, node.r, l_width, true, shape[1]);
+  // PetscCall(interpolate(node.g, shape[0], shape[1], point_E, point_B, point_DB));
+
+  /// @todo This should be performed inside the solver
+  // PetscCall(adaptive_time_stepping(point_E, point_B, point_DB, *it));
+
+  PetscCall(SNESSolve(snes_, nullptr, solution_));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

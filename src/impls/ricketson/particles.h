@@ -16,6 +16,7 @@ class Simulation;
 class Particles : public interfaces::Particles {
 public:
   Particles(Simulation& simulation, const Particles_parameters& parameters);
+  ~Particles();
 
   PetscErrorCode add_particle(const Point& point);
   const std::vector<Point>& get_points() const { return points_; }
@@ -24,17 +25,26 @@ public:
 
 private:
   PetscErrorCode interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B, Vector3R& point_DB) const;
-
   PetscErrorCode adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point) const;
-  PetscErrorCode push(const Vector3R& point_E, const Vector3R& point_B, Point& point) const;
+  PetscErrorCode push(Point& point) const;
 
   std::vector<Point> points_;
 
   Simulation& simulation_;
+
+  /// @todo This is the context for nonlinear solver
   Vec local_E, local_B, local_B_grad;
   Vector3R ***E, ***B, ***B_grad;
+  ///
 
   Vector3I l_width;
+
+  // Nonlinear solver environment
+  SNES snes_;
+  Vec solution_;
+  Vec residue_;
+  Mat jacobian_;
+  const PetscInt solution_size = 6;
 };
 
 }
