@@ -40,10 +40,7 @@ PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {
   Vector3R B_p;
 
   Simple_interpolation interpolation(context->width, shape[0], shape[1]);
-  Simple_interpolation::Context i_context;
-  i_context.e_fields.emplace_back(E_p, context->E);
-  i_context.b_fields.emplace_back(B_p, context->B);
-  PetscCall(interpolation.process(node.g, i_context));
+  PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}}));
 
   Vector3R a = v_n + alpha * E_p;
 

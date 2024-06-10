@@ -105,10 +105,7 @@ PetscErrorCode Particles::push() {
 
 void Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B) const {
   Simple_interpolation interpolation(l_width, no, sh);
-  Simple_interpolation::Context context;
-  context.e_fields.emplace_back(point_E, E);
-  context.b_fields.emplace_back(point_B, B);
-  interpolation.process(p_g, context);
+  interpolation.process(p_g, {{point_E, E}}, {{point_B, B}});
 }
 
 

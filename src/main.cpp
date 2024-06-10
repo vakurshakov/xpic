@@ -2,6 +2,7 @@
 #include "src/interfaces/simulation.h"
 #include "src/utils/configuration.h"
 
+/// @todo help information isn't printed
 static char help[] = "Usage: simulation.out <config.json>\n";
 
 int main(int argc, char** argv) {

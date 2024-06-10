@@ -3,7 +3,7 @@
 Simple_interpolation::Simple_interpolation(const Vector3I& width, const Shape& no, const Shape& sh)
   : width(width), no(no), sh(sh) {}
 
-PetscErrorCode Simple_interpolation::process(const Vector3I& p_g, Context& context) const {
+PetscErrorCode Simple_interpolation::process(const Vector3I& p_g, const Context& e_fields, const Context& b_fields) const {
   PetscFunctionBeginUser;
   PetscInt g_x, g_y, g_z;
 
@@ -28,13 +28,13 @@ PetscErrorCode Simple_interpolation::process(const Vector3I& p_g, Context& conte
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
 
-    for (auto&& [E_p, E_g] : context.e_fields) {
+    for (auto&& [E_p, E_g] : e_fields) {
       E_p.x() += E_g[g_z][g_y][g_x].x() * E_shape.x();
       E_p.y() += E_g[g_z][g_y][g_x].y() * E_shape.y();
       E_p.z() += E_g[g_z][g_y][g_x].z() * E_shape.z();
     }
 
-    for (auto&& [B_p, B_g] : context.b_fields) {
+    for (auto&& [B_p, B_g] : b_fields) {
       B_p.x() += B_g[g_z][g_y][g_x].x() * B_shape.x();
       B_p.y() += B_g[g_z][g_y][g_x].y() * B_shape.y();
       B_p.z() += B_g[g_z][g_y][g_x].z() * B_shape.z();

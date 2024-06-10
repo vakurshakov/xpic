@@ -8,13 +8,10 @@ class Simple_interpolation {
 public:
   Simple_interpolation(const Vector3I& width, const Shape& no, const Shape& sh);
 
-  struct Context {
-    using point_global_fields = std::pair<Vector3R&, Vector3R***>;
-    std::vector<point_global_fields> e_fields;
-    std::vector<point_global_fields> b_fields;
-  };
+  /// @brief Interpolation field context is a pair of point and global fields
+  using Context = std::vector<std::pair<Vector3R&, Vector3R*** const&>>;
 
-  PetscErrorCode process(const Vector3I& p_g, Context& context) const;
+  PetscErrorCode process(const Vector3I& p_g, const Context& e_fields, const Context& b_fields) const;
 
 private:
   const Vector3I& width;
