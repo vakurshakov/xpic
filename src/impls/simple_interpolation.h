@@ -4,6 +4,10 @@
 #include "src/impls/particle_shape.h"
 #include "src/vectors/vector3.h"
 
+/**
+ * @brief Simple interpolator tightly coupled with `Shape` class.
+ * Unifies the calling sequence, when the Yee interpolation is needed.
+ */
 class Simple_interpolation {
 public:
   Simple_interpolation(const Vector3I& width, const Shape& no, const Shape& sh);
