@@ -12,7 +12,7 @@ namespace ricketson {
  * @param[in]  context  optional user-defined context.
  * @param[out] vf       function vector to be evaluated.
  *
- * @note SNESNRICHARDSON will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
+ * @note `SNESNRICHARDSON` will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
  * where lambda -- damping coefficient. It was set to (-1.0) with `SNESLineSearchSetDamping()`.
  */
 PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {

@@ -12,7 +12,7 @@ class Simple_interpolation {
 public:
   Simple_interpolation(const Vector3I& width, const Shape& no, const Shape& sh);
 
-  /// @brief Interpolation field context is a pair of point and global fields
+  /// @brief Interpolation field context is a pair of point and global fields.
   using Context = std::vector<std::pair<Vector3R&, Vector3R*** const&>>;
 
   PetscErrorCode process(const Vector3I& p_g, const Context& e_fields, const Context& b_fields) const;
