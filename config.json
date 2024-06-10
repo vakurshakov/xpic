@@ -1,7 +1,4 @@
 {
-  "__description": "Constructing L.F. Ricketson and L. Chacon scheme (2020)",
-  "__date": "April 02, 2024",
-
   "Out_dir": "results/ricketson/",
 
   "Simulation": "ricketson",
