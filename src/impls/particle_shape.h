@@ -28,9 +28,14 @@ struct Shape {
   constexpr PetscReal& operator()(PetscInt index, PetscInt comp) {
     return shape[index * Vector3I::dim + comp];
   }
+
+  #pragma omp declare simd linear(index: 1), notinbranch
+  constexpr const PetscReal& operator()(PetscInt index, PetscInt comp) const {
+    return shape[index * Vector3I::dim + comp];
+  }
 };
 
-/// @note If shift is false we'll get shape[x - i], shape[x - (i + 0.5)] otherwise
-void fill_shape(const Vector3I& p_g, const Vector3R& p_r, const Vector3I& l_width, bool shift, Shape& shape);
+/// @note If shift is false, fills shape[x - i], otherwise fills shape[x - (i + 0.5)]
+PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r, const Vector3I& l_width, bool shift, Shape& shape);
 
 #endif // SRC_IMPLS_PARTICLE_SHAPE_H

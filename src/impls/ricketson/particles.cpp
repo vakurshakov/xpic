@@ -1,6 +1,7 @@
 #include "particles.h"
 
 #include "src/impls/ricketson/simulation.h"
+#include "src/impls/simple_interpolation.h"
 
 namespace ricketson {
 
@@ -32,13 +33,17 @@ PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {
 
   static Node node(x_half);
   static Shape shape[2];
-  fill_shape(node.g, node.r, context->width, false, shape[0]);
-  fill_shape(node.g, node.r, context->width, true, shape[1]);
+  PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
+  PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
 
-  Vector3R E_p = {0.0, 1.0, 0.0};
-  Vector3R B_p = {0.0, 0.0, 1.0};
-  /// @todo On-particle fields at (t^{n+1/2}, x^{n+1/2, k}) should be interpolated from grid.
-  /// PetscCall(interpolate(node.g, shape[0], shape[1], point_E, point_B, point_DB));
+  Vector3R E_p;
+  Vector3R B_p;
+
+  Simple_interpolation interpolation(context->width, shape[0], shape[1]);
+  Simple_interpolation::Context i_context;
+  i_context.e_fields.emplace_back(E_p, context->E);
+  i_context.b_fields.emplace_back(B_p, context->B);
+  PetscCall(interpolation.process(node.g, i_context));
 
   Vector3R a = v_n + alpha * E_p;
 
@@ -212,48 +217,6 @@ PetscErrorCode Particles::push() {
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
   PetscCall(DMRestoreLocalVector(da, &local_B_grad));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-/// @todo Move it into separate structure with multiple E-like and B-like fields to interpolate.
-PetscErrorCode Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B, Vector3R& point_DB) const {
-  PetscFunctionBeginUser;
-  PetscInt g_x, g_y, g_z;
-
-  for (PetscInt z = 0; z < context_.width[Z]; ++z) {
-  for (PetscInt y = 0; y < context_.width[Y]; ++y) {
-  for (PetscInt x = 0; x < context_.width[X]; ++x) {
-    PetscInt i = Shape::index(x, y, z);
-
-    Vector3R E_shape = {
-      no(i, Z) * no(i, Y) * sh(i, X),
-      no(i, Z) * sh(i, Y) * no(i, X),
-      sh(i, Z) * no(i, Y) * no(i, X),
-    };
-
-    Vector3R B_shape = {
-      sh(i, Z) * sh(i, Y) * no(i, X),
-      sh(i, Z) * no(i, Y) * sh(i, X),
-      no(i, Z) * sh(i, Y) * sh(i, X),
-    };
-
-    g_x = p_g[X] + x;
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
-
-    point_E.x() += context_.E[g_z][g_y][g_x].x() * E_shape.x();
-    point_E.y() += context_.E[g_z][g_y][g_x].y() * E_shape.y();
-    point_E.z() += context_.E[g_z][g_y][g_x].z() * E_shape.z();
-
-    point_B.x() += context_.B[g_z][g_y][g_x].x() * B_shape.x();
-    point_B.y() += context_.B[g_z][g_y][g_x].y() * B_shape.y();
-    point_B.z() += context_.B[g_z][g_y][g_x].z() * B_shape.z();
-
-    point_DB.x() += context_.B_grad[g_z][g_y][g_x].x() * B_shape.x();
-    point_DB.y() += context_.B_grad[g_z][g_y][g_x].y() * B_shape.y();
-    point_DB.z() += context_.B_grad[g_z][g_y][g_x].z() * B_shape.z();
-  }}}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

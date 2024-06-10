@@ -1,6 +1,7 @@
 #include "particles.h"
 
 #include "src/impls/basic/simulation.h"
+#include "src/impls/simple_interpolation.h"
 
 namespace basic {
 
@@ -103,25 +104,11 @@ PetscErrorCode Particles::push() {
 
 
 void Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B) const {
-  PetscInt g_x, g_y, g_z;
-
-  #pragma omp simd collapse(Vector3I::dim)
-  for (PetscInt z = 0; z < l_width[Z]; ++z) {
-  for (PetscInt y = 0; y < l_width[Y]; ++y) {
-  for (PetscInt x = 0; x < l_width[X]; ++x) {
-    g_x = p_g[X] + x;
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
-
-    PetscInt i = Shape::index(x, y, z);
-    point_E.x() += E[g_z][g_y][g_x].x() * no(i, Z) * no(i, Y) * sh(i, X);
-    point_E.y() += E[g_z][g_y][g_x].y() * no(i, Z) * sh(i, Y) * no(i, X);
-    point_E.z() += E[g_z][g_y][g_x].z() * sh(i, Z) * no(i, Y) * no(i, X);
-
-    point_B.x() += B[g_z][g_y][g_x].x() * sh(i, Z) * sh(i, Y) * no(i, X);
-    point_B.y() += B[g_z][g_y][g_x].y() * sh(i, Z) * no(i, Y) * sh(i, X);
-    point_B.z() += B[g_z][g_y][g_x].z() * no(i, Z) * sh(i, Y) * sh(i, X);
-  }}}
+  Simple_interpolation interpolation(l_width, no, sh);
+  Simple_interpolation::Context context;
+  context.e_fields.emplace_back(point_E, E);
+  context.b_fields.emplace_back(point_B, B);
+  interpolation.process(p_g, context);
 }
 
 
