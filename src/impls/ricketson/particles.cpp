@@ -97,15 +97,15 @@ PetscErrorCode FormJacobian(SNES snes, Vec vx, Mat jacobian, Mat B, void* __cont
   Vector3R dB_p[3] = {0.0, 0.0, 0.0};
 
   auto* context = (Particles::Context*)__context;
-  Vector3R v_n = context->v_n;
-  PetscReal alpha = context->alpha;
+  const Vector3R& v_n = context->v_n;
+  const PetscReal& alpha = context->alpha;
 
   const PetscReal* x;
   PetscCall(VecGetArrayRead(vx, &x));
   Vector3R v_nn = {x[3], x[4], x[5]};
   PetscCall(VecRestoreArrayRead(vx, &x));
 
-  Vector3R v_half = 0.5 * (v_n + v_nn);
+  Vector3R v_half = 0.5 * (v_nn + v_n);
 
   for (PetscInt col = 0; col < 3; ++col) {
     PetscInt row[3] = {3, 4, 5};
