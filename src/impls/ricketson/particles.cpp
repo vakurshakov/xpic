@@ -14,7 +14,7 @@ namespace ricketson {
  * @note SNESNRICHARDSON will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
  * where lambda -- damping coefficient. It was set to (-1.0) with `SNESLineSearchSetDamping()`.
  */
-PetscErrorCode FormFunction(SNES snes, Vec vx, Vec vf, void* __context) {
+PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {
   PetscFunctionBeginUser;
   auto* context = (Particles::Context*)__context;
   const Vector3R& x_n = context->x_n;
@@ -161,13 +161,9 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
 
   PetscCallVoid(VecCreate(PETSC_COMM_SELF, &solution_));
   PetscCallVoid(VecSetSizes(solution_, solution_size, solution_size));
-  PetscCallVoid(VecDuplicate(solution_, &residue_));
+  PetscCallVoid(VecDuplicate(solution_, &function_));
 
-  PetscCallVoid(MatCreate(PETSC_COMM_SELF, &jacobian_));
-  PetscCallVoid(MatSetSizes(jacobian_, solution_size, solution_size, solution_size, solution_size));
-  PetscCallVoid(MatSetUp(jacobian_));
-
-  PetscCallVoid(SNESSetFunction(snes_, residue_, FormFunction, &context_));
+  PetscCallVoid(SNESSetFunction(snes_, function_, FormPicardIteration, &context_));
   PetscFunctionReturnVoid();
 }
 
@@ -176,8 +172,7 @@ Particles::~Particles() {
   PetscFunctionBeginUser;
   PetscCallVoid(SNESDestroy(&snes_));
   PetscCallVoid(VecDestroy(&solution_));
-  PetscCallVoid(VecDestroy(&residue_));
-  PetscCallVoid(MatDestroy(&jacobian_));
+  PetscCallVoid(VecDestroy(&function_));
   PetscFunctionReturnVoid();
 }
 

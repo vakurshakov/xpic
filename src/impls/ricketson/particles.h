@@ -52,8 +52,7 @@ private:
   const PetscInt solution_size = 6;  // (3 coordinates) + (3 velocities)
   SNES snes_;
   Vec solution_;
-  Vec residue_;
-  Mat jacobian_;
+  Vec function_;
   Context context_;
 };
 
