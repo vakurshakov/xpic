@@ -5,6 +5,7 @@
 
 namespace ricketson {
 
+/// @note SNES solver tolerances
 static constexpr PetscReal atol = 1e-10;
 static constexpr PetscReal rtol = 1e-10;
 static constexpr PetscReal stol = 1e-10;
@@ -34,24 +35,23 @@ PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {
   Vector3R v_nn = {x[3], x[4], x[5]};
   PetscCall(VecRestoreArrayRead(vx, &x));
 
-  // Vector3R x_half = 0.5 * (x_nn + x_n);
-  Vector3R v_half = 0.5 * (v_nn + v_n);
+  /// @todo We should probably limit recalculation of the shape in case of close `x_half` iterations.
+  Vector3R x_half = 0.5 * (x_nn + x_n);
 
-  // static Node node(x_half);
-  // static Shape shape[2];
-  // PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
-  // PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
+  static Node node(x_half);
+  static Shape shape[2];
+  PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
+  PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
 
-  Vector3R E_p = 0.0;
-  Vector3R B_p = 0.0;
-
-  // Simple_interpolation interpolation(context->width, shape[0], shape[1]);
-  // PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}}));
+  Vector3R E_p;
+  Vector3R B_p;
+  Simple_interpolation interpolation(context->width, shape[0], shape[1]);
+  PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}}));
 
   Vector3R a = v_n + alpha * E_p;
 
   // velocity on a new half-step, v^{n+1/2, k+1}
-  v_half = (a + alpha * a.cross(B_p) + POW2(alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(alpha * B_p.length()));
+  Vector3R v_half = (a + alpha * a.cross(B_p) + POW2(alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(alpha * B_p.length()));
 
   PetscReal* f;
   PetscCall(VecGetArrayWrite(vf, &f));
@@ -168,7 +168,7 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscCallVoid(VecSetType(solution_, VECSEQ));
   PetscCallVoid(VecSetSizes(solution_, PETSC_DECIDE, solution_size));
 
-  LOG_INFO("Nonlinear solver for particles is set, tolerances:");
+  LOG_INFO("Nonlinear solver for \"{}\" is set, tolerances:", parameters_.sort_name);
   LOG_INFO("  atol = {} - absolute convergence tolerance", atol);
   LOG_INFO("  rtol = {} - relative convergence tolerance", rtol);
   LOG_INFO("  stol = {} - convergence tolerance in terms of the norm of the change in the solution between steps", stol);
