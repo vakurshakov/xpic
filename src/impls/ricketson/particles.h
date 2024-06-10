@@ -37,7 +37,6 @@ public:
   };
 
 private:
-  PetscErrorCode interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B, Vector3R& point_DB) const;
   PetscErrorCode adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point);
   PetscErrorCode push(Point& point);
 

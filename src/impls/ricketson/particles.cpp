@@ -148,8 +148,7 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscFunctionBeginUser;
   parameters_ = parameters;
 
-  PetscCallVoid(DMDAGetCorners(simulation_.da_, REP3(nullptr), REP3_A(&context_.width)));
-  context_.width = min(context_.width, Vector3I(shape_width));
+  context_.width = min(Vector3I(Geom_n), Vector3I(shape_width));
 
   /// @todo It'd be more reusable to place particle mover into separate class
 
@@ -181,7 +180,6 @@ Particles::~Particles() {
 
 PetscErrorCode Particles::add_particle(const Point& point) {
   PetscFunctionBeginUser;
-  const Vector3R& r = point.r;
   points_.emplace_back(point);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

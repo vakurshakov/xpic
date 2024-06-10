@@ -36,7 +36,9 @@ PetscErrorCode Simulation::initialize_implementation() {
   geometry.at("da_processors_y").get_to(procs[Y]);
   geometry.at("da_processors_z").get_to(procs[Z]);
 
-  PetscCheck(procs[X] * procs[Y] * procs[Z] == 1, PETSC_COMM_SELF, PETSC_ERR_ARG_WRONG, "Ricketson algorithm currently supports only one process");
+  PetscMPIInt size;
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
+  PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "Ricketson scheme is uniprocessor currently");
   ///
 
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds_), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da_));

@@ -1,6 +1,7 @@
 #include "simulation.h"
 
 #include "src/impls/basic/simulation.h"
+#include "src/impls/ricketson/simulation.h"
 
 namespace interfaces {
 
@@ -81,7 +82,7 @@ Simulation_up build_simulation() {
     return std::make_unique<basic::Simulation>();
   }
   else if (simulation_str == "ricketson") {
-    return std::make_unique<basic::Simulation>();
+    return std::make_unique<ricketson::Simulation>();
   }
 
   throw std::runtime_error("Unkown simulation is used: " + simulation_str);
