@@ -5,6 +5,12 @@
 
 namespace ricketson {
 
+static constexpr PetscReal atol = 1e-10;
+static constexpr PetscReal rtol = 1e-10;
+static constexpr PetscReal stol = 1e-10;
+static constexpr PetscInt maxit = 100;
+static constexpr PetscInt maxf  = 300;
+
 /**
  * @brief Evaluates nonlinear function F(x).
  * @param[in]  snes     the SNES context.
@@ -13,7 +19,7 @@ namespace ricketson {
  * @param[out] vf       function vector to be evaluated.
  *
  * @note `SNESNRICHARDSON` will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
- * where lambda -- damping coefficient. It was set to (-1.0) with `SNESLineSearchSetDamping()`.
+ * where lambda -- damping coefficient, it is set to (+1.0) by default.
  */
 PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {
   PetscFunctionBeginUser;
@@ -28,19 +34,19 @@ PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {
   Vector3R v_nn = {x[3], x[4], x[5]};
   PetscCall(VecRestoreArrayRead(vx, &x));
 
-  Vector3R x_half = 0.5 * (x_nn + x_n);
+  // Vector3R x_half = 0.5 * (x_nn + x_n);
   Vector3R v_half = 0.5 * (v_nn + v_n);
 
-  static Node node(x_half);
-  static Shape shape[2];
-  PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
-  PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
+  // static Node node(x_half);
+  // static Shape shape[2];
+  // PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
+  // PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
 
-  Vector3R E_p;
-  Vector3R B_p;
+  Vector3R E_p = 0.0;
+  Vector3R B_p = 0.0;
 
-  Simple_interpolation interpolation(context->width, shape[0], shape[1]);
-  PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}}));
+  // Simple_interpolation interpolation(context->width, shape[0], shape[1]);
+  // PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}}));
 
   Vector3R a = v_n + alpha * E_p;
 
@@ -48,15 +54,15 @@ PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {
   v_half = (a + alpha * a.cross(B_p) + POW2(alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(alpha * B_p.length()));
 
   PetscReal* f;
-  PetscCall(VecGetArray(vf, &f));
-  f[0] = (- x_nn[X]) + x_n[X] + dt * v_half[X];
-  f[1] = (- x_nn[Y]) + x_n[Y] + dt * v_half[Y];
-  f[2] = (- x_nn[Z]) + x_n[Z] + dt * v_half[Z];
+  PetscCall(VecGetArrayWrite(vf, &f));
+  f[0] = x_nn[X] - (x_n[X] + dt * v_half[X]);
+  f[1] = x_nn[Y] - (x_n[Y] + dt * v_half[Y]);
+  f[2] = x_nn[Z] - (x_n[Z] + dt * v_half[Z]);
 
-  f[3] = (- v_nn[X]) - 2.0 * v_half[X] + v_n[X];
-  f[4] = (- v_nn[Y]) - 2.0 * v_half[Y] + v_n[Y];
-  f[5] = (- v_nn[Z]) - 2.0 * v_half[Z] + v_n[Z];
-  PetscCall(VecRestoreArray(vf, &f));
+  f[3] = v_nn[X] - (2.0 * v_half[X] - v_n[X]);
+  f[4] = v_nn[Y] - (2.0 * v_half[Y] - v_n[Y]);
+  f[5] = v_nn[Z] - (2.0 * v_half[Z] - v_n[Z]);
+  PetscCall(VecRestoreArrayWrite(vf, &f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -155,16 +161,20 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   // Nonlinear solver should be created for each process.
   PetscCallVoid(SNESCreate(PETSC_COMM_SELF, &snes_));
   PetscCallVoid(SNESSetType(snes_, SNESNRICHARDSON));
-
-  SNESLineSearch line_search;
-  PetscCallVoid(SNESGetLineSearch(snes_, &line_search));
-  PetscCallVoid(SNESLineSearchSetDamping(line_search, -1.0));
+  PetscCallVoid(SNESSetFunction(snes_, nullptr, FormPicardIteration, &context_));
+  PetscCallVoid(SNESSetTolerances(snes_, atol, rtol, stol, maxit, maxf));
 
   PetscCallVoid(VecCreate(PETSC_COMM_SELF, &solution_));
-  PetscCallVoid(VecSetSizes(solution_, solution_size, solution_size));
-  PetscCallVoid(VecDuplicate(solution_, &function_));
+  PetscCallVoid(VecSetType(solution_, VECSEQ));
+  PetscCallVoid(VecSetSizes(solution_, PETSC_DECIDE, solution_size));
 
-  PetscCallVoid(SNESSetFunction(snes_, function_, FormPicardIteration, &context_));
+  LOG_INFO("Nonlinear solver for particles is set, tolerances:");
+  LOG_INFO("  atol = {} - absolute convergence tolerance", atol);
+  LOG_INFO("  rtol = {} - relative convergence tolerance", rtol);
+  LOG_INFO("  stol = {} - convergence tolerance in terms of the norm of the change in the solution between steps", stol);
+  LOG_INFO("  maxit = {} - maximum number of iterations", maxit);
+  LOG_INFO("  maxf  = {} - maximum number of function evaluations", maxf);
+  LOG_FLUSH();
   PetscFunctionReturnVoid();
 }
 
@@ -173,7 +183,6 @@ Particles::~Particles() {
   PetscFunctionBeginUser;
   PetscCallVoid(SNESDestroy(&snes_));
   PetscCallVoid(VecDestroy(&solution_));
-  PetscCallVoid(VecDestroy(&function_));
   PetscFunctionReturnVoid();
 }
 
@@ -273,7 +282,8 @@ PetscErrorCode Particles::push(Point& point) {
 
   context_.alpha = 0.5 * dt * charge(point) / mass(point);
 
-  /// @note Initial guess should be explicitly set before `SNESSolve()`.
+  /// @note Maybe point will be vector of size 6 by default? :)
+  // Initial guess should be explicitly set before `SNESSolve()`.
   PetscReal *arr;
   PetscCall(VecGetArrayWrite(solution_, &arr));
   arr[0] = context_.x_n[X] = point.x();
@@ -289,6 +299,20 @@ PetscErrorCode Particles::push(Point& point) {
 
   PetscCall(SNESSolve(snes_, nullptr, solution_));
 
+  // Updating point only in case of convergence
+  SNESConvergedReason reason;
+  PetscCall(SNESGetConvergedReason(snes_, &reason));
+
+  if (reason >= 0) {
+    PetscCall(VecGetArray(solution_, &arr));
+    point.x() = arr[0];
+    point.y() = arr[1];
+    point.z() = arr[2];
+    point.px() = arr[3];
+    point.py() = arr[4];
+    point.pz() = arr[5];
+    PetscCall(VecRestoreArray(solution_, &arr));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
