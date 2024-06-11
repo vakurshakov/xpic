@@ -58,5 +58,5 @@ Now, the executable can be built successfully. To do so, run the following comma
 
 The binary will be created in the bin folder. Execution of the code should be performed from the home directory too:
 ```sh
-  ./bin/simulation.out <config.json> # or ./run.sh <config.json>
+  [mpiexec] ./bin/simulation.out <config.json> # or ./run.sh <config.json>
 ```
