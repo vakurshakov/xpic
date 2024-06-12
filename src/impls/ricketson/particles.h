@@ -27,6 +27,9 @@ private:
   PetscErrorCode adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point);
   PetscErrorCode push(Point& point);
 
+  PetscErrorCode calculate_F_BFV();
+  PetscErrorCode calculate_G();
+
   struct Context {
     // Field information in array form
     Vector3R ***E;

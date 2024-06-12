@@ -181,6 +181,76 @@ PetscErrorCode Particles::push(Point& point) {
 }
 
 
+PetscErrorCode Particles::calculate_F_BFV() {
+  PetscFunctionBeginUser;
+  Particles::Context* context;
+  Vector3R x_n;
+  Vector3R v_n;
+  PetscReal m;
+  PetscReal alpha;
+
+  Vec vx;
+  const PetscReal* x;
+  PetscCall(VecGetArrayRead(vx, &x));
+  Vector3R x_nn = {x[0], x[1], x[2]};
+  Vector3R v_nn = {x[3], x[4], x[5]};
+  PetscCall(VecRestoreArrayRead(vx, &x));
+
+  Vector3R x_half = 0.5 * (x_nn + x_n);
+
+  static Node node(x_half);
+  static Shape shape[2];
+  PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
+  PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
+
+  Vector3R B_p, DB_p;
+  Simple_interpolation interpolation(context->width, shape[0], shape[1]);
+  PetscCall(interpolation.process(node.g, {}, {{B_p, context->B}, {DB_p, context->B_grad}}));
+
+  PetscReal mu = -0.125 * m * ((v_nn - v_n).parallel_to(B_p)).square() / B_p.length();
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+PetscErrorCode Particles::calculate_G() {
+  PetscFunctionBeginUser;
+  Vector3R x_n, x_nn, x_half = 0.5 * (x_n + x_nn);
+  Vector3R v_n, v_nn, v_half = 0.5 * (v_n + v_nn);
+  PetscReal mu;
+
+  Vector3R E_p, B_p, DB_p;
+
+  Vector3R DB_p = DB_p.parallel_to(B_p);
+  Vector3R DB_t = DB_p.transverse_to(B_p);
+
+  Vector3R G_p, G_t;
+
+  G_p = -mu * DB_p;
+
+  Vector3R v_t = v_half.transverse_to(B_p);
+  Vector3R v_E = E_p.cross(B_p) / B_p.square();
+  Vector3R u = v_t - v_E;
+
+  if (u.length() > v_E.length()) {
+    G_t = 2.0 * mu * DB_t;
+  }
+  else {
+    Vector3R v_En = v_E.normalized();
+    Vector3R f = DB_t.dot(v_En) * v_En;
+
+    PetscReal v_pn = v_half.parallel_to(B_p).length();
+    PetscReal v_tn = v_t.length();
+    PetscReal zeta = 2.0 / POW2(u.length() / v_E.length());
+
+    G_t = zeta * v_pn / v_tn * G_p * v_En - mu * (zeta * f + (DB_t - f) / (1.0 - 1.0 / zeta));
+  }
+
+  Vector3R G = G_p + G_t;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 /**
  * @brief Evaluates nonlinear function F(x).
  * @param[in]  snes     the SNES context.
@@ -206,6 +276,7 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
 
   /// @todo We should probably limit recalculation of the shape in case of close `x_half` iterations.
   Vector3R x_half = 0.5 * (x_nn + x_n);
+  Vector3R v_half = 0.5 * (v_nn + v_n);
 
   static Node node(x_half);
   static Shape shape[2];
@@ -216,6 +287,10 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
   static Vector3R B_p;
   Simple_interpolation interpolation(context->width, shape[0], shape[1]);
   PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}}));
+
+  Vector3R G, v_half_t = v_half.transverse_to(B_p);
+  PetscReal q;
+  B_p += G.cross(v_half_t) / (q * v_half_t.square());
 
   Vector3R a = v_n + alpha * E_p;
 
