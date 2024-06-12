@@ -23,6 +23,10 @@ public:
 
   PetscErrorCode push();
 
+private:
+  PetscErrorCode adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point);
+  PetscErrorCode push(Point& point);
+
   struct Context {
     // Field information in array form
     Vector3R ***E;
@@ -35,16 +39,11 @@ public:
     Vector3R v_n;
     PetscReal alpha;
   };
-
-private:
-  PetscErrorCode adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point);
-
-  PetscErrorCode push(Point& point);
   static PetscErrorCode form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* context);
 
   std::vector<Point> points_;
-
   Simulation& simulation_;
+
   Vec local_E;
   Vec local_B;
   Vec local_B_grad;
