@@ -38,7 +38,9 @@ public:
 
 private:
   PetscErrorCode adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point);
+
   PetscErrorCode push(Point& point);
+  static PetscErrorCode form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* context);
 
   std::vector<Point> points_;
 

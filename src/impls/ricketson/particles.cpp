@@ -12,145 +12,9 @@ static constexpr PetscReal stol = 1e-10;
 static constexpr PetscInt maxit = 100;
 static constexpr PetscInt maxf  = 300;
 
-/**
- * @brief Evaluates nonlinear function F(x).
- * @param[in]  snes     the SNES context.
- * @param[in]  vx       input vector of k-th iteration.
- * @param[in]  context  optional user-defined context.
- * @param[out] vf       function vector to be evaluated.
- *
- * @note `SNESNRICHARDSON` will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
- * where lambda -- damping coefficient, it is set to (+1.0) by default.
- */
-PetscErrorCode FormPicardIteration(SNES snes, Vec vx, Vec vf, void* __context) {
-  PetscFunctionBeginUser;
-  auto* context = (Particles::Context*)__context;
-  const Vector3R& x_n = context->x_n;
-  const Vector3R& v_n = context->v_n;
-  const PetscReal& alpha = context->alpha;
-
-  const PetscReal* x;
-  PetscCall(VecGetArrayRead(vx, &x));
-  Vector3R x_nn = {x[0], x[1], x[2]};
-  Vector3R v_nn = {x[3], x[4], x[5]};
-  PetscCall(VecRestoreArrayRead(vx, &x));
-
-  /// @todo We should probably limit recalculation of the shape in case of close `x_half` iterations.
-  Vector3R x_half = 0.5 * (x_nn + x_n);
-
-  static Node node(x_half);
-  static Shape shape[2];
-  PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
-  PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
-
-  Vector3R E_p;
-  Vector3R B_p;
-  Simple_interpolation interpolation(context->width, shape[0], shape[1]);
-  PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}}));
-
-  Vector3R a = v_n + alpha * E_p;
-
-  // velocity on a new half-step, v^{n+1/2, k+1}
-  Vector3R v_half = (a + alpha * a.cross(B_p) + POW2(alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(alpha * B_p.length()));
-
-  PetscReal* f;
-  PetscCall(VecGetArrayWrite(vf, &f));
-  f[0] = x_nn[X] - (x_n[X] + dt * v_half[X]);
-  f[1] = x_nn[Y] - (x_n[Y] + dt * v_half[Y]);
-  f[2] = x_nn[Z] - (x_n[Z] + dt * v_half[Z]);
-
-  f[3] = v_nn[X] - (2.0 * v_half[X] - v_n[X]);
-  f[4] = v_nn[Y] - (2.0 * v_half[Y] - v_n[Y]);
-  f[5] = v_nn[Z] - (2.0 * v_half[Z] - v_n[Z]);
-  PetscCall(VecRestoreArrayWrite(vf, &f));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-/**
- * @brief Evaluates Jacobian matrix J(x).
- * @param[in]  snes     the SNES context.
- * @param[in]  vx       input vector at k-th iteration.
- * @param[in]  context  optional user-defined context.
- * @param[out] jacobian Jacobian matrix
- * @param[out] B        optionally different preconditioning matrix
- *
- * @warning This jacobian is computed for non-inverted system of kinetic equations.
- */
-PetscErrorCode FormJacobian(SNES snes, Vec vx, Mat jacobian, Mat B, void* __context) {
-  PetscFunctionBeginUser;
-
-  for (PetscInt i = 0; i < 6; ++i) {
-    // row = col = i, so here the jacobian diagonal is filled
-    PetscReal value = 1.0;
-    PetscCall(MatSetValues(B, 1, &i, 1, &i, &value, INSERT_VALUES));
-  }
-
-  for (PetscInt row = 0; row < 3; ++row) {
-  for (PetscInt col = 3; col < 6; ++col) {
-    PetscReal value = -dt;
-    PetscCall(MatSetValues(B, 1, &row, 1, &col, &value, INSERT_VALUES));
-  }}
-
-  // partial derivatives in all three directions, interpolated onto particle
-  Vector3R dE_p[3] = {0.0, 0.0, 0.0};
-  Vector3R dB_p[3] = {0.0, 0.0, 0.0};
-
-  auto* context = (Particles::Context*)__context;
-  const Vector3R& v_n = context->v_n;
-  const PetscReal& alpha = context->alpha;
-
-  const PetscReal* x;
-  PetscCall(VecGetArrayRead(vx, &x));
-  Vector3R v_nn = {x[3], x[4], x[5]};
-  PetscCall(VecRestoreArrayRead(vx, &x));
-
-  Vector3R v_half = 0.5 * (v_nn + v_n);
-
-  for (PetscInt col = 0; col < 3; ++col) {
-    PetscInt row[3] = {3, 4, 5};
-    Vector3R value = 2.0 * alpha * (dE_p[col] + v_half.cross(dB_p[col]));
-    PetscCall(MatSetValues(B, 3, row, 1, &col, value, INSERT_VALUES));
-  }
-
-  Vector3R B_p = {0.0, 0.0, 0.0};
-
-  PetscInt row;
-  PetscInt col[2];
-  PetscReal value[2];
-  row = 3;
-  col[0] = 4;
-  col[1] = 5;
-  value[0] = -alpha * B_p[Z];
-  value[1] = +alpha * B_p[Y];
-  PetscCall(MatSetValues(B, 1, &row, 2, col, value, INSERT_VALUES));
-
-  row = 4;
-  col[0] = 3;
-  col[1] = 5;
-  value[0] = +alpha * B_p[Z];
-  value[1] = -alpha * B_p[X];
-  PetscCall(MatSetValues(B, 1, &row, 2, col, value, INSERT_VALUES));
-
-  row = 5;
-  col[0] = 3;
-  col[1] = 4;
-  value[0] = -alpha * B_p[Y];
-  value[1] = +alpha * B_p[X];
-  PetscCall(MatSetValues(B, 1, &row, 2, col, value, INSERT_VALUES));
-
-  PetscCall(MatAssemblyBegin(B, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(B, MAT_FINAL_ASSEMBLY));
-  if (jacobian != B) {
-    PetscCall(MatAssemblyBegin(jacobian, MAT_FINAL_ASSEMBLY));
-    PetscCall(MatAssemblyEnd(jacobian, MAT_FINAL_ASSEMBLY));
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 
 Particles::Particles(Simulation& simulation, const Particles_parameters& parameters)
-  : simulation_(simulation) {
+    : simulation_(simulation) {
   PetscFunctionBeginUser;
   parameters_ = parameters;
 
@@ -161,7 +25,7 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   // Nonlinear solver should be created for each process.
   PetscCallVoid(SNESCreate(PETSC_COMM_SELF, &snes_));
   PetscCallVoid(SNESSetType(snes_, SNESNRICHARDSON));
-  PetscCallVoid(SNESSetFunction(snes_, nullptr, FormPicardIteration, &context_));
+  PetscCallVoid(SNESSetFunction(snes_, nullptr, Particles::form_Picard_iteration, &context_));
   PetscCallVoid(SNESSetTolerances(snes_, atol, rtol, stol, maxit, maxf));
 
   PetscCallVoid(VecCreate(PETSC_COMM_SELF, &solution_));
@@ -313,6 +177,61 @@ PetscErrorCode Particles::push(Point& point) {
     point.pz() = arr[5];
     PetscCall(VecRestoreArray(solution_, &arr));
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+/**
+ * @brief Evaluates nonlinear function F(x).
+ * @param[in]  snes     the SNES context.
+ * @param[in]  vx       input vector of k-th iteration.
+ * @param[in]  context  optional user-defined context.
+ * @param[out] vf       function vector to be evaluated.
+ *
+ * @note `SNESNRICHARDSON` will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
+ * where lambda -- damping coefficient, lambda = +1.0 by default (no damping).
+ */
+PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* __context) {
+  PetscFunctionBeginUser;
+  auto* context = (Particles::Context*)__context;
+  const Vector3R& x_n = context->x_n;
+  const Vector3R& v_n = context->v_n;
+  const PetscReal& alpha = context->alpha;
+
+  const PetscReal* x;
+  PetscCall(VecGetArrayRead(vx, &x));
+  Vector3R x_nn = {x[0], x[1], x[2]};
+  Vector3R v_nn = {x[3], x[4], x[5]};
+  PetscCall(VecRestoreArrayRead(vx, &x));
+
+  /// @todo We should probably limit recalculation of the shape in case of close `x_half` iterations.
+  Vector3R x_half = 0.5 * (x_nn + x_n);
+
+  static Node node(x_half);
+  static Shape shape[2];
+  PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
+  PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
+
+  static Vector3R E_p;
+  static Vector3R B_p;
+  Simple_interpolation interpolation(context->width, shape[0], shape[1]);
+  PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}}));
+
+  Vector3R a = v_n + alpha * E_p;
+
+  // velocity on a new half-step, v^{n+1/2, k+1}
+  Vector3R v_half = (a + alpha * a.cross(B_p) + POW2(alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(alpha * B_p.length()));
+
+  PetscReal* f;
+  PetscCall(VecGetArrayWrite(vf, &f));
+  f[0] = x_nn[X] - (x_n[X] + dt * v_half[X]);
+  f[1] = x_nn[Y] - (x_n[Y] + dt * v_half[Y]);
+  f[2] = x_nn[Z] - (x_n[Z] + dt * v_half[Z]);
+
+  f[3] = v_nn[X] - (2.0 * v_half[X] - v_n[X]);
+  f[4] = v_nn[Y] - (2.0 * v_half[Y] - v_n[Y]);
+  f[5] = v_nn[Z] - (2.0 * v_half[Z] - v_n[Z]);
+  PetscCall(VecRestoreArrayWrite(vf, &f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
