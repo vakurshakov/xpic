@@ -24,9 +24,6 @@ public:
   PetscErrorCode push();
 
 private:
-  PetscErrorCode adaptive_time_stepping(const Point& point);
-  PetscErrorCode push(Point& point);
-
   struct Context {
     Vector3R ***E;
     Vector3R ***B;
@@ -39,6 +36,10 @@ private:
     PetscReal m;
     PetscReal q;
   };
+
+  PetscErrorCode push(Point& point);
+  PetscErrorCode adaptive_time_stepping(const Point& point);
+
   static PetscErrorCode form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* context);
 
   std::vector<Point> points_;

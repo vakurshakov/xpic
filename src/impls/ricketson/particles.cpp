@@ -104,6 +104,44 @@ PetscErrorCode Particles::push() {
 }
 
 
+PetscErrorCode Particles::push(Point& point) {
+  PetscFunctionBeginUser;
+  PetscCall(adaptive_time_stepping(point));
+  context_.q = charge(point);
+  context_.m = mass(point);
+
+  // Initial guess should be explicitly set before `SNESSolve()`.
+  PetscReal *arr;
+  PetscCall(VecGetArrayWrite(solution_, &arr));
+  arr[0] = context_.x_n[X] = point.x();
+  arr[1] = context_.x_n[Y] = point.y();
+  arr[2] = context_.x_n[Z] = point.z();
+  arr[3] = context_.v_n[X] = point.px();
+  arr[4] = context_.v_n[Y] = point.py();
+  arr[5] = context_.v_n[Z] = point.pz();
+  PetscCall(VecRestoreArrayWrite(solution_, &arr));
+
+  /// @todo check \Delta mu / mu upon completion.
+  PetscCall(SNESSolve(snes_, nullptr, solution_));
+
+  // Updating point only in case of convergence.
+  SNESConvergedReason reason;
+  PetscCall(SNESGetConvergedReason(snes_, &reason));
+
+  if (reason >= 0) {
+    PetscCall(VecGetArray(solution_, &arr));
+    point.x() = arr[0];
+    point.y() = arr[1];
+    point.z() = arr[2];
+    point.px() = arr[3];
+    point.py() = arr[4];
+    point.pz() = arr[5];
+    PetscCall(VecRestoreArray(solution_, &arr));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
   PetscFunctionBeginUser;
   const Vector3R& x_n = point.r;
@@ -159,48 +197,10 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
   }
 
   Omega_dt = alpha *
-    std::min(2 * sqrt(Omega * t_res / M_PI),
-      2 * M_SQRT2 * std::min(1.0 / sqrt(delta_t), 1.0 / sqrt(delta_p)));
+    std::min(2.0 * sqrt(Omega * t_res / M_PI),
+      2.0 * M_SQRT2 * std::min(1.0 / sqrt(delta_t), 1.0 / sqrt(delta_p)));
 
   context_.dt = Omega_dt / Omega;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-PetscErrorCode Particles::push(Point& point) {
-  PetscFunctionBeginUser;
-  PetscCall(adaptive_time_stepping(point));
-  context_.q = charge(point);
-  context_.m = mass(point);
-
-  // Initial guess should be explicitly set before `SNESSolve()`.
-  PetscReal *arr;
-  PetscCall(VecGetArrayWrite(solution_, &arr));
-  arr[0] = context_.x_n[X] = point.x();
-  arr[1] = context_.x_n[Y] = point.y();
-  arr[2] = context_.x_n[Z] = point.z();
-  arr[3] = context_.v_n[X] = point.px();
-  arr[4] = context_.v_n[Y] = point.py();
-  arr[5] = context_.v_n[Z] = point.pz();
-  PetscCall(VecRestoreArrayWrite(solution_, &arr));
-
-  /// @todo check \Delta mu / mu upon completion.
-  PetscCall(SNESSolve(snes_, nullptr, solution_));
-
-  // Updating point only in case of convergence
-  SNESConvergedReason reason;
-  PetscCall(SNESGetConvergedReason(snes_, &reason));
-
-  if (reason >= 0) {
-    PetscCall(VecGetArray(solution_, &arr));
-    point.x() = arr[0];
-    point.y() = arr[1];
-    point.z() = arr[2];
-    point.px() = arr[3];
-    point.py() = arr[4];
-    point.pz() = arr[5];
-    PetscCall(VecRestoreArray(solution_, &arr));
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
