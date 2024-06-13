@@ -145,7 +145,7 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
       std::min(Omega * t_res, gamma / delta_t));
 
   // (eh) -- estimate of gyration velocity on half time-step
-  PetscReal u_eh = (v_p - v_E).length() / sqrt(1.0 + 0.25 * Omega_dt * Omega_dt);
+  PetscReal u_eh = (v_t - v_E).length() / sqrt(1.0 + 0.25 * Omega_dt * Omega_dt);
 
   /// @todo Probably, some diagnostic is need here to understand the cases
   if (v_E.length() > (1.0 + beta) * u_eh) {
