@@ -24,19 +24,18 @@ public:
   PetscErrorCode push();
 
 private:
-  PetscErrorCode adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point);
+  PetscErrorCode adaptive_time_stepping(const Point& point);
   PetscErrorCode push(Point& point);
 
   struct Context {
-    // Field information in array form
     Vector3R ***E;
     Vector3R ***B;
     Vector3R ***B_grad;
 
-    // Particle information
     Vector3I width;
     Vector3R x_n;
     Vector3R v_n;
+    PetscReal dt;
     PetscReal m;
     PetscReal q;
   };

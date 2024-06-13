@@ -12,6 +12,21 @@ static constexpr PetscReal stol = 1e-10;
 static constexpr PetscInt maxit = 100;
 static constexpr PetscInt maxf  = 300;
 
+/**
+ * @brief Internal constants controlling the restrictions of the proposed scheme.
+ * @details
+ * α ∈ (0, 1), controls how close to the time-step restrictions one is willing to get.
+ * β ∈ (0, 1), controls the region |v_E / u - 1| < β, where conserving effective force becomes discontinuous.
+ * ε ∈ (0, 1), controls the maximum permissible fractional change in μ within a time-step.
+ * Γ > 0, measures the accuracy with which we wish to resolve spatial variations in the magnetic field.
+ * t_res -- The smallest timescale in the problem that we wish to resolve.
+ */
+static constexpr PetscReal alpha = 0.9;
+static constexpr PetscReal beta  = 0.2;
+static constexpr PetscReal eps   = 0.15;
+static constexpr PetscReal gamma = 0.1;
+static constexpr PetscReal t_res = 0.1;
+
 
 Particles::Particles(Simulation& simulation, const Particles_parameters& parameters)
     : simulation_(simulation) {
@@ -89,60 +104,72 @@ PetscErrorCode Particles::push() {
 }
 
 
-PetscErrorCode Particles::adaptive_time_stepping(const Vector3R& point_E, const Vector3R& point_B, const Vector3R& point_DB, const Point& point) {
+PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
   PetscFunctionBeginUser;
-  Vector3R v = point.p;
+  const Vector3R& x_n = point.r;
+  const Vector3R& v_n = point.p;
 
-  Vector3R v_p = v.parallel_to(point_B);
-  Vector3R v_t = v.transverse_to(point_B);
+  /// @todo Remove code duplication
+  static Node node(x_n);
+  static Shape shape[2];
+  PetscCall(fill_shape(node.g, node.r, context_.width, false, shape[0]));
+  PetscCall(fill_shape(node.g, node.r, context_.width, true, shape[1]));
 
-  Vector3R DB_p = point_DB.parallel_to(point_B);
-  Vector3R DB_t = point_DB.transverse_to(point_B);
+  static Vector3R E_p;
+  static Vector3R B_p;
+  static Vector3R DB_p;
+  Simple_interpolation interpolation(context_.width, shape[0], shape[1]);
+  PetscCall(interpolation.process(node.g, {{E_p, context_.E}}, {{B_p, context_.B}, {DB_p, context_.B_grad}}));
+
+  Vector3R v_p = v_n.parallel_to(B_p);
+  Vector3R v_t = v_n.transverse_to(B_p);
+
+  Vector3R DB_pp = DB_p.parallel_to(B_p);
+  Vector3R DB_pt = DB_p.transverse_to(B_p);
 
   // (E) -- related to ExB particle drift
-  Vector3R v_E = point_E.cross(point_B) / point_B.square();
+  Vector3R v_E = E_p.cross(B_p) / B_p.square();
 
-  // it's assumed that the movement is dominated by ExB drift `v_E`, gyration `u` and parallel velocity `v_p`
-  Vector3R u = v_t - v_E;
+  // It's assumed that the movement is dominated by ExB drift `v_E`, gyration `u` and parallel velocity `v_p`.
+  PetscReal u = (v_t - v_E).length();
+  PetscReal B_norm = B_p.length();
+  PetscReal Omega = charge(point) * B_norm / mass(point);
+  PetscReal rho = u / Omega;
 
-  PetscReal B_norm = point_B.length();
-  PetscReal Omega = parameters_.q * B_norm / parameters_.m;
-  PetscReal rho = u.length() / Omega;
+  PetscReal delta_t = rho                  * (DB_pt.length() / B_norm);
+  PetscReal delta_p = v_p.length() / Omega * (DB_pp.length() / B_norm);
+  PetscReal delta_E = v_E.length() / Omega * (DB_pt.length() / B_norm);
 
-  /// @note We should avoid division by B_norm and use reciprocals (?)
-  PetscReal delta_t = rho                  * (DB_t.length() / B_norm);
-  PetscReal delta_p = v_p.length() / Omega * (DB_p.length() / B_norm);
-  PetscReal delta_E = v_E.length() / Omega * (DB_t.length() / B_norm);
-
-  PetscReal Omega_dt = simulation_.alpha *
+  PetscReal Omega_dt = alpha *
     std::min(M_SQRT2 / sqrt(delta_E + delta_p),
-      std::min(Omega * simulation_.t_res, simulation_.gamma / delta_t));
+      std::min(Omega * t_res, gamma / delta_t));
 
   // (eh) -- estimate of gyration velocity on half time-step
   PetscReal u_eh = (v_p - v_E).length() / sqrt(1.0 + 0.25 * Omega_dt * Omega_dt);
 
   /// @todo Probably, some diagnostic is need here to understand the cases
-  if (v_E.length() > (1.0 + simulation_.beta) * u_eh) {
-    dt = Omega_dt / Omega;
+  if (v_E.length() > (1.0 + beta) * u_eh) {
+    context_.dt = Omega_dt / Omega;
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  if (v_E.length() > (1.0 - simulation_.beta) * u.length()) {
-    dt = std::min(simulation_.t_res, simulation_.gamma / Omega);
+  if (v_E.length() > (1.0 - beta) * u) {
+    context_.dt = std::min(t_res, gamma / Omega);
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  Omega_dt = simulation_.alpha *
-    std::min(2 * sqrt(Omega * simulation_.t_res / M_PI),
+  Omega_dt = alpha *
+    std::min(2 * sqrt(Omega * t_res / M_PI),
       2 * M_SQRT2 * std::min(1.0 / sqrt(delta_t), 1.0 / sqrt(delta_p)));
 
-  dt = Omega_dt / Omega;
+  context_.dt = Omega_dt / Omega;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
 PetscErrorCode Particles::push(Point& point) {
   PetscFunctionBeginUser;
+  PetscCall(adaptive_time_stepping(point));
   context_.q = charge(point);
   context_.m = mass(point);
 
@@ -157,9 +184,7 @@ PetscErrorCode Particles::push(Point& point) {
   arr[5] = context_.v_n[Z] = point.pz();
   PetscCall(VecRestoreArrayWrite(solution_, &arr));
 
-  /// @todo This should be performed inside the solver
-  // PetscCall(adaptive_time_stepping(point_E, point_B, point_DB, *it));
-
+  /// @todo check \Delta mu / mu upon completion.
   PetscCall(SNESSolve(snes_, nullptr, solution_));
 
   // Updating point only in case of convergence
@@ -198,7 +223,7 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
 
   PetscReal q = context->q;
   PetscReal m = context->m;
-  PetscReal alpha = 0.5 * dt * q / m;
+  PetscReal _alpha = 0.5 * context->dt * q / m;
 
   const PetscReal* x;
   PetscCall(VecGetArrayRead(vx, &x));
@@ -249,10 +274,10 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
 
   B_p += (G_p + G_t).cross(v_ht) / (q * v_ht.square());
 
-  Vector3R a = v_n + alpha * E_p;
+  Vector3R a = v_n + _alpha * E_p;
 
   // velocity on a new half-step, v^{n+1/2, k+1}
-  v_h = (a + alpha * a.cross(B_p) + POW2(alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(alpha * B_p.length()));
+  v_h = (a + _alpha * a.cross(B_p) + POW2(_alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(_alpha * B_p.length()));
 
   PetscReal* f;
   PetscCall(VecGetArrayWrite(vf, &f));

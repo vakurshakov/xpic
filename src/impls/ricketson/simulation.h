@@ -14,21 +14,6 @@ public:
   Simulation() = default;
   ~Simulation() override;
 
-  /// @note α ∈ (0, 1), controls how close to the time-step restrictions one is willing to get.
-  const PetscReal alpha = 0.9;
-
-  /// @note β ∈ (0, 1), controls the region |v_E / u{n+1/2} - 1| < β, where conserving effective force becomes discontinuous.
-  const PetscReal beta = 0.2;
-
-  /// @note ε ∈ (0, 1), controls the maximum permissible fractional change in μ within a time-step.
-  const PetscReal epsilon = 0.15;
-
-  /// @note Γ > 0, measures the accuracy with which we wish to resolve spatial variations in the magnetic field.
-  const PetscReal gamma = 0.1;
-
-  /// @note The smallest timescale in the problem that we wish to resolve.
-  const PetscReal t_res = 0.1;
-
   DM da_;
   Vec E_;
   Vec B_;
