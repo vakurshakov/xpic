@@ -33,14 +33,14 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscFunctionBeginUser;
   parameters_ = parameters;
 
-  context_.width = min(Vector3I(Geom_n), Vector3I(shape_width));
+  ctx.width = min(Vector3I(Geom_n), Vector3I(shape_width));
 
   /// @todo It'd be more reusable to place particle mover into separate class
 
   // Nonlinear solver should be created for each process.
   PetscCallVoid(SNESCreate(PETSC_COMM_SELF, &snes_));
   PetscCallVoid(SNESSetType(snes_, SNESNRICHARDSON));
-  PetscCallVoid(SNESSetFunction(snes_, nullptr, Particles::form_Picard_iteration, &context_));
+  PetscCallVoid(SNESSetFunction(snes_, nullptr, Particles::form_Picard_iteration, &ctx));
   PetscCallVoid(SNESSetTolerances(snes_, atol, rtol, stol, maxit, maxf));
 
   PetscCallVoid(VecCreate(PETSC_COMM_SELF, &solution_));
@@ -85,17 +85,17 @@ PetscErrorCode Particles::push() {
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.B_grad_, INSERT_VALUES, local_B_grad));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &context_.E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &context_.B));
-  PetscCall(DMDAVecGetArrayRead(da, local_B_grad, &context_.B_grad));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &ctx.E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &ctx.B));
+  PetscCall(DMDAVecGetArrayRead(da, local_B_grad, &ctx.DB));
 
   for (auto it = points_.begin(); it != points_.end(); ++it) {
     PetscCall(push(*it));
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &context_.E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &context_.B));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B_grad, &context_.B_grad));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &ctx.E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &ctx.B));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B_grad, &ctx.DB));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
@@ -106,22 +106,23 @@ PetscErrorCode Particles::push() {
 
 PetscErrorCode Particles::push(Point& point) {
   PetscFunctionBeginUser;
+  ctx.q = charge(point);
+  ctx.m = mass(point);
+  PetscCall(ctx.update(point.r, point.p));
   PetscCall(adaptive_time_stepping(point));
-  context_.q = charge(point);
-  context_.m = mass(point);
 
   // Initial guess should be explicitly set before `SNESSolve()`.
   PetscReal *arr;
   PetscCall(VecGetArrayWrite(solution_, &arr));
-  arr[0] = context_.x_n[X] = point.x();
-  arr[1] = context_.x_n[Y] = point.y();
-  arr[2] = context_.x_n[Z] = point.z();
-  arr[3] = context_.v_n[X] = point.px();
-  arr[4] = context_.v_n[Y] = point.py();
-  arr[5] = context_.v_n[Z] = point.pz();
+  arr[0] = ctx.x_n[X] = point.x();
+  arr[1] = ctx.x_n[Y] = point.y();
+  arr[2] = ctx.x_n[Z] = point.z();
+  arr[3] = ctx.v_n[X] = point.px();
+  arr[4] = ctx.v_n[Y] = point.py();
+  arr[5] = ctx.v_n[Z] = point.pz();
   PetscCall(VecRestoreArrayWrite(solution_, &arr));
 
-  /// @todo check \Delta mu / mu upon completion.
+  /// @todo Check \Delta mu / mu upon completion.
   PetscCall(SNESSolve(snes_, nullptr, solution_));
 
   // Updating point only in case of convergence.
@@ -142,57 +143,58 @@ PetscErrorCode Particles::push(Point& point) {
 }
 
 
+PetscErrorCode Particles::Context::update(const Vector3R& x_nn, const Vector3R& v_nn) {
+  PetscFunctionBeginUser;
+  if ((x_h - 0.5 * (x_nn + x_n)).length() > update_tolerance) {
+    x_h = 0.5 * (x_nn + x_n);
+
+    node = Node(x_h);
+    PetscCall(fill_shape(node.g, node.r, width, false, shape[0]));
+    PetscCall(fill_shape(node.g, node.r, width, true, shape[1]));
+
+    Simple_interpolation interpolation(width, shape[0], shape[1]);
+    PetscCall(interpolation.process(node.g, {{E_p, E}}, {{B_p, B}, {DB_p, DB}}));
+
+    DB_pp = DB_p.parallel_to(B_p);
+    DB_pt = DB_p.transverse_to(B_p);
+
+    v_E = E_p.cross(B_p) / B_p.square();
+    v_En = v_E.length();
+  }
+
+  v_h = 0.5 * (v_nn + v_n);
+  v_hp = v_h.parallel_to(B_p);
+  v_ht = v_h.transverse_to(B_p);
+  u = (v_ht - v_E).length();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
   PetscFunctionBeginUser;
-  const Vector3R& x_n = point.r;
-  const Vector3R& v_n = point.p;
+  PetscReal B_norm = ctx.B_p.length();
+  PetscReal Omega  = ctx.q * B_norm / ctx.m;
+  PetscReal rho    = ctx.u / Omega;
 
-  /// @todo Remove code duplication
-  static Node node(x_n);
-  static Shape shape[2];
-  PetscCall(fill_shape(node.g, node.r, context_.width, false, shape[0]));
-  PetscCall(fill_shape(node.g, node.r, context_.width, true, shape[1]));
-
-  static Vector3R E_p;
-  static Vector3R B_p;
-  static Vector3R DB_p;
-  Simple_interpolation interpolation(context_.width, shape[0], shape[1]);
-  PetscCall(interpolation.process(node.g, {{E_p, context_.E}}, {{B_p, context_.B}, {DB_p, context_.B_grad}}));
-
-  Vector3R v_p = v_n.parallel_to(B_p);
-  Vector3R v_t = v_n.transverse_to(B_p);
-
-  Vector3R DB_pp = DB_p.parallel_to(B_p);
-  Vector3R DB_pt = DB_p.transverse_to(B_p);
-
-  // (E) -- related to ExB particle drift
-  Vector3R v_E = E_p.cross(B_p) / B_p.square();
-
-  // It's assumed that the movement is dominated by ExB drift `v_E`, gyration `u` and parallel velocity `v_p`.
-  PetscReal u = (v_t - v_E).length();
-  PetscReal B_norm = B_p.length();
-  PetscReal Omega = charge(point) * B_norm / mass(point);
-  PetscReal rho = u / Omega;
-
-  PetscReal delta_t = rho                  * (DB_pt.length() / B_norm);
-  PetscReal delta_p = v_p.length() / Omega * (DB_pp.length() / B_norm);
-  PetscReal delta_E = v_E.length() / Omega * (DB_pt.length() / B_norm);
+  PetscReal delta_t = rho                       * (ctx.DB_pt.length() / B_norm);
+  PetscReal delta_p = ctx.v_hp.length() / Omega * (ctx.DB_pp.length() / B_norm);
+  PetscReal delta_E = ctx.v_En          / Omega * (ctx.DB_pt.length() / B_norm);
 
   PetscReal Omega_dt = alpha *
     std::min(M_SQRT2 / sqrt(delta_E + delta_p),
       std::min(Omega * t_res, gamma / delta_t));
 
-  // (eh) -- estimate of gyration velocity on half time-step
-  PetscReal u_eh = (v_t - v_E).length() / sqrt(1.0 + 0.25 * Omega_dt * Omega_dt);
+  // (eh) -- estimate of gyration velocity on half time-step.
+  PetscReal u_eh = (ctx.v_ht - ctx.v_E).length() / sqrt(1.0 + 0.25 * Omega_dt * Omega_dt);
 
-  /// @todo Probably, some diagnostic is need here to understand the cases
-  if (v_E.length() > (1.0 + beta) * u_eh) {
-    context_.dt = Omega_dt / Omega;
+  /// @todo Probably, some diagnostic is need here to understand the cases.
+  if (ctx.v_En > (1.0 + beta) * u_eh) {
+    ctx.dt = Omega_dt / Omega;
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  if (v_E.length() > (1.0 - beta) * u) {
-    context_.dt = std::min(t_res, gamma / Omega);
+  if (ctx.v_En > (1.0 - beta) * ctx.u) {
+    ctx.dt = std::min(t_res, gamma / Omega);
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
@@ -200,30 +202,26 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
     std::min(2.0 * sqrt(Omega * t_res / M_PI),
       2.0 * M_SQRT2 * std::min(1.0 / sqrt(delta_t), 1.0 / sqrt(delta_p)));
 
-  context_.dt = Omega_dt / Omega;
+  ctx.dt = Omega_dt / Omega;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
 /**
  * @brief Evaluates nonlinear function F(x).
- * @param[in]  snes     the SNES context.
- * @param[in]  vx       input vector of k-th iteration.
- * @param[in]  context  optional user-defined context.
- * @param[out] vf       function vector to be evaluated.
+ * @param[in]  snes the SNES context.
+ * @param[in]  vx   input vector of k-th iteration.
+ * @param[in]  ctx  optional user-defined context.
+ * @param[out] vf   function vector to be evaluated.
  *
  * @note `SNESNRICHARDSON` will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
  * where lambda -- damping coefficient, lambda = +1.0 by default (no damping).
  */
-PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* __context) {
+PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* __ctx) {
   PetscFunctionBeginUser;
-  auto* context = (Particles::Context*)__context;
-  const Vector3R& x_n = context->x_n;
-  const Vector3R& v_n = context->v_n;
-
-  PetscReal q = context->q;
-  PetscReal m = context->m;
-  PetscReal _alpha = 0.5 * context->dt * q / m;
+  auto& ctx = *(Particles::Context*)__ctx;
+  const Vector3R& x_n = ctx.x_n;
+  const Vector3R& v_n = ctx.v_n;
 
   const PetscReal* x;
   PetscCall(VecGetArrayRead(vx, &x));
@@ -231,59 +229,43 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
   Vector3R v_nn = {x[3], x[4], x[5]};
   PetscCall(VecRestoreArrayRead(vx, &x));
 
-  /// @todo We should probably limit recalculation of the shape in case of close `x_half` iterations.
-  Vector3R x_h = 0.5 * (x_nn + x_n);
-  Vector3R v_h = 0.5 * (v_nn + v_n);
+  PetscCall(ctx.update(x_nn, v_nn));
 
-  static Node node(x_h);
-  static Shape shape[2];
-  PetscCall(fill_shape(node.g, node.r, context->width, false, shape[0]));
-  PetscCall(fill_shape(node.g, node.r, context->width, true, shape[1]));
+  // To avoid the update of `Context::B_p`, see line 256.
+  Vector3R B_p = ctx.B_p;
 
-  static Vector3R E_p;
-  static Vector3R B_p;
-  static Vector3R DB_p;
-  Simple_interpolation interpolation(context->width, shape[0], shape[1]);
-  PetscCall(interpolation.process(node.g, {{E_p, context->E}}, {{B_p, context->B}, {DB_p, context->B_grad}}));
-
-  PetscReal mu = -0.125 * m * ((v_nn - v_n).parallel_to(B_p)).square() / B_p.length();
-
-  Vector3R DB_pp = DB_p.parallel_to(B_p);
-  Vector3R DB_pt = DB_p.transverse_to(B_p);
-
-  Vector3R G_p = -mu * DB_pp;
+  PetscReal mu = -0.125 * ctx.m * ((v_nn - v_n).parallel_to(B_p)).square() / B_p.length();
+  Vector3R G_p = -mu * ctx.DB_pp;
   Vector3R G_t;
 
-  Vector3R v_ht = v_h.transverse_to(B_p);
-  Vector3R v_E = E_p.cross(B_p) / B_p.square();
-  PetscReal u = (v_ht - v_E).length();
-
-  if (u > v_E.length()) {
-    G_t = 2.0 * mu * DB_pt;
+  if (ctx.u > ctx.v_En) {
+    G_t = 2.0 * mu * ctx.DB_pt;
   }
   else {
-    Vector3R v_Ed = v_E.normalized();
-    Vector3R f_tEd = DB_pt.dot(v_Ed) * v_Ed;
+    PetscReal zeta = 2.0 / POW2(ctx.u / ctx.v_En);
+    PetscReal v_hpn = ctx.v_hp.length();
+    PetscReal v_htn = ctx.v_ht.length();
 
-    PetscReal v_hpn = v_h.parallel_to(B_p).length();
-    PetscReal v_htn = v_ht.length();
-    PetscReal zeta = 2.0 / POW2(u / v_E.length());
+    Vector3R v_Ed = ctx.v_E.normalized();
+    Vector3R f_pE = ctx.DB_pt.parallel_to(v_Ed);
+    Vector3R f_tE = ctx.DB_pt.transverse_to(v_Ed);
 
-    G_t = zeta * v_hpn / v_htn * G_p * v_Ed - mu * (zeta * f_tEd + (DB_pt - f_tEd) / (1.0 - 1.0 / zeta));
+    G_t = zeta * v_hpn / v_htn * G_p * v_Ed - mu * (zeta * f_pE + f_tE / (1.0 - 1.0 / zeta));
   }
 
-  B_p += (G_p + G_t).cross(v_ht) / (q * v_ht.square());
+  B_p += (G_p + G_t).cross(ctx.v_ht) / (ctx.q * ctx.v_ht.square());
 
-  Vector3R a = v_n + _alpha * E_p;
+  PetscReal tqm = 0.5 * ctx.dt * ctx.q / ctx.m;
+  Vector3R a = v_n + tqm * ctx.E_p;
 
-  // velocity on a new half-step, v^{n+1/2, k+1}
-  v_h = (a + _alpha * a.cross(B_p) + POW2(_alpha) * a.dot(B_p) * B_p) / (1.0 + POW2(_alpha * B_p.length()));
+  // Velocity on a new half-step, v^{n+1/2, k+1}.
+  Vector3R v_h = (a + tqm * a.cross(B_p) + POW2(tqm) * a.dot(B_p) * B_p) / (1.0 + POW2(tqm * B_p.length()));
 
   PetscReal* f;
   PetscCall(VecGetArrayWrite(vf, &f));
-  f[0] = x_nn[X] - (x_n[X] + dt * v_h[X]);
-  f[1] = x_nn[Y] - (x_n[Y] + dt * v_h[Y]);
-  f[2] = x_nn[Z] - (x_n[Z] + dt * v_h[Z]);
+  f[0] = x_nn[X] - (x_n[X] + ctx.dt * v_h[X]);
+  f[1] = x_nn[Y] - (x_n[Y] + ctx.dt * v_h[Y]);
+  f[2] = x_nn[Z] - (x_n[Z] + ctx.dt * v_h[Z]);
 
   f[3] = v_nn[X] - (2.0 * v_h[X] - v_n[X]);
   f[4] = v_nn[Y] - (2.0 * v_h[Y] - v_n[Y]);

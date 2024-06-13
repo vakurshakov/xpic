@@ -25,16 +25,21 @@ public:
 
 private:
   struct Context {
-    Vector3R ***E;
-    Vector3R ***B;
-    Vector3R ***B_grad;
+    Vector3R ***E, ***B, ***DB;
+    Vector3R E_p, B_p, DB_p;
 
     Vector3I width;
-    Vector3R x_n;
-    Vector3R v_n;
-    PetscReal dt;
-    PetscReal m;
-    PetscReal q;
+    PetscReal dt, m, q;
+
+    Node node;
+    Shape shape[2];
+
+    Vector3R x_n, v_n, x_h, v_h;
+    Vector3R v_E, v_hp, v_ht, DB_pp, DB_pt;
+    PetscReal u, v_En;
+
+    PetscErrorCode update(const Vector3R& x_nn, const Vector3R& v_nn);
+    const PetscReal update_tolerance = 1e-8;
   };
 
   PetscErrorCode push(Point& point);
@@ -53,7 +58,7 @@ private:
   const PetscInt solution_size = 6;  // (3 coordinates) + (3 velocities)
   SNES snes_;
   Vec solution_;
-  Context context_;
+  Context ctx;
 };
 
 }

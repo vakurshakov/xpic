@@ -9,6 +9,7 @@
  * and a nearest grid point to particle - `g` (rounded, shifted by `shape_radius`).
  */
 struct Node {
+  Node() = default;
   Node(const Vector3R& __r);
 
   Vector3R r;
