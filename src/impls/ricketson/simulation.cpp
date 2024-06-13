@@ -83,14 +83,14 @@ PetscErrorCode Simulation::calculate_B_norm_gradient() {
   PetscCall(DMDAVecRestoreArrayRead(da_, B_, &B));
   PetscCall(VecRestoreArrayWrite(B_norm_, &B_norm));
 
-  PetscCall(MatMult(norm_gradient_, B_norm_, B_grad_));
+  PetscCall(MatMult(norm_gradient_, B_norm_, DB_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
 PetscErrorCode Simulation::setup_norm_gradient() {
   PetscFunctionBeginUser;
-  PetscCall(DMCreateGlobalVector(da_, &B_grad_));
+  PetscCall(DMCreateGlobalVector(da_, &DB_));
 
   PetscInt start[3], size[3];
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
@@ -182,7 +182,7 @@ Simulation::~Simulation() {
   PetscCallVoid(DMDestroy(&da_));
   PetscCallVoid(VecDestroy(&E_));
   PetscCallVoid(VecDestroy(&B_));
-  PetscCallVoid(VecDestroy(&B_grad_));
+  PetscCallVoid(VecDestroy(&DB_));
   PetscCallVoid(VecDestroy(&B_norm_));  // dof = 1
   PetscCallVoid(MatDestroy(&norm_gradient_));
   PetscFunctionReturnVoid();

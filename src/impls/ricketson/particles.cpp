@@ -79,15 +79,15 @@ PetscErrorCode Particles::push() {
   const DM& da = simulation_.da_;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
-  PetscCall(DMGetLocalVector(da, &local_B_grad));
+  PetscCall(DMGetLocalVector(da, &local_DB));
 
   PetscCall(DMGlobalToLocal(da, simulation_.E_, INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
-  PetscCall(DMGlobalToLocal(da, simulation_.B_grad_, INSERT_VALUES, local_B_grad));
+  PetscCall(DMGlobalToLocal(da, simulation_.DB_, INSERT_VALUES, local_DB));
 
   PetscCall(DMDAVecGetArrayRead(da, local_E, &ctx.E));
   PetscCall(DMDAVecGetArrayRead(da, local_B, &ctx.B));
-  PetscCall(DMDAVecGetArrayRead(da, local_B_grad, &ctx.DB));
+  PetscCall(DMDAVecGetArrayRead(da, local_DB, &ctx.DB));
 
   for (auto it = points_.begin(); it != points_.end(); ++it) {
     PetscCall(push(*it));
@@ -95,11 +95,11 @@ PetscErrorCode Particles::push() {
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &ctx.E));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &ctx.B));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B_grad, &ctx.DB));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_DB, &ctx.DB));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
-  PetscCall(DMRestoreLocalVector(da, &local_B_grad));
+  PetscCall(DMRestoreLocalVector(da, &local_DB));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

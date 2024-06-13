@@ -17,8 +17,7 @@ public:
   DM da_;
   Vec E_;
   Vec B_;
-  Vec B_grad_;
-  Vec B_norm_;
+  Vec DB_;
 
   DMBoundaryType bounds_[3];
   std::vector<Particles> particles_;
@@ -33,6 +32,7 @@ private:
   PetscInt index(PetscInt k, PetscInt j, PetscInt i);
   PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
 
+  Vec B_norm_;
   Mat norm_gradient_;
 };
 

@@ -52,7 +52,7 @@ private:
 
   Vec local_E;
   Vec local_B;
-  Vec local_B_grad;
+  Vec local_DB;
 
   // Nonlinear solver environment
   const PetscInt solution_size = 6;  // (3 coordinates) + (3 velocities)
