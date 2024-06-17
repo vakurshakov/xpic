@@ -5,4 +5,4 @@ Welcome to xpic's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   configuration
+   details
