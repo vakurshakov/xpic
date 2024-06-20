@@ -72,6 +72,7 @@ instead of the Jacobian-vector product:
 For the rest of the implementation details we currently refer to
 `SNES: Nonlinear Solvers, Matrix-free methods <https://petsc.org/main/manual/snes/#matrix-free-methods>`_.
 
+
 Setup of nonlinear Richardson (Picard) iterations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -117,3 +118,20 @@ process, one must use
 .. math:: \tilde{\mathbf{F}}(\mathbf{x}) = \mathbf{x} - \mathbf{f}(\mathbf{x}).
   :label: picard-correct
 
+
+Tolerances of the PETSc SNES solver
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+One of the important questions about the iteration process is its
+convergence.  PETSc provides the common convergence checks based on
+tolerances and can employ a customized test. The original documentation
+on convergence testing can be found in `SNES: Nonlinear Solvers, Convergence tests <https://petsc.org/release/manual/snes/#convergence-tests>`_,
+here we recall the default tolerances, that can be set by `SNESSetTolerances() <https://petsc.org/release/manualpages/SNES/SNESSetTolerances/>`_,
+and reinterpret them in a more visually accessible way. In a standard
+case, iteration process :math:`\mathbf{x}^k \rightarrow \mathbf{x}^{k+1}`
+continues until one of the following happens
+
+* :math:`\|\mathbf{F}(\mathbf{x}^k)\| \leq \varepsilon_{atol} + \varepsilon_{rtol} \|\mathbf{F}(\mathbf{x}^0)\|` (``-snes_atol`` and ``-snes_rtol``),
+* :math:`\|\mathbf{x}^{k+1} - \mathbf{x}^k\| \leq \varepsilon_{stol}` (``-snes_stol``),
+* maximum number of internal iterations :math:`k` is exceeded (``-snes_max_it``),
+* maximum number of function evaluations :math:`\mathbf{F}(\mathbf{x}^k)` is exceeded (``-snes_max_funcs``).

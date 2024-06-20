@@ -22,7 +22,7 @@ primary_domain = 'cpp'
 
 latex_elements = {
   # Font size in points, 12pt is the maximum available
-  'pointsize': '12pt',
+  'pointsize': '10pt',
 
   # Removes empty pages; no distinction on odd-even pages
   'extraclassoptions': 'openany,oneside',
