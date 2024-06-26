@@ -10,8 +10,7 @@ const Configuration& Configuration::get() {
   return config;
 }
 
-void Configuration::init(const std::string& config_path)
-{
+void Configuration::init(const std::string& config_path) {
   config.config_path_ = config_path;
 
   std::ifstream file(config_path);
@@ -56,9 +55,11 @@ void Configuration::init(const std::string& config_path)
   save(config.config_path_, to, fs::copy_options::overwrite_existing);
 }
 
+
 /* static */ void Configuration::save_sources(const std::string& to) {
   save("src/", to, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
 }
+
 
 /* static */ void Configuration::save(const std::string& from, const std::string& to, fs::copy_options options) {
   int rank;
@@ -82,3 +83,32 @@ void Configuration::init(const std::string& config_path)
     throw std::runtime_error(ss.str());
   }
 }
+
+
+void Configuration::get_boundaries_type(DMBoundaryType& bx, DMBoundaryType& by, DMBoundaryType& bz) {
+  const Configuration::json_t& geometry = config.json.at("Geometry");
+
+  std::string boundary_type_str[3];
+  geometry.at("da_boundary_x").get_to(boundary_type_str[X]);
+  geometry.at("da_boundary_y").get_to(boundary_type_str[Y]);
+  geometry.at("da_boundary_z").get_to(boundary_type_str[Z]);
+
+  auto to_boundary_type = [](const std::string& str) {
+    if (str == "DM_BOUNDARY_PERIODIC") return DM_BOUNDARY_PERIODIC;
+    if (str == "DM_BOUNDARY_GHOSTED") return DM_BOUNDARY_GHOSTED;
+    return DM_BOUNDARY_NONE;
+  };
+
+  bx = to_boundary_type(boundary_type_str[X]);
+  by = to_boundary_type(boundary_type_str[Y]);
+  bz = to_boundary_type(boundary_type_str[Z]);
+}
+
+
+void Configuration::get_processors(PetscInt& px, PetscInt& py, PetscInt& pz) {
+  const Configuration::json_t& geometry = config.json.at("Geometry");
+  geometry.at("da_processors_x").get_to(px);
+  geometry.at("da_processors_y").get_to(py);
+  geometry.at("da_processors_z").get_to(pz);
+}
+

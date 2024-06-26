@@ -8,38 +8,16 @@ namespace ricketson {
 PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
 
-  /// @todo The following can be moved into the base class, or 3D simulation base class.
-  /// @todo Diagnostics are also independent of particle container, so they can be reused.
-  const PetscInt dof = Vector3R::dim;
-  const PetscInt s = shape_radius;
-
-  const Configuration& config = CONFIG();
-  const Configuration::json_t& geometry = config.json.at("Geometry");
-
-  std::string boundary_type_str[3];
-  geometry.at("da_boundary_x").get_to(boundary_type_str[X]);
-  geometry.at("da_boundary_y").get_to(boundary_type_str[Y]);
-  geometry.at("da_boundary_z").get_to(boundary_type_str[Z]);
-
-  auto to_boundary_type = [](const std::string& str) {
-    if (str == "DM_BOUNDARY_PERIODIC") return DM_BOUNDARY_PERIODIC;
-    if (str == "DM_BOUNDARY_GHOSTED") return DM_BOUNDARY_GHOSTED;
-    return DM_BOUNDARY_NONE;
-  };
-
-  bounds_[X] = to_boundary_type(boundary_type_str[X]);
-  bounds_[Y] = to_boundary_type(boundary_type_str[Y]);
-  bounds_[Z] = to_boundary_type(boundary_type_str[Z]);
-
-  PetscInt procs[3];
-  geometry.at("da_processors_x").get_to(procs[X]);
-  geometry.at("da_processors_y").get_to(procs[Y]);
-  geometry.at("da_processors_z").get_to(procs[Z]);
-
   PetscMPIInt size;
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
   PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "Ricketson scheme is uniprocessor currently");
-  ///
+
+  const PetscInt dof = Vector3R::dim;
+  const PetscInt s = shape_radius;
+
+  PetscInt procs[3];
+  Configuration::get_boundaries_type(REP3_A(bounds_));
+  Configuration::get_processors(REP3_A(procs));
 
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds_), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da_));
   PetscCall(DMSetUp(da_));
