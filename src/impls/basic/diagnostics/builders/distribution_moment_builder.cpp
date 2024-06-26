@@ -35,7 +35,7 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
 
     const Particles& particles = get_sort(desc.particles_name);
 
-    auto&& moment = std::make_unique<Moment>(particles, moment_name);
+    auto&& moment = Moment::from_string(particles, moment_name);
 
     if (auto&& diag = Distribution_moment::create(res_dir, simulation_.da_, particles, std::move(moment), desc.region)) {
       diagnostics_.emplace_back(std::move(diag));

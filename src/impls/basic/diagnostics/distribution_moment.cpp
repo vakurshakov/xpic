@@ -9,22 +9,22 @@
 namespace basic {
 
 std::unique_ptr<Distribution_moment> Distribution_moment::create(
-    const std::string& out_dir, DM da, const Particles& particles, Moment_up moment, const Region& region) {
+    const std::string& out_dir, DM da, const Particles& particles, const Moment& moment, const Region& region) {
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
   PetscCallThrow(get_local_communicator(da, region, &newcomm));
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
-  auto* diagnostic = new Distribution_moment(out_dir, da, particles, std::move(moment), newcomm);
+  auto* diagnostic = new Distribution_moment(out_dir, da, particles, moment, newcomm);
   PetscCallThrow(diagnostic->set_data_views(region));
   PetscFunctionReturn(std::unique_ptr<Distribution_moment>(diagnostic));
 }
 
 
 Distribution_moment::Distribution_moment(const std::string& out_dir, DM da,
-  const Particles& particles, Moment_up moment, MPI_Comm newcomm)
-  : Field_view(out_dir, da, nullptr, newcomm), particles_(particles), moment_(std::move(moment)) {}
+  const Particles& particles, const Moment& moment, MPI_Comm newcomm)
+  : Field_view(out_dir, da, nullptr, newcomm), particles_(particles), moment_(moment) {}
 
 
 Distribution_moment::~Distribution_moment() {
@@ -108,7 +108,7 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
 
 
 /**
- * @todo Communication is needed to prevent data losses. Moreover, the type of
+ * @note Communication is needed to prevent data losses. Moreover, the type of
  * data exchanges is dictated by the coordinates of the moment (`Projector`).
  * For example, if we collect particles density on (x, y, z) coordinates, we
  * need to exchange the values that are placed in ghost cells. But if we are
@@ -144,7 +144,7 @@ PetscErrorCode Distribution_moment::collect() {
 
       #pragma omp atomic update
       arr[g_z][g_y][g_x] +=
-        moment_->get(particles_, point) * n *
+        moment_.get(particles_, point) * n *
           shape_function(node.r[X] - g_x, X) *
           shape_function(node.r[Y] - g_y, Y) *
           shape_function(node.r[Z] - g_z, Z);
@@ -156,7 +156,6 @@ PetscErrorCode Distribution_moment::collect() {
 }
 
 
-/// @todo Maybe it would be better to move getters into *.h file and set them in the builder.
 inline PetscReal get_zeroth(const Particles&, const Point&) {
   return 1.0;
 }
@@ -234,52 +233,28 @@ inline PetscReal get_mVphiVphi(const Particles& particles, const Point& point) {
 }
 
 
-Moment::Moment(const Particles& particles, const std::string& name) : particles_(particles) {
-  if (name == "zeroth_moment") {
-    get = get_zeroth;
-  }
-  else if (name == "Vx_moment") {
-    get = get_Vx;
-  }
-  else if (name == "Vy_moment") {
-    get = get_Vy;
-  }
-  else if (name == "Vz_moment") {
-    get = get_Vz;
-  }
-  else if (name == "mVxVx_moment") {
-    get = get_mVxVx;
-  }
-  else if (name == "mVxVy_moment") {
-    get = get_mVxVy;
-  }
-  else if (name == "mVxVz_moment") {
-    get = get_mVxVz;
-  }
-  else if (name == "mVyVy_moment") {
-    get = get_mVyVy;
-  }
-  else if (name == "mVyVz_moment") {
-    get = get_mVyVz;
-  }
-  else if (name == "mVzVz_moment") {
-    get = get_mVzVz;
-  }
-  else if (name == "Vr_moment") {
-    get = get_Vr;
-  }
-  else if (name == "Vphi_moment") {
-    get = get_Vphi;
-  }
-  else if (name == "mVrVr_moment") {
-    get = get_mVrVr;
-  }
-  else if (name == "mVrVphi_moment") {
-    get = get_mVrVphi;
-  }
-  else if (name == "mVphiVphi_moment") {
-    get = get_mVphiVphi;
-  }
+Moment::Moment(const Particles& particles, const getter& get)
+  : particles_(particles), get(get) {}
+
+Moment Moment::from_string(const Particles& particles, const std::string& name) {
+  getter get = nullptr;
+  if (name == "zeroth_moment") { get = get_zeroth; }
+  else if (name == "Vx_moment") { get = get_Vx; }
+  else if (name == "Vy_moment") { get = get_Vy; }
+  else if (name == "Vz_moment") { get = get_Vz; }
+  else if (name == "Vr_moment") { get = get_Vr; }
+  else if (name == "Vphi_moment") { get = get_Vphi; }
+  else if (name == "mVxVx_moment") { get = get_mVxVx; }
+  else if (name == "mVxVy_moment") { get = get_mVxVy; }
+  else if (name == "mVxVz_moment") { get = get_mVxVz; }
+  else if (name == "mVyVy_moment") { get = get_mVyVy; }
+  else if (name == "mVyVz_moment") { get = get_mVyVz; }
+  else if (name == "mVzVz_moment") { get = get_mVzVz; }
+  else if (name == "mVrVr_moment") { get = get_mVrVr; }
+  else if (name == "mVrVphi_moment") { get = get_mVrVphi; }
+  else if (name == "mVphiVphi_moment") { get = get_mVphiVphi; }
+  else throw std::runtime_error("Unkown moment name!");
+  return Moment(particles, get);
 }
 
 }
