@@ -1,6 +1,5 @@
 #include "field_view_builder.h"
 
-#include "src/utils/region_operations.h"
 #include "src/vectors/vector_utils.h"
 
 namespace basic {
@@ -15,7 +14,6 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
     PetscFunctionBeginUser;
     Field_description desc;
     PetscCall(parse_field_info(info, desc));
-    PetscCall(check_field_description(desc));
     fields_desc_.emplace_back(std::move(desc));
     PetscFunctionReturn(PETSC_SUCCESS);
   };
@@ -68,30 +66,14 @@ PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t&
       desc.region.start[i] = TO_STEP(start[i], Dx[i]);
       desc.region.size[i] = TO_STEP(size[i], Dx[i]);
     }
+
+    PetscCall(check_region(vector_cast(desc.region.start), vector_cast(desc.region.size), desc.field_name + desc.component_name));
   }
   catch (const std::exception& e) {
     message = e.what();
     message += usage_message();
     throw std::runtime_error(message);
   }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/// @todo Move check into base class
-PetscErrorCode Field_view_builder::check_field_description(const Field_description& desc) {
-  PetscFunctionBeginUser;
-  std::string message;
-
-  Vector3I r_start = vector_cast(desc.region.start);
-  Vector3I r_size = vector_cast(desc.region.size);
-  bool is_region_in_global_bounds = is_region_within_bounds(r_start, r_size, 0, Geom_n);
-  message = "Region is not in global boundaries for " + desc.field_name + desc.component_name + " diagnostic.";
-  PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
-
-  bool are_sizes_positive = (r_size[X] > 0) && (r_size[Y] > 0) && (r_size[Z] > 0);
-  message = "Sizes are invalid for " + desc.field_name + desc.component_name + " diagnostic.";
-  PetscCheck(are_sizes_positive, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

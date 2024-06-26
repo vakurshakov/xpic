@@ -1,7 +1,6 @@
 #include "distribution_moment_builder.h"
 
 #include "src/utils/utils.h"
-#include "src/utils/region_operations.h"
 #include "src/vectors/vector_utils.h"
 
 namespace basic {
@@ -20,7 +19,6 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
     PetscFunctionBeginHot;
     Moment_description desc;
     PetscCall(parse_moment_info(info, desc));
-    PetscCall(check_moment_description(desc));
     moments_desc_.emplace_back(std::move(desc));
     PetscFunctionReturn(PETSC_SUCCESS);
   };
@@ -35,7 +33,7 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
 
     const Particles& particles = get_sort(desc.particles_name);
 
-    auto&& moment = std::make_unique<Moment>(particles, moment_name);
+    auto&& moment = Moment::from_string(particles, moment_name);
 
     if (auto&& diag = Distribution_moment::create(res_dir, simulation_.da_, particles, std::move(moment), desc.region)) {
       diagnostics_.emplace_back(std::move(diag));
@@ -60,30 +58,14 @@ PetscErrorCode Distribution_moment_builder::parse_moment_info(const Configuratio
       desc.region.start[i] = TO_STEP(start[i], Dx[i]);
       desc.region.size[i] = TO_STEP(size[i], Dx[i]);
     }
+
+    PetscCall(check_region(vector_cast(desc.region.start), vector_cast(desc.region.size), desc.particles_name + " " + moment_name));
   }
   catch (const std::exception& e) {
     message = e.what();
     message += usage_message();
     throw std::runtime_error(message);
   }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/// @todo Move check into base class
-PetscErrorCode Distribution_moment_builder::check_moment_description(const Moment_description& desc) {
-  PetscFunctionBeginUser;
-  std::string message;
-
-  Vector3I r_start = vector_cast(desc.region.start);
-  Vector3I r_size = vector_cast(desc.region.size);
-  bool is_region_in_global_bounds = is_region_within_bounds(r_start, r_size, 0, Geom_n);
-  message = "Region is not in global boundaries for " + moment_name + " diagnostic.";
-  PetscCheck(is_region_in_global_bounds, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
-
-  bool are_sizes_positive = (r_size[X] > 0) && (r_size[Y] > 0) && (r_size[Z] > 0);
-  message = "Sizes are invalid for " + moment_name + " diagnostic.";
-  PetscCheck(are_sizes_positive, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG, message.c_str());
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

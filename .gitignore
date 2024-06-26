@@ -1,12 +1,14 @@
-# Executables
-bin/
-bin-int/
-
 external/json
 external/spdlog
 external/petsc
-results/
+
+bin/
+bin-int/
+
+doc/build/
+
 log/
+results/
 __pycache__/
 
 .vscode/settings.json

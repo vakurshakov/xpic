@@ -1,5 +1,6 @@
 #include "diagnostic_builder.h"
 
+#include "src/utils/region_operations.h"
 #include "src/impls/basic/diagnostics/builders/fields_energy_builder.h"
 #include "src/impls/basic/diagnostics/builders/field_view_builder.h"
 #include "src/impls/basic/diagnostics/builders/distribution_moment_builder.h"
@@ -61,6 +62,21 @@ Vector3R Diagnostic_builder::parse_vector(const Configuration::json_t& json, con
     message += usage_message();
     throw std::runtime_error(message);
   }
+}
+
+
+PetscErrorCode Diagnostic_builder::check_region(const Vector3I& start, const Vector3I& size, const std::string& diag_name) const {
+  PetscFunctionBeginUser;
+
+  if (bool success = is_region_within_bounds(start, size, 0, Geom_n); !success) {
+    throw std::runtime_error("Region is not in global boundaries for " + diag_name + " diagnostic.");
+  }
+
+  if (bool success = (size[X] > 0) && (size[Y] > 0) && (size[Z] > 0); !success) {
+    throw std::runtime_error("Sizes are invalid for " + diag_name + " diagnostic.");
+  }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 

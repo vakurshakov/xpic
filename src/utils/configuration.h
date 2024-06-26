@@ -3,6 +3,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <petscdm.h>  // for DMBoundaryType
+
 #include "src/pch.h"
 
 class Configuration {
@@ -40,6 +42,12 @@ public:
    * @param to Location of resulting src directory relative to `out_dir`.
    */
   static void save_sources(const std::string& to = "");
+
+  /// @brief Getter of boundaries type, reads the config at Geometry.da_boundary_{x, y, z}.
+  static void get_boundaries_type(DMBoundaryType& bx, DMBoundaryType& by, DMBoundaryType& bz);
+
+  /// @brief Getter of processors number, reads the config at Geometry.da_processors_{x, y, z}.
+  static void get_processors(PetscInt& px, PetscInt& py, PetscInt& pz);
 
 private:
   std::string config_path_;
