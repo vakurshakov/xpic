@@ -26,6 +26,8 @@ protected:
   const Particles& get_sort(const std::string& name) const;
   Vector3R parse_vector(const Configuration::json_t& json, const std::string& name) const;
 
+  PetscErrorCode check_region(const Vector3I& start, const Vector3I& size, const std::string& diag_name) const;
+
 protected:
   const Simulation& simulation_;
 
