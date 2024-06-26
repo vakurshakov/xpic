@@ -2,17 +2,16 @@
 #include "src/interfaces/simulation.h"
 #include "src/utils/configuration.h"
 
-/// @todo help information isn't printed
-static char help[] = "Usage: simulation.out <config.json>\n";
+static char help[] = "Usage: [mpiexec] simulation.out <config.json>\n";
 
 int main(int argc, char** argv) {
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
+
   if (argc < 2) {
     PetscCall(PetscPrintf(PETSC_COMM_WORLD, help));
     return EXIT_FAILURE;
   }
-
-  PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   try {
     Configuration::init(argv[1]);
