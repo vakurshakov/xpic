@@ -12,6 +12,7 @@ static constexpr PetscReal stol = 1e-10;
 static constexpr PetscInt maxit = 100;
 static constexpr PetscInt maxf  = 300;
 
+
 /**
  * @brief Internal constants controlling the restrictions of the proposed scheme.
  * @details
@@ -106,39 +107,51 @@ PetscErrorCode Particles::push() {
 
 PetscErrorCode Particles::push(Point& point) {
   PetscFunctionBeginUser;
+  ctx.x_n = point.r;
+  ctx.v_n = point.p;
   ctx.q = charge(point);
   ctx.m = mass(point);
   PetscCall(ctx.update(point.r, point.p));
   PetscCall(adaptive_time_stepping(point));
 
-  // Initial guess should be explicitly set before `SNESSolve()`.
-  PetscReal *arr;
-  PetscCall(VecGetArrayWrite(solution_, &arr));
-  arr[0] = ctx.x_n[X] = point.x();
-  arr[1] = ctx.x_n[Y] = point.y();
-  arr[2] = ctx.x_n[Z] = point.z();
-  arr[3] = ctx.v_n[X] = point.px();
-  arr[4] = ctx.v_n[Y] = point.py();
-  arr[5] = ctx.v_n[Z] = point.pz();
-  PetscCall(VecRestoreArrayWrite(solution_, &arr));
+  PetscReal mu_0 = (ctx.v_n - ctx.v_E).square() / ctx.B_p.length();
 
-  /// @todo Check \Delta mu / mu upon completion.
-  PetscCall(SNESSolve(snes_, nullptr, solution_));
+  const PetscInt MAX_ITERATIONS_RESTART = 10;
+  for (PetscInt i = 0; i < MAX_ITERATIONS_RESTART; ++i) {
+    // Initial guess should be explicitly set before `SNESSolve()`.
+    PetscReal *arr;
+    PetscCall(VecGetArrayWrite(solution_, &arr));
+    arr[0] = ctx.x_n[X];
+    arr[1] = ctx.x_n[Y];
+    arr[2] = ctx.x_n[Z];
+    arr[3] = ctx.v_n[X];
+    arr[4] = ctx.v_n[Y];
+    arr[5] = ctx.v_n[Z];
+    PetscCall(VecRestoreArrayWrite(solution_, &arr));
 
-  // Updating point only in case of convergence.
-  SNESConvergedReason reason;
-  PetscCall(SNESGetConvergedReason(snes_, &reason));
+    PetscCall(SNESSolve(snes_, nullptr, solution_));
 
-  if (reason >= 0) {
-    PetscCall(VecGetArray(solution_, &arr));
-    point.x() = arr[0];
-    point.y() = arr[1];
-    point.z() = arr[2];
-    point.px() = arr[3];
-    point.py() = arr[4];
-    point.pz() = arr[5];
-    PetscCall(VecRestoreArray(solution_, &arr));
+    SNESConvergedReason reason;
+    PetscCall(SNESGetConvergedReason(snes_, &reason));
+
+    /// @todo Whether the context is evaluated at the last point x_nn?
+    PetscReal mu = (point.p - ctx.v_E).square() / ctx.B_p.length();
+    if (reason >= 0 && (mu - mu_0) / mu_0 < eps) {
+      PetscCall(VecGetArray(solution_, &arr));
+      point.x() = arr[0];
+      point.y() = arr[1];
+      point.z() = arr[2];
+      point.px() = arr[3];
+      point.py() = arr[4];
+      point.pz() = arr[5];
+      PetscCall(VecRestoreArray(solution_, &arr));
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }
+
+    ctx.dt *= (alpha * eps * mu_0 / (mu - mu_0));
   }
+  LOG_WARN("Particle iterations did not converged event with gradually decreasing dt.");
+  LOG_WARN("After {} iterations, last timestep for the particle is dt = {:.5f}.", MAX_ITERATIONS_RESTART, ctx.dt);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
