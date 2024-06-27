@@ -38,7 +38,7 @@ private:
     Vector3R v_hp, v_ht, v_E, DB_pp, DB_pt;
     PetscReal v_En, u;
 
-    PetscErrorCode update(const Vector3R& x_nn, const Vector3R& v_nn);
+    PetscErrorCode update(const Vector3R& x_nn, const Vector3R& v_nn, bool force = false);
     const PetscReal update_tolerance = 1e-8;
   };
 

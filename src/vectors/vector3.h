@@ -97,11 +97,11 @@ struct Vector3 {
     return dot(*this);
   }
 
-  Vector3 parallel_to(const Vector3& ref) const {
-    return (*this).dot(ref) * ref;
+  Vector3<PetscReal> parallel_to(const Vector3& ref) const {
+    return ((*this).dot(ref) * ref) / ref.square();
   }
 
-  Vector3 transverse_to(const Vector3& ref) const {
+  Vector3<PetscReal> transverse_to(const Vector3& ref) const {
     return (*this) - parallel_to(ref);
   }
 

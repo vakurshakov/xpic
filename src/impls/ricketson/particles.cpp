@@ -109,9 +109,9 @@ PetscErrorCode Particles::push(Point& point) {
   PetscFunctionBeginUser;
   ctx.x_n = point.r;
   ctx.v_n = point.p;
-  ctx.q = charge(point);
   ctx.m = mass(point);
-  PetscCall(ctx.update(point.r, point.p));
+  ctx.q = charge(point);
+  PetscCall(ctx.update(point.r, point.p, true));
   PetscCall(adaptive_time_stepping(point));
 
   PetscReal mu_0 = (ctx.v_n - ctx.v_E).square() / ctx.B_p.length();
@@ -136,7 +136,7 @@ PetscErrorCode Particles::push(Point& point) {
 
     /// @todo Whether the context is evaluated at the last point x_nn?
     PetscReal mu = (point.p - ctx.v_E).square() / ctx.B_p.length();
-    if (reason >= 0 && (mu - mu_0) / mu_0 < eps) {
+    if (reason >= 0 && abs(mu - mu_0) / mu_0 < eps) {
       PetscCall(VecGetArray(solution_, &arr));
       point.x() = arr[0];
       point.y() = arr[1];
@@ -148,17 +148,15 @@ PetscErrorCode Particles::push(Point& point) {
       PetscFunctionReturn(PETSC_SUCCESS);
     }
 
-    ctx.dt *= (alpha * eps * mu_0 / (mu - mu_0));
+    ctx.dt *= (alpha * eps * mu_0 / abs(mu - mu_0));
   }
-  LOG_WARN("Particle iterations did not converged event with gradually decreasing dt.");
-  LOG_WARN("After {} iterations, last timestep for the particle is dt = {:.5f}.", MAX_ITERATIONS_RESTART, ctx.dt);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-PetscErrorCode Particles::Context::update(const Vector3R& x_nn, const Vector3R& v_nn) {
+PetscErrorCode Particles::Context::update(const Vector3R& x_nn, const Vector3R& v_nn, bool force) {
   PetscFunctionBeginUser;
-  if ((x_h - 0.5 * (x_nn + x_n)).length() > update_tolerance) {
+  if ((x_h - 0.5 * (x_nn + x_n)).length() > update_tolerance || force) {
     x_h = 0.5 * (x_nn + x_n);
 
     node = Node(x_h);
@@ -244,9 +242,10 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
 
   PetscCall(ctx.update(x_nn, v_nn));
 
-  // To avoid the update of `Context::B_p`, see line 256.
+  // To avoid the update of `Context::B_p`.
   Vector3R B_p = ctx.B_p;
 
+  /// @todo Add guards in case of v_t << v_p
   PetscReal mu = -0.125 * ctx.m * ((v_nn - v_n).parallel_to(B_p)).square() / B_p.length();
   Vector3R G_p = -mu * ctx.DB_pp;
   Vector3R G_t;

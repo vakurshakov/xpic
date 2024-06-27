@@ -26,19 +26,54 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(DMCreateGlobalVector(da_, &B_));
   PetscCall(setup_norm_gradient());
 
+  /// @todo Move this into class Set_approximate_magnetic_mirror.
+  const PetscReal current = 3e4;
+  const PetscReal radius = 3;
+  const PetscReal distance = 15;
+
+  PetscInt rstart[3], rsize[3];
+  PetscCall(DMDAGetCorners(da_, REP3_A(&rstart), REP3_A(&rsize)));
+
+  Vector3R ***B;
+  PetscCall(DMDAVecGetArrayWrite(da_, B_, &B));
+  for (PetscInt z = rstart[Z]; z < rstart[Z] + rsize[Z]; ++z) {
+  for (PetscInt y = rstart[Y]; y < rstart[Y] + rsize[Y]; ++y) {
+  for (PetscInt x = rstart[X]; x < rstart[X] + rsize[X]; ++x) {
+    PetscReal B0 = 0.5 * current * POW2(radius) * (
+      1 / pow(POW2(radius) + POW2((z * dz - 0.5 * geom_z) + 0.5 * distance), 1.5) +
+      1 / pow(POW2(radius) + POW2((z * dz - 0.5 * geom_z) - 0.5 * distance), 1.5));
+
+    PetscReal B1 =
+      ((z * dz - 0.5 * geom_z) + 0.5 * distance) / (POW2(radius) + POW2((z * dz - 0.5 * geom_z) + 0.5 * distance)) +
+      ((z * dz - 0.5 * geom_z) - 0.5 * distance) / (POW2(radius) + POW2((z * dz - 0.5 * geom_z) - 0.5 * distance));
+
+    B[z][y][x].x() = B0 * 1.5 * (x * dx - 0.5 * geom_x) * B1;
+    B[z][y][x].y() = B0 * 1.5 * (y * dy - 0.5 * geom_y) * B1;
+    B[z][y][x].z() = B0 * 1.0;
+  }}}
+  PetscCall(DMDAVecRestoreArrayWrite(da_, B_, &B));
+
 #if THERE_ARE_PARTICLES
   Particles_parameters parameters = {
     .Np = 1,
     .n  = +1.0,
-    .q  = -1.0,
+    .q  = +1.0,
     .m  = +1.0,
-    .sort_name = "electrons"
+    .sort_name = "positron"
   };
   auto& sort = particles_.emplace_back(*this, parameters);
-  sort.add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 4}, {0.0, 0.0, 0.5}});
+
+  const PetscReal v_crit = sqrt(9.8342 - 1);
+  const PetscReal factor = 0.5;
+
+  Vector3R r = {0, 0.02, 0};
+  Vector3R v = {1, 0, factor * v_crit};
+
+  sort.add_particle(Point{r, v});
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 PetscErrorCode Simulation::calculate_B_norm_gradient() {
   PetscFunctionBeginUser;
@@ -90,6 +125,7 @@ PetscErrorCode Simulation::setup_norm_gradient() {
   PetscCall(MatSetType(norm_gradient_, mtype));
   PetscCall(MatSetUp(norm_gradient_));
 
+  /// @todo The code below inherits the problem of proc_y separation, proper indexing should be used.
   /// @note The following is the setup of \vec{∇-} operator for |\vec{B}|. By defining
   /// negative derivative on Yee stencil, we set |\vec{B}| in (i+0.5, j+0.5, k+0.5).
   auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
@@ -132,6 +168,7 @@ PetscErrorCode Simulation::setup_norm_gradient() {
   PetscCall(MatAssemblyEnd(norm_gradient_, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z) {
   return (z * geom_ny + y) * geom_nx + x;
