@@ -41,7 +41,7 @@ PetscErrorCode Simulation::log_information() const {
 PetscErrorCode Simulation::calculate() {
   PetscFunctionBeginUser;
   for (timestep_t t = start_ + 1; t <= geom_nt; ++t) {
-    LOG_TRACE("timestep = {:4.3f} [1/w_pe]\t= {} [dt]", (t * dt), t);
+    LOG_TRACE("Timestep = {:4.3f} [1/w_pe]\t= {} [dt]", (t * dt), t);
 
     for (const Command_up& command : step_presets_) {
       PetscCall(command->execute(t));
