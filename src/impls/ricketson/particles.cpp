@@ -29,10 +29,11 @@ static constexpr PetscReal gamma = 0.1;
 static constexpr PetscReal t_res = 0.1;
 
 
-Particles::Particles(Simulation& simulation, const Particles_parameters& parameters)
-    : simulation_(simulation) {
+Particles::Particles(Simulation& simulation, const Particles_parameters& parameters) : simulation_(simulation) {
   PetscFunctionBeginUser;
   parameters_ = parameters;
+
+  particle_iterations_log = Sync_binary_file(CONFIG().out_dir, "particle_iterations");
 
   ctx.width = min(Vector3I(Geom_n), Vector3I(shape_width));
 
@@ -56,6 +57,15 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   LOG_INFO("  maxf  = {} - maximum number of function evaluations", maxf);
   LOG_FLUSH();
   PetscFunctionReturnVoid();
+}
+
+
+Particles::Particles(Particles&& other) : simulation_(other.simulation_) {
+  points_ = std::move(other.points_);
+  particle_iterations_log = std::move(other.particle_iterations_log);
+
+  snes_ = other.snes_;
+  solution_ = other.solution_;
 }
 
 
@@ -145,11 +155,20 @@ PetscErrorCode Particles::push(Point& point) {
       point.py() = arr[4];
       point.pz() = arr[5];
       PetscCall(VecRestoreArray(solution_, &arr));
+
+      PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
+
+      const PetscInt size = 9;
+      const PetscReal data[size] = {(PetscReal)i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p)};
+      PetscCall(particle_iterations_log.write_floats(size, data));
+
       PetscFunctionReturn(PETSC_SUCCESS);
     }
 
     ctx.dt *= (alpha * eps * mu_0 / abs(mu - mu_0));
   }
+  PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
+  LOG_WARN("Particle iterations did not converged! Last timestep is (Omega * dt) = {:.5f}.", Omega_dt);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

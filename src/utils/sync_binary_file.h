@@ -11,6 +11,14 @@ class Sync_binary_file {
 public:
   Sync_binary_file() = default;
 
+  /// @warning std::ofstream is not copyable.
+  Sync_binary_file(const Sync_binary_file& other) = delete;
+  Sync_binary_file& operator=(const Sync_binary_file& other) = delete;
+
+  /// @note Default move constructors are fine.
+  Sync_binary_file(Sync_binary_file&& other) = default;
+  Sync_binary_file& operator=(Sync_binary_file&& other) = default;
+
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
   Sync_binary_file(const std::string& directory_path, const std::string& file_name);
 

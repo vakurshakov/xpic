@@ -8,6 +8,7 @@
 #include "src/pch.h"
 #include "src/vectors/vector3.h"
 #include "src/impls/particle_shape.h"
+#include "src/utils/sync_binary_file.h"
 
 namespace ricketson {
 
@@ -16,6 +17,7 @@ class Simulation;
 class Particles : public interfaces::Particles {
 public:
   Particles(Simulation& simulation, const Particles_parameters& parameters);
+  Particles(Particles&& other);
   ~Particles();
 
   PetscErrorCode add_particle(const Point& point);
@@ -59,6 +61,8 @@ private:
   SNES snes_;
   Vec solution_;
   Context ctx;
+
+  Sync_binary_file particle_iterations_log;
 };
 
 }
