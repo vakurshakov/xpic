@@ -86,7 +86,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   Vector3I size;
   PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
 
-  PetscCall(file_.write_floats(arr, (size[X] * size[Y] * size[Z] * region_.dof)));
+  PetscCall(file_.write_floats((size[X] * size[Y] * size[Z] * region_.dof), arr));
   PetscCall(file_.close());
 
   PetscCall(VecRestoreArrayRead(field_, &arr));

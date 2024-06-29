@@ -79,7 +79,7 @@ PetscErrorCode MPI_binary_file::set_fileview_subarray(PetscInt ndim, const Petsc
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MPI_binary_file::write_floats(const PetscReal* data, PetscInt size) {
+PetscErrorCode MPI_binary_file::write_floats(PetscInt size, const PetscReal* data) {
   PetscFunctionBeginHot;
 #if defined(PETSC_USE_REAL_SINGLE)
   PetscCallMPI(MPI_File_write_all(file_, data, 1, memview_, MPI_STATUS_IGNORE));

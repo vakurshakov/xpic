@@ -20,7 +20,8 @@ public:
   PetscErrorCode set_memview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]);
   PetscErrorCode set_fileview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]);
 
-  PetscErrorCode write_floats(const PetscReal* data, PetscInt size);
+  /// @brief Writes the array `data` of some `size` as floats.
+  PetscErrorCode write_floats(PetscInt size, const PetscReal* data);
 
 private:
   MPI_Comm comm_ = MPI_COMM_NULL;
