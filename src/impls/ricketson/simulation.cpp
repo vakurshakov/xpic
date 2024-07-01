@@ -64,7 +64,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   auto& sort = particles_.emplace_back(*this, parameters);
 
   const PetscReal v_crit = sqrt(9.8342 - 1);
-  const PetscReal factor = 0.5;
+  const PetscReal factor = 0.3;
 
   Vector3R r = {0, 0.02, 0};
   Vector3R v = {1, 0, factor * v_crit};
