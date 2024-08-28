@@ -152,21 +152,21 @@ PetscErrorCode Particles::push(Point& point) {
     point.py() = arr[4];
     point.pz() = arr[5];
     PetscCall(VecRestoreArray(solution_, &arr));
-    
+
     PetscInt iterations, evals;
     PetscCall(SNESGetIterationNumber(snes_, &iterations));
     PetscCall(SNESGetNumberFunctionEvals(snes_, &evals));
-    LOG_WARN("Iterations number: {}, Function evaluations: {}", iterations, evals);
+    LOG("Iterations number: " << iterations << " Function evaluations: " << evals);
 
     PetscCall(ctx.update(point.r, point.p));
     PetscReal mu = (point.p - ctx.v_E).square() / ctx.B_p.length();
-    LOG_WARN("|dmu| = {:.5e}, eps*mu0 = {:.5e}, shrink = {:.5e}", abs(mu - mu_0), eps * mu_0, alpha * eps * mu_0 / abs(mu - mu_0));
+    LOG("|dmu| = " << abs(mu - mu_0) << ", eps*mu0 = " << eps * mu_0 << ", shrink = " <<  alpha * eps * mu_0 / abs(mu - mu_0));
 
     if (reason >= 0 && abs(mu - mu_0) < eps * mu_0) {
       PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
       const PetscInt size = 9;
       const PetscReal data[size] = {(PetscReal)i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p)};
-      LOG_WARN("i {} \t dt {:.5f} \t mu {:.5f} \t x {:.5f} \t y {:.5f} \t z {:.5f} \t px {:.5f} \t py {:.5f} \t pz {:.5f}", i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p));
+
       PetscCall(particle_iterations_log.write_floats(size, data));
       PetscFunctionReturn(PETSC_SUCCESS);
     }
