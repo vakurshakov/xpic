@@ -1,7 +1,7 @@
 #ifndef SRC_IMPLS_PARTICLE_SHAPE_H
 #define SRC_IMPLS_PARTICLE_SHAPE_H
 
-#include "src/interfaces/particles/parameters.h"
+#include "src/interfaces/sort_parameters.h"
 #include "src/utils/vector3.h"
 
 /**

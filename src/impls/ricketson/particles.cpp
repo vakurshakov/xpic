@@ -29,7 +29,7 @@ static constexpr PetscReal gamma = 0.1;
 static constexpr PetscReal t_res = 10;
 
 
-Particles::Particles(Simulation& simulation, const Particles_parameters& parameters) : simulation_(simulation) {
+Particles::Particles(Simulation& simulation, const Sort_parameters& parameters) : simulation_(simulation) {
   PetscFunctionBeginUser;
   parameters_ = parameters;
 

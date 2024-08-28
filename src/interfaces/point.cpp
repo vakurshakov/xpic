@@ -1,23 +1,7 @@
 #include "point.h"
 
-Point::Point(
-  const Vector3R& r,
-  const Vector3R& p
-#if PARTICLES_LOCAL_PNUM
-  , PetscInt Np
-#endif
-#if PARTICLES_LOCAL_DENSITY
-  , PetscReal n
-#endif
-  )
-  : r(r)
-  , p(p)
-#if PARTICLES_LOCAL_PNUM
-  , __Np(Np)
-#endif
-#if PARTICLES_LOCAL_DENSITY
-  , __n(n)
-#endif
+Point::Point(const Vector3R& r, const Vector3R& p)
+  : r(r), p(p)
 {
 }
 

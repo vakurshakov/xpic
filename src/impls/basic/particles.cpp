@@ -5,7 +5,7 @@
 
 namespace basic {
 
-Particles::Particles(Simulation& simulation, const Particles_parameters& parameters)
+Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
   : simulation_(simulation) {
   PetscFunctionBeginUser;
   parameters_ = parameters;

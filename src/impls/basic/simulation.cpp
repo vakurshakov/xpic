@@ -34,7 +34,7 @@ PetscErrorCode Simulation::initialize_implementation() {
 
 #if THERE_ARE_PARTICLES
   /// @todo Particles parametrisation is needed!
-  Particles_parameters parameters = {
+  Sort_parameters parameters = {
     .Np = 1,
     .n  = +1.0,
     .q  = -1.0,

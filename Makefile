@@ -37,11 +37,11 @@ SRCS :=              \
 	src/main.cpp       \
 	src/constants.cpp  \
 
-SRCS +=                                    \
-  src/interfaces/simulation.cpp            \
-	src/interfaces/particles/point.cpp       \
-	src/interfaces/particles/parameters.cpp  \
-	src/interfaces/particles/particles.cpp   \
+SRCS +=                               \
+  src/interfaces/simulation.cpp       \
+	src/interfaces/point.cpp            \
+	src/interfaces/sort_parameters.cpp  \
+	src/interfaces/particles.cpp        \
 
 SRCS +=                           \
   src/utils/configuration.cpp     \

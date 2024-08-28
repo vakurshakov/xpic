@@ -6,7 +6,7 @@
 #include <petscdm.h>
 
 #include "src/utils/vector3.h"
-#include "src/interfaces/particles/particles.h"
+#include "src/interfaces/particles.h"
 
 #include "src/impls/particle_shape.h"
 
@@ -16,7 +16,7 @@ class Simulation;
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const Particles_parameters& parameters);
+  Particles(Simulation& simulation, const Sort_parameters& parameters);
   ~Particles() override;
 
   PetscErrorCode add_particle(const Point& point);

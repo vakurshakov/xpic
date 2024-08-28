@@ -1,7 +1,7 @@
 #ifndef SRC_RICKETSON_PARTICLES_H
 #define SRC_RICKETSON_PARTICLES_H
 
-#include "src/interfaces/particles/particles.h"
+#include "src/interfaces/particles.h"
 
 #include <petscsnes.h>
 
@@ -16,7 +16,7 @@ class Simulation;
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const Particles_parameters& parameters);
+  Particles(Simulation& simulation, const Sort_parameters& parameters);
   Particles(Particles&& other);
   ~Particles();
 

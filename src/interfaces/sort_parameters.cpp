@@ -1,10 +1,11 @@
-#include "parameters.h"
+#include "sort_parameters.h"
+
 #include "src/utils/utils.h"
 
 PetscReal __0th_order_spline(PetscReal s, Axis a) {
   if (Geom_n[a] == 1) { return 1.0; }
 
-  s = std::abs(s);
+  s = abs(s);
 
   if (s <= 0.5) {
     return 1.0;
@@ -15,7 +16,7 @@ PetscReal __0th_order_spline(PetscReal s, Axis a) {
 PetscReal __1st_order_spline(PetscReal s, Axis a) {
   if (Geom_n[a] == 1) { return 1.0; }
 
-  s = std::abs(s);
+  s = abs(s);
 
   if (s <= 1.0) {
     return 1.0 - s;
@@ -26,7 +27,7 @@ PetscReal __1st_order_spline(PetscReal s, Axis a) {
 PetscReal __2nd_order_spline(PetscReal s, Axis a) {
   if (Geom_n[a] == 1) { return 1.0; }
 
-  s = std::abs(s);
+  s = abs(s);
 
   if (s <= 0.5) {
     return (0.75 - s * s);
@@ -40,7 +41,7 @@ PetscReal __2nd_order_spline(PetscReal s, Axis a) {
 PetscReal __3rd_order_spline(PetscReal s, Axis a) {
   if (Geom_n[a] == 1) { return 1.0; }
 
-  s = std::abs(s);
+  s = abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
 
@@ -56,7 +57,7 @@ PetscReal __3rd_order_spline(PetscReal s, Axis a) {
 PetscReal __4th_order_spline(PetscReal s, Axis a) {
   if (Geom_n[a] == 1) { return 1.0; }
 
-  s = std::abs(s);
+  s = abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
   PetscReal s4 = POW4(s);
@@ -76,7 +77,7 @@ PetscReal __4th_order_spline(PetscReal s, Axis a) {
 PetscReal __5th_order_spline(PetscReal s, Axis a) {
   if (Geom_n[a] == 1) { return 1.0; }
 
-  s = std::abs(s);
+  s = abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
   PetscReal s4 = POW4(s);

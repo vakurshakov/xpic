@@ -1,9 +1,9 @@
-#ifndef SRC_INTERFACES_PARTICLES_POINT_H
-#define SRC_INTERFACES_PARTICLES_POINT_H
+#ifndef SRC_INTERFACES_POINT_H
+#define SRC_INTERFACES_POINT_H
 
 #include "src/pch.h"
 #include "src/utils/vector3.h"
-#include "src/interfaces/particles/parameters.h"
+#include "src/interfaces/sort_parameters.h"
 
 namespace interfaces { class Particles; }
 
@@ -28,16 +28,7 @@ public:
   Vector3R p = 0.0;
 
   Point() = default;
-  Point(
-    const Vector3R& r,
-    const Vector3R& p
-#if PARTICLES_LOCAL_PNUM
-    , PetscInt Np
-#endif
-#if PARTICLES_LOCAL_DENSITY
-    , PetscReal n
-#endif
-  );
+  Point(const Vector3R& r, const Vector3R& p);
 
   PetscReal& x() { return r.x(); }
   PetscReal& y() { return r.y(); }
@@ -57,16 +48,9 @@ public:
 
 private:
   friend class interfaces::Particles;
-
-#if PARTICLES_LOCAL_PNUM
-  PetscReal __Np;
-#endif
-#if PARTICLES_LOCAL_DENSITY
-  PetscReal __n;
-#endif
 };
 
 void g_bound_reflective(Point& point, Axis axis);
 void g_bound_periodic(Point& point, Axis axis);
 
-#endif  // SRC_INTERFACES_PARTICLES_POINT_H
+#endif  // SRC_INTERFACES_POINT_H

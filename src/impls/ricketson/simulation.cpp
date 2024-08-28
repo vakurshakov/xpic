@@ -54,7 +54,7 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(DMDAVecRestoreArrayWrite(da_, B_, &B));
 
 #if THERE_ARE_PARTICLES
-  Particles_parameters parameters = {
+  Sort_parameters parameters = {
     .Np = 1,
     .n  = +1.0,
     .q  = +1.0,
