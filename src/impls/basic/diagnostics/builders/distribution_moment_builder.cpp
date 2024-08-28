@@ -27,7 +27,7 @@ PetscErrorCode Distribution_moment_builder::build(const Configuration::json_t& d
   PetscCall(parse_info(diag_info));
 
   for (const Moment_description& desc : moments_desc_) {
-    LOG_INFO("Add {}_of_{} diagnostic for {}", moment_name, proj_name, desc.particles_name);
+    LOG("Add " << moment_name << "_of_" << proj_name << " diagnostic for " << desc.particles_name);
 
     std::string res_dir = CONFIG().out_dir + "/" + desc.particles_name + "/" + moment_name + "_of_" + proj_name;
 

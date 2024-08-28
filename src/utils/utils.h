@@ -58,4 +58,12 @@ enum Axis : PetscInt {
   } while (0)
 
 
+#if LOGGING
+  #define LOG(...) std::cout << __VA_ARGS__ << "\n"
+  #define LOG_FLUSH() std::cout.flush()
+#else
+  #define LOG(...)
+  #define LOG_FLUSH()
+#endif
+
 #endif // SRC_UTILS_UTILS_H

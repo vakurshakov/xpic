@@ -1,16 +1,11 @@
 ### Installation guide
 
-#### 1. Install [spdlog](https://github.com/gabime/spdlog)
-```sh
-  git clone https://github.com/gabime/spdlog.git ./external/spdlog
-```
-
-#### 2. Install [nlohmann::json](https://github.com/nlohmann/json)
+#### 1. Install [nlohmann::json](https://github.com/nlohmann/json)
 ```sh
   git clone https://github.com/nlohmann/json.git ./external/json
 ```
 
-#### 3. Install [PETSc](https://gitlab.com/petsc/petsc)
+#### 2. Install [PETSc](https://gitlab.com/petsc/petsc)
 This is the short summary of PETSc installation process. To take an in-depth look on the configuring process, check the [documentation](https://petsc.org/release/install/install/) or run `./configure --help`. First, clone and update PETSc repository.
 
 ```sh
@@ -49,7 +44,7 @@ make PETSC_ARCH=linux-mpi-opt check
 
 If configure cannot automatically download the package, you can use a pre-downloaded one. Once the tarfile is downloaded, the path to this file can be specified to configure and it will proceed to install this package and then configure PETSc with this package.
 
-#### 4. Compiling and running `simulation.out`
+#### 3. Compiling and running `simulation.out`
 
 Now, the executable can be built successfully. To do so, run the following commands from the home directory:
 ```sh

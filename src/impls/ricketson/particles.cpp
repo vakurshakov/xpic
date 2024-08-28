@@ -49,12 +49,12 @@ Particles::Particles(Simulation& simulation, const Particles_parameters& paramet
   PetscCallVoid(VecSetType(solution_, VECSEQ));
   PetscCallVoid(VecSetSizes(solution_, PETSC_DECIDE, solution_size));
 
-  LOG_INFO("Nonlinear solver for \"{}\" is set, tolerances:", parameters_.sort_name);
-  LOG_INFO("  atol = {} - absolute convergence tolerance", atol);
-  LOG_INFO("  rtol = {} - relative convergence tolerance", rtol);
-  LOG_INFO("  stol = {} - convergence tolerance in terms of the norm of the change in the solution between steps", stol);
-  LOG_INFO("  maxit = {} - maximum number of iterations", maxit);
-  LOG_INFO("  maxf  = {} - maximum number of function evaluations", maxf);
+  LOG("Nonlinear solver for \"" << parameters_.sort_name << "\" is set, tolerances:");
+  LOG("  atol = " << atol << " - absolute convergence tolerance");
+  LOG("  rtol = " << rtol << " - relative convergence tolerance");
+  LOG("  stol = " << stol << " - convergence tolerance in terms of the norm of the change in the solution between steps");
+  LOG("  maxit = " << maxit << " - maximum number of iterations");
+  LOG("  maxf  = " << maxf << " - maximum number of function evaluations");
   LOG_FLUSH();
   PetscFunctionReturnVoid();
 }
@@ -168,7 +168,6 @@ PetscErrorCode Particles::push(Point& point) {
     ctx.dt *= (alpha * eps * mu_0 / abs(mu - mu_0));
   }
   PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
-  LOG_WARN("Particle iterations did not converged! Last timestep is (Omega * dt) = {:.5f}.", Omega_dt);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

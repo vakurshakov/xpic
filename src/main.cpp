@@ -18,8 +18,6 @@ int main(int argc, char** argv) {
     Configuration::save();
 
     const Configuration& config = CONFIG();
-    LOG_INIT(config.out_dir + "/simulation.log");
-
     Simulation_up simulation = build_simulation();
 
     PetscCall(simulation->initialize());

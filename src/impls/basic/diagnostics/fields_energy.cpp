@@ -61,9 +61,9 @@ PetscErrorCode Fields_energy::diagnose(timestep_t t) {
   PetscReal total = WEx + WEy + WEz + WBx + WBy + WBz;
   PetscCall(file_.write_floats(1, &total));
 
-  LOG_INFO("Fields energy: Ex = {:.5e}, Ey = {:.5e}, Ez = {:.5e}", WEx, WEy, WEz);
-  LOG_INFO("               Bx = {:.5e}, By = {:.5e}, Bz = {:.5e}", WBx, WBy, WBz);
-  LOG_INFO("            Total = {}", total);
+  // LOG("Fields energy: Ex = {:.5e}, Ey = {:.5e}, Ez = {:.5e}", WEx, WEy, WEz);
+  // LOG("               Bx = {:.5e}, By = {:.5e}, Bz = {:.5e}", WBx, WBy, WBz);
+  // LOG("            Total = {}", total);
 
   if (t % diagnose_period == 0) {
     file_.flush();

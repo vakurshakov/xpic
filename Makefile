@@ -15,13 +15,11 @@ endif
 SIMULATION_DIR := $(PWD)
 JSON_DIR       := $(PWD)/external/json
 PETSC_DIR      := $(PWD)/external/petsc
-SPDLOG_DIR     := $(PWD)/external/spdlog
 
 INC_PATH :=
 INC_PATH += -I$(SIMULATION_DIR)/
 INC_PATH += -I$(JSON_DIR)/include
 INC_PATH += -I$(PETSC_DIR)/include -I$(PETSC_DIR)/$(PETSC_ARCH)/include
-INC_PATH += -I$(SPDLOG_DIR)/include
 
 LIB_PATH := -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
 LIBS := -Wl,-rpath=$(PETSC_DIR)/$(PETSC_ARCH)/lib -lpetsc -lf2clapack -lf2cblas -lm -lX11
@@ -46,7 +44,6 @@ SRCS +=                                    \
 	src/interfaces/particles/particles.cpp   \
 
 SRCS +=                           \
-  src/utils/log.cpp               \
   src/utils/configuration.cpp     \
   src/utils/mpi_binary_file.cpp   \
   src/utils/sync_binary_file.cpp  \

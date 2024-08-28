@@ -87,7 +87,7 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagn
   PetscFunctionReturn(PETSC_SUCCESS);
 #endif
 
-  LOG_TRACE("Building diagnostics");
+  LOG("Building diagnostics");
   const Configuration& config = CONFIG();
   const Configuration::json_t& descriptions = config.json.at("Diagnostics");
 
@@ -96,12 +96,12 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagn
   for (const auto& [diag_name, diag_info] : descriptions.items()) {
 #if THERE_ARE_FIELDS
     if (diag_name == "fields_energy") {
-      LOG_INFO("Adding fields energy diagnostic");
+      LOG("Adding fields energy diagnostic");
       builder = std::make_unique<Fields_energy_builder>(simulation, result);
       PetscCall(builder->build(diag_info));
     }
     else if (diag_name == "field_view") {
-      LOG_INFO("Adding field view diagnostic(s)");
+      LOG("Adding field view diagnostic(s)");
       builder = std::make_unique<Field_view_builder>(simulation, result);
       PetscCall(builder->build(diag_info));
     }
@@ -126,7 +126,7 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagn
         diag_name == "mVrVr_moment"    ||
         diag_name == "mVrVphi_moment"  ||
         diag_name == "mVphiVphi_moment") {
-      LOG_INFO("Adding {} diagnostics(s)", diag_name);
+      LOG("Adding " << diag_name << " diagnostics(s)");
       std::string moment_name = (diag_name == "density") ? "zeroth_moment" : diag_name;
       builder = std::make_unique<Distribution_moment_builder>(simulation, result, moment_name, "(x_y_z)");
       PetscCall(builder->build(diag_info));
