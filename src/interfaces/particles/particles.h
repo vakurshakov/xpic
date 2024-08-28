@@ -5,7 +5,7 @@
 
 #include <petscdm.h>
 
-#include "src/vectors/vector3.h"
+#include "src/utils/vector3.h"
 #include "src/interfaces/particles/point.h"
 #include "src/interfaces/particles/parameters.h"
 

@@ -52,8 +52,8 @@ SRCS +=                           \
   src/utils/sync_binary_file.cpp  \
   src/utils/region_operations.cpp \
 
-SRCS +=               	\
-	src/vectors/rotor.cpp \
+SRCS +=               \
+	src/utils/rotor.cpp \
 
 SRCS +=                              \
   src/impls/particle_shape.cpp       \

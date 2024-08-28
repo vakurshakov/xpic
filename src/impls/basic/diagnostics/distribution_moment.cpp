@@ -3,8 +3,8 @@
 #include "src/utils/utils.h"
 #include "src/utils/region_operations.h"
 
-#include "src/vectors/vector3.h"
-#include "src/vectors/vector_utils.h"
+#include "src/utils/vector3.h"
+#include "src/utils/vector_utils.h"
 
 namespace basic {
 

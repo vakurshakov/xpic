@@ -2,7 +2,7 @@
 #define SRC_INTERFACES_PARTICLES_PARAMETERS_H
 
 #include "src/pch.h"
-#include "src/vectors/vector3.h"
+#include "src/utils/vector3.h"
 
 struct Particles_parameters {
   PetscInt Np;         // Number of particles in a cell.

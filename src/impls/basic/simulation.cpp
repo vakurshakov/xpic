@@ -1,8 +1,8 @@
 #include "simulation.h"
 
 #include "src/utils/utils.h"
-#include "src/vectors/vector3.h"
-#include "src/vectors/rotor.h"
+#include "src/utils/vector3.h"
+#include "src/utils/rotor.h"
 #include "src/impls/basic/diagnostics/builders/diagnostic_builder.h"
 
 namespace basic {

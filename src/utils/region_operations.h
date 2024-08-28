@@ -1,7 +1,7 @@
 #ifndef SRC_UTILS_REGION_OPERATIONS_H
 #define SRC_UTILS_REGION_OPERATIONS_H
 
-#include "src/vectors/vector3.h"
+#include "src/utils/vector3.h"
 
 bool is_point_within_bounds(
   const Vector3I& point,

@@ -1,8 +1,8 @@
 #ifndef SRC_VECTORS_VECTOR_UTILS_H
 #define SRC_VECTORS_VECTOR_UTILS_H
 
-#include "src/vectors/vector3.h"
-#include "src/vectors/vector4.h"
+#include "src/utils/vector3.h"
+#include "src/utils/vector4.h"
 
 template<typename T, typename V>
 Vector4<T> vector_cast(const Vector3<V>& vector) {

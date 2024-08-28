@@ -1,7 +1,7 @@
 #include "simulation.h"
 
 #include "src/utils/utils.h"
-#include "src/vectors/vector3.h"
+#include "src/utils/vector3.h"
 
 namespace ricketson {
 

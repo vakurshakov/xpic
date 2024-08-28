@@ -1,7 +1,7 @@
 #include "distribution_moment_builder.h"
 
 #include "src/utils/utils.h"
-#include "src/vectors/vector_utils.h"
+#include "src/utils/vector_utils.h"
 
 namespace basic {
 

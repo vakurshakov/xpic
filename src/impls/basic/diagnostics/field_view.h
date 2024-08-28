@@ -9,7 +9,7 @@
 #include "src/pch.h"
 #include "src/utils/mpi_binary_file.h"
 
-#include "src/vectors/vector4.h"
+#include "src/utils/vector4.h"
 
 
 class Field_view : public interfaces::Diagnostic {

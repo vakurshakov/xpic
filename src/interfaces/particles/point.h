@@ -2,7 +2,7 @@
 #define SRC_INTERFACES_PARTICLES_POINT_H
 
 #include "src/pch.h"
-#include "src/vectors/vector3.h"
+#include "src/utils/vector3.h"
 #include "src/interfaces/particles/parameters.h"
 
 namespace interfaces { class Particles; }
