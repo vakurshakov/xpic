@@ -6,11 +6,11 @@
 namespace ricketson {
 
 /// @note SNES solver tolerances
-static constexpr PetscReal atol = 1e-10;
-static constexpr PetscReal rtol = 1e-10;
-static constexpr PetscReal stol = 1e-10;
-static constexpr PetscInt maxit = 100;
-static constexpr PetscInt maxf  = 300;
+static constexpr PetscReal atol = PETSC_DEFAULT;
+static constexpr PetscReal rtol = PETSC_DEFAULT;
+static constexpr PetscReal stol = PETSC_DEFAULT;
+static constexpr PetscInt maxit = PETSC_DEFAULT;
+static constexpr PetscInt maxf  = PETSC_DEFAULT;
 
 
 /**
@@ -26,7 +26,7 @@ static constexpr PetscReal alpha = 0.9;
 static constexpr PetscReal beta  = 0.2;
 static constexpr PetscReal eps   = 0.15;
 static constexpr PetscReal gamma = 0.1;
-static constexpr PetscReal t_res = 0.1;
+static constexpr PetscReal t_res = 10;
 
 
 Particles::Particles(Simulation& simulation, const Particles_parameters& parameters) : simulation_(simulation) {
@@ -121,7 +121,7 @@ PetscErrorCode Particles::push(Point& point) {
   ctx.v_n = point.p;
   ctx.m = mass(point);
   ctx.q = charge(point);
-  PetscCall(ctx.update(point.r, point.p, true));
+  PetscCall(ctx.update(point.r, point.p));
   PetscCall(adaptive_time_stepping(point));
 
   PetscReal mu_0 = (ctx.v_n - ctx.v_E).square() / ctx.B_p.length();
@@ -144,52 +144,60 @@ PetscErrorCode Particles::push(Point& point) {
     SNESConvergedReason reason;
     PetscCall(SNESGetConvergedReason(snes_, &reason));
 
-    /// @todo Whether the context is evaluated at the last point x_nn?
+    PetscCall(VecGetArray(solution_, &arr));
+    point.x() = arr[0];
+    point.y() = arr[1];
+    point.z() = arr[2];
+    point.px() = arr[3];
+    point.py() = arr[4];
+    point.pz() = arr[5];
+    PetscCall(VecRestoreArray(solution_, &arr));
+    
+    PetscInt iterations, evals;
+    PetscCall(SNESGetIterationNumber(snes_, &iterations));
+    PetscCall(SNESGetNumberFunctionEvals(snes_, &evals));
+    LOG_WARN("Iterations number: {}, Function evaluations: {}", iterations, evals);
+
+    PetscCall(ctx.update(point.r, point.p));
     PetscReal mu = (point.p - ctx.v_E).square() / ctx.B_p.length();
-    if (reason >= 0 && abs(mu - mu_0) / mu_0 < eps) {
-      PetscCall(VecGetArray(solution_, &arr));
-      point.x() = arr[0];
-      point.y() = arr[1];
-      point.z() = arr[2];
-      point.px() = arr[3];
-      point.py() = arr[4];
-      point.pz() = arr[5];
-      PetscCall(VecRestoreArray(solution_, &arr));
+    LOG_WARN("|dmu| = {:.5e}, eps*mu0 = {:.5e}, shrink = {:.5e}", abs(mu - mu_0), eps * mu_0, alpha * eps * mu_0 / abs(mu - mu_0));
 
+    if (reason >= 0 && abs(mu - mu_0) < eps * mu_0) {
       PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
-
       const PetscInt size = 9;
       const PetscReal data[size] = {(PetscReal)i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p)};
+      LOG_WARN("i {} \t dt {:.5f} \t mu {:.5f} \t x {:.5f} \t y {:.5f} \t z {:.5f} \t px {:.5f} \t py {:.5f} \t pz {:.5f}", i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p));
       PetscCall(particle_iterations_log.write_floats(size, data));
-
       PetscFunctionReturn(PETSC_SUCCESS);
     }
 
     ctx.dt *= (alpha * eps * mu_0 / abs(mu - mu_0));
   }
+
+  // Resetting to their inital values in case of no convergence.
+  point.r = ctx.x_n;
+  point.p = ctx.v_n;
   PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-PetscErrorCode Particles::Context::update(const Vector3R& x_nn, const Vector3R& v_nn, bool force) {
+PetscErrorCode Particles::Context::update(const Vector3R& x_nn, const Vector3R& v_nn) {
   PetscFunctionBeginUser;
-  if ((x_h - 0.5 * (x_nn + x_n)).length() > update_tolerance || force) {
-    x_h = 0.5 * (x_nn + x_n);
+  x_h = 0.5 * (x_nn + x_n);
 
-    node = Node(x_h);
-    PetscCall(fill_shape(node.g, node.r, width, false, shape[0]));
-    PetscCall(fill_shape(node.g, node.r, width, true, shape[1]));
+  node = Node(x_h);
+  PetscCall(fill_shape(node.g, node.r, width, false, shape[0]));
+  PetscCall(fill_shape(node.g, node.r, width, true, shape[1]));
 
-    Simple_interpolation interpolation(width, shape[0], shape[1]);
-    PetscCall(interpolation.process(node.g, {{E_p, E}}, {{B_p, B}, {DB_p, DB}}));
+  Simple_interpolation interpolation(width, shape[0], shape[1]);
+  PetscCall(interpolation.process(node.g, {{E_p, E}}, {{B_p, B}, {DB_p, DB}}));
 
-    DB_pp = DB_p.parallel_to(B_p);
-    DB_pt = DB_p.transverse_to(B_p);
+  DB_pp = DB_p.parallel_to(B_p);
+  DB_pt = DB_p.transverse_to(B_p);
 
-    v_E = E_p.cross(B_p) / B_p.square();
-    v_En = v_E.length();
-  }
+  v_E = E_p.cross(B_p) / B_p.square();
+  v_En = v_E.length();
 
   v_h = 0.5 * (v_nn + v_n);
   v_hp = v_h.parallel_to(B_p);
@@ -214,7 +222,7 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
       std::min(Omega * t_res, gamma / delta_t));
 
   // (eh) -- estimate of gyration velocity on half time-step.
-  PetscReal u_eh = (ctx.v_ht - ctx.v_E).length() / sqrt(1.0 + 0.25 * Omega_dt * Omega_dt);
+  PetscReal u_eh = (ctx.v_ht - ctx.v_E).length() / sqrt(1.0 + 0.25 * POW2(Omega_dt));
 
   /// @todo Probably, some diagnostic is need here to understand the cases.
   if (ctx.v_En > (1.0 + beta) * u_eh) {
