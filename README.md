@@ -12,7 +12,7 @@ This is the short summary of PETSc installation process. To take an in-depth loo
 git clone -b release https://gitlab.com/petsc/petsc.git ./external/petsc
 ```
 
-Change the directory to `./external/petsc/` and configure the library. The following code creates two configurations of the library with use of preinstalled MPI compilers and downloads just `BLAS/LAPACK` to the output directories `PETSC_ARCH`.
+Change the directory to `./external/petsc/` and configure the library. The following code creates two configurations of the library with use of preinstalled MPI compilers and downloads just BLAS/LAPACK to the output directories `PETSC_ARCH`.
 
 ```sh
 ./configure PETSC_ARCH=linux-mpi-debug  \
@@ -44,14 +44,14 @@ make PETSC_ARCH=linux-mpi-opt check
 
 If configure cannot automatically download the package, you can use a pre-downloaded one. Once the tarfile is downloaded, the path to this file can be specified to configure and it will proceed to install this package and then configure PETSc with this package.
 
-#### 3. Compiling and running `simulation.out`
+#### 3. Compiling and running `xpic`
 
-Now, the executable can be built successfully. To do so, run the following commands from the home directory:
+Now, the executable can be built successfully. To do so, run the following command from the home directory:
 ```sh
-  make [-j]
+  ./build.sh
 ```
 
-The binary will be created in the bin folder. Execution of the code should be performed from the home directory too:
+The binary will be created in the `./build` folder. Execution of the code should be performed from the home directory too:
 ```sh
-  [mpiexec] ./bin/simulation.out <config.json> # or ./run.sh <config.json>
+  ./run.sh <config.json>
 ```
