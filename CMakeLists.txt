@@ -23,8 +23,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-unuse
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ftree-vectorize")
 
 set(main
-	src/main.cpp
-	src/constants.cpp
+  src/main.cpp
+  src/constants.cpp
 )
 
 set(interfaces
@@ -39,7 +39,7 @@ set(utils
   src/utils/mpi_binary_file.cpp
   src/utils/sync_binary_file.cpp
   src/utils/region_operations.cpp
-	src/utils/rotor.cpp
+  src/utils/rotor.cpp
 )
 
 set(impls_common
