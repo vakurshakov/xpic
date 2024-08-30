@@ -2,9 +2,7 @@ external/json
 external/spdlog
 external/petsc
 
-bin/
-bin-int/
-
+build/
 doc/build/
 
 log/
