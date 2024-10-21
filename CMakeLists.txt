@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.29)
 
-set(CMAKE_CXX_COMPILER "/usr/bin/mpicxx")
+set(MPI_CXX_COMPILER "/opt/mpich/bin/mpicxx")
+set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
@@ -11,13 +12,13 @@ project(xpic VERSION 0.1 LANGUAGES CXX)
 set(JSON_DIR "external/json")
 set(PETSC_DIR "external/petsc")
 
-set(CMAKE_CXX_FLAGS "-std=c++20 -fpic -fopenmp -pthread")
+if(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
+  set(PETSC_ARCH linux-mpi-opt)
+else()
+  set(PETSC_ARCH linux-mpi-debug)
+endif()
 
-# @todo: should be switched with different CMAKE_BUILD_TYPE
-set(PETSC_ARCH
-  linux-mpi-debug
-  # linux-mpi-opt
-)
+set(CMAKE_CXX_FLAGS "-fpic -fopenmp -pthread")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter -Wno-unused-variable")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ftree-vectorize")

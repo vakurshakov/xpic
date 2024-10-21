@@ -3,9 +3,9 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: g++ сборка проекта",
-            "command": "make",
-            "args": [ "--jobs=8" ],
+            "label": "Project build-script",
+            "command": "./build.sh",
+            "args": [ "--config RELEASE", "--parallel 8" ],
             "options": {
                 "cwd": "${workspaceFolder}/"
             },
@@ -16,7 +16,6 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "Задача создана отладчиком."
         }
     ],
 }

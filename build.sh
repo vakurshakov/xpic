@@ -2,4 +2,4 @@
 
 cmake -S . -B build/
 
-cd ./build; make
+cmake --build build/ $@

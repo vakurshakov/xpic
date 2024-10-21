@@ -9,6 +9,8 @@
             "name": "Linux",
             "includePath": [
                 "${default}",
+                "/opt/mpich/include",
+
                 "${workspaceFolder}",
                 "${workspaceFolder}/external/spdlog/include",
                 "${workspaceFolder}/external/json/include",
