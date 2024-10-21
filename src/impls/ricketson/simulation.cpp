@@ -1,7 +1,7 @@
 #include "simulation.h"
 
 #include "src/utils/utils.h"
-#include "src/utils/vector3.h"
+
 
 namespace ricketson {
 
@@ -12,18 +12,8 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
   PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "Ricketson scheme is uniprocessor currently");
 
-  const PetscInt dof = Vector3R::dim;
-  const PetscInt s = shape_radius;
-
-  PetscInt procs[3];
-  Configuration::get_boundaries_type(REP3_A(bounds_));
-  Configuration::get_processors(REP3_A(procs));
-
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds_), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da_));
-  PetscCall(DMSetUp(da_));
-
-  PetscCall(DMCreateGlobalVector(da_, &E_));
-  PetscCall(DMCreateGlobalVector(da_, &B_));
+  PetscCall(DMCreateGlobalVector(world_.da, &E_));
+  PetscCall(DMCreateGlobalVector(world_.da, &B_));
   PetscCall(setup_norm_gradient());
 
   /// @todo Move this into class Set_approximate_magnetic_mirror.
@@ -32,10 +22,10 @@ PetscErrorCode Simulation::initialize_implementation() {
   const PetscReal distance = 15;
 
   PetscInt rstart[3], rsize[3];
-  PetscCall(DMDAGetCorners(da_, REP3_A(&rstart), REP3_A(&rsize)));
+  PetscCall(DMDAGetCorners(world_.da, REP3_A(&rstart), REP3_A(&rsize)));
 
   Vector3R ***B;
-  PetscCall(DMDAVecGetArrayWrite(da_, B_, &B));
+  PetscCall(DMDAVecGetArrayWrite(world_.da, B_, &B));
   for (PetscInt z = rstart[Z]; z < rstart[Z] + rsize[Z]; ++z) {
   for (PetscInt y = rstart[Y]; y < rstart[Y] + rsize[Y]; ++y) {
   for (PetscInt x = rstart[X]; x < rstart[X] + rsize[X]; ++x) {
@@ -51,7 +41,7 @@ PetscErrorCode Simulation::initialize_implementation() {
     B[z][y][x].y() = B0 * 1.5 * (y * dy - 0.5 * geom_y) * B1;
     B[z][y][x].z() = B0 * 1.0;
   }}}
-  PetscCall(DMDAVecRestoreArrayWrite(da_, B_, &B));
+  PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, &B));
 
 #if THERE_ARE_PARTICLES
   Sort_parameters parameters = {
@@ -79,13 +69,13 @@ PetscErrorCode Simulation::calculate_B_norm_gradient() {
   PetscFunctionBeginUser;
 
   Vector3R ***B;
-  PetscCall(DMDAVecGetArrayRead(da_, B_, &B));
+  PetscCall(DMDAVecGetArrayRead(world_.da, B_, &B));
 
   PetscReal *B_norm;
   PetscCall(VecGetArrayWrite(B_norm_, &B_norm));
 
   PetscInt start[3], size[3];
-  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
+  PetscCall(DMDAGetCorners(world_.da, REP3_A(&start), REP3_A(&size)));
 
   for (PetscInt z = start[Z]; z < start[Z] + size[Z]; ++z) {
   for (PetscInt y = start[Y]; y < start[Y] + size[Y]; ++y) {
@@ -93,7 +83,7 @@ PetscErrorCode Simulation::calculate_B_norm_gradient() {
     B_norm[index(x, y, z)] = B[z][y][x].length();
   }}}
 
-  PetscCall(DMDAVecRestoreArrayRead(da_, B_, &B));
+  PetscCall(DMDAVecRestoreArrayRead(world_.da, B_, &B));
   PetscCall(VecRestoreArrayWrite(B_norm_, &B_norm));
 
   PetscCall(MatMult(norm_gradient_, B_norm_, DB_));
@@ -103,24 +93,24 @@ PetscErrorCode Simulation::calculate_B_norm_gradient() {
 
 PetscErrorCode Simulation::setup_norm_gradient() {
   PetscFunctionBeginUser;
-  PetscCall(DMCreateGlobalVector(da_, &DB_));
+  PetscCall(DMCreateGlobalVector(world_.da, &DB_));
 
   PetscInt start[3], size[3];
-  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
+  PetscCall(DMDAGetCorners(world_.da, REP3_A(&start), REP3_A(&size)));
 
   VecType vtype;
-  PetscCall(DMGetVecType(da_, &vtype));
+  PetscCall(DMGetVecType(world_.da, &vtype));
 
   PetscInt ls = size[X] * size[Y] * size[Z];
-  PetscCall(VecCreate(PetscObjectComm((PetscObject)da_), &B_norm_));
+  PetscCall(VecCreate(PetscObjectComm((PetscObject)world_.da), &B_norm_));
   PetscCall(VecSetSizes(B_norm_, ls, PETSC_DETERMINE));
   PetscCall(VecSetType(B_norm_, vtype));
   PetscCall(VecSetUp(B_norm_));
 
   MatType mtype;
-  PetscCall(DMGetMatType(da_, &mtype));
+  PetscCall(DMGetMatType(world_.da, &mtype));
 
-  PetscCall(MatCreate(PetscObjectComm((PetscObject)da_), &norm_gradient_));
+  PetscCall(MatCreate(PetscObjectComm((PetscObject)world_.da), &norm_gradient_));
   PetscCall(MatSetSizes(norm_gradient_, ls * Vector3R::dim, ls, PETSC_DETERMINE, PETSC_DETERMINE));
   PetscCall(MatSetType(norm_gradient_, mtype));
   PetscCall(MatSetUp(norm_gradient_));
@@ -130,9 +120,9 @@ PetscErrorCode Simulation::setup_norm_gradient() {
   /// negative derivative on Yee stencil, we set |\vec{B}| in (i+0.5, j+0.5, k+0.5).
   auto remap_with_boundaries = [&](PetscInt& x, PetscInt& y, PetscInt& z) {
     bool success = false;
-    if (bounds_[X] == DM_BOUNDARY_PERIODIC && x < 0) { x += geom_nx; success = true; }
-    if (bounds_[Y] == DM_BOUNDARY_PERIODIC && y < 0) { y += geom_ny; success = true; }
-    if (bounds_[Z] == DM_BOUNDARY_PERIODIC && z < 0) { z += geom_nz; success = true; }
+    if (world_.bounds[X] == DM_BOUNDARY_PERIODIC && x < 0) { x += geom_nx; success = true; }
+    if (world_.bounds[Y] == DM_BOUNDARY_PERIODIC && y < 0) { y += geom_ny; success = true; }
+    if (world_.bounds[Z] == DM_BOUNDARY_PERIODIC && z < 0) { z += geom_nz; success = true; }
     return success;
   };
 
@@ -194,7 +184,6 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 
 Simulation::~Simulation() {
   PetscFunctionBeginUser;
-  PetscCallVoid(DMDestroy(&da_));
   PetscCallVoid(VecDestroy(&E_));
   PetscCallVoid(VecDestroy(&B_));
   PetscCallVoid(VecDestroy(&DB_));

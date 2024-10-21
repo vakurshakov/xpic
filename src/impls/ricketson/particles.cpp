@@ -1,7 +1,7 @@
 #include "particles.h"
 
 #include "src/impls/ricketson/simulation.h"
-#include "src/impls/simple_interpolation.h"
+#include "src/utils/simple_interpolation.h"
 
 namespace ricketson {
 
@@ -29,10 +29,9 @@ static constexpr PetscReal gamma = 0.1;
 static constexpr PetscReal t_res = 10;
 
 
-Particles::Particles(Simulation& simulation, const Sort_parameters& parameters) : simulation_(simulation) {
+Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
+  : interfaces::Particles(simulation.world_, parameters), simulation_(simulation) {
   PetscFunctionBeginUser;
-  parameters_ = parameters;
-
   particle_iterations_log = Sync_binary_file(CONFIG().out_dir, "particle_iterations");
 
   ctx.width = min(Vector3I(Geom_n), Vector3I(shape_width));
@@ -60,7 +59,8 @@ Particles::Particles(Simulation& simulation, const Sort_parameters& parameters) 
 }
 
 
-Particles::Particles(Particles&& other) : simulation_(other.simulation_) {
+Particles::Particles(Particles&& other)
+  : interfaces::Particles(other.world_, other.parameters_), simulation_(other.simulation_) {
   points_ = std::move(other.points_);
   particle_iterations_log = std::move(other.particle_iterations_log);
 
@@ -77,17 +77,10 @@ Particles::~Particles() {
 }
 
 
-PetscErrorCode Particles::add_particle(const Point& point) {
-  PetscFunctionBeginUser;
-  points_.emplace_back(point);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
 PetscErrorCode Particles::push() {
   PetscFunctionBeginUser;
 
-  const DM& da = simulation_.da_;
+  DM da = simulation_.world_.da;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGetLocalVector(da, &local_DB));

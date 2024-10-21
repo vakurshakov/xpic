@@ -2,14 +2,18 @@
 #define SRC_INTERFACES_SIMULATION_H
 
 #include "src/pch.h"
-#include "src/interfaces/diagnostic.h"
+#include "src/interfaces/world.h"
 #include "src/interfaces/command.h"
+#include "src/interfaces/diagnostic.h"
 
 namespace interfaces {
 
 class Simulation {
 public:
+  Simulation() = default;
   virtual ~Simulation() = default;
+
+  World world_;
 
   virtual PetscErrorCode initialize();
   PetscErrorCode calculate();
@@ -23,8 +27,8 @@ protected:
 
   timestep_t start_ = 0u;
 
-  std::vector<Diagnostic_up> diagnostics_;
   std::list<Command_up> step_presets_;
+  std::vector<Diagnostic_up> diagnostics_;
 };
 
 }

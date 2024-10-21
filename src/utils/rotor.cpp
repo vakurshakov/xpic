@@ -1,7 +1,6 @@
 #include "rotor.h"
 
 #include "src/pch.h"
-#include "src/utils/vector3.h"
 
 Rotor::Rotor(DM da) :
   values_x{+1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz},

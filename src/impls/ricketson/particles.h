@@ -6,8 +6,8 @@
 #include <petscsnes.h>
 
 #include "src/pch.h"
-#include "src/utils/vector3.h"
-#include "src/impls/particle_shape.h"
+
+#include "src/utils/particle_shape.h"
 #include "src/utils/sync_binary_file.h"
 
 namespace ricketson {
@@ -19,9 +19,6 @@ public:
   Particles(Simulation& simulation, const Sort_parameters& parameters);
   Particles(Particles&& other);
   ~Particles();
-
-  PetscErrorCode add_particle(const Point& point);
-  const std::vector<Point>& get_points() const { return points_; }
 
   PetscErrorCode push();
 
@@ -48,7 +45,6 @@ private:
 
   static PetscErrorCode form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* context);
 
-  std::vector<Point> points_;
   Simulation& simulation_;
 
   Vec local_E;

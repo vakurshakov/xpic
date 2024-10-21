@@ -24,5 +24,7 @@
 
 #include "src/constants.h"
 #include "src/utils/configuration.h"
+#include "src/utils/vector3.h"
+#include "src/utils/vector4.h"
 
 #endif  // SRC_PCH_H

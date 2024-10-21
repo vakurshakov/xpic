@@ -1,8 +1,8 @@
-#ifndef SRC_BASIC_DIAGNOSTICS_BUILDERS_FIELD_VIEW_BUILDER_H
-#define SRC_BASIC_DIAGNOSTICS_BUILDERS_FIELD_VIEW_BUILDER_H
+#ifndef SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H
+#define SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H
 
-#include "src/impls/basic/diagnostics/builders/diagnostic_builder.h"
-#include "src/impls/basic/diagnostics/field_view.h"
+#include "src/impls/basic/builders/diagnostic_builder.h"
+#include "src/diagnostics/field_view.h"
 
 namespace basic {
 
@@ -40,4 +40,4 @@ private:
 
 }
 
-#endif  // SRC_BASIC_DIAGNOSTICS_BUILDERS_FIELD_VIEW_BUILDER_H
+#endif  // SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H

@@ -33,6 +33,13 @@ set(interfaces
   src/interfaces/point.cpp
   src/interfaces/sort_parameters.cpp
   src/interfaces/particles.cpp
+  src/interfaces/world.cpp
+)
+
+set(diagnostics
+  src/diagnostics/field_view.cpp
+  src/diagnostics/fields_energy.cpp
+  src/diagnostics/distribution_moment.cpp
 )
 
 set(utils
@@ -41,25 +48,19 @@ set(utils
   src/utils/sync_binary_file.cpp
   src/utils/region_operations.cpp
   src/utils/rotor.cpp
-)
-
-set(impls_common
-  src/impls/particle_shape.cpp
-  src/impls/simple_interpolation.cpp
+  src/utils/particle_shape.cpp
+  src/utils/simple_interpolation.cpp
 )
 
 set(impls_basic
   src/impls/basic/simulation.cpp
   src/impls/basic/particles.cpp
-  src/impls/basic/diagnostics/field_view.cpp
-  src/impls/basic/diagnostics/fields_energy.cpp
-  src/impls/basic/diagnostics/distribution_moment.cpp
-  src/impls/basic/diagnostics/builders/diagnostic_builder.cpp
-  src/impls/basic/diagnostics/builders/field_view_builder.cpp
-  src/impls/basic/diagnostics/builders/distribution_moment_builder.cpp
+  src/impls/basic/builders/diagnostic_builder.cpp
+  src/impls/basic/builders/field_view_builder.cpp
 )
 
 set(impls_ricketson
+  src/impls/basic/builders/distribution_moment_builder.cpp
   src/impls/ricketson/simulation.cpp
   src/impls/ricketson/particles.cpp
 )
@@ -68,8 +69,8 @@ add_executable(
   ${PROJECT_NAME}
   ${main}
   ${interfaces}
+  ${diagnostics}
   ${utils}
-  ${impls_common}
   ${impls_basic}
   ${impls_ricketson}
 )

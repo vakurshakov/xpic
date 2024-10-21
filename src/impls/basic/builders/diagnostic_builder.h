@@ -1,11 +1,11 @@
-#ifndef SRC_BASIC_DIAGNOSTICS_BUILDERS_DIAGNOSTIC_BUILDER_H
-#define SRC_BASIC_DIAGNOSTICS_BUILDERS_DIAGNOSTIC_BUILDER_H
+#ifndef SRC_BASIC_BUILDERS_DIAGNOSTIC_BUILDER_H
+#define SRC_BASIC_BUILDERS_DIAGNOSTIC_BUILDER_H
 
 #include "src/interfaces/diagnostic.h"
 
 #include "src/pch.h"
 #include "src/impls/basic/simulation.h"
-#include "src/utils/vector3.h"
+
 
 namespace basic {
 
@@ -40,4 +40,4 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagn
 
 }
 
-#endif  // SRC_BASIC_DIAGNOSTICS_BUILDERS_DIAGNOSTIC_BUILDER_H
+#endif  // SRC_BASIC_BUILDERS_DIAGNOSTIC_BUILDER_H

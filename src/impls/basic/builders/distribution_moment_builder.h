@@ -1,8 +1,8 @@
-#ifndef SRC_BASIC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
-#define SRC_BASIC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
+#ifndef SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
+#define SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
 
-#include "src/impls/basic/diagnostics/builders/diagnostic_builder.h"
-#include "src/impls/basic/diagnostics/distribution_moment.h"
+#include "src/impls/basic/builders/diagnostic_builder.h"
+#include "src/diagnostics/distribution_moment.h"
 
 namespace basic {
 
@@ -51,4 +51,4 @@ private:
 
 }
 
-#endif  // SRC_BASIC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
+#endif  // SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H

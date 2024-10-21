@@ -7,17 +7,15 @@ namespace interfaces {
 
 PetscErrorCode Simulation::initialize() {
   PetscFunctionBeginUser;
-
+  PetscCall(world_.initialize());
   PetscCall(initialize_implementation());
   PetscCall(log_information());
   PetscCall(diagnose(start_));
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::log_information() const {
   PetscFunctionBeginUser;
-
   static const double n0 = sqrt(1e13);
   LOG("Note: Dimensionless units are used.");
   LOG("For reference, using density 1e13 cm^(-3):");
@@ -32,7 +30,6 @@ PetscErrorCode Simulation::log_information() const {
   LOG("  (length along y axis) = " << geom_x << " [c/w_pe] = " << geom_ny << " [dy]");
   LOG("  (length along z axis) = " << geom_x << " [c/w_pe] = " << geom_nz << " [dz]");
   LOG("  (simulation time)     = " << geom_x << " [1/w_pe] = " << geom_nt << " [dt]");
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -53,17 +50,14 @@ PetscErrorCode Simulation::calculate() {
       return command->needs_to_be_removed(t);
     });
   }
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::diagnose(timestep_t timestep) const {
   PetscFunctionBeginUser;
-
   for (const Diagnostic_up& diagnostic : diagnostics_) {
     PetscCall(diagnostic->diagnose(timestep));
   }
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

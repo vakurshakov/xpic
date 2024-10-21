@@ -5,10 +5,8 @@
 
 #include <petscdm.h>
 
-#include "src/utils/vector3.h"
 #include "src/interfaces/particles.h"
-
-#include "src/impls/particle_shape.h"
+#include "src/utils/particle_shape.h"
 
 namespace basic {
 
@@ -19,11 +17,7 @@ public:
   Particles(Simulation& simulation, const Sort_parameters& parameters);
   ~Particles() override;
 
-  PetscErrorCode add_particle(const Point& point);
-  const std::vector<Point>& get_points() const { return points_; }
-
   PetscErrorCode push();
-  PetscErrorCode communicate();
 
 private:
   static constexpr int OMP_CHUNK_SIZE  = 16;
@@ -36,28 +30,9 @@ private:
   using Compute_j = std::function<PetscReal(PetscInt, PetscInt, PetscInt, PetscReal*)>;
   void decompose_dir(const Vector3I& p_g, const Compute_j& compute_j, Axis dir);
 
-  PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
-    constexpr PetscInt dim = 3;
-    return (z * dim + y) * dim + x;
-  }
-
-  void from_contiguous_index(PetscInt index, PetscInt& x, PetscInt& y, PetscInt& z) {
-    constexpr PetscInt dim = 3;
-    x = (index) % dim;
-    y = (index / dim) % dim;
-    z = (index / dim) / dim;
-  }
-
-  std::vector<Point> points_;
-
   Simulation& simulation_;
   Vec local_E, local_B, local_J;
   Vector3R ***E, ***B, ***J;
-
-  const PetscMPIInt* neighbours;
-  Vector3R l_start;
-  Vector3R l_end;
-  Vector3I l_width;
 };
 
 }

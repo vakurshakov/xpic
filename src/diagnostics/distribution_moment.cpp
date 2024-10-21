@@ -2,29 +2,30 @@
 
 #include "src/utils/utils.h"
 #include "src/utils/region_operations.h"
-
-#include "src/utils/vector3.h"
 #include "src/utils/vector_utils.h"
+#include "src/utils/particle_shape.h"
 
-namespace basic {
+/// @note Do not move this into header file, this will pollute global namespace
+using Particles = interfaces::Particles;
+
 
 std::unique_ptr<Distribution_moment> Distribution_moment::create(
-    const std::string& out_dir, DM da, const Particles& particles, const Moment& moment, const Region& region) {
+    const std::string& out_dir, const Particles& particles, const Moment& moment, const Region& region) {
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
-  PetscCallThrow(get_local_communicator(da, region, &newcomm));
+  PetscCallThrow(get_local_communicator(particles.world_.da, region, &newcomm));
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
-  auto* diagnostic = new Distribution_moment(out_dir, da, particles, moment, newcomm);
+  auto* diagnostic = new Distribution_moment(out_dir, particles, moment, newcomm);
   PetscCallThrow(diagnostic->set_data_views(region));
   PetscFunctionReturn(std::unique_ptr<Distribution_moment>(diagnostic));
 }
 
 
-Distribution_moment::Distribution_moment(const std::string& out_dir, DM da,
+Distribution_moment::Distribution_moment(const std::string& out_dir,
   const Particles& particles, const Moment& moment, MPI_Comm newcomm)
-  : Field_view(out_dir, da, nullptr, newcomm), particles_(particles), moment_(moment) {}
+  : Field_view(out_dir, particles.world_.da, nullptr, newcomm), particles_(particles), moment_(moment) {}
 
 
 Distribution_moment::~Distribution_moment() {
@@ -125,7 +126,7 @@ PetscErrorCode Distribution_moment::collect() {
   PetscCall(DMDAVecGetArrayWrite(da_, local_, &arr));
 
   #pragma omp parallel for
-  for (const Point& point : particles_.get_points()) {
+  for (const Point& point : particles_.points()) {
     Node node(point.r);
 
     if (!is_point_within_bounds(node.g, vector_cast(region_.start), vector_cast(region_.size)))
@@ -255,6 +256,4 @@ Moment Moment::from_string(const Particles& particles, const std::string& name) 
   else if (name == "mVphiVphi_moment") { get = get_mVphiVphi; }
   else throw std::runtime_error("Unkown moment name!");
   return Moment(particles, get);
-}
-
 }

@@ -1,7 +1,5 @@
 #include "sort_parameters.h"
 
-#include "src/utils/utils.h"
-
 PetscReal __0th_order_spline(PetscReal s, Axis a) {
   if (Geom_n[a] == 1) { return 1.0; }
 

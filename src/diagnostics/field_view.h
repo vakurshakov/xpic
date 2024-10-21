@@ -1,5 +1,5 @@
-#ifndef SRC_BASIC_DIAGNOSTICS_FIELD_VIEW_H
-#define SRC_BASIC_DIAGNOSTICS_FIELD_VIEW_H
+#ifndef SRC_DIAGNOSTICS_FIELD_VIEW_H
+#define SRC_DIAGNOSTICS_FIELD_VIEW_H
 
 #include "src/interfaces/diagnostic.h"
 
@@ -43,4 +43,4 @@ protected:
   MPI_binary_file file_;
 };
 
-#endif  // SRC_BASIC_DIAGNOSTICS_FIELD_VIEW_H
+#endif  // SRC_DIAGNOSTICS_FIELD_VIEW_H

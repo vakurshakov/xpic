@@ -32,7 +32,7 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
 
     std::string res_dir = CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
 
-    if (auto&& diag = Field_view::create(res_dir, simulation_.da_, get_field(desc.field_name), desc.region)) {
+    if (auto&& diag = Field_view::create(res_dir, simulation_.world_.da, get_field(desc.field_name), desc.region)) {
       diagnostics_.emplace_back(std::move(diag));
     }
   }

@@ -14,12 +14,9 @@ public:
   Simulation() = default;
   ~Simulation() override;
 
-  DM da_;
   Vec E_;
   Vec B_;
   Vec DB_;
-
-  DMBoundaryType bounds_[3];
   std::vector<Particles> particles_;
 
   PetscErrorCode calculate_B_norm_gradient();

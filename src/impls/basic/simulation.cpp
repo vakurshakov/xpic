@@ -1,32 +1,22 @@
 #include "simulation.h"
 
 #include "src/utils/utils.h"
-#include "src/utils/vector3.h"
+
 #include "src/utils/rotor.h"
-#include "src/impls/basic/diagnostics/builders/diagnostic_builder.h"
+#include "src/impls/basic/builders/diagnostic_builder.h"
 
 namespace basic {
 
 PetscErrorCode Simulation::initialize_implementation() {
   PetscFunctionBeginUser;
+  DM da = world_.da;
+  PetscCall(DMCreateGlobalVector(da, &E_));
+  PetscCall(DMCreateGlobalVector(da, &B_));
+  PetscCall(DMCreateGlobalVector(da, &J_));
+  PetscCall(DMCreateMatrix(da, &rot_dt_p));
+  PetscCall(DMCreateMatrix(da, &rot_dt_m));
 
-  const PetscInt dof = Vector3R::dim;
-  const PetscInt s = shape_radius;
-
-  PetscInt procs[3];
-  Configuration::get_boundaries_type(REP3_A(bounds_));
-  Configuration::get_processors(REP3_A(procs));
-
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds_), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da_));
-  PetscCall(DMSetUp(da_));
-
-  PetscCall(DMCreateGlobalVector(da_, &E_));
-  PetscCall(DMCreateGlobalVector(da_, &B_));
-  PetscCall(DMCreateGlobalVector(da_, &J_));
-  PetscCall(DMCreateMatrix(da_, &rot_dt_p));
-  PetscCall(DMCreateMatrix(da_, &rot_dt_m));
-
-  Rotor rotor(da_);
+  Rotor rotor(da);
   PetscCall(rotor.set_positive(rot_dt_p));
   PetscCall(rotor.set_negative(rot_dt_m));
   PetscCall(MatScale(rot_dt_p, -dt));
@@ -72,7 +62,6 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 
 Simulation::~Simulation() {
   PetscFunctionBeginUser;
-  PetscCallVoid(DMDestroy(&da_));
   PetscCallVoid(VecDestroy(&E_));
   PetscCallVoid(VecDestroy(&B_));
   PetscCallVoid(VecDestroy(&J_));

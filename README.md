@@ -2,7 +2,7 @@
 
 #### 1. Install [nlohmann::json](https://github.com/nlohmann/json)
 ```sh
-  git clone https://github.com/nlohmann/json.git ./external/json
+git clone https://github.com/nlohmann/json.git ./external/json
 ```
 
 #### 2. Install [PETSc](https://gitlab.com/petsc/petsc)

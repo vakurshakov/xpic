@@ -3,8 +3,6 @@
 #include "src/utils/utils.h"
 #include "src/utils/region_operations.h"
 
-#include "src/utils/vector3.h"
-
 
 std::unique_ptr<Field_view> Field_view::create(const std::string& out_dir, DM da, Vec field, const Region& region) {
   PetscFunctionBeginUser;

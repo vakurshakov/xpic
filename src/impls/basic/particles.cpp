@@ -1,34 +1,15 @@
 #include "particles.h"
 
 #include "src/impls/basic/simulation.h"
-#include "src/impls/simple_interpolation.h"
+#include "src/utils/simple_interpolation.h"
 
 namespace basic {
 
 Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
-  : simulation_(simulation) {
+  : interfaces::Particles(simulation.world_, parameters), simulation_(simulation) {
   PetscFunctionBeginUser;
-  parameters_ = parameters;
-
-  DM& da = simulation_.da_;
-  PetscCallVoid(DMDAGetNeighbors(da, &neighbours));
-
-  Vector3I start, size;
-  PetscCallVoid(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
-
-  l_start.x() = (PetscReal)start.x() * dx;
-  l_start.y() = (PetscReal)start.y() * dy;
-  l_start.z() = (PetscReal)start.z() * dz;
-
-  l_end.x() = l_start.x() + (PetscReal)size.x() * dx;
-  l_end.y() = l_start.y() + (PetscReal)size.y() * dy;
-  l_end.z() = l_start.z() + (PetscReal)size.z() * dz;
-
-  l_width.x() = std::min(shape_width, geom_nx);
-  l_width.y() = std::min(shape_width, geom_ny);
-  l_width.z() = std::min(shape_width, geom_nz);
-
   /// @note This local current is local to each particle! It's can be useful for diagnosing it.
+  DM da = simulation_.world_.da;
   PetscCallVoid(DMCreateLocalVector(da, &local_J));
   PetscFunctionReturnVoid();
 }
@@ -40,23 +21,9 @@ Particles::~Particles() {
 }
 
 
-PetscErrorCode Particles::add_particle(const Point& point) {
-  PetscFunctionBeginUser;
-  const Vector3R& r = point.r;
-  /// @todo This check should be moved, probably, into particle initializer
-  if (l_start.x() <= r.x() && r.x() < l_end.x() &&
-      l_start.y() <= r.y() && r.y() < l_end.y() &&
-      l_start.z() <= r.z() && r.z() < l_end.z()) {
-    #pragma omp critical
-    points_.emplace_back(point);
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
 PetscErrorCode Particles::push() {
   PetscFunctionBeginUser;
-  const DM& da = simulation_.da_;
+  DM da = simulation_.world_.da;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
 
@@ -78,16 +45,16 @@ PetscErrorCode Particles::push() {
     static Shape shape[2];
     #pragma omp threadprivate(shape)
 
-    fill_shape(node.g, node.r, l_width, false, shape[0]);
-    fill_shape(node.g, node.r, l_width, true, shape[1]);
+    fill_shape(node.g, node.r, world_.size_n, false, shape[0]);
+    fill_shape(node.g, node.r, world_.size_n, true, shape[1]);
     interpolate(node.g, shape[0], shape[1], point_E, point_B);
 
     push(point_E, point_B, *it);
 
     const Node new_node(it->r);
 
-    fill_shape(new_node.g, node.r, l_width, false, shape[0]);
-    fill_shape(new_node.g, new_node.r, l_width, false, shape[1]);
+    fill_shape(new_node.g, node.r, world_.size_n, false, shape[0]);
+    fill_shape(new_node.g, new_node.r, world_.size_n, false, shape[1]);
     decompose(new_node.g, shape[0], shape[1], *it);
   }
 
@@ -104,7 +71,7 @@ PetscErrorCode Particles::push() {
 
 
 void Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& point_E, Vector3R& point_B) const {
-  Simple_interpolation interpolation(l_width, no, sh);
+  Simple_interpolation interpolation(world_.size_n, no, sh);
   interpolation.process(p_g, {{point_E, E}}, {{point_B, B}});
 }
 
@@ -185,9 +152,9 @@ void Particles::decompose_dir(const Vector3I& p_g, const Compute_j& compute_j, A
 
   PetscInt g_x, g_y, g_z;
 
-  for (PetscInt z = 0; z < l_width[Z]; ++z) {
-  for (PetscInt y = 0; y < l_width[Y]; ++y) {
-  for (PetscInt x = 0; x < l_width[X]; ++x) {
+  for (PetscInt z = 0; z < world_.size_n[Z]; ++z) {
+  for (PetscInt y = 0; y < world_.size_n[Y]; ++y) {
+  for (PetscInt x = 0; x < world_.size_n[X]; ++x) {
     g_x = p_g[X] + x;
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
@@ -197,86 +164,6 @@ void Particles::decompose_dir(const Vector3I& p_g, const Compute_j& compute_j, A
     #pragma omp atomic update
     J[g_z][g_y][g_x][dir] += p_j;
   }}}
-}
-
-
-PetscErrorCode Particles::communicate() {
-  PetscFunctionBeginUser;
-  constexpr PetscInt dim = 3;
-  constexpr PetscInt neighbours_num = 27;
-
-  std::vector<Point> outgoing[neighbours_num];
-  std::vector<Point> incoming[neighbours_num];
-
-  auto set_index = [&](const Vector3R& r, Vector3I& index, Axis axis) {
-    index[axis] = (r[axis] < l_start[axis]) ? 0 : (r[axis] < l_end[axis]) ? 1 : 2;
-  };
-
-  auto correct_coordinates = [&](Point& point) {
-    if (simulation_.bounds_[X] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, X);
-    if (simulation_.bounds_[Y] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Y);
-    if (simulation_.bounds_[Z] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Z);
-  };
-
-  PetscInt center_index = to_contiguous_index(1, 1, 1);
-
-  auto end = points_.end();
-  for (auto it = points_.begin(); it != end; ++it) {
-    const Vector3R& r = it->r;
-    Vector3I v_index;
-    set_index(r, v_index, X);
-    set_index(r, v_index, Y);
-    set_index(r, v_index, Z);
-
-    PetscInt index = to_contiguous_index(v_index[X], v_index[Y], v_index[Z]);
-    if (index == center_index) continue;  // Particle didn't cross local boundaries
-
-    correct_coordinates(*it);
-    outgoing[index].emplace_back(std::move(*it));
-    std::swap(*it, *(end - 1));
-    --it;
-    --end;
-  }
-  points_.erase(end, points_.end());
-
-  size_t o_num[neighbours_num];
-  size_t i_num[neighbours_num];
-  for (PetscInt i = 0; i < neighbours_num; ++i) {
-    o_num[i] = outgoing[i].size();
-    i_num[i] = 0;
-  }
-
-  MPI_Request reqs[2 * (neighbours_num - 1)];
-  PetscInt req = 0;
-
-  /// @note `PETSC_DEFAULT` is identical to `MPI_PROC_NULL`, so we can safely send/recv to/from neighbours.
-  for (PetscInt s = 0; s < neighbours_num; ++s) {
-    if (s == center_index) continue;
-    PetscInt r = (neighbours_num - 1) - s;
-    PetscCallMPI(MPI_Isend(&o_num[s], sizeof(size_t), MPI_BYTE, neighbours[s], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, neighbours[r], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
-  }
-  PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
-  assert(o_num[center_index] == 0);
-  assert(i_num[center_index] == 0);
-
-  req = 0;
-  for (PetscInt s = 0; s < neighbours_num; ++s) {
-    if (s == center_index) continue;
-    PetscInt r = (neighbours_num - 1) - s;
-    incoming[r].resize(i_num[r]);
-    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, neighbours[s], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, neighbours[r], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
-  }
-  PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
-
-  for (PetscInt i = 0; i < neighbours_num; ++i) {
-    if (i == center_index) continue;
-    points_.insert(points_.end(),
-      std::make_move_iterator(incoming[i].begin()),
-      std::make_move_iterator(incoming[i].end()));
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 }

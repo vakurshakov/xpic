@@ -1,8 +1,8 @@
-#ifndef SRC_BASIC_DIAGNOSTICS_BUILDERS_FIELDS_ENERGY_BUILDER_H
-#define SRC_BASIC_DIAGNOSTICS_BUILDERS_FIELDS_ENERGY_BUILDER_H
+#ifndef SRC_BASIC_BUILDERS_FIELDS_ENERGY_BUILDER_H
+#define SRC_BASIC_BUILDERS_FIELDS_ENERGY_BUILDER_H
 
-#include "src/impls/basic/diagnostics/builders/diagnostic_builder.h"
-#include "src/impls/basic/diagnostics/fields_energy.h"
+#include "src/impls/basic/builders/diagnostic_builder.h"
+#include "src/diagnostics/fields_energy.h"
 
 namespace basic {
 
@@ -13,7 +13,7 @@ public:
 
   PetscErrorCode build(const Configuration::json_t& /* diag_info */) override {
     PetscFunctionBeginUser;
-    diagnostics_.emplace_back(std::make_unique<Fields_energy>(CONFIG().out_dir + "/", simulation_.da_, simulation_.E_, simulation_.B_));
+    diagnostics_.emplace_back(std::make_unique<Fields_energy>(CONFIG().out_dir + "/", simulation_.world_.da, simulation_.E_, simulation_.B_));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
@@ -25,4 +25,4 @@ private:
 
 }
 
-#endif  // SRC_BASIC_DIAGNOSTICS_BUILDERS_FIELDS_ENERGY_BUILDER_H
+#endif  // SRC_BASIC_BUILDERS_FIELDS_ENERGY_BUILDER_H

@@ -15,7 +15,7 @@ Node::Node(const Vector3R& __r) {
 }
 
 PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r, const Vector3I& l_width, bool shift, Shape& shape) {
-  PetscFunctionBeginUser;
+  PetscFunctionBeginHot;
   PetscReal g_x, g_y, g_z;
 
   #pragma omp simd collapse(Vector3I::dim)

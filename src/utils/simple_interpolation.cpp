@@ -4,7 +4,7 @@ Simple_interpolation::Simple_interpolation(const Vector3I& width, const Shape& n
   : width(width), no(no), sh(sh) {}
 
 PetscErrorCode Simple_interpolation::process(const Vector3I& p_g, const Context& e_fields, const Context& b_fields) const {
-  PetscFunctionBeginUser;
+  PetscFunctionBeginHot;
   PetscInt g_x, g_y, g_z;
 
   for (PetscInt z = 0; z < width[Z]; ++z) {

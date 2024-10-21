@@ -3,7 +3,6 @@
 
 #include "src/interfaces/simulation.h"
 
-#include <petscdmda.h>
 #include <petscvec.h>
 #include <petscmat.h>
 
@@ -16,11 +15,9 @@ public:
   Simulation() = default;
   ~Simulation() override;
 
-  DM da_;
   Vec E_;
   Vec B_;
   Vec J_;
-  DMBoundaryType bounds_[3];
   std::vector<Particles> particles_;
 
 private:
