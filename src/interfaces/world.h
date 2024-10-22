@@ -15,7 +15,7 @@ struct World {
   PetscInt procs[3];
   DMBoundaryType bounds[3];
 
-  const PetscMPIInt* neighbours;
+  const PetscMPIInt* neighbors;
 
   Vector3R start;
   Vector3R size;

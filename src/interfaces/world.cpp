@@ -19,7 +19,7 @@ PetscErrorCode World::initialize() {
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da));
   PetscCall(DMSetUp(da));
 
-  PetscCall(DMDAGetNeighbors(da, &neighbours));
+  PetscCall(DMDAGetNeighbors(da, &neighbors));
 
   PetscCall(DMDAGetCorners(da, REP3_A(&start_n), REP3_A(&size_n)));
   convert(start, start_n);

@@ -23,10 +23,10 @@ PetscErrorCode Particles::add_particle(const Point& point) {
 PetscErrorCode Particles::communicate() {
   PetscFunctionBeginUser;
   constexpr PetscInt dim = 3;
-  constexpr PetscInt neighbours_num = 27;
+  constexpr PetscInt neighbors_num = 27;
 
-  std::vector<Point> outgoing[neighbours_num];
-  std::vector<Point> incoming[neighbours_num];
+  std::vector<Point> outgoing[neighbors_num];
+  std::vector<Point> incoming[neighbors_num];
 
   auto set_index = [&](const Vector3R& r, Vector3I& index, Axis axis) {
     index[axis] = (r[axis] < world_.start[axis]) ? 0 : (r[axis] < world_.end[axis]) ? 1 : 2;
@@ -59,38 +59,38 @@ PetscErrorCode Particles::communicate() {
   }
   points_.erase(end, points_.end());
 
-  size_t o_num[neighbours_num];
-  size_t i_num[neighbours_num];
-  for (PetscInt i = 0; i < neighbours_num; ++i) {
+  size_t o_num[neighbors_num];
+  size_t i_num[neighbors_num];
+  for (PetscInt i = 0; i < neighbors_num; ++i) {
     o_num[i] = outgoing[i].size();
     i_num[i] = 0;
   }
 
-  MPI_Request reqs[2 * (neighbours_num - 1)];
+  MPI_Request reqs[2 * (neighbors_num - 1)];
   PetscInt req = 0;
 
-  /// @note `PETSC_DEFAULT` is identical to `MPI_PROC_NULL`, so we can safely send/recv to/from neighbours.
-  for (PetscInt s = 0; s < neighbours_num; ++s) {
+  /// @note `PETSC_DEFAULT` is identical to `MPI_PROC_NULL`, so we can safely send/recv to/from neighbors.
+  for (PetscInt s = 0; s < neighbors_num; ++s) {
     if (s == center_index) continue;
-    PetscInt r = (neighbours_num - 1) - s;
-    PetscCallMPI(MPI_Isend(&o_num[s], sizeof(size_t), MPI_BYTE, world_.neighbours[s], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, world_.neighbours[r], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscInt r = (neighbors_num - 1) - s;
+    PetscCallMPI(MPI_Isend(&o_num[s], sizeof(size_t), MPI_BYTE, world_.neighbors[s], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, world_.neighbors[r], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
   assert(o_num[center_index] == 0);
   assert(i_num[center_index] == 0);
 
   req = 0;
-  for (PetscInt s = 0; s < neighbours_num; ++s) {
+  for (PetscInt s = 0; s < neighbors_num; ++s) {
     if (s == center_index) continue;
-    PetscInt r = (neighbours_num - 1) - s;
+    PetscInt r = (neighbors_num - 1) - s;
     incoming[r].resize(i_num[r]);
-    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, world_.neighbours[s], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, world_.neighbours[r], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, world_.neighbors[s], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, world_.neighbors[r], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
-  for (PetscInt i = 0; i < neighbours_num; ++i) {
+  for (PetscInt i = 0; i < neighbors_num; ++i) {
     if (i == center_index) continue;
     points_.insert(points_.end(),
       std::make_move_iterator(incoming[i].begin()),
