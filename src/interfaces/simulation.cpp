@@ -2,6 +2,7 @@
 
 #include "src/impls/basic/simulation.h"
 #include "src/impls/ricketson/simulation.h"
+#include "src/impls/ecsimcorr/simulation.h"
 
 namespace interfaces {
 
@@ -61,6 +62,15 @@ PetscErrorCode Simulation::diagnose(timestep_t timestep) const {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
+PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z) {
+  return (z * geom_ny + y) * geom_nx + x;
+}
+
+PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
+  return index(x, y, z) * Vector3I::dim + c;
+}
+
 }
 
 Simulation_up build_simulation() {
@@ -76,6 +86,9 @@ Simulation_up build_simulation() {
   }
   else if (simulation_str == "ricketson") {
     return std::make_unique<ricketson::Simulation>();
+  }
+  else if (simulation_str == "ecsimcorr") {
+    return std::make_unique<ecsimcorr::Simulation>();
   }
 
   throw std::runtime_error("Unkown simulation is used: " + simulation_str);

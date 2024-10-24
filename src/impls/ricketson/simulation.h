@@ -26,8 +26,6 @@ private:
   PetscErrorCode timestep_implementation(timestep_t timestep) override;
 
   PetscErrorCode setup_norm_gradient();
-  PetscInt index(PetscInt k, PetscInt j, PetscInt i);
-  PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
 
   Vec B_norm_;
   Mat norm_gradient_;

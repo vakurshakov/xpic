@@ -2,7 +2,7 @@
 
 #include "src/utils/utils.h"
 
-#include "src/utils/rotor.h"
+#include "src/utils/operators.h"
 #include "src/impls/basic/builders/diagnostic_builder.h"
 
 namespace basic {
@@ -13,17 +13,15 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(DMCreateGlobalVector(da, &E_));
   PetscCall(DMCreateGlobalVector(da, &B_));
   PetscCall(DMCreateGlobalVector(da, &J_));
-  PetscCall(DMCreateMatrix(da, &rot_dt_p));
-  PetscCall(DMCreateMatrix(da, &rot_dt_m));
 
   Rotor rotor(da);
-  PetscCall(rotor.set_positive(rot_dt_p));
-  PetscCall(rotor.set_negative(rot_dt_m));
+  PetscCall(rotor.create_positive(&rot_dt_p));
+  PetscCall(rotor.create_negative(&rot_dt_m));
   PetscCall(MatScale(rot_dt_p, -dt));
   PetscCall(MatScale(rot_dt_m, +dt));
 
 #if THERE_ARE_PARTICLES
-  /// @todo Particles parametrisation is needed!
+  /// @todo Particles parametrization is needed!
   Sort_parameters parameters = {
     .Np = 1,
     .n  = +1.0,

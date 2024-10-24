@@ -47,7 +47,7 @@ set(utils
   src/utils/mpi_binary_file.cpp
   src/utils/sync_binary_file.cpp
   src/utils/region_operations.cpp
-  src/utils/rotor.cpp
+  src/utils/operators.cpp
   src/utils/particle_shape.cpp
   src/utils/simple_interpolation.cpp
 )
@@ -57,6 +57,10 @@ set(impls_basic
   src/impls/basic/particles.cpp
   src/impls/basic/builders/diagnostic_builder.cpp
   src/impls/basic/builders/field_view_builder.cpp
+)
+
+set(impls_ecsimcorr
+  src/impls/ecsimcorr/simulation.cpp
 )
 
 set(impls_ricketson
@@ -72,6 +76,7 @@ add_executable(
   ${diagnostics}
   ${utils}
   ${impls_basic}
+  ${impls_ecsimcorr}
   ${impls_ricketson}
 )
 

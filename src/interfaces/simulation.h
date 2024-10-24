@@ -19,6 +19,10 @@ public:
   PetscErrorCode calculate();
 
 protected:
+  /// @todo create common global function with sizes and reuse it
+  PetscInt index(PetscInt k, PetscInt j, PetscInt i);
+  PetscInt index(PetscInt k, PetscInt j, PetscInt i, PetscInt l);
+
   virtual PetscErrorCode initialize_implementation() = 0;
   virtual PetscErrorCode log_information() const;
 
@@ -31,7 +35,7 @@ protected:
   std::vector<Diagnostic_up> diagnostics_;
 };
 
-}
+}  // namespace interfaces
 
 using Simulation_up = std::unique_ptr<interfaces::Simulation>;
 

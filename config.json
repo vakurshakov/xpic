@@ -1,7 +1,7 @@
 {
   "Out_dir": "results/basic/",
 
-  "Simulation": "basic",
+  "Simulation": "ecsimcorr",
 
   "Geometry": {
     "size_x": 1.0,  "dx": 0.05,   "__units.x": "c/w_pe",
