@@ -127,7 +127,7 @@ PetscReal Particles::mass(const Point& point) const {
 Vector3R Particles::velocity(const Point& point) const {
   const Vector3R& p = point.p;
   PetscReal m = mass(point);
-  return p / sqrt(m * m + p.square());
+  return p / sqrt(m * m + p.squared());
 }
 
 }

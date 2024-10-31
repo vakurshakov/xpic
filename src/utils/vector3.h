@@ -83,7 +83,7 @@ struct Vector3 {
   }
 
   PetscReal length() const {
-    return sqrt((PetscReal)square());
+    return sqrt((PetscReal)squared());
   }
 
   T dot(const Vector3& other) const {
@@ -93,12 +93,12 @@ struct Vector3 {
       data[Z] * other[Z];
   }
 
-  T square() const {
+  T squared() const {
     return dot(*this);
   }
 
   Vector3<PetscReal> parallel_to(const Vector3& ref) const {
-    return ((*this).dot(ref) * ref) / ref.square();
+    return ((*this).dot(ref) * ref) / ref.squared();
   }
 
   Vector3<PetscReal> transverse_to(const Vector3& ref) const {

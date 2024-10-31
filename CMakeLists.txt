@@ -42,6 +42,10 @@ set(diagnostics
   src/diagnostics/distribution_moment.cpp
 )
 
+set(commands
+  src/commands/inject_particles.cpp
+)
+
 set(utils
   src/utils/configuration.cpp
   src/utils/mpi_binary_file.cpp
@@ -73,6 +77,7 @@ add_executable(
   ${PROJECT_NAME}
   ${main}
   ${interfaces}
+  ${commands}
   ${diagnostics}
   ${utils}
   ${impls_basic}

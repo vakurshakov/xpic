@@ -117,7 +117,7 @@ PetscErrorCode Particles::push(Point& point) {
   PetscCall(ctx.update(point.r, point.p));
   PetscCall(adaptive_time_stepping(point));
 
-  PetscReal mu_0 = (ctx.v_n - ctx.v_E).square() / ctx.B_p.length();
+  PetscReal mu_0 = (ctx.v_n - ctx.v_E).squared() / ctx.B_p.length();
 
   const PetscInt MAX_ITERATIONS_RESTART = 10;
   for (PetscInt i = 0; i < MAX_ITERATIONS_RESTART; ++i) {
@@ -152,7 +152,7 @@ PetscErrorCode Particles::push(Point& point) {
     LOG("Iterations number: {}, Function evaluations: {}", iterations, evals);
 
     PetscCall(ctx.update(point.r, point.p));
-    PetscReal mu = (point.p - ctx.v_E).square() / ctx.B_p.length();
+    PetscReal mu = (point.p - ctx.v_E).squared() / ctx.B_p.length();
     LOG("|dmu| = {}, eps*mu0 = {}, shrink = {}", abs(mu - mu_0), eps * mu_0 , alpha * eps * mu_0 / abs(mu - mu_0));
 
     if (reason >= 0 && abs(mu - mu_0) < eps * mu_0) {
@@ -189,7 +189,7 @@ PetscErrorCode Particles::Context::update(const Vector3R& x_nn, const Vector3R& 
   DB_pp = DB_p.parallel_to(B_p);
   DB_pt = DB_p.transverse_to(B_p);
 
-  v_E = E_p.cross(B_p) / B_p.square();
+  v_E = E_p.cross(B_p) / B_p.squared();
   v_En = v_E.length();
 
   v_h = 0.5 * (v_nn + v_n);
@@ -265,7 +265,7 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
   Vector3R B_p = ctx.B_p;
 
   /// @todo Add guards in case of v_t << v_p
-  PetscReal mu = -0.125 * ctx.m * ((v_nn - v_n).parallel_to(B_p)).square() / B_p.length();
+  PetscReal mu = -0.125 * ctx.m * ((v_nn - v_n).parallel_to(B_p)).squared() / B_p.length();
   Vector3R G_p = -mu * ctx.DB_pp;
   Vector3R G_t;
 
@@ -284,7 +284,7 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
     G_t = zeta * v_hpn / v_htn * G_p * v_Ed - mu * (zeta * f_pE + f_tE / (1.0 - 1.0 / zeta));
   }
 
-  B_p += (G_p + G_t).cross(ctx.v_ht) / (ctx.q * ctx.v_ht.square());
+  B_p += (G_p + G_t).cross(ctx.v_ht) / (ctx.q * ctx.v_ht.squared());
 
   PetscReal tqm = 0.5 * ctx.dt * ctx.q / ctx.m;
   Vector3R a = v_n + tqm * ctx.E_p;
