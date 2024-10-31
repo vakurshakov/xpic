@@ -1,5 +1,5 @@
 #!/bin/sh
 
-cmake -S . -B build/
+cmake -S . -B build/ -D CMAKE_BUILD_TYPE=DEBUG
 
-cmake --build build/ $@
+cmake --build build/ --parallel 8

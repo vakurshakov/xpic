@@ -83,11 +83,22 @@
         "valarray": "cpp"
     },
     "cSpell.words": [
+        "DMDA",
+        "ecsimcorr",
         "idxm",
         "idxn",
         "jdxm",
         "jdxn",
+        "ltog",
+        "MATPRODUCT",
         "mdim",
-        "ndim"
+        "mdof",
+        "ndim",
+        "ndof",
+        "OUTOFRANGE",
+        "PETSC",
+        "sdim",
+        "threadprivate",
+        "timestep"
     ]
 }

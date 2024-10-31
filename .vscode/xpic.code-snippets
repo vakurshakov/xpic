@@ -1,32 +1,32 @@
 {
   "PetscFunctionBeginUser;": {
     "scope": "c,cpp",
-    "prefix": "pbu",
+    "prefix": "pbeginu",
     "body": "PetscFunctionBeginUser;",
   },
   "PetscFunctionBeginHot;": {
     "scope": "c,cpp",
-    "prefix": "pbh",
+    "prefix": "pbeginh",
     "body": "PetscFunctionBeginHot;",
   },
   "PetscFunctionReturn(PETSC_SUCCESS);": {
     "scope": "c,cpp",
-    "prefix": "prs",
+    "prefix": "preturns",
     "body": "PetscFunctionReturn(PETSC_SUCCESS);",
   },
   "PetscFunctionReturn(variable);": {
     "scope": "c,cpp",
-    "prefix": "prv",
+    "prefix": "preturnv",
     "body": "PetscFunctionReturn($1);",
   },
   "PetscCall(func -> PetscErrorCode);": {
     "scope": "c,cpp",
-    "prefix": "pcr",
+    "prefix": "pcall",
     "body": "PetscCall($1);",
   },
   "PetscCallVoid(func -> PetscErrorCode);": {
     "scope": "c,cpp",
-    "prefix": "pcv",
+    "prefix": "pcallv",
     "body": "PetscCallVoid($1);",
   }
 }
