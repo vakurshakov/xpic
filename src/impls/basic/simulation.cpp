@@ -1,7 +1,6 @@
 #include "simulation.h"
 
 #include "src/utils/utils.h"
-
 #include "src/utils/operators.h"
 #include "src/impls/basic/builders/diagnostic_builder.h"
 

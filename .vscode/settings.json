@@ -84,6 +84,7 @@
     },
     "cSpell.words": [
         "DMDA",
+        "ecsim",
         "ecsimcorr",
         "idxm",
         "idxn",
@@ -91,14 +92,21 @@
         "jdxn",
         "ltog",
         "MATPRODUCT",
+        "maxf",
+        "maxit",
         "mdim",
         "mdof",
         "ndim",
         "ndof",
         "OUTOFRANGE",
         "PETSC",
+        "ricketson",
+        "rtol",
         "sdim",
+        "SNES",
+        "SNESNRICHARDSON",
         "threadprivate",
-        "timestep"
+        "timestep",
+        "VECSEQ"
     ]
 }

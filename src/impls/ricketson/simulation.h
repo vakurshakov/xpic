@@ -2,9 +2,6 @@
 #define SRC_RICKETSON_SIMULATION_H
 
 #include "src/interfaces/simulation.h"
-
-#include <petscdmda.h>
-
 #include "src/impls/ricketson/particles.h"
 
 namespace ricketson {

@@ -6,7 +6,6 @@
 #include <petscsnes.h>
 
 #include "src/pch.h"
-
 #include "src/utils/particle_shape.h"
 #include "src/utils/sync_binary_file.h"
 

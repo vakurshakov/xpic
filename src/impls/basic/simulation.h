@@ -2,10 +2,6 @@
 #define SRC_BASIC_SIMULATION_H
 
 #include "src/interfaces/simulation.h"
-
-#include <petscvec.h>
-#include <petscmat.h>
-
 #include "src/impls/basic/particles.h"
 
 namespace basic {

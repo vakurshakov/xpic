@@ -3,8 +3,6 @@
 
 #include "src/interfaces/simulation.h"
 
-#include <petscdmda.h>
-
 namespace ecsimcorr {
 
 class Simulation : public interfaces::Simulation {

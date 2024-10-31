@@ -2,9 +2,6 @@
 #define SRC_BASIC_PARTICLES_PARTICLES_H
 
 #include "src/pch.h"
-
-#include <petscdm.h>
-
 #include "src/interfaces/particles.h"
 #include "src/utils/particle_shape.h"
 
