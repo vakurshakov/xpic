@@ -9,8 +9,6 @@ log/
 results/
 __pycache__/
 
-.vscode/
-
 *.bin
 *.npy
 *.png
