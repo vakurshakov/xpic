@@ -35,15 +35,20 @@ PetscErrorCode Simulation::initialize_implementation() {
   PetscCall(MatScale(rotE, -dt));
   PetscCall(MatScale(rotB, +dt));
 
-  PetscCall(DMCreateMatrix(da, &rot2EB));
-  PetscCall(MatMatMult(rotE, rotB, MAT_REUSE_MATRIX, PETSC_CURRENT, &rot2EB));
+  PetscCall(MatProductCreate(rotE, rotB, nullptr, &rot2EB));
+  PetscCall(MatProductSetType(rot2EB, MATPRODUCT_AB));
+  PetscCall(MatProductSetFromOptions(rot2EB));
+  PetscCall(MatProductSymbolic(rot2EB));
+  PetscCall(MatProductNumeric(rot2EB));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
   PetscFunctionBeginUser;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 Simulation::~Simulation() {
   PetscFunctionBeginUser;
