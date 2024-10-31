@@ -20,17 +20,17 @@ PetscErrorCode Simulation::log_information() const {
   static const double n0 = sqrt(1e13);
   LOG("Note: Dimensionless units are used.");
   LOG("For reference, using density 1e13 cm^(-3):");
-  LOG("  frequency,   w_pe = " << 5.64e+4 * n0 << " [1/sec]");
-  LOG("  time,      1/w_pe = " << 1.77e-5 / n0 << " [sec]");
-  LOG("  length,    c/w_pe = " << 5.32e+5 / n0 << " [cm]");
-  LOG("  electric field, E = " << 9.63e-7 * n0 << " [MV/cm]");
-  LOG("  magnetic field, B = " << 3.21e-7 * n0 << " [T]");
+  LOG("  frequency,   w_pe = {} [1/sec]", 5.64e+4 * n0);
+  LOG("  time,      1/w_pe = {} [sec]", 1.77e-5 / n0);
+  LOG("  length,    c/w_pe = {} [cm]", 5.32e+5 / n0);
+  LOG("  electric field, E = {} [MV/cm]", 9.63e-7 * n0);
+  LOG("  magnetic field, B = {} [T]", 3.21e-7 * n0);
 
   LOG("Geometric constants for the current setup:");
-  LOG("  (length along x axis) = " << geom_x << " [c/w_pe] = " << geom_nx << " [dx]");
-  LOG("  (length along y axis) = " << geom_x << " [c/w_pe] = " << geom_ny << " [dy]");
-  LOG("  (length along z axis) = " << geom_x << " [c/w_pe] = " << geom_nz << " [dz]");
-  LOG("  (simulation time)     = " << geom_x << " [1/w_pe] = " << geom_nt << " [dt]");
+  LOG("  (length along x axis) = {} [c/w_pe] = {} [dx]", geom_x, geom_nx);
+  LOG("  (length along y axis) = {} [c/w_pe] = {} [dy]", geom_y, geom_ny);
+  LOG("  (length along z axis) = {} [c/w_pe] = {} [dz]", geom_z, geom_nz);
+  LOG("  (simulation time)     = {} [1/w_pe] = {} [dt]", geom_t, geom_nt);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -38,7 +38,7 @@ PetscErrorCode Simulation::calculate() {
   PetscFunctionBeginUser;
   for (timestep_t t = start_ + 1; t <= geom_nt; ++t) {
     LOG_FLUSH();
-    LOG("Timestep = " << t * dt << " [1/w_pe]\t= " << t << " [dt]");
+    LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
 
     for (const Command_up& command : step_presets_) {
       PetscCall(command->execute(t));

@@ -59,17 +59,16 @@ enum Axis : PetscInt {
 
 
 #if LOGGING
-  #define LOG(...)                                      \
-    do {                                                \
-      PetscMPIInt rank;                                 \
-      MPI_Comm_rank(PETSC_COMM_WORLD, &rank);           \
-      if (rank == 0) std::cout << __VA_ARGS__ << "\n";  \
-    } while (0)
-
   #define LOG_FLUSH() std::cout.flush()
+  #define LOG(...)                                                   \
+    do {                                                             \
+      PetscMPIInt rank;                                              \
+      MPI_Comm_rank(PETSC_COMM_WORLD, &rank);                        \
+      if (rank == 0) std::cout << std::format(__VA_ARGS__) << "\n";  \
+    } while (0)
 #else
-  #define LOG(...)
   #define LOG_FLUSH()
+  #define LOG(...)
 #endif
 
 #endif // SRC_UTILS_UTILS_H

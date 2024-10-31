@@ -2,7 +2,7 @@
 #include "src/utils/utils.h"
 #include "src/interfaces/simulation.h"
 
-static char help[] = "Usage: [mpiexec] simulation.out <config.json>\n";
+static constexpr char help[] = "Usage: [mpiexec] simulation.out <config.json>\n";
 
 int main(int argc, char** argv) {
   PetscFunctionBeginUser;
@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     PetscCall(simulation->calculate());
   }
   catch (const std::exception& e) {
-    LOG("what(): " << e.what());
+    LOG("what(): {}", e.what());
     PetscCallMPI(MPI_Abort(PETSC_COMM_WORLD, EXIT_FAILURE));
   }
   catch (...) {

@@ -6,7 +6,6 @@
 #define PARTICLES_FORM_FACTOR         2
 
 #define LOGGING                       true
-#define TIME_PROFILING                true
 
 #include <petscsystypes.h>
 using timestep_t = PetscInt;

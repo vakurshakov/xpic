@@ -126,7 +126,7 @@ PetscErrorCode build_diagnostics(const Simulation& simulation, std::vector<Diagn
         diag_name == "mVrVr_moment"    ||
         diag_name == "mVrVphi_moment"  ||
         diag_name == "mVphiVphi_moment") {
-      LOG("Adding " << diag_name << " diagnostics(s)");
+      LOG("Adding {} diagnostics(s)", diag_name);
       std::string moment_name = (diag_name == "density") ? "zeroth_moment" : diag_name;
       builder = std::make_unique<Distribution_moment_builder>(simulation, result, moment_name, "(x_y_z)");
       PetscCall(builder->build(diag_info));

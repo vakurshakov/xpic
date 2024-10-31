@@ -48,12 +48,12 @@ Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
   PetscCallVoid(VecSetType(solution_, VECSEQ));
   PetscCallVoid(VecSetSizes(solution_, PETSC_DECIDE, solution_size));
 
-  LOG("Nonlinear solver for \"" << parameters_.sort_name << "\" is set, tolerances:");
-  LOG("  atol = " << atol << " - absolute convergence tolerance");
-  LOG("  rtol = " << rtol << " - relative convergence tolerance");
-  LOG("  stol = " << stol << " - convergence tolerance in terms of the norm of the change in the solution between steps");
-  LOG("  maxit = " << maxit << " - maximum number of iterations");
-  LOG("  maxf  = " << maxf << " - maximum number of function evaluations");
+  LOG("Nonlinear solver for \"{}\" is set, tolerances:",  parameters_.sort_name);
+  LOG("  atol = {} - absolute convergence tolerance", atol);
+  LOG("  rtol = {} - relative convergence tolerance", rtol);
+  LOG("  stol = {} - convergence tolerance in terms of the norm of the change in the solution between steps", stol);
+  LOG("  maxit = {} - maximum number of iterations", maxit);
+  LOG("  maxf  = {} - maximum number of function evaluations", maxf);
   LOG_FLUSH();
   PetscFunctionReturnVoid();
 }
@@ -149,11 +149,11 @@ PetscErrorCode Particles::push(Point& point) {
     PetscInt iterations, evals;
     PetscCall(SNESGetIterationNumber(snes_, &iterations));
     PetscCall(SNESGetNumberFunctionEvals(snes_, &evals));
-    LOG("Iterations number: " << iterations << " Function evaluations: " << evals);
+    LOG("Iterations number: {}, Function evaluations: {}", iterations, evals);
 
     PetscCall(ctx.update(point.r, point.p));
     PetscReal mu = (point.p - ctx.v_E).square() / ctx.B_p.length();
-    LOG("|dmu| = " << abs(mu - mu_0) << ", eps*mu0 = " << eps * mu_0 << ", shrink = " <<  alpha * eps * mu_0 / abs(mu - mu_0));
+    LOG("|dmu| = {}, eps*mu0 = {}, shrink = {}", abs(mu - mu_0), eps * mu_0 , alpha * eps * mu_0 / abs(mu - mu_0));
 
     if (reason >= 0 && abs(mu - mu_0) < eps * mu_0) {
       PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
