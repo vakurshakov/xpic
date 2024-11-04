@@ -1,10 +1,12 @@
 #include "src/pch.h"
-#include "src/utils/utils.h"
 #include "src/interfaces/simulation.h"
+#include "src/utils/utils.h"
 
-static constexpr char help[] = "Usage: [mpiexec] simulation.out <config.json>\n";
+static constexpr char help[] =
+  "Usage: [mpiexec] simulation.out <config.json>\n";
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 

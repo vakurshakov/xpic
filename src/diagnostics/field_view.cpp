@@ -1,10 +1,12 @@
 #include "field_view.h"
 
-#include "src/utils/utils.h"
 #include "src/utils/region_operations.h"
+#include "src/utils/utils.h"
 
 
-std::unique_ptr<Field_view> Field_view::create(const std::string& out_dir, DM da, Vec field, const Region& region) {
+std::unique_ptr<Field_view> Field_view::create(
+  const std::string& out_dir, DM da, Vec field, const Region& region)
+{
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
   PetscCallThrow(get_local_communicator(da, region, &newcomm));
@@ -17,13 +19,17 @@ std::unique_ptr<Field_view> Field_view::create(const std::string& out_dir, DM da
 }
 
 
-/// @returns Non-null communicator for those processes, where region intersects with local boundaries of DM.
-PetscErrorCode Field_view::get_local_communicator(DM da, const Region& region, MPI_Comm* newcomm) {
+/// @returns Non-null communicator for those processes,
+/// where region intersects with local boundaries of DM.
+PetscErrorCode Field_view::get_local_communicator(
+  DM da, const Region& region, MPI_Comm* newcomm)
+{
   PetscFunctionBeginUser;
   Vector3I r_start(region.start), r_size(region.size), start, size;
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
-  PetscMPIInt color = is_region_intersect_bounds(r_start, r_size, start, size) ? 1 : MPI_UNDEFINED;
+  PetscMPIInt color =
+    is_region_intersect_bounds(r_start, r_size, start, size) ? 1 : MPI_UNDEFINED;
   PetscMPIInt rank;
   PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
   PetscCallMPI(MPI_Comm_split(PETSC_COMM_WORLD, color, rank, newcomm));
@@ -31,11 +37,15 @@ PetscErrorCode Field_view::get_local_communicator(DM da, const Region& region, M
 }
 
 
-Field_view::Field_view(const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm)
-  : interfaces::Diagnostic(out_dir), da_(da), field_(field), comm_(newcomm) {}
+Field_view::Field_view(
+  const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm)
+  : interfaces::Diagnostic(out_dir), da_(da), field_(field), comm_(newcomm)
+{
+}
 
 
-PetscErrorCode Field_view::set_data_views(const Region& region) {
+PetscErrorCode Field_view::set_data_views(const Region& region)
+{
   PetscFunctionBeginUser;
   region_ = region;
 
@@ -53,8 +63,11 @@ PetscErrorCode Field_view::set_data_views(const Region& region) {
   Vector4I l_size = min(g_start + f_size, l_start + m_size) - m_start;
   Vector4I f_start = m_start;
 
-  f_start -= g_start;  // file start is in global coordinates, but we remove offset
-  m_start -= l_start;  // memory start is in local coordinates
+  // file start is in global coordinates, but we remove offset
+  f_start -= g_start;
+
+  // memory start is in local coordinates
+  m_start -= l_start;
 
   if (region_.dim > 3) {
     f_start[3] = 0;
@@ -68,7 +81,8 @@ PetscErrorCode Field_view::set_data_views(const Region& region) {
 }
 
 
-PetscErrorCode Field_view::diagnose(timestep_t t) {
+PetscErrorCode Field_view::diagnose(timestep_t t)
+{
   if (t % diagnose_period != 0)
     PetscFunctionReturn(PETSC_SUCCESS);
   PetscFunctionBeginUser;
@@ -78,7 +92,7 @@ PetscErrorCode Field_view::diagnose(timestep_t t) {
   ss << std::setw(time_width) << std::setfill('0') << t;
   PetscCall(file_.open(comm_, out_dir_, ss.str()));
 
-  const PetscReal *arr;
+  const PetscReal* arr;
   PetscCall(VecGetArrayRead(field_, &arr));
 
   Vector3I size;

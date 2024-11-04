@@ -1,19 +1,22 @@
 #ifndef SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H
 #define SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H
 
-#include "src/impls/basic/builders/diagnostic_builder.h"
 #include "src/diagnostics/field_view.h"
+#include "src/impls/basic/builders/diagnostic_builder.h"
 
 namespace basic {
 
 class Field_view_builder : public Diagnostic_builder {
 public:
-  Field_view_builder(const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
+  Field_view_builder(
+    const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& diag_info) override;
 
 private:
-  const char* usage_message() const override {
+  const char* usage_message() const override
+  {
+    // clang-format off
     return "\n"
       "Usage: The structure of the field_view diagnostic description\n"
       "{\n"
@@ -23,6 +26,7 @@ private:
       "  \"start\": [ox, oy, oz], -- Starting point of a diagnostic in _global_ coordinates of units c/w_pe.\n"
       "  \"size\":  [sx, sy, sz]  -- Sizes of a diagnosed region along each coordinate in _global_ coordinates of units c/w_pe.\n"
       "}";
+    // clang-format on
   }
 
   struct Field_description {
@@ -35,9 +39,10 @@ private:
   using Fields_description = std::vector<Field_description>;
   Fields_description fields_desc_;
 
-  PetscErrorCode parse_field_info(const Configuration::json_t& json, Field_description& desc);
+  PetscErrorCode parse_field_info(
+    const Configuration::json_t& json, Field_description& desc);
 };
 
-}
+}  // namespace basic
 
 #endif  // SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H

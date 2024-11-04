@@ -37,23 +37,23 @@ PetscReal __4th_order_spline(PetscReal s, Axis a);
 PetscReal __5th_order_spline(PetscReal s, Axis a);
 
 #if (PARTICLES_FORM_FACTOR == 0)
-  static constexpr PetscInt shape_radius = 1;
-  static constexpr const auto& shape_function = __0th_order_spline;
+static constexpr PetscInt shape_radius = 1;
+static constexpr const auto& shape_function = __0th_order_spline;
 #elif (PARTICLES_FORM_FACTOR == 1)
-  static constexpr PetscInt shape_radius = 1;
-  static constexpr const auto& shape_function = __1st_order_spline;
+static constexpr PetscInt shape_radius = 1;
+static constexpr const auto& shape_function = __1st_order_spline;
 #elif (PARTICLES_FORM_FACTOR == 2)
-  static constexpr PetscInt shape_radius = 2;
-  static constexpr const auto& shape_function = __2nd_order_spline;
+static constexpr PetscInt shape_radius = 2;
+static constexpr const auto& shape_function = __2nd_order_spline;
 #elif (PARTICLES_FORM_FACTOR == 3)
-  static constexpr PetscInt shape_radius = 2;
-  static constexpr const auto& shape_function = __3rd_order_spline;
+static constexpr PetscInt shape_radius = 2;
+static constexpr const auto& shape_function = __3rd_order_spline;
 #elif (PARTICLES_FORM_FACTOR == 4)
-  static constexpr PetscInt shape_radius = 3;
-  static constexpr const auto& shape_function = __4th_order_spline;
+static constexpr PetscInt shape_radius = 3;
+static constexpr const auto& shape_function = __4th_order_spline;
 #elif (PARTICLES_FORM_FACTOR == 5)
-  static constexpr PetscInt shape_radius = 3;
-  static constexpr const auto& shape_function = __5th_order_spline;
+static constexpr PetscInt shape_radius = 3;
+static constexpr const auto& shape_function = __5th_order_spline;
 #else
   #error "Unknown PARTICLES_FORM_FACTOR is specified!"
 #endif
@@ -61,4 +61,4 @@ PetscReal __5th_order_spline(PetscReal s, Axis a);
 /// @todo For PARTICLES_FORM_FACTOR == 2: `shape_radius` = 1 and `shape_width` = 3?
 static constexpr PetscInt shape_width = 2 * shape_radius;
 
-#endif // SRC_INTERFACES_SORT_PARAMETERS_H
+#endif  // SRC_INTERFACES_SORT_PARAMETERS_H

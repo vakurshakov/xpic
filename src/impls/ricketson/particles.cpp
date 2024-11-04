@@ -10,11 +10,11 @@ static constexpr PetscReal atol = PETSC_DEFAULT;
 static constexpr PetscReal rtol = PETSC_DEFAULT;
 static constexpr PetscReal stol = PETSC_DEFAULT;
 static constexpr PetscInt maxit = PETSC_DEFAULT;
-static constexpr PetscInt maxf  = PETSC_DEFAULT;
+static constexpr PetscInt maxf = PETSC_DEFAULT;
 
 
 /**
- * @brief Internal constants controlling the restrictions of the proposed scheme.
+ * @brief Internal constants controlling the restrictions of the scheme.
  * @details
  * α ∈ (0, 1), controls how close to the time-step restrictions one is willing to get.
  * β ∈ (0, 1), controls the region |v_E / u - 1| < β, where conserving effective force becomes discontinuous.
@@ -23,16 +23,18 @@ static constexpr PetscInt maxf  = PETSC_DEFAULT;
  * t_res -- The smallest timescale in the problem that we wish to resolve.
  */
 static constexpr PetscReal alpha = 0.9;
-static constexpr PetscReal beta  = 0.2;
-static constexpr PetscReal eps   = 0.15;
+static constexpr PetscReal beta = 0.2;
+static constexpr PetscReal eps = 0.15;
 static constexpr PetscReal gamma = 0.1;
 static constexpr PetscReal t_res = 10;
 
 
 Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
-  : interfaces::Particles(simulation.world_, parameters), simulation_(simulation) {
+  : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
+{
   PetscFunctionBeginUser;
-  particle_iterations_log = Sync_binary_file(CONFIG().out_dir, "particle_iterations");
+  particle_iterations_log =
+    Sync_binary_file(CONFIG().out_dir, "particle_iterations");
 
   ctx.width = min(Vector3I(Geom_n), Vector3I(shape_width));
 
@@ -60,7 +62,9 @@ Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
 
 
 Particles::Particles(Particles&& other)
-  : interfaces::Particles(other.world_, other.parameters_), simulation_(other.simulation_) {
+  : interfaces::Particles(other.world_, other.parameters_),
+    simulation_(other.simulation_)
+{
   points_ = std::move(other.points_);
   particle_iterations_log = std::move(other.particle_iterations_log);
 
@@ -69,7 +73,8 @@ Particles::Particles(Particles&& other)
 }
 
 
-Particles::~Particles() {
+Particles::~Particles()
+{
   PetscFunctionBeginUser;
   PetscCallVoid(SNESDestroy(&snes_));
   PetscCallVoid(VecDestroy(&solution_));
@@ -77,7 +82,8 @@ Particles::~Particles() {
 }
 
 
-PetscErrorCode Particles::push() {
+PetscErrorCode Particles::push()
+{
   PetscFunctionBeginUser;
 
   DM da = simulation_.world_.da;
@@ -93,9 +99,8 @@ PetscErrorCode Particles::push() {
   PetscCall(DMDAVecGetArrayRead(da, local_B, &ctx.B));
   PetscCall(DMDAVecGetArrayRead(da, local_DB, &ctx.DB));
 
-  for (auto it = points_.begin(); it != points_.end(); ++it) {
+  for (auto it = points_.begin(); it != points_.end(); ++it)
     PetscCall(push(*it));
-  }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &ctx.E));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &ctx.B));
@@ -108,7 +113,8 @@ PetscErrorCode Particles::push() {
 }
 
 
-PetscErrorCode Particles::push(Point& point) {
+PetscErrorCode Particles::push(Point& point)
+{
   PetscFunctionBeginUser;
   ctx.x_n = point.r;
   ctx.v_n = point.p;
@@ -122,7 +128,7 @@ PetscErrorCode Particles::push(Point& point) {
   const PetscInt MAX_ITERATIONS_RESTART = 10;
   for (PetscInt i = 0; i < MAX_ITERATIONS_RESTART; ++i) {
     // Initial guess should be explicitly set before `SNESSolve()`.
-    PetscReal *arr;
+    PetscReal* arr;
     PetscCall(VecGetArrayWrite(solution_, &arr));
     arr[0] = ctx.x_n[X];
     arr[1] = ctx.x_n[Y];
@@ -158,7 +164,8 @@ PetscErrorCode Particles::push(Point& point) {
     if (reason >= 0 && abs(mu - mu_0) < eps * mu_0) {
       PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
       const PetscInt size = 9;
-      const PetscReal data[size] = {(PetscReal)i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p)};
+      const PetscReal data[size] = {
+        (PetscReal)i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p)};
 
       PetscCall(particle_iterations_log.write_floats(size, data));
       PetscFunctionReturn(PETSC_SUCCESS);
@@ -175,7 +182,9 @@ PetscErrorCode Particles::push(Point& point) {
 }
 
 
-PetscErrorCode Particles::Context::update(const Vector3R& x_nn, const Vector3R& v_nn) {
+PetscErrorCode Particles::Context::update(
+  const Vector3R& x_nn, const Vector3R& v_nn)
+{
   PetscFunctionBeginUser;
   x_h = 0.5 * (x_nn + x_n);
 
@@ -200,22 +209,24 @@ PetscErrorCode Particles::Context::update(const Vector3R& x_nn, const Vector3R& 
 }
 
 
-PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
+PetscErrorCode Particles::adaptive_time_stepping(const Point& point)
+{
   PetscFunctionBeginUser;
   PetscReal B_norm = ctx.B_p.length();
-  PetscReal Omega  = ctx.q * B_norm / ctx.m;
-  PetscReal rho    = ctx.u / Omega;
+  PetscReal Omega = ctx.q * B_norm / ctx.m;
+  PetscReal rho = ctx.u / Omega;
 
-  PetscReal delta_t = rho                       * (ctx.DB_pt.length() / B_norm);
+  PetscReal delta_t = rho * (ctx.DB_pt.length() / B_norm);
   PetscReal delta_p = ctx.v_hp.length() / Omega * (ctx.DB_pp.length() / B_norm);
-  PetscReal delta_E = ctx.v_En          / Omega * (ctx.DB_pt.length() / B_norm);
+  PetscReal delta_E = ctx.v_En / Omega * (ctx.DB_pt.length() / B_norm);
 
   PetscReal Omega_dt = alpha *
     std::min(M_SQRT2 / sqrt(delta_E + delta_p),
       std::min(Omega * t_res, gamma / delta_t));
 
   // (eh) -- estimate of gyration velocity on half time-step.
-  PetscReal u_eh = (ctx.v_ht - ctx.v_E).length() / sqrt(1.0 + 0.25 * POW2(Omega_dt));
+  PetscReal u_eh =
+    (ctx.v_ht - ctx.v_E).length() / sqrt(1.0 + 0.25 * POW2(Omega_dt));
 
   /// @todo Probably, some diagnostic is need here to understand the cases.
   if (ctx.v_En > (1.0 + beta) * u_eh) {
@@ -244,10 +255,13 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point) {
  * @param[in]  ctx  optional user-defined context.
  * @param[out] vf   function vector to be evaluated.
  *
- * @note `SNESNRICHARDSON` will iterate the following: x^{k+1} = x^{k} - lambda * F(x^{k}),
- * where lambda -- damping coefficient, lambda = +1.0 by default (no damping).
+ * @note `SNESNRICHARDSON` will iterate the following: x^{k+1} = x^{k} - lambda
+ * F(x^{k}), where lambda -- damping coefficient, lambda = +1.0 by default (no
+ * damping).
  */
-PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* __ctx) {
+PetscErrorCode Particles::form_Picard_iteration(
+  SNES snes, Vec vx, Vec vf, void* __ctx)
+{
   PetscFunctionBeginUser;
   auto& ctx = *(Particles::Context*)__ctx;
   const Vector3R& x_n = ctx.x_n;
@@ -265,7 +279,8 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
   Vector3R B_p = ctx.B_p;
 
   /// @todo Add guards in case of v_t << v_p
-  PetscReal mu = -0.125 * ctx.m * ((v_nn - v_n).parallel_to(B_p)).square() / B_p.length();
+  PetscReal mu =
+    -0.125 * ctx.m * ((v_nn - v_n).parallel_to(B_p)).square() / B_p.length();
   Vector3R G_p = -mu * ctx.DB_pp;
   Vector3R G_t;
 
@@ -281,7 +296,8 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
     Vector3R f_pE = ctx.DB_pt.parallel_to(v_Ed);
     Vector3R f_tE = ctx.DB_pt.transverse_to(v_Ed);
 
-    G_t = zeta * v_hpn / v_htn * G_p * v_Ed - mu * (zeta * f_pE + f_tE / (1.0 - 1.0 / zeta));
+    G_t = zeta * v_hpn / v_htn * G_p * v_Ed -
+      mu * (zeta * f_pE + f_tE / (1.0 - 1.0 / zeta));
   }
 
   B_p += (G_p + G_t).cross(ctx.v_ht) / (ctx.q * ctx.v_ht.square());
@@ -290,7 +306,8 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
   Vector3R a = v_n + tqm * ctx.E_p;
 
   // Velocity on a new half-step, v^{n+1/2, k+1}.
-  Vector3R v_h = (a + tqm * a.cross(B_p) + POW2(tqm) * a.dot(B_p) * B_p) / (1.0 + POW2(tqm * B_p.length()));
+  Vector3R v_h = (a + tqm * a.cross(B_p) + POW2(tqm) * a.dot(B_p) * B_p) /
+    (1.0 + POW2(tqm * B_p.length()));
 
   PetscReal* f;
   PetscCall(VecGetArrayWrite(vf, &f));
@@ -305,4 +322,4 @@ PetscErrorCode Particles::form_Picard_iteration(SNES snes, Vec vx, Vec vf, void*
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-}
+}  // namespace ricketson

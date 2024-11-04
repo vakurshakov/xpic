@@ -2,10 +2,9 @@
 #define SRC_INTERFACES_PARTICLES_H
 
 #include "src/pch.h"
-
-#include "src/interfaces/world.h"
 #include "src/interfaces/point.h"
 #include "src/interfaces/sort_parameters.h"
+#include "src/interfaces/world.h"
 
 namespace interfaces {
 
@@ -31,14 +30,16 @@ public:
 
 protected:
   static constexpr int MPI_TAG_NUMBERS = 2;
-  static constexpr int MPI_TAG_POINTS  = 4;
+  static constexpr int MPI_TAG_POINTS = 4;
 
-  PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z) {
+  PetscInt to_contiguous_index(PetscInt x, PetscInt y, PetscInt z)
+  {
     constexpr PetscInt dim = 3;
     return (z * dim + y) * dim + x;
   }
 
-  void from_contiguous_index(PetscInt index, PetscInt& x, PetscInt& y, PetscInt& z) {
+  void from_contiguous_index(PetscInt index, PetscInt& x, PetscInt& y, PetscInt& z)
+  {
     constexpr PetscInt dim = 3;
     x = (index) % dim;
     y = (index / dim) % dim;
@@ -49,6 +50,6 @@ protected:
   std::vector<Point> points_;
 };
 
-}
+}  // namespace interfaces
 
 #endif  // SRC_INTERFACES_PARTICLES_H

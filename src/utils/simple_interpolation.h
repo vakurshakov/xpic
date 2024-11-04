@@ -14,7 +14,8 @@ public:
   /// @brief Interpolation field context is a pair of point and global fields.
   using Context = std::vector<std::pair<Vector3R&, Vector3R*** const&>>;
 
-  PetscErrorCode process(const Vector3I& p_g, const Context& e_fields, const Context& b_fields) const;
+  PetscErrorCode process(const Vector3I& p_g, const Context& e_fields,
+    const Context& b_fields) const;
 
 private:
   const Vector3I& width;
@@ -22,4 +23,4 @@ private:
   const Shape& sh;
 };
 
-#endif // SRC_IMPLS_SIMPLE_INTERPOLATION_H
+#endif  // SRC_IMPLS_SIMPLE_INTERPOLATION_H

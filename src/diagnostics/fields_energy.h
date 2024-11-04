@@ -1,14 +1,14 @@
 #ifndef SRC_DIAGNOSTICS_FIELDS_ENERGY_H
 #define SRC_DIAGNOSTICS_FIELDS_ENERGY_H
 
-#include "src/interfaces/diagnostic.h"
-
 #include <petscdmda.h>
 #include <petscvec.h>
 
 #include "src/pch.h"
+#include "src/interfaces/diagnostic.h"
 #include "src/utils/sync_binary_file.h"
 
+/// @todo Remove namespace here
 namespace basic {
 
 class Fields_energy : public interfaces::Diagnostic {

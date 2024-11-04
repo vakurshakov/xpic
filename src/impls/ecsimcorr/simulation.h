@@ -38,4 +38,4 @@ private:
 
 }  // namespace ecsimcorr
 
-#endif // SRC_ECSIMCORR_SIMULATION_H
+#endif  // SRC_ECSIMCORR_SIMULATION_H

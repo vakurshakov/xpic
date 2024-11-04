@@ -1,12 +1,18 @@
 #include "simple_interpolation.h"
 
-Simple_interpolation::Simple_interpolation(const Vector3I& width, const Shape& no, const Shape& sh)
-  : width(width), no(no), sh(sh) {}
+Simple_interpolation::Simple_interpolation(
+  const Vector3I& width, const Shape& no, const Shape& sh)
+  : width(width), no(no), sh(sh)
+{
+}
 
-PetscErrorCode Simple_interpolation::process(const Vector3I& p_g, const Context& e_fields, const Context& b_fields) const {
+PetscErrorCode Simple_interpolation::process(
+  const Vector3I& p_g, const Context& e_fields, const Context& b_fields) const
+{
   PetscFunctionBeginHot;
   PetscInt g_x, g_y, g_z;
 
+  // clang-format off: @todo create macro/range-based analogue for this loop
   for (PetscInt z = 0; z < width[Z]; ++z) {
   for (PetscInt y = 0; y < width[Y]; ++y) {
   for (PetscInt x = 0; x < width[X]; ++x) {
@@ -40,5 +46,6 @@ PetscErrorCode Simple_interpolation::process(const Vector3I& p_g, const Context&
       B_p.z() += B_g[g_z][g_y][g_x].z() * B_shape.z();
     }
   }}}
+  // clang-format on
   PetscFunctionReturn(PETSC_SUCCESS);
 }

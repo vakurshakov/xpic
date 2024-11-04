@@ -2,9 +2,9 @@
 #define SRC_INTERFACES_SIMULATION_H
 
 #include "src/pch.h"
-#include "src/interfaces/world.h"
 #include "src/interfaces/command.h"
 #include "src/interfaces/diagnostic.h"
+#include "src/interfaces/world.h"
 
 namespace interfaces {
 

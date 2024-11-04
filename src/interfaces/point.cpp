@@ -5,7 +5,8 @@ Point::Point(const Vector3R& r, const Vector3R& p)
 {
 }
 
-void g_bound_reflective(Point& point, Axis axis) {
+void g_bound_reflective(Point& point, Axis axis)
+{
   PetscReal& s = point.r[axis];
   PetscReal& ps = point.p[axis];
 
@@ -19,13 +20,12 @@ void g_bound_reflective(Point& point, Axis axis) {
   }
 }
 
-void g_bound_periodic(Point& point, Axis axis) {
+void g_bound_periodic(Point& point, Axis axis)
+{
   PetscReal& s = point.r[axis];
 
-  if (s < 0.0) {
+  if (s < 0.0)
     s = Geom[axis] - (0.0 - s);
-  }
-  else if (s > Geom[axis]) {
+  else if (s > Geom[axis])
     s = 0.0 + (s - Geom[axis]);
-  }
 }

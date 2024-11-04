@@ -1,22 +1,23 @@
 #ifndef SRC_DIAGNOSTICS_DISTRIBUTION_MOMENT_H
 #define SRC_DIAGNOSTICS_DISTRIBUTION_MOMENT_H
 
-#include "src/diagnostics/field_view.h"
 #include "src/interfaces/particles.h"
+#include "src/diagnostics/field_view.h"
 
 
 /**
- * @brief An utility structure to store the pointer to distribution moment getter.
- * Getter is chosen depending on the name in the constructor.
+ * @brief An utility structure to store the pointer to distribution moment
+ * getter. Getter is chosen depending on the name in the constructor.
  */
 struct Moment {
   const interfaces::Particles& particles_;
 
-  using getter = PetscReal(*)(const interfaces::Particles&, const Point&);
+  using getter = PetscReal (*)(const interfaces::Particles&, const Point&);
   getter get = nullptr;
 
   Moment(const interfaces::Particles& particles, const getter& get);
-  static Moment from_string(const interfaces::Particles& particles, const std::string& name);
+  static Moment from_string(
+    const interfaces::Particles& particles, const std::string& name);
 };
 
 
@@ -44,7 +45,8 @@ inline PetscReal get_mVphiVphi(const interfaces::Particles&, const Point&);
 class Distribution_moment : public Field_view {
 public:
   static std::unique_ptr<Distribution_moment> create(const std::string& out_dir,
-    const interfaces::Particles& particles, const Moment& moment, const Region& region);
+    const interfaces::Particles& particles, const Moment& moment,
+    const Region& region);
 
   ~Distribution_moment();
 
@@ -52,7 +54,8 @@ public:
 
 private:
   Distribution_moment(const std::string& out_dir,
-    const interfaces::Particles& particles, const Moment& moment, MPI_Comm newcomm);
+    const interfaces::Particles& particles, const Moment& moment,
+    MPI_Comm newcomm);
 
   PetscErrorCode set_data_views(const Region& region);
   PetscErrorCode set_da(const Region& region);

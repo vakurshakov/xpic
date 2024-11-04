@@ -1,12 +1,13 @@
 #include "simulation.h"
 
-#include "src/utils/utils.h"
-#include "src/utils/operators.h"
 #include "src/impls/basic/builders/diagnostic_builder.h"
+#include "src/utils/operators.h"
+#include "src/utils/utils.h"
 
 namespace basic {
 
-PetscErrorCode Simulation::initialize_implementation() {
+PetscErrorCode Simulation::initialize_implementation()
+{
   PetscFunctionBeginUser;
   DM da = world_.da;
   PetscCall(DMCreateGlobalVector(da, &E_));
@@ -22,12 +23,7 @@ PetscErrorCode Simulation::initialize_implementation() {
 #if THERE_ARE_PARTICLES
   /// @todo Particles parametrization is needed!
   Sort_parameters parameters = {
-    .Np = 1,
-    .n  = +1.0,
-    .q  = -1.0,
-    .m  = +1.0,
-    .sort_name = "electrons"
-  };
+    .Np = 1, .n = +1.0, .q = -1.0, .m = +1.0, .sort_name = "electrons"};
   auto& sort = particles_.emplace_back(*this, parameters);
   sort.add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 4}, {0.0, 0.0, 0.9}});
 #endif
@@ -39,7 +35,8 @@ PetscErrorCode Simulation::initialize_implementation() {
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
+PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
+{
   PetscFunctionBeginUser;
 
   PetscCall(VecSet(J_, 0.0));
@@ -51,13 +48,14 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
 
   PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // B (n+1) = B(n) - rot(E) * dt
   PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // E'(n+1) = E(n) + rot(B) * dt
-  PetscCall(VecAXPY(E_, -1, J_));               // E (n+1) = E'(n+1) - J
+  PetscCall(VecAXPY(E_, -1, J_));              // E (n+1) = E'(n+1) - J
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-Simulation::~Simulation() {
+Simulation::~Simulation()
+{
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&E_));
   PetscCallVoid(VecDestroy(&B_));
@@ -67,4 +65,4 @@ Simulation::~Simulation() {
   PetscFunctionReturnVoid();
 }
 
-}
+}  // namespace basic

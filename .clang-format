@@ -35,7 +35,7 @@ AlignConsecutiveShortCaseStatements:
   AcrossComments:   false
   AlignCaseColons:  false
 AlignEscapedNewlines: Left
-AlignOperands: Align
+AlignOperands: DontAlign
 AlignTrailingComments:
   Kind: Always
   OverEmptyLines: 1
@@ -145,7 +145,7 @@ NamespaceIndentation: None
 PackConstructorInitializers: NextLineOnly
 PenaltyBreakAssignment: 10
 PenaltyBreakBeforeFirstCallParameter: 100
-PenaltyBreakComment: 100
+PenaltyBreakComment: 100000
 PenaltyBreakFirstLessLess: 120
 PenaltyBreakOpenParenthesis: 0
 PenaltyBreakScopeResolution: 200

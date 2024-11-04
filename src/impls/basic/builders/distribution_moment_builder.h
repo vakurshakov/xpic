@@ -1,21 +1,23 @@
 #ifndef SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
 #define SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
 
-#include "src/impls/basic/builders/diagnostic_builder.h"
 #include "src/diagnostics/distribution_moment.h"
+#include "src/impls/basic/builders/diagnostic_builder.h"
 
 namespace basic {
 
 class Distribution_moment_builder : public Diagnostic_builder {
 public:
-  Distribution_moment_builder(
-    const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics,
-    const std::string& moment_name, const std::string& proj_name);
+  Distribution_moment_builder(const Simulation& simulation,
+    std::vector<Diagnostic_up>& diagnostics, const std::string& moment_name,
+    const std::string& proj_name);
 
   PetscErrorCode build(const Configuration::json_t& diag_info) override;
 
 private:
-  const char* usage_message() const override {
+  const char* usage_message() const override
+  {
+    // clang-format off
     return "\n"
       "Usage: The structure of the distribution_moment diagnostics description\n"
       "\"moment_name\": -- Name of the collected distribution moment, listed after description.\n"
@@ -32,6 +34,7 @@ private:
       "\n"
       "The region, described by \"start\", \"size\" and \"dp\", should use units coherent with distribution moment:\n"
       "  - density, Vx_moment, mVxVy_moment, etc. collect moments onto (x, y, z) coordinates in units of c/w_pe.\n";
+    // clang-format on
   }
 
   std::string moment_name;
@@ -46,9 +49,10 @@ private:
   using Moments_description = std::vector<Moment_description>;
   Moments_description moments_desc_;
 
-  PetscErrorCode parse_moment_info(const Configuration::json_t& json, Moment_description& desc);
+  PetscErrorCode parse_moment_info(
+    const Configuration::json_t& json, Moment_description& desc);
 };
 
-}
+}  // namespace basic
 
 #endif  // SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H

@@ -5,7 +5,8 @@
 #include "src/utils/vector4.h"
 
 template<typename T, typename V>
-Vector4<T> vector_cast(const Vector3<V>& vector) {
+Vector4<T> vector_cast(const Vector3<V>& vector)
+{
   return {
     (T)vector[X],
     (T)vector[Y],
@@ -15,7 +16,8 @@ Vector4<T> vector_cast(const Vector3<V>& vector) {
 }
 
 template<typename T>
-Vector4<T> vector_cast(const Vector3<T>& vector) {
+Vector4<T> vector_cast(const Vector3<T>& vector)
+{
   return {
     vector[X],
     vector[Y],
@@ -25,7 +27,8 @@ Vector4<T> vector_cast(const Vector3<T>& vector) {
 }
 
 template<typename T, typename V>
-Vector3<T> vector_cast(const Vector4<V>& vector) {
+Vector3<T> vector_cast(const Vector4<V>& vector)
+{
   return {
     (T)vector[X],
     (T)vector[Y],
@@ -34,7 +37,8 @@ Vector3<T> vector_cast(const Vector4<V>& vector) {
 }
 
 template<typename T>
-Vector3<T> vector_cast(const Vector4<T>& vector) {
+Vector3<T> vector_cast(const Vector4<T>& vector)
+{
   return {
     vector[X],
     vector[Y],
@@ -43,7 +47,8 @@ Vector3<T> vector_cast(const Vector4<T>& vector) {
 }
 
 template<typename T, typename V>
-Vector4<T> vector_cast(const Vector4<V>& vector) {
+Vector4<T> vector_cast(const Vector4<V>& vector)
+{
   return {
     (T)vector[X],
     (T)vector[Y],
@@ -53,7 +58,8 @@ Vector4<T> vector_cast(const Vector4<V>& vector) {
 }
 
 template<typename T, typename V>
-Vector3<T> vector_cast(const Vector3<V>& vector) {
+Vector3<T> vector_cast(const Vector3<V>& vector)
+{
   return {
     (T)vector[X],
     (T)vector[Y],
@@ -61,4 +67,4 @@ Vector3<T> vector_cast(const Vector3<V>& vector) {
   };
 }
 
-#endif // SRC_VECTORS_VECTOR_UTILS_H
+#endif  // SRC_VECTORS_VECTOR_UTILS_H

@@ -1,12 +1,13 @@
 #include "simulation.h"
 
 #include "src/impls/basic/simulation.h"
-#include "src/impls/ricketson/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
+#include "src/impls/ricketson/simulation.h"
 
 namespace interfaces {
 
-PetscErrorCode Simulation::initialize() {
+PetscErrorCode Simulation::initialize()
+{
   PetscFunctionBeginUser;
   PetscCall(world_.initialize());
   PetscCall(initialize_implementation());
@@ -15,7 +16,8 @@ PetscErrorCode Simulation::initialize() {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::log_information() const {
+PetscErrorCode Simulation::log_information() const
+{
   PetscFunctionBeginUser;
   static const double n0 = sqrt(1e13);
   LOG("Note: Dimensionless units are used.");
@@ -34,15 +36,15 @@ PetscErrorCode Simulation::log_information() const {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::calculate() {
+PetscErrorCode Simulation::calculate()
+{
   PetscFunctionBeginUser;
   for (timestep_t t = start_ + 1; t <= geom_nt; ++t) {
     LOG_FLUSH();
     LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
 
-    for (const Command_up& command : step_presets_) {
+    for (const Command_up& command : step_presets_)
       PetscCall(command->execute(t));
-    }
 
     PetscCall(timestep_implementation(t));
     PetscCall(diagnose(t));
@@ -54,26 +56,29 @@ PetscErrorCode Simulation::calculate() {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::diagnose(timestep_t timestep) const {
+PetscErrorCode Simulation::diagnose(timestep_t timestep) const
+{
   PetscFunctionBeginUser;
-  for (const Diagnostic_up& diagnostic : diagnostics_) {
+  for (const Diagnostic_up& diagnostic : diagnostics_)
     PetscCall(diagnostic->diagnose(timestep));
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z) {
+PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z)
+{
   return (z * geom_ny + y) * geom_nx + x;
 }
 
-PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) {
+PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c)
+{
   return index(x, y, z) * Vector3I::dim + c;
 }
 
-}
+}  // namespace interfaces
 
-Simulation_up build_simulation() {
+Simulation_up build_simulation()
+{
   Simulation_up simulation = nullptr;
 
   std::string simulation_str;
@@ -81,15 +86,12 @@ Simulation_up build_simulation() {
   const Configuration& config = CONFIG();
   config.json.at("Simulation").get_to(simulation_str);
 
-  if (simulation_str == "basic") {
+  if (simulation_str == "basic")
     return std::make_unique<basic::Simulation>();
-  }
-  else if (simulation_str == "ricketson") {
+  else if (simulation_str == "ricketson")
     return std::make_unique<ricketson::Simulation>();
-  }
-  else if (simulation_str == "ecsimcorr") {
+  else if (simulation_str == "ecsimcorr")
     return std::make_unique<ecsimcorr::Simulation>();
-  }
 
   throw std::runtime_error("Unkown simulation is used: " + simulation_str);
 }

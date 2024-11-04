@@ -28,6 +28,6 @@ private:
   Mat norm_gradient_;
 };
 
-}
+}  // namespace ricketson
 
-#endif // SRC_RICKETSON_SIMULATION_H
+#endif  // SRC_RICKETSON_SIMULATION_H
