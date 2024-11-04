@@ -1,5 +1,4 @@
 external/json
-external/spdlog
 external/petsc
 
 build/
