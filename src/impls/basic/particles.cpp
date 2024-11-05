@@ -49,16 +49,16 @@ PetscErrorCode Particles::push()
     static Shape shape[2];
 #pragma omp threadprivate(shape)
 
-    fill_shape(node.g, node.r, world_.size_n, false, shape[0]);
-    fill_shape(node.g, node.r, world_.size_n, true, shape[1]);
+    fill_shape(node.g, node.r, world_.shape_size, false, shape[0]);
+    fill_shape(node.g, node.r, world_.shape_size, true, shape[1]);
     interpolate(node.g, shape[0], shape[1], point_E, point_B);
 
     push(point_E, point_B, *it);
 
     const Node new_node(it->r);
 
-    fill_shape(new_node.g, node.r, world_.size_n, false, shape[0]);
-    fill_shape(new_node.g, new_node.r, world_.size_n, false, shape[1]);
+    fill_shape(new_node.g, node.r, world_.shape_size, false, shape[0]);
+    fill_shape(new_node.g, new_node.r, world_.shape_size, false, shape[1]);
     decompose(new_node.g, shape[0], shape[1], *it);
   }
 
@@ -77,7 +77,7 @@ PetscErrorCode Particles::push()
 void Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh,
   Vector3R& point_E, Vector3R& point_B) const
 {
-  Simple_interpolation interpolation(world_.size_n, no, sh);
+  Simple_interpolation interpolation(world_.shape_size, no, sh);
   interpolation.process(p_g, {{point_E, E}}, {{point_B, B}});
 }
 
@@ -169,9 +169,9 @@ void Particles::decompose_dir(
   PetscInt g_x, g_y, g_z;
 
   // clang-format off
-  for (PetscInt z = 0; z < world_.size_n[Z]; ++z) {
-  for (PetscInt y = 0; y < world_.size_n[Y]; ++y) {
-  for (PetscInt x = 0; x < world_.size_n[X]; ++x) {
+  for (PetscInt z = 0; z < world_.shape_size[Z]; ++z) {
+  for (PetscInt y = 0; y < world_.shape_size[Y]; ++y) {
+  for (PetscInt x = 0; x < world_.shape_size[X]; ++x) {
     g_x = p_g[X] + x;
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;

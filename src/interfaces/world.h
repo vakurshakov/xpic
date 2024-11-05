@@ -19,12 +19,12 @@ struct World {
   const PetscMPIInt* neighbors;
 
   Vector3R start;
-  Vector3R size;
-  Vector3R end;
-
   Vector3I start_n;
-  Vector3I size_n;
+
+  Vector3R end;
   Vector3I end_n;
+
+  Vector3I shape_size;
 };
 
 #endif  // SRC_BASIC_SIMULATION_H

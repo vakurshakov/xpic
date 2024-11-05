@@ -25,18 +25,17 @@ PetscErrorCode World::initialize()
 
   PetscCall(DMDAGetNeighbors(da, &neighbors));
 
-  PetscCall(DMDAGetCorners(da, REP3_A(&start_n), REP3_A(&size_n)));
+  PetscCall(DMDAGetCorners(da, REP3_A(&start_n), REP3_A(&end_n)));
+  end_n.x() += start_n.x();
+  end_n.y() += start_n.y();
+  end_n.z() += start_n.z();
+
   convert(start, start_n);
-
-  size_n.x() = std::min(shape_width, geom_nx);
-  size_n.y() = std::min(shape_width, geom_ny);
-  size_n.z() = std::min(shape_width, geom_nz);
-  convert(size, size_n);
-
-  end_n.x() = start_n.x() + size_n.x();
-  end_n.y() = start_n.y() + size_n.y();
-  end_n.z() = start_n.z() + size_n.z();
   convert(end, end_n);
+
+  shape_size.x() = std::min(shape_width, geom_nx);
+  shape_size.y() = std::min(shape_width, geom_ny);
+  shape_size.z() = std::min(shape_width, geom_nz);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
