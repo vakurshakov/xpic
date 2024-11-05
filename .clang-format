@@ -99,21 +99,23 @@ ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: true
 IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex:        '^<(petsc).*\.h>'
+  - Regex:        '^<(petsc).*\.h>$'
     Priority:     3
-  - Regex:        '^<.*\.h>'
+  - Regex:        '^<(nlohmann)/.*\.hpp>$'
+    Priority:     4
+  - Regex:        '^<.*\.h>$'
     Priority:     1
-  - Regex:        '^<.*>'
+  - Regex:        '^<.*>$'
     Priority:     2
-  - Regex:        '^".*(pch)\.h"'
-    Priority:     4
-    SortPriority: 4
-  - Regex:        '^".*(interfaces).*\.h"'
-    Priority:     4
+  - Regex:        '^".*(pch)\.h"$'
+    Priority:     5
     SortPriority: 5
-  - Regex:        '^".*"'
-    Priority:     4
+  - Regex:        '^".*(interfaces).*\.h"$'
+    Priority:     5
     SortPriority: 6
+  - Regex:        '^".*"$'
+    Priority:     5
+    SortPriority: 7
 IncludeIsMainRegex: ''
 IncludeIsMainSourceRegex: ''
 IndentAccessModifiers: false

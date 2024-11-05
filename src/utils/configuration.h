@@ -1,11 +1,11 @@
 #ifndef SRC_UTILS_CONFIGURATION_HPP
 #define SRC_UTILS_CONFIGURATION_HPP
 
-#include <nlohmann/json.hpp>
+#include <filesystem>
 
 #include <petscdm.h>  // for DMBoundaryType
 
-#include "src/pch.h"
+#include <nlohmann/json.hpp>
 
 class Configuration {
 public:
