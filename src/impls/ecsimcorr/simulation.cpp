@@ -19,8 +19,9 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMCreateGlobalVector(da, &currJ));
   PetscCall(DMCreateGlobalVector(da, &currJe));
 
-  PetscCall(DMCreateGlobalVector(da, &charge_density_old));
-  PetscCall(DMCreateGlobalVector(da, &charge_density));
+  /// @todo Should be created on scalar dmda!
+  // PetscCall(DMCreateGlobalVector(da, &charge_density_old));
+  // PetscCall(DMCreateGlobalVector(da, &charge_density));
 
   PetscCall(DMCreateMatrix(da, &matL));
 
@@ -48,6 +49,15 @@ PetscErrorCode Simulation::initialize_implementation()
 PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
 {
   PetscFunctionBeginUser;
+  PetscCall(VecSet(currI, 0.0));
+  PetscCall(VecSet(currJ, 0.0));
+  PetscCall(VecSet(currJe, 0.0));
+
+  for (auto& sort : particles_) {
+    PetscCall(sort.reset());
+    PetscCall(sort.first_push());
+    PetscCall(sort.communicate());
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -64,8 +74,8 @@ Simulation::~Simulation()
   PetscCallVoid(VecDestroy(&currJ));
   PetscCallVoid(VecDestroy(&currJe));
 
-  PetscCallVoid(VecDestroy(&charge_density_old));
-  PetscCallVoid(VecDestroy(&charge_density));
+  // PetscCallVoid(VecDestroy(&charge_density_old));
+  // PetscCallVoid(VecDestroy(&charge_density));
 
   PetscCallVoid(MatDestroy(&matL));
   PetscCallVoid(MatDestroy(&matI));

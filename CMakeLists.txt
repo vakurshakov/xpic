@@ -38,6 +38,7 @@ set(interfaces
 
 set(algorithms
   src/algorithms/simple_interpolation.cpp
+  src/algorithms/simple_decomposition.cpp
   src/algorithms/esirkepov_decomposition.cpp
 )
 
@@ -69,6 +70,7 @@ set(impls_basic
 
 set(impls_ecsimcorr
   src/impls/ecsimcorr/simulation.cpp
+  src/impls/ecsimcorr/particles.cpp
 )
 
 set(impls_ricketson

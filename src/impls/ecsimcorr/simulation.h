@@ -2,6 +2,7 @@
 #define SRC_ECSIMCORR_SIMULATION_H
 
 #include "src/interfaces/simulation.h"
+#include "src/impls/ecsimcorr/particles.h"
 
 namespace ecsimcorr {
 
@@ -9,12 +10,6 @@ class Simulation : public interfaces::Simulation {
 public:
   Simulation() = default;
   ~Simulation() override;
-
-  // std::vector<Particles> particles_;
-
-private:
-  PetscErrorCode initialize_implementation() override;
-  PetscErrorCode timestep_implementation(timestep_t timestep) override;
 
   Vec E;
   Vec En;
@@ -25,8 +20,14 @@ private:
   Vec currJ;
   Vec currJe;
 
-  Vec charge_density_old;
-  Vec charge_density;
+  std::vector<Particles> particles_;
+
+private:
+  PetscErrorCode initialize_implementation() override;
+  PetscErrorCode timestep_implementation(timestep_t timestep) override;
+
+  // Vec charge_density_old;
+  // Vec charge_density;
 
   Mat matL;
   Mat matI;
