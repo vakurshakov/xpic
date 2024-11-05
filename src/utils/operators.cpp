@@ -149,18 +149,12 @@ PetscErrorCode Finite_difference_operator::mat_set_values_stencil(Mat mat,
 
 std::tuple<REP3(PetscInt)> get_positive_offsets(PetscInt x, PetscInt y, PetscInt z)
 {
-  return std::make_tuple(         //
-    (geom_nx > 1) ? (x + 1) : x,  //
-    (geom_ny > 1) ? (y + 1) : y,  //
-    (geom_nz > 1) ? (z + 1) : z);
+  return std::make_tuple((x + 1), (y + 1), (z + 1));
 }
 
 std::tuple<REP3(PetscInt)> get_negative_offsets(PetscInt x, PetscInt y, PetscInt z)
 {
-  return std::make_tuple(         //
-    (geom_nx > 1) ? (x - 1) : x,  //
-    (geom_ny > 1) ? (y - 1) : y,  //
-    (geom_nz > 1) ? (z - 1) : z);
+  return std::make_tuple((x - 1), (y - 1), (z - 1));
 }
 
 
