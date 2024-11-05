@@ -90,8 +90,8 @@ PetscErrorCode Particles::communicate()
     PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, world_.neighbors[r], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
-  assert(o_num[center_index] == 0);
-  assert(i_num[center_index] == 0);
+  PetscCheck(o_num[center_index] == 0, PETSC_COMM_WORLD, PETSC_ERR_MPI, "Particles should not be passed to itself process, %ld particles was passed", o_num[center_index]);
+  PetscCheck(i_num[center_index] == 0, PETSC_COMM_WORLD, PETSC_ERR_MPI, "Particles should not be passed to itself process, %ld particles was passed", i_num[center_index]);
 
   req = 0;
   for (PetscInt s = 0; s < neighbors_num; ++s) {

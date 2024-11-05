@@ -4,6 +4,8 @@
 #include <mpi.h>
 #include <omp.h>
 
+#include <cmath>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -13,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -22,8 +25,5 @@
 #include <petscsystypes.h>
 
 #include "src/constants.h"
-#include "src/utils/configuration.h"
-#include "src/utils/vector3.h"
-#include "src/utils/vector4.h"
 
 #endif  // SRC_PCH_H

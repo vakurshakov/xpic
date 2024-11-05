@@ -1,5 +1,6 @@
 #include "src/pch.h"
 #include "src/interfaces/simulation.h"
+#include "src/utils/configuration.h"
 #include "src/utils/utils.h"
 
 static constexpr char help[] =

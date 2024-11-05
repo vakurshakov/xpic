@@ -3,12 +3,6 @@
 
 #include "src/pch.h"
 
-struct Triplet {
-  PetscInt row;
-  PetscInt col;
-  PetscReal value;
-};
-
 enum Axis : PetscInt {
   X = 0,
   Y = 1,

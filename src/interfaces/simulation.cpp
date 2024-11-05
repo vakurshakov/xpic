@@ -3,6 +3,7 @@
 #include "src/impls/basic/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
 #include "src/impls/ricketson/simulation.h"
+#include "src/utils/configuration.h"
 
 namespace interfaces {
 

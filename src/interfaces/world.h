@@ -4,6 +4,7 @@
 #include <petscdmda.h>
 
 #include "src/pch.h"
+#include "src/utils/vector3.h"
 
 struct World {
   World() = default;

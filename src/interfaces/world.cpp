@@ -1,6 +1,8 @@
 #include "src/interfaces/world.h"
 
+#include "src/utils/configuration.h"
 #include "src/utils/particle_shape.h"
+#include "src/utils/utils.h"
 
 void convert(Vector3R& vector, const Vector3I& other)
 {

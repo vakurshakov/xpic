@@ -2,6 +2,7 @@
 #define SRC_IMPLS_PARTICLE_SHAPE_H
 
 #include "src/interfaces/sort_parameters.h"
+#include "src/utils/vector3.h"
 
 /**
  * @brief Storage for particle's coordinate - `r` (global, in PetscReal units of

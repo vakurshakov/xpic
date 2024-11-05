@@ -4,6 +4,7 @@
 #include "src/pch.h"
 #include "src/interfaces/diagnostic.h"
 #include "src/impls/basic/simulation.h"
+#include "src/utils/configuration.h"
 
 
 namespace basic {

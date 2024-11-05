@@ -2,6 +2,7 @@
 #define SRC_INTERFACES_POINT_H
 
 #include "src/pch.h"
+#include "src/utils/vector3.h"
 
 class Point {
 public:

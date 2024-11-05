@@ -330,7 +330,7 @@ void Divergence::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
 PetscErrorCode Divergence::set_sizes_and_ltog(Mat mat) const
 {
   PetscFunctionBeginUser;
-  PetscCall(MatSetSizes(mat, l_size_, l_size_ * Vector3R::dim, PETSC_DETERMINE, PETSC_DETERMINE));
+  PetscCall(MatSetSizes(mat, l_size_, l_size_ * 3, PETSC_DETERMINE, PETSC_DETERMINE));
   PetscCall(MatSetLocalToGlobalMapping(mat, s_ltog_, v_ltog_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -387,7 +387,7 @@ void Gradient::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
 PetscErrorCode Gradient::set_sizes_and_ltog(Mat mat) const
 {
   PetscFunctionBeginUser;
-  PetscCall(MatSetSizes(mat, l_size_ * Vector3R::dim, l_size_, PETSC_DETERMINE, PETSC_DETERMINE));
+  PetscCall(MatSetSizes(mat, l_size_ * 3, l_size_, PETSC_DETERMINE, PETSC_DETERMINE));
   PetscCall(MatSetLocalToGlobalMapping(mat, v_ltog_, s_ltog_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

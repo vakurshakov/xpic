@@ -2,6 +2,7 @@
 #define SRC_INTERFACES_SORT_PARAMETERS_H
 
 #include "src/pch.h"
+#include "src/utils/utils.h"
 
 struct Sort_parameters {
   PetscInt Np;         // Number of particles in a cell.

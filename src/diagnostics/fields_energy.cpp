@@ -1,6 +1,7 @@
 #include "fields_energy.h"
 
 #include "src/utils/utils.h"
+#include "src/utils/vector3.h"
 
 
 namespace fs = std::filesystem;

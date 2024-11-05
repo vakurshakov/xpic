@@ -1,7 +1,8 @@
 #ifndef SRC_VECTORS_VECTOR3_H
 #define SRC_VECTORS_VECTOR3_H
 
-#include "src/pch.h"
+#include <petscsystypes.h>
+
 #include "src/utils/utils.h"
 
 template<typename T>

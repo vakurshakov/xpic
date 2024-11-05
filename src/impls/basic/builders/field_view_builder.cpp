@@ -1,5 +1,6 @@
 #include "field_view_builder.h"
 
+#include "src/utils/configuration.h"
 #include "src/utils/vector_utils.h"
 
 namespace basic {

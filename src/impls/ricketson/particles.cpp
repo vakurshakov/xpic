@@ -2,6 +2,7 @@
 
 #include "src/impls/ricketson/simulation.h"
 #include "src/utils/simple_interpolation.h"
+#include "src/utils/configuration.h"
 
 namespace ricketson {
 
