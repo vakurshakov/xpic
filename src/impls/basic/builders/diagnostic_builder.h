@@ -18,7 +18,7 @@ public:
   virtual PetscErrorCode build(const Configuration::json_t& diag_info) = 0;
 
 protected:
-  virtual const char* usage_message() const = 0;
+  virtual std::string_view usage_message() const = 0;
 
   const Vec& get_field(const std::string& name) const;
   Axis get_component(const std::string& name) const;

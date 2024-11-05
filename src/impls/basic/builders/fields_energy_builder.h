@@ -24,7 +24,7 @@ public:
   }
 
 private:
-  const char* usage_message() const override
+  std::string_view usage_message() const override
   {
     return "\n"
            "Usage: Simply add `\"fields_energy\": {}` into configuration file, "

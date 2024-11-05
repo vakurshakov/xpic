@@ -14,7 +14,7 @@ public:
   PetscErrorCode build(const Configuration::json_t& diag_info) override;
 
 private:
-  const char* usage_message() const override
+  std::string_view usage_message() const override
   {
     // clang-format off
     return "\n"

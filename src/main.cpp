@@ -3,13 +3,13 @@
 #include "src/utils/configuration.h"
 #include "src/utils/utils.h"
 
-static constexpr char help[] =
+static constexpr std::string_view help =
   "Usage: [mpiexec] simulation.out <config.json>\n";
 
 int main(int argc, char** argv)
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help.data()));
 
   if (argc < 2) {
     LOG(help);
