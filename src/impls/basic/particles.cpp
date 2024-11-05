@@ -78,7 +78,7 @@ PetscErrorCode Particles::push()
 void Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh,
   Vector3R& point_E, Vector3R& point_B) const
 {
-  Simple_interpolation interpolation(world_.shape_size, no, sh);
+  Simple_interpolation interpolation(shape_width, no, sh);
   interpolation.process(p_g, {{point_E, E}}, {{point_B, B}});
 }
 
@@ -111,7 +111,7 @@ void Particles::decompose(
     charge(point) * density(point) / particles_number(point) / (6.0 * dt);
 
   Esirkepov_decomposition decomposition(
-    world_.shape_size, alpha, old_shape, new_shape);
+    shape_width, alpha, old_shape, new_shape);
   decomposition.process(p_g, J);
 }
 

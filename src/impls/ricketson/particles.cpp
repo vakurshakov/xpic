@@ -37,8 +37,6 @@ Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
   particle_iterations_log =
     Sync_binary_file(CONFIG().out_dir, "particle_iterations");
 
-  ctx.width = min(Vector3I(Geom_n), Vector3I(shape_width));
-
   /// @todo It'd be more reusable to place particle mover into separate class
 
   // Nonlinear solver should be created for each process.
@@ -190,10 +188,10 @@ PetscErrorCode Particles::Context::update(
   x_h = 0.5 * (x_nn + x_n);
 
   node = Node(x_h);
-  PetscCall(fill_shape(node.g, node.r, width, false, shape[0]));
-  PetscCall(fill_shape(node.g, node.r, width, true, shape[1]));
+  shape[0].fill(node.g, node.r, false);
+  shape[1].fill(node.g, node.r, true);
 
-  Simple_interpolation interpolation(width, shape[0], shape[1]);
+  Simple_interpolation interpolation(shape_width, shape[0], shape[1]);
   PetscCall(interpolation.process(node.g, {{E_p, E}}, {{B_p, B}, {DB_p, DB}}));
 
   DB_pp = DB_p.parallel_to(B_p);

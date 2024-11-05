@@ -25,7 +25,6 @@ private:
     Vector3R ***E, ***B, ***DB;
     Vector3R E_p, B_p, DB_p;
 
-    Vector3I width;
     PetscReal dt, m, q;
 
     Node node;

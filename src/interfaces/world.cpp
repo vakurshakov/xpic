@@ -32,10 +32,6 @@ PetscErrorCode World::initialize()
 
   convert(start, start_n);
   convert(end, end_n);
-
-  shape_size.x() = std::min(shape_width, geom_nx);
-  shape_size.y() = std::min(shape_width, geom_ny);
-  shape_size.z() = std::min(shape_width, geom_nz);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
