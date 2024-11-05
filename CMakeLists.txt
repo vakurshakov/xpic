@@ -54,6 +54,7 @@ set(utils
   src/utils/operators.cpp
   src/utils/particle_shape.cpp
   src/utils/simple_interpolation.cpp
+  src/utils/esirkepov_decomposition.cpp
 )
 
 set(impls_basic

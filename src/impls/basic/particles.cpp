@@ -1,6 +1,7 @@
 #include "particles.h"
 
 #include "src/impls/basic/simulation.h"
+#include "src/utils/esirkepov_decomposition.h"
 #include "src/utils/simple_interpolation.h"
 
 namespace basic {
@@ -115,73 +116,10 @@ void Particles::decompose(
 {
   const PetscReal alpha =
     charge(point) * density(point) / particles_number(point) / (6.0 * dt);
-  const PetscReal qx = alpha * dx;
-  const PetscReal qy = alpha * dy;
-  const PetscReal qz = alpha * dz;
 
-  auto compute_Jx = [&](PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) {
-    PetscInt i = ((z * shape_width + y) * shape_width + x);
-    PetscInt j = (z * shape_width + y);
-
-    PetscReal p_wx = -qx * (new_shape(i, X) - old_shape(i, X)) *
-      (new_shape(i, Y) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
-        old_shape(i, Y) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
-
-    temp_jx[j] = ((x > 0) * temp_jx[j]) + p_wx;
-    return temp_jx[j];
-  };
-
-  auto compute_Jy = [&](PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jy) {
-    PetscInt i = ((z * shape_width + y) * shape_width + x);
-    PetscInt j = (z * shape_width + x);
-
-    PetscReal p_wy = -qy * (new_shape(i, Y) - old_shape(i, Y)) *
-      (new_shape(i, X) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
-        old_shape(i, X) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
-
-    temp_jy[j] = ((y > 0) * temp_jy[j]) + p_wy;
-    return temp_jy[j];
-  };
-
-  auto compute_Jz = [&](PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jz) {
-    PetscInt i = ((z * shape_width + y) * shape_width + x);
-    PetscInt j = (y * shape_width + x);
-
-    PetscReal p_wz = -qz * (new_shape(i, Z) - old_shape(i, Z)) *
-      (new_shape(i, Y) * (2.0 * new_shape(i, X) + old_shape(i, X)) +
-        old_shape(i, Y) * (2.0 * old_shape(i, X) + new_shape(i, X)));
-
-    temp_jz[j] = ((z > 0) * temp_jz[j]) + p_wz;
-    return temp_jz[j];
-  };
-
-  decompose_dir(p_g, compute_Jx, X);
-  decompose_dir(p_g, compute_Jy, Y);
-  decompose_dir(p_g, compute_Jz, Z);
-}
-
-void Particles::decompose_dir(
-  const Vector3I& p_g, const Compute_j& compute_j, Axis dir)
-{
-  static PetscReal temp_j[shape_width * shape_width];
-#pragma omp threadprivate(temp_j)
-
-  PetscInt g_x, g_y, g_z;
-
-  // clang-format off
-  for (PetscInt z = 0; z < world_.shape_size[Z]; ++z) {
-  for (PetscInt y = 0; y < world_.shape_size[Y]; ++y) {
-  for (PetscInt x = 0; x < world_.shape_size[X]; ++x) {
-    g_x = p_g[X] + x;
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
-
-    PetscReal p_j = compute_j(x, y, z, temp_j);
-
-#pragma omp atomic update
-    J[g_z][g_y][g_x][dir] += p_j;
-  }}}
-  // clang-format on
+  Esirkepov_decomposition decomposition(
+    world_.shape_size, alpha, old_shape, new_shape);
+  decomposition.process(p_g, J);
 }
 
 }  // namespace basic
