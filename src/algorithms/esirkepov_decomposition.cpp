@@ -42,7 +42,7 @@ void Esirkepov_decomposition::process(const Vector3I& p_g, Context& J) const
 PetscReal Esirkepov_decomposition::get_Jx(
   PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) const
 {
-  const PetscReal qx = alpha * dx;
+  PetscReal qx = alpha * dx;
   PetscInt i = ((z * shape_width + y) * shape_width + x);
   PetscInt j = (z * shape_width + y);
 
@@ -57,7 +57,7 @@ PetscReal Esirkepov_decomposition::get_Jx(
 PetscReal Esirkepov_decomposition::get_Jy(
   PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jy) const
 {
-  const PetscReal qy = alpha * dy;
+  PetscReal qy = alpha * dy;
   PetscInt i = ((z * shape_width + y) * shape_width + x);
   PetscInt j = (z * shape_width + x);
 
@@ -72,7 +72,7 @@ PetscReal Esirkepov_decomposition::get_Jy(
 PetscReal Esirkepov_decomposition::get_Jz(
   PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jz) const
 {
-  const PetscReal qz = alpha * dz;
+  PetscReal qz = alpha * dz;
   PetscInt i = ((z * shape_width + y) * shape_width + x);
   PetscInt j = (y * shape_width + x);
 
