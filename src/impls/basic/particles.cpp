@@ -1,8 +1,8 @@
 #include "particles.h"
 
+#include "src/algorithms/esirkepov_decomposition.h"
+#include "src/algorithms/simple_interpolation.h"
 #include "src/impls/basic/simulation.h"
-#include "src/utils/esirkepov_decomposition.h"
-#include "src/utils/simple_interpolation.h"
 
 namespace basic {
 

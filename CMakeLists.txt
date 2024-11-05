@@ -36,6 +36,11 @@ set(interfaces
   src/interfaces/world.cpp
 )
 
+set(algorithms
+  src/algorithms/simple_interpolation.cpp
+  src/algorithms/esirkepov_decomposition.cpp
+)
+
 set(diagnostics
   src/diagnostics/field_view.cpp
   src/diagnostics/fields_energy.cpp
@@ -53,8 +58,6 @@ set(utils
   src/utils/region_operations.cpp
   src/utils/operators.cpp
   src/utils/particle_shape.cpp
-  src/utils/simple_interpolation.cpp
-  src/utils/esirkepov_decomposition.cpp
 )
 
 set(impls_basic
@@ -78,6 +81,7 @@ add_executable(
   ${PROJECT_NAME}
   ${main}
   ${interfaces}
+  ${algorithms}
   ${commands}
   ${diagnostics}
   ${utils}
