@@ -1,31 +1,39 @@
 #include "particle_shape.h"
 
-Node::Node(const Vector3R& __r)
+Node::Node(const Vector3R& pr)
 {
-  r = {
-    __r.x() / dx,
-    __r.y() / dy,
-    __r.z() / dz,
-  };
+  r = Node::make_r(pr);
+  g = Node::make_g(r);
+}
 
-  g = {
-    (geom_nx > 1) ? (PetscInt)std::ceil(r.x()) - shape_radius : 0,
-    (geom_ny > 1) ? (PetscInt)std::ceil(r.y()) - shape_radius : 0,
-    (geom_nz > 1) ? (PetscInt)std::ceil(r.z()) - shape_radius : 0,
+/* static */ Vector3R Node::make_r(const Vector3R& pr)
+{
+  return {
+    pr.x() / dx,
+    pr.y() / dy,
+    pr.z() / dz,
   };
 }
 
-PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r,
-  const Vector3I& l_width, bool shift, Shape& shape)
+/* static */ Vector3I Node::make_g(const Vector3R& nr)
 {
-  PetscFunctionBeginHot;
+  return {
+    (geom_nx > 1) ? (PetscInt)std::ceil(nr.x()) - shape_radius : 0,
+    (geom_ny > 1) ? (PetscInt)std::ceil(nr.y()) - shape_radius : 0,
+    (geom_nz > 1) ? (PetscInt)std::ceil(nr.z()) - shape_radius : 0,
+  };
+}
+
+void Shape::fill(const Vector3I& p_g, const Vector3R& p_r, bool shift,
+  PetscReal (&sfunc)(PetscReal), PetscInt width)
+{
   PetscReal g_x, g_y, g_z;
 
 #pragma omp simd collapse(Vector3I::dim)
   // clang-format off
-  for (PetscInt z = 0; z < l_width[Z]; ++z) {
-  for (PetscInt y = 0; y < l_width[Y]; ++y) {
-  for (PetscInt x = 0; x < l_width[X]; ++x) {
+  for (PetscInt z = 0; z < width; ++z) {
+  for (PetscInt y = 0; y < width; ++y) {
+  for (PetscInt x = 0; x < width; ++x) {
     g_x = p_g[X] + x;
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;
@@ -37,10 +45,9 @@ PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r,
     }
 
     PetscInt i = Shape::index(x, y, z);
-    shape(i, X) = shape_function(p_r[X] - g_x);
-    shape(i, Y) = shape_function(p_r[Y] - g_y);
-    shape(i, Z) = shape_function(p_r[Z] - g_z);
+    shape[i * 3 + X] = sfunc(p_r[X] - g_x);
+    shape[i * 3 + Y] = sfunc(p_r[Y] - g_y);
+    shape[i * 3 + Z] = sfunc(p_r[Z] - g_z);
   }}}
   // clang-format on
-  PetscFunctionReturn(PETSC_SUCCESS);
 }

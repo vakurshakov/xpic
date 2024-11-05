@@ -11,15 +11,27 @@
  */
 struct Node {
   Node() = default;
-  Node(const Vector3R& __r);
+  Node(const Vector3R& pr);
+
+  static Vector3R make_r(const Vector3R& pr);
+  static Vector3I make_g(const Vector3R& nr);
 
   Vector3R r;
   Vector3I g;
 };
 
-struct Shape {
-  /// @note `Vector3I::dim` is used as a coordinate space dimensionality
-  PetscReal shape[shape_width * shape_width * shape_width * Vector3I::dim];
+class Shape {
+public:
+  Shape() = default;
+
+  /// @note If `shift` is false, fills `shape[x - i]`, otherwise fills `shape[x - (i + 0.5)]`
+  inline void fill(const Vector3I& p_g, const Vector3R& p_r, bool shift)
+  {
+    fill(p_g, p_r, shift, shape_function, shape_width);
+  }
+
+  void fill(const Vector3I& p_g, const Vector3R& p_r, bool shift,
+    PetscReal (&sfunc)(PetscReal), PetscInt width);
 
 #pragma omp declare simd linear(x, y, z : 1), notinbranch
   static constexpr PetscInt index(PetscInt x, PetscInt y, PetscInt z)
@@ -38,10 +50,11 @@ struct Shape {
   {
     return shape[index * Vector3I::dim + comp];
   }
+
+private:
+  /// @note `Vector3I::dim` is used as a coordinate space dimensionality
+  PetscReal shape[shape_width * shape_width * shape_width * Vector3I::dim];
 };
 
-/// @note If shift is false, fills shape[x - i], otherwise fills shape[x - (i + 0.5)]
-PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r,
-  const Vector3I& l_width, bool shift, Shape& shape);
 
 #endif  // SRC_IMPLS_PARTICLE_SHAPE_H

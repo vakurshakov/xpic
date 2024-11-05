@@ -44,6 +44,7 @@
         "ricketson",
         "rtol",
         "sdim",
+        "sfunc",
         "SNES",
         "SNESNRICHARDSON",
         "Struct",

@@ -42,24 +42,24 @@ PetscErrorCode Particles::push()
 
 #pragma omp for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto it = points_.begin(); it != points_.end(); ++it) {
-    Vector3R point_E = 0.0;
-    Vector3R point_B = 0.0;
+    Vector3R point_E;
+    Vector3R point_B;
 
     const Node node(it->r);
 
     static Shape shape[2];
 #pragma omp threadprivate(shape)
 
-    fill_shape(node.g, node.r, world_.shape_size, false, shape[0]);
-    fill_shape(node.g, node.r, world_.shape_size, true, shape[1]);
+    shape[0].fill(node.g, node.r, false);
+    shape[1].fill(node.g, node.r, true);
     interpolate(node.g, shape[0], shape[1], point_E, point_B);
 
     push(point_E, point_B, *it);
 
     const Node new_node(it->r);
 
-    fill_shape(new_node.g, node.r, world_.shape_size, false, shape[0]);
-    fill_shape(new_node.g, new_node.r, world_.shape_size, false, shape[1]);
+    shape[0].fill(new_node.g, node.r, false);
+    shape[1].fill(new_node.g, new_node.r, false);
     decompose(new_node.g, shape[0], shape[1], *it);
   }
 
