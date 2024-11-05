@@ -24,6 +24,6 @@ private:
   Mat rot_dt_m;
 };
 
-}
+}  // namespace basic
 
-#endif // SRC_BASIC_SIMULATION_H
+#endif  // SRC_BASIC_SIMULATION_H

@@ -4,28 +4,26 @@
 #include <mpi.h>
 #include <omp.h>
 
-#include <map>
-#include <list>
-#include <tuple>
-#include <vector>
-#include <string>
-
-#include <memory>
-#include <utility>
-#include <functional>
-
+#include <cmath>
+#include <exception>
+#include <filesystem>
 #include <format>
 #include <fstream>
+#include <functional>
 #include <iostream>
-#include <filesystem>
+#include <list>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <utility>
+#include <vector>
 
+#include <petscerror.h>
 #include <petscsys.h>
 #include <petscsystypes.h>
-#include <petscerror.h>
 
 #include "src/constants.h"
-#include "src/utils/configuration.h"
-#include "src/utils/vector3.h"
-#include "src/utils/vector4.h"
 
 #endif  // SRC_PCH_H

@@ -1,16 +1,18 @@
 #include "distribution_moment.h"
 
-#include "src/utils/utils.h"
-#include "src/utils/region_operations.h"
-#include "src/utils/vector_utils.h"
 #include "src/utils/particle_shape.h"
+#include "src/utils/region_operations.h"
+#include "src/utils/utils.h"
+#include "src/utils/vector_utils.h"
 
 /// @note Do not move this into header file, this will pollute global namespace
 using Particles = interfaces::Particles;
 
 
 std::unique_ptr<Distribution_moment> Distribution_moment::create(
-    const std::string& out_dir, const Particles& particles, const Moment& moment, const Region& region) {
+  const std::string& out_dir, const Particles& particles, const Moment& moment,
+  const Region& region)
+{
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
   PetscCallThrow(get_local_communicator(particles.world_.da, region, &newcomm));
@@ -25,10 +27,15 @@ std::unique_ptr<Distribution_moment> Distribution_moment::create(
 
 Distribution_moment::Distribution_moment(const std::string& out_dir,
   const Particles& particles, const Moment& moment, MPI_Comm newcomm)
-  : Field_view(out_dir, particles.world_.da, nullptr, newcomm), particles_(particles), moment_(moment) {}
+  : Field_view(out_dir, particles.world_.da, nullptr, newcomm),
+    particles_(particles),
+    moment_(moment)
+{
+}
 
 
-Distribution_moment::~Distribution_moment() {
+Distribution_moment::~Distribution_moment()
+{
   PetscFunctionBeginUser;
   PetscCallVoid(DMDestroy(&da_));
   PetscCallVoid(VecDestroy(&local_));
@@ -37,7 +44,8 @@ Distribution_moment::~Distribution_moment() {
 }
 
 
-PetscErrorCode Distribution_moment::set_data_views(const Region& region) {
+PetscErrorCode Distribution_moment::set_data_views(const Region& region)
+{
   PetscFunctionBeginUser;
   PetscCall(set_da(region));
   PetscCall(DMCreateLocalVector(da_, &local_));
@@ -51,7 +59,8 @@ PetscErrorCode Distribution_moment::set_data_views(const Region& region) {
 }
 
 
-PetscErrorCode Distribution_moment::set_da(const Region& region) {
+PetscErrorCode Distribution_moment::set_da(const Region& region)
+{
   PetscFunctionBeginUser;
   Vector3I g_start = vector_cast(region.start);
   Vector3I g_size = vector_cast(region.size);
@@ -79,16 +88,16 @@ PetscErrorCode Distribution_moment::set_da(const Region& region) {
     for (PetscInt s = 0; s < proc[i]; ++s) {
       if (start < g_end[i] && end > g_start[i]) {
         l_proc[i]++;
-        l_ownership[i].emplace_back(std::min(g_end[i], end) - std::max(g_start[i], start));
+        l_ownership[i].emplace_back(
+          std::min(g_end[i], end) - std::max(g_start[i], start));
       }
       start += ownership[i][s];
       end += start;
     }
 
     // Mimic global boundaries, if we touch them
-    if (g_size[i] == size[i]) {
+    if (g_size[i] == size[i])
       l_bound[i] = bound[i];
-    }
   }
 
   PetscCall(DMDACreate3d(comm_, REP3_A(l_bound), st, REP3_A(g_size), REP3_A(l_proc), 1, s, l_ownership[X].data(), l_ownership[Y].data(), l_ownership[Z].data(), &da_));
@@ -98,7 +107,8 @@ PetscErrorCode Distribution_moment::set_da(const Region& region) {
 }
 
 
-PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
+PetscErrorCode Distribution_moment::diagnose(timestep_t t)
+{
   PetscFunctionBeginUser;
   if (t % diagnose_period == 0) {
     PetscCall(collect());
@@ -116,26 +126,29 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t) {
  * collecting velocity distribution on (Vx, Vy, Vz) coordinates, the equivalent
  * of `MPI_Allreduce()` operation is needed.
  */
-PetscErrorCode Distribution_moment::collect() {
+PetscErrorCode Distribution_moment::collect()
+{
   PetscFunctionBeginUser;
 
   PetscCall(VecSet(local_, 0.0));
   PetscCall(VecSet(field_, 0.0));
 
-  PetscReal ***arr;
+  PetscReal*** arr;
   PetscCall(DMDAVecGetArrayWrite(da_, local_, &arr));
 
-  #pragma omp parallel for
+#pragma omp parallel for
   for (const Point& point : particles_.points()) {
     Node node(point.r);
 
-    if (!is_point_within_bounds(node.g, vector_cast(region_.start), vector_cast(region_.size)))
+    if (!is_point_within_bounds(
+          node.g, vector_cast(region_.start), vector_cast(region_.size)))
       continue;
 
     PetscReal n = particles_.density(point) / particles_.particles_number(point);
 
     PetscInt g_x, g_y, g_z;
 
+    // clang-format off
     for (PetscInt z = 0; z < shape_width; ++z) {
     for (PetscInt y = 0; y < shape_width; ++y) {
     for (PetscInt x = 0; x < shape_width; ++x) {
@@ -143,13 +156,13 @@ PetscErrorCode Distribution_moment::collect() {
       g_y = node.g[Y] + y;
       g_z = node.g[Z] + z;
 
-      #pragma omp atomic update
-      arr[g_z][g_y][g_x] +=
-        moment_.get(particles_, point) * n *
-          shape_function(node.r[X] - g_x, X) *
-          shape_function(node.r[Y] - g_y, Y) *
-          shape_function(node.r[Z] - g_z, Z);
+#pragma omp atomic update
+      arr[g_z][g_y][g_x] += moment_.get(particles_, point) * n *
+        shape_function(node.r[X] - g_x, X) *
+        shape_function(node.r[Y] - g_y, Y) *
+        shape_function(node.r[Z] - g_z, Z);
     }}}
+    // clang-format on
   }
   PetscCall(DMDAVecRestoreArrayWrite(da_, local_, &arr));
   PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, field_));
@@ -157,47 +170,64 @@ PetscErrorCode Distribution_moment::collect() {
 }
 
 
-inline PetscReal get_zeroth(const Particles&, const Point&) {
+inline PetscReal get_zeroth(const Particles&, const Point&)
+{
   return 1.0;
 }
 
-inline PetscReal get_Vx(const Particles& particles, const Point& point) {
+inline PetscReal get_Vx(const Particles& particles, const Point& point)
+{
   return particles.velocity(point).x();
 }
 
-inline PetscReal get_Vy(const Particles& particles, const Point& point) {
+inline PetscReal get_Vy(const Particles& particles, const Point& point)
+{
   return particles.velocity(point).y();
 }
 
-inline PetscReal get_Vz(const Particles& particles, const Point& point) {
+inline PetscReal get_Vz(const Particles& particles, const Point& point)
+{
   return particles.velocity(point).z();
 }
 
-inline PetscReal get_mVxVx(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vx(particles, point) * get_Vx(particles, point);
+inline PetscReal get_mVxVx(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vx(particles, point) *
+    get_Vx(particles, point);
 }
 
-inline PetscReal get_mVxVy(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vx(particles, point) * get_Vy(particles, point);
+inline PetscReal get_mVxVy(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vx(particles, point) *
+    get_Vy(particles, point);
 }
 
-inline PetscReal get_mVxVz(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vx(particles, point) * get_Vz(particles, point);
+inline PetscReal get_mVxVz(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vx(particles, point) *
+    get_Vz(particles, point);
 }
 
-inline PetscReal get_mVyVy(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vy(particles, point) * get_Vy(particles, point);
+inline PetscReal get_mVyVy(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vy(particles, point) *
+    get_Vy(particles, point);
 }
 
-inline PetscReal get_mVyVz(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vy(particles, point) * get_Vz(particles, point);
+inline PetscReal get_mVyVz(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vy(particles, point) *
+    get_Vz(particles, point);
 }
 
-inline PetscReal get_mVzVz(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vz(particles, point) * get_Vz(particles, point);
+inline PetscReal get_mVzVz(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vz(particles, point) *
+    get_Vz(particles, point);
 }
 
-inline PetscReal get_Vr(const Particles& particles, const Point& point) {
+inline PetscReal get_Vr(const Particles& particles, const Point& point)
+{
   PetscReal x = point.x() - 0.5 * geom_x;
   PetscReal y = point.y() - 0.5 * geom_y;
   PetscReal r = sqrt(x * x + y * y);
@@ -209,7 +239,8 @@ inline PetscReal get_Vr(const Particles& particles, const Point& point) {
   return (+x * get_Vx(particles, point) + y * get_Vy(particles, point)) / r;
 }
 
-inline PetscReal get_Vphi(const Particles& particles, const Point& point) {
+inline PetscReal get_Vphi(const Particles& particles, const Point& point)
+{
   PetscReal x = point.x() - 0.5 * geom_x;
   PetscReal y = point.y() - 0.5 * geom_y;
   PetscReal r = sqrt(x * x + y * y);
@@ -221,39 +252,64 @@ inline PetscReal get_Vphi(const Particles& particles, const Point& point) {
   return (-y * get_Vx(particles, point) + x * get_Vy(particles, point)) / r;
 }
 
-inline PetscReal get_mVrVr(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vr(particles, point) * get_Vr(particles, point);
+inline PetscReal get_mVrVr(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vr(particles, point) *
+    get_Vr(particles, point);
 }
 
-inline PetscReal get_mVrVphi(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vr(particles, point) * get_Vphi(particles, point);
+inline PetscReal get_mVrVphi(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vr(particles, point) *
+    get_Vphi(particles, point);
 }
 
-inline PetscReal get_mVphiVphi(const Particles& particles, const Point& point) {
-  return particles.mass(point) * get_Vphi(particles, point) * get_Vphi(particles, point);
+inline PetscReal get_mVphiVphi(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_Vphi(particles, point) *
+    get_Vphi(particles, point);
 }
 
 
 Moment::Moment(const Particles& particles, const getter& get)
-  : particles_(particles), get(get) {}
+  : particles_(particles), get(get)
+{
+}
 
-Moment Moment::from_string(const Particles& particles, const std::string& name) {
+Moment Moment::from_string(const Particles& particles, const std::string& name)
+{
   getter get = nullptr;
-  if (name == "zeroth_moment") { get = get_zeroth; }
-  else if (name == "Vx_moment") { get = get_Vx; }
-  else if (name == "Vy_moment") { get = get_Vy; }
-  else if (name == "Vz_moment") { get = get_Vz; }
-  else if (name == "Vr_moment") { get = get_Vr; }
-  else if (name == "Vphi_moment") { get = get_Vphi; }
-  else if (name == "mVxVx_moment") { get = get_mVxVx; }
-  else if (name == "mVxVy_moment") { get = get_mVxVy; }
-  else if (name == "mVxVz_moment") { get = get_mVxVz; }
-  else if (name == "mVyVy_moment") { get = get_mVyVy; }
-  else if (name == "mVyVz_moment") { get = get_mVyVz; }
-  else if (name == "mVzVz_moment") { get = get_mVzVz; }
-  else if (name == "mVrVr_moment") { get = get_mVrVr; }
-  else if (name == "mVrVphi_moment") { get = get_mVrVphi; }
-  else if (name == "mVphiVphi_moment") { get = get_mVphiVphi; }
-  else throw std::runtime_error("Unkown moment name!");
+  if (name == "zeroth_moment")
+    get = get_zeroth;
+  else if (name == "Vx_moment")
+    get = get_Vx;
+  else if (name == "Vy_moment")
+    get = get_Vy;
+  else if (name == "Vz_moment")
+    get = get_Vz;
+  else if (name == "Vr_moment")
+    get = get_Vr;
+  else if (name == "Vphi_moment")
+    get = get_Vphi;
+  else if (name == "mVxVx_moment")
+    get = get_mVxVx;
+  else if (name == "mVxVy_moment")
+    get = get_mVxVy;
+  else if (name == "mVxVz_moment")
+    get = get_mVxVz;
+  else if (name == "mVyVy_moment")
+    get = get_mVyVy;
+  else if (name == "mVyVz_moment")
+    get = get_mVyVz;
+  else if (name == "mVzVz_moment")
+    get = get_mVzVz;
+  else if (name == "mVrVr_moment")
+    get = get_mVrVr;
+  else if (name == "mVrVphi_moment")
+    get = get_mVrVphi;
+  else if (name == "mVphiVphi_moment")
+    get = get_mVphiVphi;
+  else
+    throw std::runtime_error("Unkown moment name!");
   return Moment(particles, get);
 }

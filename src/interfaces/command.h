@@ -26,7 +26,10 @@ public:
    * @return True if command must be removed from the
    * list (false otherwise). By default returns false.
    */
-  virtual bool needs_to_be_removed(timestep_t timestep) const { return false; }
+  virtual bool needs_to_be_removed(timestep_t timestep) const
+  {
+    return false;
+  }
 };
 
 /// @brief Used to execute command once in the simulation cycle.
@@ -35,10 +38,13 @@ public:
   virtual ~Command_once() = default;
 
   /// @brief Since command is executed once, it always return true.
-  bool needs_to_be_removed(timestep_t timestep) const final { return true; }
+  bool needs_to_be_removed(timestep_t timestep) const final
+  {
+    return true;
+  }
 };
 
-}
+}  // namespace interfaces
 
 using Command_up = std::unique_ptr<interfaces::Command>;
 

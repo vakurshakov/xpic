@@ -1,6 +1,7 @@
 #include "particle_shape.h"
 
-Node::Node(const Vector3R& __r) {
+Node::Node(const Vector3R& __r)
+{
   r = {
     __r.x() / dx,
     __r.y() / dy,
@@ -14,11 +15,14 @@ Node::Node(const Vector3R& __r) {
   };
 }
 
-PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r, const Vector3I& l_width, bool shift, Shape& shape) {
+PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r,
+  const Vector3I& l_width, bool shift, Shape& shape)
+{
   PetscFunctionBeginHot;
   PetscReal g_x, g_y, g_z;
 
-  #pragma omp simd collapse(Vector3I::dim)
+#pragma omp simd collapse(Vector3I::dim)
+  // clang-format off
   for (PetscInt z = 0; z < l_width[Z]; ++z) {
   for (PetscInt y = 0; y < l_width[Y]; ++y) {
   for (PetscInt x = 0; x < l_width[X]; ++x) {
@@ -37,5 +41,6 @@ PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r, const Vector
     shape(i, Y) = shape_function(p_r[Y] - g_y, Y);
     shape(i, Z) = shape_function(p_r[Z] - g_z, Z);
   }}}
+  // clang-format on
   PetscFunctionReturn(PETSC_SUCCESS);
 }

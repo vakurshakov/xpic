@@ -6,11 +6,13 @@ namespace fs = std::filesystem;
 
 Configuration Configuration::config;
 
-const Configuration& Configuration::get() {
+const Configuration& Configuration::get()
+{
   return config;
 }
 
-void Configuration::init(const std::string& config_path) {
+void Configuration::init(const std::string& config_path)
+{
   config.config_path_ = config_path;
 
   std::ifstream file(config_path);
@@ -51,26 +53,32 @@ void Configuration::init(const std::string& config_path) {
 }
 
 
-/* static */ void Configuration::save(const std::string& to) {
+/* static */ void Configuration::save(const std::string& to)
+{
   save(config.config_path_, to, fs::copy_options::overwrite_existing);
 }
 
 
-/* static */ void Configuration::save_sources(const std::string& to) {
-  save("src/", to, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+/* static */ void Configuration::save_sources(const std::string& to)
+{
+  save("src/", to,
+    fs::copy_options::overwrite_existing | fs::copy_options::recursive);
 }
 
 
-/* static */ void Configuration::save(const std::string& from, const std::string& to, fs::copy_options options) {
+/* static */ void Configuration::save(
+  const std::string& from, const std::string& to, fs::copy_options options)
+{
   int rank;
   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
-  if (rank != 0) return;
+  if (rank != 0)
+    return;
 
   try {
     fs::create_directories(config.out_dir + "/" + to + "/");
     fs::copy(from, config.out_dir + "/" + to + "/", options);
   }
-  catch(const fs::filesystem_error& ex) {
+  catch (const fs::filesystem_error& ex) {
     std::stringstream ss;
 
     ss << "what():  " << ex.what() << '\n'
@@ -85,7 +93,9 @@ void Configuration::init(const std::string& config_path) {
 }
 
 
-void Configuration::get_boundaries_type(DMBoundaryType& bx, DMBoundaryType& by, DMBoundaryType& bz) {
+void Configuration::get_boundaries_type(
+  DMBoundaryType& bx, DMBoundaryType& by, DMBoundaryType& bz)
+{
   const Configuration::json_t& geometry = config.json.at("Geometry");
 
   std::string boundary_type_str[3];
@@ -94,8 +104,10 @@ void Configuration::get_boundaries_type(DMBoundaryType& bx, DMBoundaryType& by, 
   geometry.at("da_boundary_z").get_to(boundary_type_str[Z]);
 
   auto to_boundary_type = [](const std::string& str) {
-    if (str == "DM_BOUNDARY_PERIODIC") return DM_BOUNDARY_PERIODIC;
-    if (str == "DM_BOUNDARY_GHOSTED") return DM_BOUNDARY_GHOSTED;
+    if (str == "DM_BOUNDARY_PERIODIC")
+      return DM_BOUNDARY_PERIODIC;
+    if (str == "DM_BOUNDARY_GHOSTED")
+      return DM_BOUNDARY_GHOSTED;
     return DM_BOUNDARY_NONE;
   };
 
@@ -105,7 +117,8 @@ void Configuration::get_boundaries_type(DMBoundaryType& bx, DMBoundaryType& by, 
 }
 
 
-void Configuration::get_processors(PetscInt& px, PetscInt& py, PetscInt& pz) {
+void Configuration::get_processors(PetscInt& px, PetscInt& py, PetscInt& pz)
+{
   const Configuration::json_t& geometry = config.json.at("Geometry");
   geometry.at("da_processors_x").get_to(px);
   geometry.at("da_processors_y").get_to(py);

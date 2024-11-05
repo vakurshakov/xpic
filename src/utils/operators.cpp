@@ -2,31 +2,40 @@
 
 #include "src/pch.h"
 
-Operator::Operator(DM da, PetscInt mdof, PetscInt ndof) : da_(da), mdof_(mdof), ndof_(ndof) {
-  /// @note There is no need to use `DMDAGetGhostCorners()`, because here we only
-  /// create operators that are used for solving equations (global), not to evaluate them.
-  /// However, there should be a room in the stencil (ghost points) to use +-1 offsets.
+Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
+  : da_(da), mdof_(mdof), ndof_(ndof)
+{
+  /// @note There is no need to use `DMDAGetGhostCorners()`, because here we
+  /// only create operators that are used for solving equations (global), not to
+  /// evaluate them. However, there should be a room in the stencil (ghost
+  /// points) to use +-1 offsets.
   PetscCallVoid(DMDAGetCorners(da_, REP3_A(&start_), REP3_A(&size_)));
 }
 
-PetscInt Operator::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c, PetscInt dof) const {
+PetscInt Operator::index(
+  PetscInt x, PetscInt y, PetscInt z, PetscInt c, PetscInt dof) const
+{
   return ((z * geom_ny + y) * geom_nx + x) * dof + c;
 }
 
-PetscInt Operator::m_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const {
+PetscInt Operator::m_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const
+{
   return index(x, y, z, c, mdof_);
 }
 
-PetscInt Operator::n_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const {
+PetscInt Operator::n_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const
+{
   return index(x, y, z, c, ndof_);
 }
 
 
-Identity::Identity(DM da) : Operator(da)
+Identity::Identity(DM da)
+  : Operator(da)
 {
 }
 
-PetscErrorCode Identity::create(Mat* mat) const {
+PetscErrorCode Identity::create(Mat* mat) const
+{
   PetscFunctionBeginUser;
   PetscInt ls = size_[X] * size_[Y] * size_[Z];  // without ghost cells
   PetscCall(MatCreateConstantDiagonal(PetscObjectComm((PetscObject)da_), ls, ls, PETSC_DETERMINE, PETSC_DETERMINE, 1.0, mat));
@@ -34,32 +43,37 @@ PetscErrorCode Identity::create(Mat* mat) const {
 }
 
 
-Finite_difference_operator::Finite_difference_operator(DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v)
+Finite_difference_operator::Finite_difference_operator(
+  DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v)
   : Operator(da, mdof, ndof), values_(v)
 {
 }
 
-PetscErrorCode Finite_difference_operator::create_positive(Mat* mat) {
+PetscErrorCode Finite_difference_operator::create_positive(Mat* mat)
+{
   PetscFunctionBeginUser;
   PetscCall(create_matrix(mat));
   PetscCall(fill_matrix(*mat, Yee_shift::Positive));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Finite_difference_operator::create_negative(Mat* mat) {
+PetscErrorCode Finite_difference_operator::create_negative(Mat* mat)
+{
   PetscFunctionBeginUser;
   PetscCall(create_matrix(mat));
   PetscCall(fill_matrix(*mat, Yee_shift::Negative));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Finite_difference_operator::create_matrix(Mat* mat) {
+PetscErrorCode Finite_difference_operator::create_matrix(Mat* mat)
+{
   PetscFunctionBeginUser;
   PetscCall(DMCreateMatrix(da_, mat));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Finite_difference_operator::fill_matrix(Mat mat, Yee_shift shift) {
+PetscErrorCode Finite_difference_operator::fill_matrix(Mat mat, Yee_shift shift)
+{
   PetscFunctionBeginUser;
 
   std::vector<MatStencil> row(3);
@@ -67,6 +81,7 @@ PetscErrorCode Finite_difference_operator::fill_matrix(Mat mat, Yee_shift shift)
 
   const PetscInt chunk_size = values_.size() / 3;
 
+  // clang-format off
   for (PetscInt z = start_[Z]; z < start_[Z] + size_[Z]; ++z) {
   for (PetscInt y = start_[Y]; y < start_[Y] + size_[Y]; ++y) {
   for (PetscInt x = start_[X]; x < start_[X] + size_[X]; ++x) {
@@ -78,13 +93,18 @@ PetscErrorCode Finite_difference_operator::fill_matrix(Mat mat, Yee_shift shift)
       PetscCall(mat_set_values_stencil(mat, 1, &row[c], chunk_size, (col.data() + chunk_size * c), (values_.data() + chunk_size * c), ADD_VALUES));
     }
   }}}
+  // clang-format on
   PetscCall(MatAssemblyBegin(mat, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(mat, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @details For reference, see `DMCreateMatrix()`, `DMCreateMatrix_DA()` `MatSetStencil()`, `MatSetValuesStencil()`
-PetscErrorCode Finite_difference_operator::mat_set_values_stencil(Mat mat, PetscInt m, const MatStencil idxm[], PetscInt n, const MatStencil idxn[], const PetscScalar v[], InsertMode addv) const {
+/// @details For reference, see `DMCreateMatrix()`, `DMCreateMatrix_DA()`
+/// `MatSetStencil()`, `MatSetValuesStencil()`
+PetscErrorCode Finite_difference_operator::mat_set_values_stencil(Mat mat,
+  PetscInt m, const MatStencil idxm[], PetscInt n, const MatStencil idxn[],
+  const PetscScalar v[], InsertMode addv) const
+{
   PetscFunctionBegin;
   static const PetscInt MAX_CHUNK_SIZE = 4;
   PetscCheck(m < MAX_CHUNK_SIZE, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Inserted columns number %" PetscInt_FMT ", is greater than MAX_CHUNK_SIZE %" PetscInt_FMT, m, MAX_CHUNK_SIZE);
@@ -97,7 +117,8 @@ PetscErrorCode Finite_difference_operator::mat_set_values_stencil(Mat mat, Petsc
   PetscInt starts[4];
   PetscCall(DMDAGetGhostCorners(da_, REP3_AP(&starts), REP3_AP(&dims)));
 
-  auto remap_indices = [&starts, &dims](PetscInt mdof, PetscInt m, const MatStencil idxm[], PetscInt* jdxm) {
+  auto remap_indices = [&starts, &dims](PetscInt mdof, PetscInt m,
+                         const MatStencil idxm[], PetscInt* jdxm) {
     dims[3] = mdof;
     starts[3] = 0;
 
@@ -105,15 +126,17 @@ PetscErrorCode Finite_difference_operator::mat_set_values_stencil(Mat mat, Petsc
     PetscInt dim = 3 + (PetscInt)!noc;
 
     PetscInt i, j, tmp;
-    PetscInt *dxm = (PetscInt*)idxm;
+    PetscInt* dxm = (PetscInt*)idxm;
 
     for (i = 0; i < m; ++i) {
       tmp = *dxm++ - starts[0];
-      for (j = 0; j < dim - 1; ++j) {
-        if ((*dxm++ - starts[j + 1]) < 0 || tmp < 0) tmp = -1;
-        else tmp = tmp * dims[j + 1] + *(dxm - 1) - starts[j + 1];
-      }
-      if (noc) dxm++;
+      for (j = 0; j < dim - 1; ++j)
+        if ((*dxm++ - starts[j + 1]) < 0 || tmp < 0)
+          tmp = -1;
+        else
+          tmp = tmp * dims[j + 1] + *(dxm - 1) - starts[j + 1];
+      if (noc)
+        dxm++;
       jdxm[i] = tmp;
     }
   };
@@ -125,91 +148,97 @@ PetscErrorCode Finite_difference_operator::mat_set_values_stencil(Mat mat, Petsc
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-std::tuple<REP3(PetscInt)> Finite_difference_operator::get_positive_offsets(PetscInt x, PetscInt y, PetscInt z) const {
-  return std::make_tuple(
-    (geom_nx > 1) ? (x + 1) : x,
-    (geom_ny > 1) ? (y + 1) : y,
-    (geom_nz > 1) ? (z + 1) : z
-  );
+std::tuple<REP3(PetscInt)> get_positive_offsets(PetscInt x, PetscInt y, PetscInt z)
+{
+  return std::make_tuple(         //
+    (geom_nx > 1) ? (x + 1) : x,  //
+    (geom_ny > 1) ? (y + 1) : y,  //
+    (geom_nz > 1) ? (z + 1) : z);
 }
 
-std::tuple<REP3(PetscInt)> Finite_difference_operator::get_negative_offsets(PetscInt x, PetscInt y, PetscInt z) const {
-  return std::make_tuple(
-    (geom_nx > 1) ? (x - 1) : x,
-    (geom_ny > 1) ? (y - 1) : y,
-    (geom_nz > 1) ? (z - 1) : z
-  );
+std::tuple<REP3(PetscInt)> get_negative_offsets(PetscInt x, PetscInt y, PetscInt z)
+{
+  return std::make_tuple(         //
+    (geom_nx > 1) ? (x - 1) : x,  //
+    (geom_ny > 1) ? (y - 1) : y,  //
+    (geom_nz > 1) ? (z - 1) : z);
 }
 
 
 Rotor::Rotor(DM da)
   : Finite_difference_operator(da, 3, 3,
-    {+1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz,
-     +1.0 / dz, -1.0 / dz, -1.0 / dx, +1.0 / dx,
-     +1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy})
+      {+1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz,   //
+        +1.0 / dz, -1.0 / dz, -1.0 / dx, +1.0 / dx,  //
+        +1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy})
 {
 }
 
-void Rotor::fill_stencil(Yee_shift shift, PetscInt x, PetscInt y, PetscInt z, std::vector<MatStencil>& row, std::vector<MatStencil>& col) const {
+void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
+  std::vector<MatStencil>& row, std::vector<MatStencil>& col) const
+{
   switch (shift) {
-  case Yee_shift::Positive: {
-    auto&& [xp, yp, zp] = get_positive_offsets(x, y, z);
+    case Yee_shift::Positive: {
+      auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
-    row[0] = {z, y, x, X};
-    col[0 + 0] = {z,  yp, x,  Z};
-    col[0 + 1] = {z,  y,  x,  Z};
-    col[0 + 2] = {zp, y,  x,  Y};
-    col[0 + 3] = {z,  y,  x,  Y};
+      row[0] = {zc, yc, xc, X};
+      col[0 + 0] = {zc, yp, xc, Z};
+      col[0 + 1] = {zc, yc, xc, Z};
+      col[0 + 2] = {zp, yc, xc, Y};
+      col[0 + 3] = {zc, yc, xc, Y};
 
-    row[1] = {z, y, x, Y};
-    col[4 + 0] = {zp, y,  x,  X};
-    col[4 + 1] = {z,  y,  x,  X};
-    col[4 + 2] = {z,  y,  xp, Z};
-    col[4 + 3] = {z,  y,  x,  Z};
+      row[1] = {zc, yc, xc, Y};
+      col[4 + 0] = {zp, yc, xc, X};
+      col[4 + 1] = {zc, yc, xc, X};
+      col[4 + 2] = {zc, yc, xp, Z};
+      col[4 + 3] = {zc, yc, xc, Z};
 
-    row[2] = {z, y, x, Z};
-    col[8 + 0] = {z,  y,  xp, Y};
-    col[8 + 1] = {z,  y,  x,  Y};
-    col[8 + 2] = {z,  yp, x,  X};
-    col[8 + 3] = {z,  y,  x,  X};
-    return;
+      row[2] = {zc, yc, xc, Z};
+      col[8 + 0] = {zc, yc, xp, Y};
+      col[8 + 1] = {zc, yc, xc, Y};
+      col[8 + 2] = {zc, yp, xc, X};
+      col[8 + 3] = {zc, yc, xc, X};
+      return;
+    }
+
+    case Yee_shift::Negative: {
+      auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
+
+      row[0] = {zc, yc, xc, X};
+      col[0 + 0] = {zc, yc, xc, Z};
+      col[0 + 1] = {zc, ym, xc, Z};
+      col[0 + 2] = {zc, yc, xc, Y};
+      col[0 + 3] = {zm, yc, xc, Y};
+
+      row[1] = {zc, yc, xc, Y};
+      col[4 + 0] = {zc, yc, xc, X};
+      col[4 + 1] = {zm, yc, xc, X};
+      col[4 + 2] = {zc, yc, xc, Z};
+      col[4 + 3] = {zc, yc, xm, Z};
+
+      row[2] = {zc, yc, xc, Z};
+      col[8 + 0] = {zc, yc, xc, Y};
+      col[8 + 1] = {zc, yc, xm, Y};
+      col[8 + 2] = {zc, yc, xc, X};
+      col[8 + 3] = {zc, ym, xc, X};
+      return;
+    }
   }
-
-  case Yee_shift::Negative: {
-    auto&& [xm, ym, zm] = get_negative_offsets(x, y, z);
-
-    row[0] = {z, y, x, X};
-    col[0 + 0] = {z,  y,  x,  Z};
-    col[0 + 1] = {z,  ym, x,  Z};
-    col[0 + 2] = {z,  y,  x,  Y};
-    col[0 + 3] = {zm, y,  x,  Y};
-
-    row[1] = {z, y, x, Y};
-    col[4 + 0] = {z,  y,  x,  X};
-    col[4 + 1] = {zm, y,  x,  X};
-    col[4 + 2] = {z,  y,  x,  Z};
-    col[4 + 3] = {z,  y,  xm, Z};
-
-    row[2] = {z, y, x, Z};
-    col[8 + 0] = {z,  y,  x,  Y};
-    col[8 + 1] = {z,  y,  xm, Y};
-    col[8 + 2] = {z,  y,  x,  X};
-    col[8 + 3] = {z,  ym, x,  X};
-    return;
-  }}
 }
 
 
-Non_rectangular_operator::Non_rectangular_operator(DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v)
+Non_rectangular_operator::Non_rectangular_operator(
+  DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v)
   : Finite_difference_operator(da, mdof, ndof, v)
 {
 }
 
-Non_rectangular_operator::~Non_rectangular_operator() {
+Non_rectangular_operator::~Non_rectangular_operator()
+{
   PetscCallVoid(DMDestroy(&sda_));
 }
 
-PetscErrorCode Non_rectangular_operator::create_matrix(Mat* mat) {
+PetscErrorCode Non_rectangular_operator::create_matrix(Mat* mat)
+{
   PetscFunctionBeginUser;
   MPI_Comm comm;
   PetscCall(PetscObjectGetComm((PetscObject)da_, &comm));
@@ -226,7 +255,8 @@ PetscErrorCode Non_rectangular_operator::create_matrix(Mat* mat) {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Non_rectangular_operator::create_scalar_da() {
+PetscErrorCode Non_rectangular_operator::create_scalar_da()
+{
   PetscFunctionBeginUser;
   PetscInt dim, g_size[3], procs[3], dof, s;
   DMBoundaryType bounds[3];
@@ -242,7 +272,7 @@ PetscErrorCode Non_rectangular_operator::create_scalar_da() {
   PetscCall(DMDACreate3d(comm, REP3_A(bounds), st, REP3_A(g_size), REP3_A(procs), 1, s, REP3_A(ownerships), &sda_));
   PetscCall(DMSetUp(sda_));
 
-  l_size_ = size_[X] * size_[Y] * size_[Z]; // without ghost cells
+  l_size_ = size_[X] * size_[Y] * size_[Z];  // without ghost cells
   PetscCall(DMGetLocalToGlobalMapping(da_, &v_ltog_));
   PetscCall(DMGetLocalToGlobalMapping(sda_, &s_ltog_));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -251,52 +281,56 @@ PetscErrorCode Non_rectangular_operator::create_scalar_da() {
 
 Divergence::Divergence(DM da)
   : Non_rectangular_operator(da, 1, 3,
-    {+1.0 / dx, -1.0 / dx,
-     +1.0 / dy, -1.0 / dy,
-     +1.0 / dz, -1.0 / dz})
+      {+1.0 / dx, -1.0 / dx,   //
+        +1.0 / dy, -1.0 / dy,  //
+        +1.0 / dz, -1.0 / dz})
 {
 }
 
-void Divergence::fill_stencil(Yee_shift shift, PetscInt x, PetscInt y, PetscInt z, std::vector<MatStencil>& row, std::vector<MatStencil>& col) const {
+void Divergence::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
+  PetscInt zc, std::vector<MatStencil>& row, std::vector<MatStencil>& col) const
+{
   switch (shift) {
-  case Yee_shift::Positive: {
-    auto&& [xp, yp, zp] = get_positive_offsets(x, y, z);
+    case Yee_shift::Positive: {
+      auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
-    row[0] = {z, y, x, 0};
-    col[0 + 0] = {z,  y,  xp, X};
-    col[0 + 1] = {z,  y,  x,  X};
+      row[0] = {zc, yc, xc, 0};
+      col[0 + 0] = {zc, yc, xp, X};
+      col[0 + 1] = {zc, yc, xc, X};
 
-    row[1] = row[0];
-    col[2 + 0] = {z,  yp, x,  Y};
-    col[2 + 1] = {z,  y,  x,  Y};
+      row[1] = row[0];
+      col[2 + 0] = {zc, yp, xc, Y};
+      col[2 + 1] = {zc, yc, xc, Y};
 
-    row[2] = row[0];
-    col[4 + 0] = {zp, y,  x,  Z};
-    col[4 + 1] = {z,  y,  x,  Z};
-    return;
+      row[2] = row[0];
+      col[4 + 0] = {zp, yc, xc, Z};
+      col[4 + 1] = {zc, yc, xc, Z};
+      return;
+    }
+
+    case Yee_shift::Negative: {
+      auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
+
+      row[0] = {zc, yc, xc, 0};
+      col[0 + 0] = {zc, yc, xc, X};
+      col[0 + 1] = {zc, yc, xm, X};
+
+      row[1] = row[0];
+      col[2 + 0] = {zc, yc, xc, Y};
+      col[2 + 1] = {zc, ym, xc, Y};
+
+      row[2] = row[0];
+      col[4 + 0] = {zc, yc, xc, Z};
+      col[4 + 1] = {zm, yc, xc, Z};
+      return;
+    }
   }
-
-  case Yee_shift::Negative: {
-    auto&& [xm, ym, zm] = get_negative_offsets(x, y, z);
-
-    row[0] = {z, y, x, 0};
-    col[0 + 0] = {z,  y,  x,  X};
-    col[0 + 1] = {z,  y,  xm, X};
-
-    row[1] = row[0];
-    col[2 + 0] = {z,  y,  x,  Y};
-    col[2 + 1] = {z,  ym, x,  Y};
-
-    row[2] = row[0];
-    col[4 + 0] = {z,  y,  x,  Z};
-    col[4 + 1] = {zm, y,  x,  Z};
-    return;
-  }}
 }
 
-PetscErrorCode Divergence::set_sizes_and_ltog(Mat mat) const {
+PetscErrorCode Divergence::set_sizes_and_ltog(Mat mat) const
+{
   PetscFunctionBeginUser;
-  PetscCall(MatSetSizes(mat, l_size_, l_size_ * Vector3R::dim, PETSC_DETERMINE, PETSC_DETERMINE));
+  PetscCall(MatSetSizes(mat, l_size_, l_size_ * 3, PETSC_DETERMINE, PETSC_DETERMINE));
   PetscCall(MatSetLocalToGlobalMapping(mat, s_ltog_, v_ltog_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -304,52 +338,56 @@ PetscErrorCode Divergence::set_sizes_and_ltog(Mat mat) const {
 
 Gradient::Gradient(DM da)
   : Non_rectangular_operator(da, 3, 1,
-    {+1.0 / dx, -1.0 / dx,
-     +1.0 / dy, -1.0 / dy,
-     +1.0 / dz, -1.0 / dz})
+      {+1.0 / dx, -1.0 / dx,   //
+        +1.0 / dy, -1.0 / dy,  //
+        +1.0 / dz, -1.0 / dz})
 {
 }
 
-void Gradient::fill_stencil(Yee_shift shift, PetscInt x, PetscInt y, PetscInt z, std::vector<MatStencil>& row, std::vector<MatStencil>& col) const {
+void Gradient::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
+  PetscInt zc, std::vector<MatStencil>& row, std::vector<MatStencil>& col) const
+{
   switch (shift) {
-  case Yee_shift::Positive: {
-    auto&& [xp, yp, zp] = get_positive_offsets(x, y, z);
+    case Yee_shift::Positive: {
+      auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
-    row[0] = {z, y, x, X};
-    col[0 + 0] = {z,  y,  xp, 0};
-    col[0 + 1] = {z,  y,  x,  0};
+      row[0] = {zc, yc, xc, X};
+      col[0 + 0] = {zc, yc, xp, 0};
+      col[0 + 1] = {zc, yc, xc, 0};
 
-    row[1] = {z, y, x, Y};
-    col[2 + 0] = {z,  yp, x,  0};
-    col[2 + 1] = {z,  y,  x,  0};
+      row[1] = {zc, yc, xc, Y};
+      col[2 + 0] = {zc, yp, xc, 0};
+      col[2 + 1] = {zc, yc, xc, 0};
 
-    row[2] = {z, y, x, Z};
-    col[4 + 0] = {zp, y,  x,  0};
-    col[4 + 1] = {z,  y,  x,  0};
-    return;
+      row[2] = {zc, yc, xc, Z};
+      col[4 + 0] = {zp, yc, xc, 0};
+      col[4 + 1] = {zc, yc, xc, 0};
+      return;
+    }
+
+    case Yee_shift::Negative: {
+      auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
+
+      row[0] = {zc, yc, xc, X};
+      col[0 + 0] = {zc, yc, xc, 0};
+      col[0 + 1] = {zc, yc, xm, 0};
+
+      row[1] = {zc, yc, xc, Y};
+      col[2 + 0] = {zc, yc, xc, 0};
+      col[2 + 1] = {zc, ym, xc, 0};
+
+      row[2] = {zc, yc, xc, Z};
+      col[4 + 0] = {zc, yc, xc, 0};
+      col[4 + 1] = {zm, yc, xc, 0};
+      return;
+    }
   }
-
-  case Yee_shift::Negative: {
-    auto&& [xm, ym, zm] = get_negative_offsets(x, y, z);
-
-    row[0] = {z, y, x, X};
-    col[0 + 0] = {z,  y,  x,  0};
-    col[0 + 1] = {z,  y,  xm, 0};
-
-    row[1] = {z, y, x, Y};
-    col[2 + 0] = {z,  y,  x,  0};
-    col[2 + 1] = {z,  ym, x,  0};
-
-    row[2] = {z, y, x, Z};
-    col[4 + 0] = {z,  y,  x,  0};
-    col[4 + 1] = {zm, y,  x,  0};
-    return;
-  }}
 }
 
-PetscErrorCode Gradient::set_sizes_and_ltog(Mat mat) const {
+PetscErrorCode Gradient::set_sizes_and_ltog(Mat mat) const
+{
   PetscFunctionBeginUser;
-  PetscCall(MatSetSizes(mat, l_size_ * Vector3R::dim, l_size_, PETSC_DETERMINE, PETSC_DETERMINE));
+  PetscCall(MatSetSizes(mat, l_size_ * 3, l_size_, PETSC_DETERMINE, PETSC_DETERMINE));
   PetscCall(MatSetLocalToGlobalMapping(mat, v_ltog_, s_ltog_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

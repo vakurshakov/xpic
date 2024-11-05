@@ -1,7 +1,8 @@
 #ifndef SRC_VECTORS_VECTOR4_H
 #define SRC_VECTORS_VECTOR4_H
 
-#include "src/pch.h"
+#include <petscsystypes.h>
+
 #include "src/utils/utils.h"
 
 template<typename T>
@@ -9,15 +10,38 @@ struct Vector4 {
   static const PetscInt dim = 4;
   T data[dim];
 
-  Vector4() : data{(T)0, (T)0, (T)0, (T)0} {}
-  Vector4(const T& v) : data{v, v, v, v} {}
-  Vector4(const T& x, const T& y, const T& z, const T& c) : data{x, y, z, c} {}
-  Vector4(const T v[Vector4::dim]) : data{v[X], v[Y], v[Z], v[C]} {}
+  Vector4()
+    : data{(T)0, (T)0, (T)0, (T)0}
+  {
+  }
 
-  operator const T*() const { return data; }
-  operator T*() { return data; }
+  Vector4(const T& v)
+    : data{v, v, v, v}
+  {
+  }
 
-  Vector4& operator+=(const Vector4& other) {
+  Vector4(const T& x, const T& y, const T& z, const T& c)
+    : data{x, y, z, c}
+  {
+  }
+
+  Vector4(const T v[Vector4::dim])
+    : data{v[X], v[Y], v[Z], v[C]}
+  {
+  }
+
+  operator const T*() const
+  {
+    return data;
+  }
+
+  operator T*()
+  {
+    return data;
+  }
+
+  Vector4& operator+=(const Vector4& other)
+  {
     data[X] += other[X];
     data[Y] += other[Y];
     data[Z] += other[Z];
@@ -25,7 +49,8 @@ struct Vector4 {
     return *this;
   }
 
-  Vector4& operator-=(const Vector4& other) {
+  Vector4& operator-=(const Vector4& other)
+  {
     data[X] -= other[X];
     data[Y] -= other[Y];
     data[Z] -= other[Z];
@@ -33,7 +58,8 @@ struct Vector4 {
     return *this;
   }
 
-  Vector4& operator*=(const Vector4& other) {
+  Vector4& operator*=(const Vector4& other)
+  {
     data[X] *= other[X];
     data[Y] *= other[Y];
     data[Z] *= other[Z];
@@ -41,7 +67,8 @@ struct Vector4 {
     return *this;
   }
 
-  Vector4& operator*=(T scalar) {
+  Vector4& operator*=(T scalar)
+  {
     data[X] *= scalar;
     data[Y] *= scalar;
     data[Z] *= scalar;
@@ -50,7 +77,8 @@ struct Vector4 {
   }
 
 
-  Vector4 operator+(const Vector4& other) const {
+  Vector4 operator+(const Vector4& other) const
+  {
     return {
       data[X] + other[X],
       data[Y] + other[Y],
@@ -59,7 +87,8 @@ struct Vector4 {
     };
   }
 
-  Vector4 operator-(const Vector4& other) const {
+  Vector4 operator-(const Vector4& other) const
+  {
     return {
       data[X] - other[X],
       data[Y] - other[Y],
@@ -68,7 +97,8 @@ struct Vector4 {
     };
   }
 
-  Vector4 operator*(const Vector4& other) const {
+  Vector4 operator*(const Vector4& other) const
+  {
     return {
       data[X] * other[X],
       data[Y] * other[Y],
@@ -77,7 +107,8 @@ struct Vector4 {
     };
   }
 
-  Vector4<PetscReal> operator/(T scalar) const {
+  Vector4<PetscReal> operator/(T scalar) const
+  {
     return {
       (PetscReal)data[X] / scalar,
       (PetscReal)data[Y] / scalar,
@@ -86,38 +117,46 @@ struct Vector4 {
     };
   }
 
-  Vector4<PetscReal> normalized() const {
+  Vector4<PetscReal> normalized() const
+  {
     return operator/(length());
   }
 
-  PetscReal length() const {
+  PetscReal length() const
+  {
     return sqrt((PetscReal)square());
   }
 
-  T dot(const Vector4& other) const {
-    return
-      data[X] * other[X] +
-      data[Y] * other[Y] +
-      data[Z] * other[Z];
+  T dot(const Vector4& other) const
+  {
+    return                  //
+      data[X] * other[X] +  //
+      data[Y] * other[Y] +  //
+      data[Z] * other[Z] +  //
       data[C] * other[C];
   }
 
-  T square() const {
+  T square() const
+  {
     return dot(*this);
   }
 
-  Vector4 parallel_to(const Vector4& ref) const {
+  Vector4 parallel_to(const Vector4& ref) const
+  {
     return (*this).dot(ref) * ref;
   }
 
-  Vector4 transverse_to(const Vector4& ref) const {
+  Vector4 transverse_to(const Vector4& ref) const
+  {
     return (*this) - parallel_to(ref);
   }
 
-  void swap_order() {
+  void swap_order()
+  {
     std::swap(data[X], data[Z]);
   }
 
+  // clang-format off: access specifiers
   T& x() { return data[X]; }
   T& y() { return data[Y]; }
   T& z() { return data[Z]; }
@@ -126,12 +165,15 @@ struct Vector4 {
   const T& y() const { return data[Y]; }
   const T& z() const { return data[Z]; }
   const T& c() const { return data[C]; }
+  // clang-format on
 };
 
 using Vector4R = Vector4<PetscReal>;
 using Vector4I = Vector4<PetscInt>;
 
-template<typename T> Vector4<T> operator*(const Vector4<T>& vector, T scalar) {
+template<typename T>
+Vector4<T> operator*(const Vector4<T>& vector, T scalar)
+{
   return {
     vector[X] * scalar,
     vector[Y] * scalar,
@@ -140,11 +182,15 @@ template<typename T> Vector4<T> operator*(const Vector4<T>& vector, T scalar) {
   };
 }
 
-template<typename T> Vector4<T> operator*(T scalar, const Vector4<T>& vector) {
+template<typename T>
+Vector4<T> operator*(T scalar, const Vector4<T>& vector)
+{
   return vector * scalar;
 }
 
-template<typename T> Vector4<T> min(const Vector4<T>& lhs, const Vector4<T>& rhs) {
+template<typename T>
+Vector4<T> min(const Vector4<T>& lhs, const Vector4<T>& rhs)
+{
   return {
     std::min(lhs[X], rhs[X]),
     std::min(lhs[Y], rhs[Y]),
@@ -153,7 +199,9 @@ template<typename T> Vector4<T> min(const Vector4<T>& lhs, const Vector4<T>& rhs
   };
 }
 
-template<typename T> Vector4<T> max(const Vector4<T>& lhs, const Vector4<T>& rhs) {
+template<typename T>
+Vector4<T> max(const Vector4<T>& lhs, const Vector4<T>& rhs)
+{
   return {
     std::max(lhs[X], rhs[X]),
     std::max(lhs[Y], rhs[Y]),

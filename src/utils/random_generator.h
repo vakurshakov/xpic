@@ -2,11 +2,13 @@
 #define SRC_UTILS_RANDOM_GENERATOR_H
 
 #include <omp.h>
+
 #include <random>
 
 class Random_generator {
 public:
-  static inline std::mt19937& get() {
+  static inline std::mt19937& get()
+  {
     static Random_generator single_instance;
     return single_instance.gen;
   }
@@ -21,26 +23,28 @@ private:
   Random_generator& operator=(const Random_generator&) = delete;
 };
 
-inline double random_01() {
+inline double random_01()
+{
   static std::uniform_real_distribution distribution(0.0, 1.0);
 
   double value;
 
-  #pragma omp critical
+#pragma omp critical
   value = distribution(Random_generator::get());
 
   return value;
 }
 
-inline int random_sign() {
+inline int random_sign()
+{
   static std::bernoulli_distribution distribution(0.5);
 
   int value;
 
-  #pragma omp critical
+#pragma omp critical
   value = distribution(Random_generator::get()) ? +1 : -1;
 
   return value;
 }
 
-#endif // SRC_UTILS_RANDOM_GENERATOR_H
+#endif  // SRC_UTILS_RANDOM_GENERATOR_H

@@ -1,13 +1,18 @@
 #include "field_view_builder.h"
 
+#include "src/utils/configuration.h"
 #include "src/utils/vector_utils.h"
 
 namespace basic {
 
-Field_view_builder::Field_view_builder(const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
-  : Diagnostic_builder(simulation, diagnostics) {}
+Field_view_builder::Field_view_builder(
+  const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
+  : Diagnostic_builder(simulation, diagnostics)
+{
+}
 
-PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info) {
+PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
+{
   PetscFunctionBeginUser;
 
   auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
@@ -18,28 +23,29 @@ PetscErrorCode Field_view_builder::build(const Configuration::json_t& diag_info)
     PetscFunctionReturn(PETSC_SUCCESS);
   };
 
-  if (!diag_info.is_array()) {
+  if (!diag_info.is_array())
     PetscCall(parse_info(diag_info));
-  }
-  else {
-    for (const Configuration::json_t& info : diag_info) {
+  else
+    for (const Configuration::json_t& info : diag_info)
       PetscCall(parse_info(info));
-    }
-  }
 
   for (const Field_description& desc : fields_desc_) {
     LOG("Field view diagnostic is added for {}{}", desc.field_name, desc.component_name);
 
-    std::string res_dir = CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
+    std::string res_dir =
+      CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
 
-    if (auto&& diag = Field_view::create(res_dir, simulation_.world_.da, get_field(desc.field_name), desc.region)) {
+    if (auto&& diag = Field_view::create(res_dir, simulation_.world_.da,
+          get_field(desc.field_name), desc.region)) {
       diagnostics_.emplace_back(std::move(diag));
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t& json, Field_description& desc) {
+PetscErrorCode Field_view_builder::parse_field_info(
+  const Configuration::json_t& json, Field_description& desc)
+{
   PetscFunctionBeginUser;
   desc.region.dim = 4;
   desc.region.dof = 3;
@@ -77,4 +83,4 @@ PetscErrorCode Field_view_builder::parse_field_info(const Configuration::json_t&
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-}
+}  // namespace basic

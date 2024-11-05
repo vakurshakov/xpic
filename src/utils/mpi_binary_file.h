@@ -9,16 +9,20 @@ public:
   ~MPI_binary_file();
 
   /// @brief Construct a new binary file and its directory path recursively.
-  MPI_binary_file(MPI_Comm comm, const std::string& directory_path, const std::string& file_name);
+  MPI_binary_file(MPI_Comm comm, const std::string& directory_path,
+    const std::string& file_name);
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
-  PetscErrorCode open(MPI_Comm comm, const std::string& directory_path, const std::string& file_name);
+  PetscErrorCode open(MPI_Comm comm, const std::string& directory_path,
+    const std::string& file_name);
   PetscErrorCode flush();
   PetscErrorCode close();
 
   /// @note Should be set only once, other sets are no-op since type is already commited.
-  PetscErrorCode set_memview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]);
-  PetscErrorCode set_fileview_subarray(PetscInt ndim, const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[]);
+  PetscErrorCode set_memview_subarray(PetscInt ndim, const PetscInt sizes[],
+    const PetscInt subsizes[], const PetscInt starts[]);
+  PetscErrorCode set_fileview_subarray(PetscInt ndim, const PetscInt sizes[],
+    const PetscInt subsizes[], const PetscInt starts[]);
 
   /// @brief Writes the array `data` of some `size` as floats.
   PetscErrorCode write_floats(PetscInt size, const PetscReal* data);
@@ -31,4 +35,4 @@ private:
   MPI_Datatype fileview_ = MPI_DATATYPE_NULL;
 };
 
-#endif // SRC_UTILS_BINARY_FILE
+#endif  // SRC_UTILS_BINARY_FILE

@@ -3,24 +3,27 @@
 namespace interfaces {
 
 Particles::Particles(const World& world, const Sort_parameters& parameters)
-  : world_(world),
-    parameters_(parameters)
+  : world_(world), parameters_(parameters)
 {
 }
 
-PetscErrorCode Particles::add_particle(const Point& point) {
+PetscErrorCode Particles::add_particle(const Point& point)
+{
   PetscFunctionBeginUser;
   const Vector3R& r = point.r;
+  // clang-format off
   if (world_.start.x() <= r.x() && r.x() < world_.end.x() &&
       world_.start.y() <= r.y() && r.y() < world_.end.y() &&
       world_.start.z() <= r.z() && r.z() < world_.end.z()) {
-    #pragma omp critical
+#pragma omp critical
     points_.emplace_back(point);
   }
+  // clang-format on
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Particles::communicate() {
+PetscErrorCode Particles::communicate()
+{
   PetscFunctionBeginUser;
   constexpr PetscInt dim = 3;
   constexpr PetscInt neighbors_num = 27;
@@ -28,14 +31,19 @@ PetscErrorCode Particles::communicate() {
   std::vector<Point> outgoing[neighbors_num];
   std::vector<Point> incoming[neighbors_num];
 
+  // clang-format off
   auto set_index = [&](const Vector3R& r, Vector3I& index, Axis axis) {
     index[axis] = (r[axis] < world_.start[axis]) ? 0 : (r[axis] < world_.end[axis]) ? 1 : 2;
   };
+  // clang-format on
 
   auto correct_coordinates = [&](Point& point) {
-    if (world_.bounds[X] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, X);
-    if (world_.bounds[Y] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Y);
-    if (world_.bounds[Z] == DM_BOUNDARY_PERIODIC) g_bound_periodic(point, Z);
+    if (world_.bounds[X] == DM_BOUNDARY_PERIODIC)
+      g_bound_periodic(point, X);
+    if (world_.bounds[Y] == DM_BOUNDARY_PERIODIC)
+      g_bound_periodic(point, Y);
+    if (world_.bounds[Z] == DM_BOUNDARY_PERIODIC)
+      g_bound_periodic(point, Z);
   };
 
   PetscInt center_index = to_contiguous_index(1, 1, 1);
@@ -49,7 +57,10 @@ PetscErrorCode Particles::communicate() {
     set_index(r, v_index, Z);
 
     PetscInt index = to_contiguous_index(v_index[X], v_index[Y], v_index[Z]);
-    if (index == center_index) continue;  // Particle didn't cross local boundaries
+
+    // Particle didn't cross local boundaries
+    if (index == center_index)
+      continue;
 
     correct_coordinates(*it);
     outgoing[index].emplace_back(std::move(*it));
@@ -69,20 +80,23 @@ PetscErrorCode Particles::communicate() {
   MPI_Request reqs[2 * (neighbors_num - 1)];
   PetscInt req = 0;
 
-  /// @note `PETSC_DEFAULT` is identical to `MPI_PROC_NULL`, so we can safely send/recv to/from neighbors.
+  /// @note `PETSC_DEFAULT` is identical to `MPI_PROC_NULL`,
+  /// so we can safely send/recv to/from neighbors.
   for (PetscInt s = 0; s < neighbors_num; ++s) {
-    if (s == center_index) continue;
+    if (s == center_index)
+      continue;
     PetscInt r = (neighbors_num - 1) - s;
     PetscCallMPI(MPI_Isend(&o_num[s], sizeof(size_t), MPI_BYTE, world_.neighbors[s], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
     PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, world_.neighbors[r], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
-  assert(o_num[center_index] == 0);
-  assert(i_num[center_index] == 0);
+  PetscCheck(o_num[center_index] == 0, PETSC_COMM_WORLD, PETSC_ERR_MPI, "Particles should not be passed to itself process, %ld particles was passed", o_num[center_index]);
+  PetscCheck(i_num[center_index] == 0, PETSC_COMM_WORLD, PETSC_ERR_MPI, "Particles should not be passed to itself process, %ld particles was passed", i_num[center_index]);
 
   req = 0;
   for (PetscInt s = 0; s < neighbors_num; ++s) {
-    if (s == center_index) continue;
+    if (s == center_index)
+      continue;
     PetscInt r = (neighbors_num - 1) - s;
     incoming[r].resize(i_num[r]);
     PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, world_.neighbors[s], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
@@ -91,43 +105,51 @@ PetscErrorCode Particles::communicate() {
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
   for (PetscInt i = 0; i < neighbors_num; ++i) {
-    if (i == center_index) continue;
-    points_.insert(points_.end(),
-      std::make_move_iterator(incoming[i].begin()),
+    if (i == center_index)
+      continue;
+    points_.insert(points_.end(),                    //
+      std::make_move_iterator(incoming[i].begin()),  //
       std::make_move_iterator(incoming[i].end()));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-const Sort_parameters& Particles::parameters() const {
+const Sort_parameters& Particles::parameters() const
+{
   return parameters_;
 }
 
-const std::vector<Point>& Particles::points() const {
+const std::vector<Point>& Particles::points() const
+{
   return points_;
 }
 
-PetscInt Particles::particles_number(const Point& point) const {
+PetscInt Particles::particles_number(const Point& point) const
+{
   return parameters_.Np;
 }
 
-PetscReal Particles::density(const Point& point) const {
+PetscReal Particles::density(const Point& point) const
+{
   return parameters_.n;
 }
 
-PetscReal Particles::charge(const Point& point) const {
+PetscReal Particles::charge(const Point& point) const
+{
   return parameters_.q;
 }
 
-PetscReal Particles::mass(const Point& point) const {
+PetscReal Particles::mass(const Point& point) const
+{
   return parameters_.m;
 }
 
-Vector3R Particles::velocity(const Point& point) const {
+Vector3R Particles::velocity(const Point& point) const
+{
   const Vector3R& p = point.p;
   PetscReal m = mass(point);
   return p / sqrt(m * m + p.squared());
 }
 
-}
+}  // namespace interfaces

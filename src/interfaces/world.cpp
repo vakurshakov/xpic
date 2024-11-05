@@ -1,14 +1,18 @@
 #include "src/interfaces/world.h"
 
+#include "src/utils/configuration.h"
 #include "src/utils/particle_shape.h"
+#include "src/utils/utils.h"
 
-void convert(Vector3R& vector, const Vector3I& other) {
+void convert(Vector3R& vector, const Vector3I& other)
+{
   vector.x() = (PetscReal)other.x() * dx;
   vector.y() = (PetscReal)other.y() * dy;
   vector.z() = (PetscReal)other.z() * dz;
 }
 
-PetscErrorCode World::initialize() {
+PetscErrorCode World::initialize()
+{
   PetscFunctionBegin;
   const PetscInt dof = Vector3R::dim;
   const PetscInt s = shape_radius;
@@ -36,6 +40,7 @@ PetscErrorCode World::initialize() {
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-World::~World() {
+World::~World()
+{
   PetscCallVoid(DMDestroy(&da));
 }

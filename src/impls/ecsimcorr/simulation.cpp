@@ -1,12 +1,13 @@
 #include "simulation.h"
 
-#include "src/utils/utils.h"
 #include "src/utils/operators.h"
+#include "src/utils/utils.h"
 
 
 namespace ecsimcorr {
 
-PetscErrorCode Simulation::initialize_implementation() {
+PetscErrorCode Simulation::initialize_implementation()
+{
   PetscFunctionBeginUser;
   DM da = world_.da;
   PetscCall(DMCreateGlobalVector(da, &E));
@@ -44,13 +45,15 @@ PetscErrorCode Simulation::initialize_implementation() {
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t timestep) {
+PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
+{
   PetscFunctionBeginUser;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-Simulation::~Simulation() {
+Simulation::~Simulation()
+{
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&E));
   PetscCallVoid(VecDestroy(&En));
@@ -73,4 +76,4 @@ Simulation::~Simulation() {
   PetscFunctionReturnVoid();
 }
 
-}
+}  // namespace ecsimcorr

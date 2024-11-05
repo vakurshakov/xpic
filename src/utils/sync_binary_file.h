@@ -20,10 +20,12 @@ public:
   Sync_binary_file& operator=(Sync_binary_file&& other) = default;
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
-  Sync_binary_file(const std::string& directory_path, const std::string& file_name);
+  Sync_binary_file(
+    const std::string& directory_path, const std::string& file_name);
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
-  PetscErrorCode open(const std::string& directory_path, const std::string& file_name);
+  PetscErrorCode open(
+    const std::string& directory_path, const std::string& file_name);
   PetscErrorCode flush();
   PetscErrorCode close();
 
@@ -33,4 +35,4 @@ private:
   std::ofstream file_;
 };
 
-#endif // SRC_UTILS_SYNC_BINARY_FILE
+#endif  // SRC_UTILS_SYNC_BINARY_FILE

@@ -10,7 +10,9 @@ public:
   virtual ~Diagnostic() = default;
 
   Diagnostic(const std::string& out_dir)
-    : out_dir_(out_dir) {}
+    : out_dir_(out_dir)
+  {
+  }
 
   virtual PetscErrorCode diagnose(timestep_t t) = 0;
 

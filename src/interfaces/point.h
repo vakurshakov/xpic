@@ -2,6 +2,7 @@
 #define SRC_INTERFACES_POINT_H
 
 #include "src/pch.h"
+#include "src/utils/vector3.h"
 
 class Point {
 public:
@@ -11,6 +12,7 @@ public:
   Point() = default;
   Point(const Vector3R& r, const Vector3R& p);
 
+  // clang-format off: access modifiers
   PetscReal& x() { return r.x(); }
   PetscReal& y() { return r.y(); }
   PetscReal& z() { return r.z(); }
@@ -26,6 +28,7 @@ public:
   PetscReal px() const { return p.x(); }
   PetscReal py() const { return p.y(); }
   PetscReal pz() const { return p.z(); }
+  // clang-format on
 };
 
 void g_bound_reflective(Point& point, Axis axis);

@@ -1,9 +1,10 @@
 #ifndef SRC_INTERFACES_WORLD_H
 #define SRC_INTERFACES_WORLD_H
 
-#include "src/pch.h"
-
 #include <petscdmda.h>
+
+#include "src/pch.h"
+#include "src/utils/vector3.h"
 
 struct World {
   World() = default;
@@ -26,4 +27,4 @@ struct World {
   Vector3I end_n;
 };
 
-#endif // SRC_BASIC_SIMULATION_H
+#endif  // SRC_BASIC_SIMULATION_H

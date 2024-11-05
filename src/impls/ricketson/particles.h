@@ -1,11 +1,10 @@
 #ifndef SRC_RICKETSON_PARTICLES_H
 #define SRC_RICKETSON_PARTICLES_H
 
-#include "src/interfaces/particles.h"
-
 #include <petscsnes.h>
 
 #include "src/pch.h"
+#include "src/interfaces/particles.h"
 #include "src/utils/particle_shape.h"
 #include "src/utils/sync_binary_file.h"
 
@@ -42,7 +41,8 @@ private:
   PetscErrorCode push(Point& point);
   PetscErrorCode adaptive_time_stepping(const Point& point);
 
-  static PetscErrorCode form_Picard_iteration(SNES snes, Vec vx, Vec vf, void* context);
+  static PetscErrorCode form_Picard_iteration(
+    SNES snes, Vec vx, Vec vf, void* context);
 
   Simulation& simulation_;
 
@@ -59,6 +59,6 @@ private:
   Sync_binary_file particle_iterations_log;
 };
 
-}
+}  // namespace ricketson
 
 #endif  // SRC_RICKETSON_PARTICLES_H
