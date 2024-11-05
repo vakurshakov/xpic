@@ -20,22 +20,22 @@ struct Sort_parameters {
 
 
 #pragma omp declare simd notinbranch
-PetscReal __0th_order_spline(PetscReal s, Axis a);
+PetscReal __0th_order_spline(PetscReal s);
 
 #pragma omp declare simd notinbranch
-PetscReal __1st_order_spline(PetscReal s, Axis a);
+PetscReal __1st_order_spline(PetscReal s);
 
 #pragma omp declare simd notinbranch
-PetscReal __2nd_order_spline(PetscReal s, Axis a);
+PetscReal __2nd_order_spline(PetscReal s);
 
 #pragma omp declare simd notinbranch
-PetscReal __3rd_order_spline(PetscReal s, Axis a);
+PetscReal __3rd_order_spline(PetscReal s);
 
 #pragma omp declare simd notinbranch
-PetscReal __4th_order_spline(PetscReal s, Axis a);
+PetscReal __4th_order_spline(PetscReal s);
 
 #pragma omp declare simd notinbranch
-PetscReal __5th_order_spline(PetscReal s, Axis a);
+PetscReal __5th_order_spline(PetscReal s);
 
 #if (PARTICLES_FORM_FACTOR == 0)
 static constexpr PetscInt shape_radius = 1;

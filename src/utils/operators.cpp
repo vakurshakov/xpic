@@ -88,7 +88,6 @@ PetscErrorCode Finite_difference_operator::fill_matrix(Mat mat, Yee_shift shift)
     fill_stencil(shift, x, y, z, row, col);
 
     // Periodic boundaries are handled by PETSc internally
-    // We use `ADD_VALUES` to cancel out values in case of Nx = 1 (or Ny, Nz)
     for (PetscInt c = 0; c < 3; ++c) {
       PetscCall(mat_set_values_stencil(mat, 1, &row[c], chunk_size, (col.data() + chunk_size * c), (values_.data() + chunk_size * c), ADD_VALUES));
     }

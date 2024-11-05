@@ -37,9 +37,9 @@ PetscErrorCode fill_shape(const Vector3I& p_g, const Vector3R& p_r,
     }
 
     PetscInt i = Shape::index(x, y, z);
-    shape(i, X) = shape_function(p_r[X] - g_x, X);
-    shape(i, Y) = shape_function(p_r[Y] - g_y, Y);
-    shape(i, Z) = shape_function(p_r[Z] - g_z, Z);
+    shape(i, X) = shape_function(p_r[X] - g_x);
+    shape(i, Y) = shape_function(p_r[Y] - g_y);
+    shape(i, Z) = shape_function(p_r[Z] - g_z);
   }}}
   // clang-format on
   PetscFunctionReturn(PETSC_SUCCESS);

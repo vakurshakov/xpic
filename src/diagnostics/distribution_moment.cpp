@@ -158,9 +158,9 @@ PetscErrorCode Distribution_moment::collect()
 
 #pragma omp atomic update
       arr[g_z][g_y][g_x] += moment_.get(particles_, point) * n *
-        shape_function(node.r[X] - g_x, X) *
-        shape_function(node.r[Y] - g_y, Y) *
-        shape_function(node.r[Z] - g_z, Z);
+        shape_function(node.r[X] - g_x) *
+        shape_function(node.r[Y] - g_y) *
+        shape_function(node.r[Z] - g_z);
     }}}
     // clang-format on
   }

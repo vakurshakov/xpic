@@ -101,13 +101,6 @@ void Particles::push(
 
   energy = sqrt(m * m + p.dot(p));
   r += p * dt / energy;
-
-  if (geom_nx == 1)
-    r.x() = 0.5;
-  if (geom_ny == 1)
-    r.y() = 0.5;
-  if (geom_nz == 1)
-    r.z() = 0.5;
 }
 
 

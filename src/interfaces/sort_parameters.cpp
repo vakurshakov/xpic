@@ -1,10 +1,7 @@
 #include "sort_parameters.h"
 
-PetscReal __0th_order_spline(PetscReal s, Axis a)
+PetscReal __0th_order_spline(PetscReal s)
 {
-  if (Geom_n[a] == 1)
-    return 1.0;
-
   s = abs(s);
 
   if (s <= 0.5)
@@ -13,11 +10,8 @@ PetscReal __0th_order_spline(PetscReal s, Axis a)
     return 0.0;
 }
 
-PetscReal __1st_order_spline(PetscReal s, Axis a)
+PetscReal __1st_order_spline(PetscReal s)
 {
-  if (Geom_n[a] == 1)
-    return 1.0;
-
   s = abs(s);
 
   if (s <= 1.0)
@@ -26,11 +20,8 @@ PetscReal __1st_order_spline(PetscReal s, Axis a)
     return 0.0;
 }
 
-PetscReal __2nd_order_spline(PetscReal s, Axis a)
+PetscReal __2nd_order_spline(PetscReal s)
 {
-  if (Geom_n[a] == 1)
-    return 1.0;
-
   s = abs(s);
 
   if (s <= 0.5)
@@ -41,11 +32,8 @@ PetscReal __2nd_order_spline(PetscReal s, Axis a)
     return 0.0;
 }
 
-PetscReal __3rd_order_spline(PetscReal s, Axis a)
+PetscReal __3rd_order_spline(PetscReal s)
 {
-  if (Geom_n[a] == 1)
-    return 1.0;
-
   s = abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
@@ -58,11 +46,8 @@ PetscReal __3rd_order_spline(PetscReal s, Axis a)
     return 0.0;
 }
 
-PetscReal __4th_order_spline(PetscReal s, Axis a)
+PetscReal __4th_order_spline(PetscReal s)
 {
-  if (Geom_n[a] == 1)
-    return 1.0;
-
   s = abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
@@ -78,11 +63,8 @@ PetscReal __4th_order_spline(PetscReal s, Axis a)
     return 0.0;
 }
 
-PetscReal __5th_order_spline(PetscReal s, Axis a)
+PetscReal __5th_order_spline(PetscReal s)
 {
-  if (Geom_n[a] == 1)
-    return 1.0;
-
   s = abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
