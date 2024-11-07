@@ -292,7 +292,7 @@ void Divergence::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
     case Yee_shift::Positive: {
       auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
-      row[0] = {zc, yc, xc, 0};
+      row[0] = {zc, yc, xc};
       col[0 + 0] = {zc, yc, xp, X};
       col[0 + 1] = {zc, yc, xc, X};
 
@@ -309,7 +309,7 @@ void Divergence::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
     case Yee_shift::Negative: {
       auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
 
-      row[0] = {zc, yc, xc, 0};
+      row[0] = {zc, yc, xc};
       col[0 + 0] = {zc, yc, xc, X};
       col[0 + 1] = {zc, yc, xm, X};
 
@@ -350,16 +350,16 @@ void Gradient::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
       auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
       row[0] = {zc, yc, xc, X};
-      col[0 + 0] = {zc, yc, xp, 0};
-      col[0 + 1] = {zc, yc, xc, 0};
+      col[0 + 0] = {zc, yc, xp};
+      col[0 + 1] = {zc, yc, xc};
 
       row[1] = {zc, yc, xc, Y};
-      col[2 + 0] = {zc, yp, xc, 0};
-      col[2 + 1] = {zc, yc, xc, 0};
+      col[2 + 0] = {zc, yp, xc};
+      col[2 + 1] = {zc, yc, xc};
 
       row[2] = {zc, yc, xc, Z};
-      col[4 + 0] = {zp, yc, xc, 0};
-      col[4 + 1] = {zc, yc, xc, 0};
+      col[4 + 0] = {zp, yc, xc};
+      col[4 + 1] = {zc, yc, xc};
       return;
     }
 
@@ -367,16 +367,16 @@ void Gradient::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
       auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
 
       row[0] = {zc, yc, xc, X};
-      col[0 + 0] = {zc, yc, xc, 0};
-      col[0 + 1] = {zc, yc, xm, 0};
+      col[0 + 0] = {zc, yc, xc};
+      col[0 + 1] = {zc, yc, xm};
 
       row[1] = {zc, yc, xc, Y};
-      col[2 + 0] = {zc, yc, xc, 0};
-      col[2 + 1] = {zc, ym, xc, 0};
+      col[2 + 0] = {zc, yc, xc};
+      col[2 + 1] = {zc, ym, xc};
 
       row[2] = {zc, yc, xc, Z};
-      col[4 + 0] = {zc, yc, xc, 0};
-      col[4 + 1] = {zm, yc, xc, 0};
+      col[4 + 0] = {zc, yc, xc};
+      col[4 + 1] = {zm, yc, xc};
       return;
     }
   }
