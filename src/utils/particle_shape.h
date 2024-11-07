@@ -53,7 +53,7 @@ public:
 
 private:
   /// @note `Vector3I::dim` is used as a coordinate space dimensionality
-  PetscReal shape[shape_width * shape_width * shape_width * Vector3I::dim];
+  PetscReal shape[POW3(shape_width) * Vector3I::dim];
 };
 
 
