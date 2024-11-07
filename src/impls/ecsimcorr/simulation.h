@@ -20,6 +20,19 @@ public:
   Vec currJ;
   Vec currJe;
 
+  /**
+   * @details Filling up the (L)apenta's matrix will be the most time consuming
+   * part of the simulation process, so a proper path to do so should be chosen.
+   * In attempts to achieve it, we use the following steps:
+   *
+   * (1) We treat `matL` as PETSc `baij` matrix and use `MatSetValuesBlocked()`,
+   *     since the blocksize of 3 (dof) was already set in `DMCreateMatrix()`.
+   *
+   * (2) We _should_ store nonzeros structure of the matrix and use the sequence
+   *     when needed: `DMSetMatrixPreallocateSkip()`, `MatSetPreallocation()`.
+   */
+  Mat matL;
+
   std::vector<Particles> particles_;
 
 private:
@@ -29,7 +42,6 @@ private:
   // Vec charge_density_old;
   // Vec charge_density;
 
-  Mat matL;
   Mat matI;
   Mat rotE;
   Mat rotB;

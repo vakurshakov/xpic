@@ -52,6 +52,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
   PetscCall(VecSet(currI, 0.0));
   PetscCall(VecSet(currJ, 0.0));
   PetscCall(VecSet(currJe, 0.0));
+  PetscCall(MatZeroEntries(matL));
 
   for (auto& sort : particles_) {
     PetscCall(sort.reset());
