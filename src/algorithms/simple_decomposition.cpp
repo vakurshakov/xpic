@@ -6,8 +6,9 @@ Simple_decomposition::Simple_decomposition(
 {
 }
 
-void Simple_decomposition::process(const Vector3R& p_r, Context& J) const
+PetscErrorCode Simple_decomposition::process(const Vector3R& p_r, Context& J) const
 {
+  PetscFunctionBeginHot;
   Vector3I p_gc = Node::make_g(p_r);
   Vector3I p_go = Node::make_g(p_r + Vector3R{0.5});
 
@@ -20,7 +21,7 @@ void Simple_decomposition::process(const Vector3R& p_r, Context& J) const
   for (PetscInt x = 0; x < width[X]; ++x) {
     PetscInt i = Shape::index(x, y, z);
 
-    Vector3R J_shape = {
+    Vector3R J_shape{
       no(i, Z) * no(i, Y) * sh(i, X),
       no(i, Z) * sh(i, Y) * no(i, X),
       sh(i, Z) * no(i, Y) * no(i, X),
@@ -44,4 +45,5 @@ void Simple_decomposition::process(const Vector3R& p_r, Context& J) const
       J[go_z][gc_y][gc_x][Z] += J_p.z() * J_shape.z();
   }}}
   // clang-format on
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

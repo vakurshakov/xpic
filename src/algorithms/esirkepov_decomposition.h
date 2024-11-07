@@ -12,7 +12,7 @@ public:
   /// @brief Decomposition context is reference to outer global current.
   using Context = Vector3R***;
 
-  void process(const Vector3I& p_g, Context& j_field) const;
+  PetscErrorCode process(const Vector3I& p_g, Context& j_field) const;
 
 private:
   PetscReal get_Jx(PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) const;

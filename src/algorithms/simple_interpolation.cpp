@@ -18,13 +18,13 @@ PetscErrorCode Simple_interpolation::process(
   for (PetscInt x = 0; x < width[X]; ++x) {
     PetscInt i = Shape::index(x, y, z);
 
-    Vector3R E_shape = {
+    Vector3R E_shape{
       no(i, Z) * no(i, Y) * sh(i, X),
       no(i, Z) * sh(i, Y) * no(i, X),
       sh(i, Z) * no(i, Y) * no(i, X),
     };
 
-    Vector3R B_shape = {
+    Vector3R B_shape{
       sh(i, Z) * sh(i, Y) * no(i, X),
       sh(i, Z) * no(i, Y) * sh(i, X),
       no(i, Z) * sh(i, Y) * sh(i, X),

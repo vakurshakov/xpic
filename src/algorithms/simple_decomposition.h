@@ -18,7 +18,7 @@ public:
   using Context = Vector3R***;
 
   /// @note Here you should pass `p_r` since we would explicitly calculate offsets.
-  void process(const Vector3R& p_r, Context& j_field) const;
+  PetscErrorCode process(const Vector3R& p_r, Context& j_field) const;
 
 private:
   const Vector3I& width;
