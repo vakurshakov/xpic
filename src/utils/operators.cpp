@@ -98,8 +98,13 @@ PetscErrorCode Finite_difference_operator::fill_matrix(Mat mat, Yee_shift shift)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @details For reference, see `DMCreateMatrix()`, `DMCreateMatrix_DA()`
-/// `MatSetStencil()`, `MatSetValuesStencil()`
+/**
+ * @details For reference, see `DMCreateMatrix()`,
+ * `DMCreateMatrix_DA()` `MatSetStencil()`, `MatSetValuesStencil()`.
+ *
+ * @todo Try to simply set `MatSetBlockSizes()` as it was used
+ * internally by `DMCreateMatrix()` with blocksize of 3 (dof).
+ */
 PetscErrorCode Finite_difference_operator::mat_set_values_stencil(Mat mat,
   PetscInt m, const MatStencil idxm[], PetscInt n, const MatStencil idxn[],
   const PetscScalar v[], InsertMode addv) const
