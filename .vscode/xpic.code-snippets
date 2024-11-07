@@ -21,12 +21,17 @@
   },
   "PetscCall(func -> PetscErrorCode);": {
     "scope": "c,cpp",
-    "prefix": "pcall",
+    "prefix": "pcallf",
     "body": "PetscCall($1);",
   },
   "PetscCallVoid(func -> PetscErrorCode);": {
     "scope": "c,cpp",
-    "prefix": "pcallv",
+    "prefix": "pcallvf",
     "body": "PetscCallVoid($1);",
+  },
+  "PetscErrorCode": {
+    "scope": "c,cpp",
+    "prefix": "perrc",
+    "body": "PetscErrorCode",
   }
 }
