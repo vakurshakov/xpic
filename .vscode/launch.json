@@ -9,7 +9,26 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/xpic",
-            "args": [ "config.json" ],
+            "args": [
+                // Configuration file needed for the simulation
+                "config.json",
+
+                // PETSc options
+                "-version",
+                "-options_view",
+                "-options_left",
+                "-fp_trap",
+                "-info",  // [filename]
+                // "-log_view",  // [:filename]
+                // "-log_trace",  // [filename]
+                // "-start_in_debugger",
+                // "-debugger_ranks rank1,rank2,...",
+                //
+                // allocation control should be used with `PetscMallocSetDebug()`
+                // "-malloc_test",
+                // "-malloc_debug",
+                // "-malloc_dump",
+            ],
             "cwd": "${workspaceFolder}/",
             "environment": [],
             "externalConsole": false,
