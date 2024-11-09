@@ -44,7 +44,7 @@ void Shape::fill(const Vector3I& p_g, const Vector3R& p_r, bool shift,
       g_z += 0.5;
     }
 
-    PetscInt i = Shape::index(x, y, z);
+    PetscInt i = Shape::index(z, y, x);
     shape[i * 3 + X] = sfunc(p_r[X] - g_x);
     shape[i * 3 + Y] = sfunc(p_r[Y] - g_y);
     shape[i * 3 + Z] = sfunc(p_r[Z] - g_z);

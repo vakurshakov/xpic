@@ -15,9 +15,9 @@ protected:
 
   /// @note in natural ordering, debug purpose
   PetscInt index(
-    PetscInt x, PetscInt y, PetscInt z, PetscInt c, PetscInt dof = 3) const;
-  PetscInt m_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const;
-  PetscInt n_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const;
+    PetscInt z, PetscInt y, PetscInt x, PetscInt c, PetscInt dof = 3) const;
+  PetscInt m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
+  PetscInt n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
 
   DM da_;
   PetscInt start_[3], size_[3];

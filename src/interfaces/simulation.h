@@ -20,8 +20,8 @@ public:
 
 protected:
   /// @todo create common global function with sizes and reuse it
-  PetscInt index(PetscInt x, PetscInt y, PetscInt z);
-  PetscInt index(PetscInt x, PetscInt y, PetscInt z, PetscInt l);
+  PetscInt index(PetscInt z, PetscInt y, PetscInt x);
+  PetscInt index(PetscInt z, PetscInt y, PetscInt x, PetscInt c);
 
   virtual PetscErrorCode initialize_implementation() = 0;
   virtual PetscErrorCode log_information() const;

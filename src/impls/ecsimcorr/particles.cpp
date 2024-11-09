@@ -144,7 +144,7 @@ void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
   for (PetscInt z1 = 0; z1 < shape_width1; ++z1) {
   for (PetscInt y1 = 0; y1 < shape_width1; ++y1) {
   for (PetscInt x1 = 0; x1 < shape_width1; ++x1) {
-    i = Shape::index(x1, y1, z1);
+    i = Shape::index(z1, y1, x1);
     idxm[i] = MatStencil{ p_g[Z] + z1, p_g[Y] + y1, p_g[X] + x1 };
 
     Vector3R s1{
@@ -157,7 +157,7 @@ void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
     for (PetscInt z2 = 0; z2 < shape_width1; ++z2) {
     for (PetscInt y2 = 0; y2 < shape_width1; ++y2) {
     for (PetscInt x2 = 0; x2 < shape_width1; ++x2) {
-      j = Shape::index(x2, y2, z2);
+      j = Shape::index(z2, y2, x2);
       idxn[j] = MatStencil{ p_g[Z] + z2, p_g[Y] + y2, p_g[X] + x2 };
 
       Vector3R s2{

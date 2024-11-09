@@ -56,7 +56,7 @@ PetscErrorCode Particles::communicate()
     set_index(r, v_index, Y);
     set_index(r, v_index, Z);
 
-    PetscInt index = to_contiguous_index(v_index[X], v_index[Y], v_index[Z]);
+    PetscInt index = to_contiguous_index(v_index[Z], v_index[Y], v_index[X]);
 
     // Particle didn't cross local boundaries
     if (index == center_index)

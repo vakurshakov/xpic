@@ -66,14 +66,14 @@ PetscErrorCode Simulation::diagnose(timestep_t timestep) const
 }
 
 
-PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z)
+PetscInt Simulation::index(PetscInt z, PetscInt y, PetscInt x)
 {
   return (z * geom_ny + y) * geom_nx + x;
 }
 
-PetscInt Simulation::index(PetscInt x, PetscInt y, PetscInt z, PetscInt c)
+PetscInt Simulation::index(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 {
-  return index(x, y, z) * Vector3I::dim + c;
+  return index(z, y, x) * Vector3I::dim + c;
 }
 
 }  // namespace interfaces

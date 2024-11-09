@@ -41,8 +41,8 @@ public:
   void fill(const Vector3I& p_g, const Vector3R& p_r, bool shift,
     PetscReal (&sfunc)(PetscReal), PetscInt width);
 
-#pragma omp declare simd linear(x, y, z : 1), notinbranch
-  static constexpr PetscInt index(PetscInt x, PetscInt y, PetscInt z)
+#pragma omp declare simd linear(z, y, x : 1), notinbranch
+  static constexpr PetscInt index(PetscInt z, PetscInt y, PetscInt x)
   {
     return ((z * shape_width + y) * shape_width + x);
   }

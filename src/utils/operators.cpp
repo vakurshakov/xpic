@@ -13,19 +13,19 @@ Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
 }
 
 PetscInt Operator::index(
-  PetscInt x, PetscInt y, PetscInt z, PetscInt c, PetscInt dof) const
+  PetscInt z, PetscInt y, PetscInt x, PetscInt c, PetscInt dof) const
 {
   return ((z * geom_ny + y) * geom_nx + x) * dof + c;
 }
 
-PetscInt Operator::m_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const
+PetscInt Operator::m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
 {
-  return index(x, y, z, c, mdof_);
+  return index(z, y, x, c, mdof_);
 }
 
-PetscInt Operator::n_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const
+PetscInt Operator::n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
 {
-  return index(x, y, z, c, ndof_);
+  return index(z, y, x, c, ndof_);
 }
 
 
