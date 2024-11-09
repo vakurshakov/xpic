@@ -109,6 +109,8 @@ struct Vector4 {
     };
   }
 
+  template<typename U = T,
+    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector4<PetscReal> operator/(T scalar) const
   {
     return {
@@ -119,11 +121,15 @@ struct Vector4 {
     };
   }
 
+  template<typename U = T,
+    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector4<PetscReal> normalized() const
   {
     return operator/(length());
   }
 
+  template<typename U = T,
+    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   PetscReal length() const
   {
     return sqrt((PetscReal)square());
@@ -143,12 +149,16 @@ struct Vector4 {
     return dot(*this);
   }
 
-  Vector4 parallel_to(const Vector4& ref) const
+  template<typename U = T,
+    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
+  Vector4<PetscReal> parallel_to(const Vector4& ref) const
   {
-    return (*this).dot(ref) * ref;
+    return ((*this).dot(ref) * ref) / ref.squared();
   }
 
-  Vector4 transverse_to(const Vector4& ref) const
+  template<typename U = T,
+    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
+  Vector4<PetscReal> transverse_to(const Vector4& ref) const
   {
     return (*this) - parallel_to(ref);
   }
