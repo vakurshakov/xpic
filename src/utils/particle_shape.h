@@ -8,6 +8,14 @@
  * @brief Storage for particle's coordinate - `r` (global, in PetscReal units of
  * dx, dy, dz), and a nearest grid point to particle - `g` (rounded, shifted by
  * `shape_radius`).
+ *
+ * @details The optimization was found with the showcase desmos program,
+ * https://www.desmos.com/calculator/usnvzlh0ei?lang=ru. For each particle
+ * shape, we can lower the number of cells traversed under certain conditions.
+ * 1) If `PARTICLES_FORM_FACTOR % 2 == 0` and particle center is rounded down,
+ *    we can skip the _first_ iteration in this direction.
+ * 2) If `PARTICLES_FORM_FACTOR % 2 == 1` and particle center is rounded up,
+ *    we can skip the _last_ iteration in this direction.
  */
 struct Node {
   Node() = default;

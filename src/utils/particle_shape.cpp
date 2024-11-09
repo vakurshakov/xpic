@@ -18,9 +18,9 @@ Node::Node(const Vector3R& pr)
 /* static */ Vector3I Node::make_g(const Vector3R& nr)
 {
   return {
-    (PetscInt)std::ceil(nr.x()) - shape_radius,
-    (PetscInt)std::ceil(nr.y()) - shape_radius,
-    (PetscInt)std::ceil(nr.z()) - shape_radius,
+    ROUND(nr.x()) - shape_radius,
+    ROUND(nr.y()) - shape_radius,
+    ROUND(nr.z()) - shape_radius,
   };
 }
 
