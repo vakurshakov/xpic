@@ -20,17 +20,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "-fpic -fopenmp -pthread")
 
-set(CMAKE_CXX_FLAGS_DEBUG
-  "-O0                           \
-  -ggdb                          \
-  -Wall                          \
-  -Wextra                        \
-  -Wpedantic                     \
-  -Werror                        \
-  -Wno-unused-parameter          \
-  -Wno-unused-variable           \
-  -Wno-missing-field-initializers"  # forced by PETSc `MatStencils`
-)
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-missing-field-initializers")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ftree-vectorize")
 
 set(main
