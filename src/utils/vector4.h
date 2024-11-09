@@ -1,11 +1,13 @@
 #ifndef SRC_VECTORS_VECTOR4_H
 #define SRC_VECTORS_VECTOR4_H
 
+#include <type_traits>
+
 #include <petscsystypes.h>
 
 #include "src/utils/utils.h"
 
-template<typename T>
+template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 struct Vector4 {
   static const PetscInt dim = 4;
   T data[dim];

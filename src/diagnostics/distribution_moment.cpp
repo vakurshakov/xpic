@@ -68,17 +68,17 @@ PetscErrorCode Distribution_moment::set_da(const Region& region)
 
   PetscInt dim, s;
   DMDAStencilType st;
-  Vector3I size;
-  Vector3I proc;
-  Vector3<DMBoundaryType> bound;
+  PetscInt size[3];
+  PetscInt proc[3];
+  DMBoundaryType bound[3];
   PetscCall(DMDAGetInfo(da_, &dim, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
 
-  Vector3<const PetscInt*> ownership;
+  const PetscInt* ownership[3];
   PetscCall(DMDAGetOwnershipRanges(da_, REP3_A(&ownership)));
 
-  Vector3I l_proc;
-  Vector3<DMBoundaryType> l_bound = DM_BOUNDARY_GHOSTED;
-  Vector3<std::vector<PetscInt>> l_ownership;
+  PetscInt l_proc[3];
+  DMBoundaryType l_bound[3];
+  std::vector<PetscInt> l_ownership[3];
 
   // Collecting number of processes and ownership ranges using global DMDA
   for (PetscInt i = 0; i < dim; ++i) {
@@ -96,8 +96,7 @@ PetscErrorCode Distribution_moment::set_da(const Region& region)
     }
 
     // Mimic global boundaries, if we touch them
-    if (g_size[i] == size[i])
-      l_bound[i] = bound[i];
+    l_bound[i] = (g_size[i] == size[i]) ? bound[i] : DM_BOUNDARY_GHOSTED;
   }
 
   PetscCall(DMDACreate3d(comm_, REP3_A(l_bound), st, REP3_A(g_size), REP3_A(l_proc), 1, s, l_ownership[X].data(), l_ownership[Y].data(), l_ownership[Z].data(), &da_));
