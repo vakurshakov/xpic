@@ -31,7 +31,7 @@ private:
   void first_interpolate(const Vector3I& p_g, const Shape& no, const Shape& sh,
     Vector3R& point_B) const;
 
-  void decompose_identity_current(const Vector3R& p_r, const Shape& no,
+  void decompose_identity_current(const Vector3I& p_g, const Shape& no,
     const Shape& sh, const Point& point, const Vector3R& point_B);
 
   Simulation& simulation_;

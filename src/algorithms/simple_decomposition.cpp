@@ -6,14 +6,10 @@ Simple_decomposition::Simple_decomposition(
 {
 }
 
-PetscErrorCode Simple_decomposition::process(const Vector3R& p_r, Context& J) const
+PetscErrorCode Simple_decomposition::process(const Vector3I& p_g, Context& J) const
 {
   PetscFunctionBeginHot;
-  Vector3I p_gc = Node::make_g(p_r);
-  Vector3I p_go = Node::make_g(p_r + Vector3R{0.5});
-
-  PetscInt gc_x, gc_y, gc_z;
-  PetscInt go_x, go_y, go_z;
+  PetscInt g_x, g_y, g_z;
 
   // clang-format off: @todo create macro/range-based analogue for this loop
   for (PetscInt z = 0; z < width[Z]; ++z) {
@@ -27,22 +23,18 @@ PetscErrorCode Simple_decomposition::process(const Vector3R& p_r, Context& J) co
       sh(i, Z) * no(i, Y) * no(i, X),
     };
 
-    gc_x = p_gc[X] + x;
-    gc_y = p_gc[Y] + y;
-    gc_z = p_gc[Z] + z;
-
-    go_x = p_go[X] + x;
-    go_y = p_go[Y] + y;
-    go_z = p_go[Z] + z;
+    g_x = p_g[X] + x;
+    g_y = p_g[Y] + y;
+    g_z = p_g[Z] + z;
 
 #pragma omp atomic update
-      J[gc_z][gc_y][go_x][X] += J_p.x() * J_shape.x();
+      J[g_z][g_y][g_x][X] += J_p.x() * J_shape.x();
 
 #pragma omp atomic update
-      J[gc_z][go_y][gc_x][Y] += J_p.y() * J_shape.y();
+      J[g_z][g_y][g_x][Y] += J_p.y() * J_shape.y();
 
 #pragma omp atomic update
-      J[go_z][gc_y][gc_x][Z] += J_p.z() * J_shape.z();
+      J[g_z][g_y][g_x][Z] += J_p.z() * J_shape.z();
   }}}
   // clang-format on
   PetscFunctionReturn(PETSC_SUCCESS);

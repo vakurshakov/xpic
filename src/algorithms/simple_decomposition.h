@@ -17,8 +17,7 @@ public:
   /// @brief Decomposition context is reference to outer global current.
   using Context = Vector3R***;
 
-  /// @note Here you should pass `p_r` since we would explicitly calculate offsets.
-  PetscErrorCode process(const Vector3R& p_r, Context& j_field) const;
+  PetscErrorCode process(const Vector3I& p_g, Context& j_field) const;
 
 private:
   const Vector3I& width;
