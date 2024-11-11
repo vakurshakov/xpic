@@ -42,14 +42,17 @@ private:
   PetscErrorCode timestep_implementation(timestep_t timestep) override;
 
   PetscErrorCode clear_sources();
-  PetscErrorCode predict_E();
+  PetscErrorCode predict_fields();
+  PetscErrorCode correct_fields();
 
   // Vec charge_density_old;
   // Vec charge_density;
 
+  Mat matA;
+  Mat matM;
+
   Mat rotE;
   Mat rotB;
-  Mat rot2BE;
   Mat divE;
 
   KSP ksp;

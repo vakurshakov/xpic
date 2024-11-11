@@ -78,6 +78,18 @@ PetscErrorCode Particles::first_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode Particles::second_push()
+{
+  PetscFunctionBeginUser;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Particles::final_update()
+{
+  PetscFunctionBeginUser;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 void Particles::decompose_esirkepov_current(const Vector3I& p_g,
   const Shape& old_shape, const Shape& new_shape, const Point& point)

@@ -24,6 +24,7 @@ PetscErrorCode Simulation::initialize_implementation()
   // PetscCall(DMCreateGlobalVector(da, &charge_density));
 
   PetscCall(DMCreateMatrix(da, &matL));
+  PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
 
   Divergence divergence(da);
   PetscCall(divergence.create_positive(&divE));
@@ -32,11 +33,13 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(rotor.create_positive(&rotE));
   PetscCall(rotor.create_negative(&rotB));
 
-  PetscCall(MatProductCreate(rotB, rotE, nullptr, &rot2BE));
-  PetscCall(MatProductSetType(rot2BE, MATPRODUCT_AB));
-  PetscCall(MatProductSetFromOptions(rot2BE));
-  PetscCall(MatProductSymbolic(rot2BE));
-  PetscCall(MatProductNumeric(rot2BE));
+  PetscCall(MatProductCreate(rotB, rotE, nullptr, &matM));
+  PetscCall(MatProductSetType(matM, MATPRODUCT_AB));
+  PetscCall(MatProductSetFromOptions(matM));
+  PetscCall(MatProductSymbolic(matM));
+  PetscCall(MatProductNumeric(matM));         // matM = rotB(rotE())
+  PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
+  PetscCall(MatShift(matM, 2.0));             // matM = 2 * I + matM
 
   PetscCall(MatScale(rotE, -dt));
   PetscCall(MatScale(rotB, +dt));
@@ -56,12 +59,17 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
   for (auto& sort : particles_)
     PetscCall(sort.first_push());
 
-  // Storing curent before we it as a right hand side of the `ksp`
-  PetscCall(VecAXPY(currJ, 1.0, currI));
+  PetscCall(predict_fields());
 
-  PetscCall(predict_E());
+  for (auto& sort : particles_)
+    PetscCall(sort.second_push());
 
-  // PetscCall(sort.communicate());
+  PetscCall(correct_fields());
+
+  for (auto& sort : particles_) {
+    PetscCall(sort.final_update());
+    PetscCall(sort.communicate());
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -78,20 +86,48 @@ PetscErrorCode Simulation::clear_sources()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::predict_E()
+PetscErrorCode Simulation::predict_fields()
 {
   PetscFunctionBeginUser;
+  // Storing identity current `currI` before we use it
+  // as a storage for the right hand side of the `ksp`.
+  PetscCall(VecCopy(currI, currJ));
+
   Vec rhs = currI;
-  PetscCall(VecAYPX(rhs, -dt, E));  // rhs = E - (dt * currI)
-  PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rot(B)
+  PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * currI)
+  PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
 
-  Mat Amat = matL;
-  PetscCall(MatAYPX(Amat, 1.0, rot2BE, DIFFERENT_NONZERO_PATTERN));  // Amat = rot(rot()) + matL
-  PetscCall(MatScale(Amat, POW2(0.5 * dt)));  // Amat = dt^2 / 4 * Amat
-  PetscCall(MatShift(Amat, 2.0));  // Amat = 2 * I + Amat
+  // The same copying is made for `matL`
+  PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));
+  PetscCall(MatAYPX(matA, 0.5 * POW2(dt), matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt^2 / 2 * matL
 
-  PetscCall(KSPSetOperators(ksp, Amat, Amat));
+  PetscCall(KSPSetOperators(ksp, matA, matA));
   PetscCall(KSPSolve(ksp, rhs, En));
+
+  // Convergence analysis, `KSPSolve()` may have diverged
+  // KSPConvergedReason reason;
+  // PetscCall(KSPGetConvergedReason(ksp, &reason));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+PetscErrorCode Simulation::correct_fields()
+{
+  PetscFunctionBeginUser;
+  // Updating `currJ` to be used in the particles correction step
+  PetscCall(MatScale(matL, 0.5 * dt));
+  PetscCall(MatMultAdd(matL, En, currJ, currJ));  // currJ = currJ + matL * E'^{n+1/2}
+
+  /// @todo Do we use successive solve? Check if we need to separate ksp in this case
+  Vec rhs = currJ;
+  PetscCall(VecAXPBY(rhs, 2.0, -dt, E));
+  PetscCall(MatMultAdd(rotB, B, rhs, rhs));
+
+  PetscCall(KSPSetOperators(ksp, matM, matM));
+  PetscCall(KSPSolve(ksp, rhs, En));
+
+  PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
+  PetscCall(VecAXPBY(E, -1.0, 2.0, En));  // E^{n+1} = 2 * E'^{n+1/2} - E^{n}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -112,9 +148,10 @@ Simulation::~Simulation()
   // PetscCallVoid(VecDestroy(&charge_density));
 
   PetscCallVoid(MatDestroy(&matL));
+  PetscCallVoid(MatDestroy(&matA));
+  PetscCallVoid(MatDestroy(&matM));
   PetscCallVoid(MatDestroy(&rotE));
   PetscCallVoid(MatDestroy(&rotB));
-  PetscCallVoid(MatDestroy(&rot2BE));
   PetscCallVoid(MatDestroy(&divE));
 
   PetscCallVoid(KSPDestroy(&ksp));

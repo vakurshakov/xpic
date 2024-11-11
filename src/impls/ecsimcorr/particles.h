@@ -16,6 +16,8 @@ public:
 
   PetscErrorCode clear_sources();
   PetscErrorCode first_push();
+  PetscErrorCode second_push();
+  PetscErrorCode final_update();
 
 private:
   static constexpr int OMP_CHUNK_SIZE = 16;
@@ -41,7 +43,6 @@ private:
   Vec local_currJe;
   Vector3R*** E;
   Vector3R*** B;
-  Vector3R*** J;
   Vector3R*** currI;
   Vector3R*** currJe;
 };
