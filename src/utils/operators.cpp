@@ -165,9 +165,11 @@ std::tuple<REP3(PetscInt)> get_negative_offsets(PetscInt x, PetscInt y, PetscInt
 
 Rotor::Rotor(DM da)
   : Finite_difference_operator(da, 3, 3,
-      {+1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz,   //
+      {
+        +1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz,  //
         +1.0 / dz, -1.0 / dz, -1.0 / dx, +1.0 / dx,  //
-        +1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy})
+        +1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy,  //
+      })
 {
 }
 
@@ -279,9 +281,11 @@ PetscErrorCode Non_rectangular_operator::create_scalar_da()
 
 Divergence::Divergence(DM da)
   : Non_rectangular_operator(da, 1, 3,
-      {+1.0 / dx, -1.0 / dx,   //
+      {
+        +1.0 / dx, -1.0 / dx,  //
         +1.0 / dy, -1.0 / dy,  //
-        +1.0 / dz, -1.0 / dz})
+        +1.0 / dz, -1.0 / dz,  //
+      })
 {
 }
 
@@ -336,9 +340,11 @@ PetscErrorCode Divergence::set_sizes_and_ltog(Mat mat) const
 
 Gradient::Gradient(DM da)
   : Non_rectangular_operator(da, 3, 1,
-      {+1.0 / dx, -1.0 / dx,   //
+      {
+        +1.0 / dx, -1.0 / dx,  //
         +1.0 / dy, -1.0 / dy,  //
-        +1.0 / dz, -1.0 / dz})
+        +1.0 / dz, -1.0 / dz,  //
+      })
 {
 }
 

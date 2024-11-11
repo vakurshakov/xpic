@@ -110,8 +110,7 @@ void Particles::decompose(
   const PetscReal alpha =
     charge(point) * density(point) / particles_number(point) / (6.0 * dt);
 
-  Esirkepov_decomposition decomposition(
-    shape_width, alpha, old_shape, new_shape);
+  Esirkepov_decomposition decomposition(shape_width, alpha, old_shape, new_shape);
   decomposition.process(p_g, J);
 }
 

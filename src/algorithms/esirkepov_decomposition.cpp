@@ -6,7 +6,8 @@ Esirkepov_decomposition::Esirkepov_decomposition(const Vector3I& width,
 {
 }
 
-PetscErrorCode Esirkepov_decomposition::process(const Vector3I& p_g, Context& J) const
+PetscErrorCode Esirkepov_decomposition::process(
+  const Vector3I& p_g, Context& J) const
 {
   PetscFunctionBeginHot;
   static constexpr PetscInt j_width = POW2(shape_width);

@@ -1,9 +1,8 @@
 #ifndef SRC_COMMANDS_INJECT_PARTICLES_H
 #define SRC_COMMANDS_INJECT_PARTICLES_H
 
-#include "src/interfaces/command.h"
-
 #include "src/pch.h"
+#include "src/interfaces/command.h"
 #include "src/interfaces/particles.h"
 
 /**
@@ -11,16 +10,13 @@
  * into the computational domain each time step.
  */
 class Inject_particles : public interfaces::Command {
- public:
+public:
   using Coordinate_generator = std::function<Vector3R()>;
   using Velocity_generator = std::function<Vector3R(const Vector3R&)>;
 
-  Inject_particles(
-    interfaces::Particles& ionized,
-    interfaces::Particles& ejected,
-    timestep_t injection_start,
-    timestep_t injection_end,
-    PetscInt per_step_particles_num,
+  Inject_particles(interfaces::Particles& ionized,
+    interfaces::Particles& ejected, timestep_t injection_start,
+    timestep_t injection_end, PetscInt per_step_particles_num,
     const Coordinate_generator& set_point_of_birth,
     const Velocity_generator& load_momentum_i,
     const Velocity_generator& load_momentum_e);
@@ -34,7 +30,8 @@ class Inject_particles : public interfaces::Command {
    */
   PetscErrorCode execute(timestep_t t) override;
 
-  bool needs_to_be_removed(timestep_t t) const override {
+  bool needs_to_be_removed(timestep_t t) const override
+  {
     return t >= injection_end_;
   }
 

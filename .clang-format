@@ -37,8 +37,8 @@ AlignConsecutiveShortCaseStatements:
 AlignEscapedNewlines: Left
 AlignOperands: DontAlign
 AlignTrailingComments:
-  Kind: Always
-  OverEmptyLines: 1
+  Kind: Leave
+  OverEmptyLines: 0
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowBreakBeforeNoexceptSpecifier: Never
