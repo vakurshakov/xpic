@@ -1,6 +1,8 @@
 #ifndef SRC_ECSIMCORR_SIMULATION_H
 #define SRC_ECSIMCORR_SIMULATION_H
 
+#include <petscksp.h>
+
 #include "src/interfaces/simulation.h"
 #include "src/impls/ecsimcorr/particles.h"
 
@@ -39,14 +41,18 @@ private:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(timestep_t timestep) override;
 
+  PetscErrorCode clear_sources();
+  PetscErrorCode predict_E();
+
   // Vec charge_density_old;
   // Vec charge_density;
 
-  Mat matI;
   Mat rotE;
   Mat rotB;
-  Mat rot2EB;
+  Mat rot2BE;
   Mat divE;
+
+  KSP ksp;
 };
 
 }  // namespace ecsimcorr

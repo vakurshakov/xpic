@@ -14,7 +14,7 @@ public:
   Particles(Simulation& simulation, const Sort_parameters& parameters);
   ~Particles() override;
 
-  PetscErrorCode reset();
+  PetscErrorCode clear_sources();
   PetscErrorCode first_push();
 
 private:

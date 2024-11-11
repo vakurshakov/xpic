@@ -25,7 +25,7 @@ Particles::~Particles()
   PetscFunctionReturnVoid();
 }
 
-PetscErrorCode Particles::reset()
+PetscErrorCode Particles::clear_sources()
 {
   PetscFunctionBeginUser;
   PetscCall(VecSet(local_currI, 0.0));
@@ -43,8 +43,6 @@ PetscErrorCode Particles::first_push()
   PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
   PetscCall(DMDAVecGetArrayWrite(da, local_currI, &currI));
   PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
-
-  /// @todo should we use `MatGetLocalSubMatrix()` and set values into the proxy?
 
 #pragma omp for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -177,7 +175,6 @@ void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
       values[ind(i, j, Z, Z)] = s1[Z] * s2[Z] * betaL * (1.0 + alpha2 * h[Z] * h[Z]);
       values[ind(i, j, Z, X)] = s1[Z] * s2[X] * betaL * alpha * (+h[Y] + alpha * h[X] * h[Z]);
       values[ind(i, j, Z, Y)] = s1[Z] * s2[Y] * betaL * alpha * (-h[X] + alpha * h[Y] * h[Z]);
-
     }}}  // g'=g2
   }}}  // g=g1
   // clang-format on
