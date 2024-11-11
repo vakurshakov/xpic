@@ -114,7 +114,7 @@ PetscErrorCode Simulation::correct_fields()
   PetscCall(advance_fields(currJ, matM));
 
   PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
-  PetscCall(VecAXPBY(E, -1.0, 2.0, En));  // E^{n+1} = 2 * E'^{n+1/2} - E^{n}
+  PetscCall(VecAXPBY(E, -1.0, 2.0, En));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
