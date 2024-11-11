@@ -1,5 +1,5 @@
-#ifndef SRC_VECTORS_VECTOR4_H
-#define SRC_VECTORS_VECTOR4_H
+#ifndef SRC_UTILS_VECTOR4_H
+#define SRC_UTILS_VECTOR4_H
 
 #include <type_traits>
 
@@ -9,25 +9,25 @@
 
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 struct Vector4 {
-  static const PetscInt dim = 4;
+  static constexpr PetscInt dim = 4;
   T data[dim];
 
-  Vector4()
+  constexpr Vector4()
     : data{(T)0, (T)0, (T)0, (T)0}
   {
   }
 
-  Vector4(const T& v)
+  constexpr Vector4(const T& v)
     : data{v, v, v, v}
   {
   }
 
-  Vector4(const T& x, const T& y, const T& z, const T& c)
+  constexpr Vector4(const T& x, const T& y, const T& z, const T& c)
     : data{x, y, z, c}
   {
   }
 
-  Vector4(const T v[Vector4::dim])
+  constexpr Vector4(const T v[Vector4::dim])
     : data{v[X], v[Y], v[Z], v[C]}
   {
   }
@@ -222,4 +222,4 @@ Vector4<T> max(const Vector4<T>& lhs, const Vector4<T>& rhs)
   };
 }
 
-#endif  // SRC_VECTORS_VECTOR4_H
+#endif  // SRC_UTILS_VECTOR4_H

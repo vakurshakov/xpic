@@ -1,5 +1,5 @@
-#ifndef SRC_VECTORS_VECTOR3_H
-#define SRC_VECTORS_VECTOR3_H
+#ifndef SRC_UTILS_VECTOR3_H
+#define SRC_UTILS_VECTOR3_H
 
 #include <type_traits>
 
@@ -9,25 +9,25 @@
 
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 struct Vector3 {
-  static const PetscInt dim = 3;
+  static constexpr PetscInt dim = 3;
   T data[dim];
 
-  Vector3()
+  constexpr Vector3()
     : data{(T)0, (T)0, (T)0}
   {
   }
 
-  Vector3(const T& v)
+  constexpr Vector3(const T& v)
     : data{v, v, v}
   {
   }
 
-  Vector3(const T& x, const T& y, const T& z)
+  constexpr Vector3(const T& x, const T& y, const T& z)
     : data{x, y, z}
   {
   }
 
-  Vector3(const T v[Vector3::dim])
+  constexpr Vector3(const T v[Vector3::dim])
     : data{v[X], v[Y], v[Z]}
   {
   }
@@ -217,4 +217,4 @@ Vector3<T> max(const Vector3<T>& lhs, const Vector3<T>& rhs)
   };
 }
 
-#endif  // SRC_VECTORS_VECTOR3_H
+#endif  // SRC_UTILS_VECTOR3_H
