@@ -1,8 +1,8 @@
 #include "simple_decomposition.h"
 
 Simple_decomposition::Simple_decomposition(
-  const Vector3I& width, const Vector3R& p_j, const Shape& no, const Shape& sh)
-  : width(width), J_p(p_j), no(no), sh(sh)
+  const Vector3I& width, const Vector3R& J_p, const Shape& no, const Shape& sh)
+  : width(width), J_p(J_p), no(no), sh(sh)
 {
 }
 

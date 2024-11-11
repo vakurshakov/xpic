@@ -9,7 +9,7 @@ public:
   Esirkepov_decomposition(const Vector3I& width, PetscReal alpha,
     const Shape& old_shape, const Shape& new_shape);
 
-  /// @brief Decomposition context is reference to outer global current.
+  /// @brief Decomposition context is a reference to outer global current.
   using Context = Vector3R***;
 
   PetscErrorCode process(const Vector3I& p_g, Context& j_field) const;
