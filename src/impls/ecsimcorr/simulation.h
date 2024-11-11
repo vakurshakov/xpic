@@ -44,6 +44,7 @@ private:
   PetscErrorCode clear_sources();
   PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
+  PetscErrorCode advance_fields(Vec rhs, Mat Amat);
 
   // Vec charge_density_old;
   // Vec charge_density;

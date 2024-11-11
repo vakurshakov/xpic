@@ -37,9 +37,9 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(MatProductSetType(matM, MATPRODUCT_AB));
   PetscCall(MatProductSetFromOptions(matM));
   PetscCall(MatProductSymbolic(matM));
-  PetscCall(MatProductNumeric(matM));         // matM = rotB(rotE())
+  PetscCall(MatProductNumeric(matM));  // matM = rotB(rotE())
   PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
-  PetscCall(MatShift(matM, 2.0));             // matM = 2 * I + matM
+  PetscCall(MatShift(matM, 2.0));  // matM = 2 * I + matM
 
   PetscCall(MatScale(rotE, -dt));
   PetscCall(MatScale(rotB, +dt));
@@ -93,20 +93,12 @@ PetscErrorCode Simulation::predict_fields()
   // as a storage for the right hand side of the `ksp`.
   PetscCall(VecCopy(currI, currJ));
 
-  Vec rhs = currI;
-  PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * currI)
-  PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
-
   // The same copying is made for `matL`
-  PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));
-  PetscCall(MatAYPX(matA, 0.5 * POW2(dt), matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt^2 / 2 * matL
+  PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));  // matA = matL
+  PetscCall(MatAYPX(matA, 0.5 * POW2(dt), matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt^2 / 2 * matA
 
-  PetscCall(KSPSetOperators(ksp, matA, matA));
-  PetscCall(KSPSolve(ksp, rhs, En));
-
-  // Convergence analysis, `KSPSolve()` may have diverged
-  // KSPConvergedReason reason;
-  // PetscCall(KSPGetConvergedReason(ksp, &reason));
+  // Solving the Maxwell's equations to find prediction of E'^{n+1/2}
+  PetscCall(advance_fields(currI, matA));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -114,21 +106,29 @@ PetscErrorCode Simulation::predict_fields()
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
-  // Updating `currJ` to be used in the particles correction step
-  PetscCall(MatScale(matL, 0.5 * dt));
+  // Updating `currJ` which will be used in the particles correction step
+  PetscCall(MatScale(matL, 0.5 * dt));  // matL = dt / 2 * matL
   PetscCall(MatMultAdd(matL, En, currJ, currJ));  // currJ = currJ + matL * E'^{n+1/2}
 
-  /// @todo Do we use successive solve? Check if we need to separate ksp in this case
-  Vec rhs = currJ;
-  PetscCall(VecAXPBY(rhs, 2.0, -dt, E));
-  PetscCall(MatMultAdd(rotB, B, rhs, rhs));
-
-  PetscCall(KSPSetOperators(ksp, matM, matM));
-  PetscCall(KSPSolve(ksp, rhs, En));
+  /// @todo Do we use successive solve here? Check if we need to separate ksp in this case.
+  PetscCall(advance_fields(currJ, matM));
 
   PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
   PetscCall(VecAXPBY(E, -1.0, 2.0, En));  // E^{n+1} = 2 * E'^{n+1/2} - E^{n}
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::advance_fields(Vec rhs, Mat Amat)
+{
+  PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * rhs)
+  PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
+
+  PetscCall(KSPSetOperators(ksp, Amat, Amat));
+  PetscCall(KSPSolve(ksp, rhs, En));
+
+  /// @todo Convergence analysis, `KSPSolve()` may have diverged
+  // KSPConvergedReason reason;
+  // PetscCall(KSPGetConvergedReason(ksp, &reason));
 }
 
 
