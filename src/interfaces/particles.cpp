@@ -25,9 +25,7 @@ PetscErrorCode Particles::add_particle(const Point& point)
 PetscErrorCode Particles::communicate()
 {
   PetscFunctionBeginUser;
-  constexpr PetscInt dim = 3;
-  constexpr PetscInt neighbors_num = 27;
-
+  constexpr PetscInt neighbors_num = POW3(3);
   std::vector<Point> outgoing[neighbors_num];
   std::vector<Point> incoming[neighbors_num];
 
