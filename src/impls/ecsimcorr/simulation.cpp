@@ -92,7 +92,7 @@ PetscErrorCode Simulation::predict_fields()
   PetscFunctionBeginUser;
   // Storing identity current `currI` before we use it
   // as a storage for the right hand side of the `ksp`
-  PetscCall(VecCopy(currI, currJ));
+  PetscCall(VecCopy(currI, currJ));  // currJ = currI
 
   // The same copying is made for `matL`
   PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));  // matA = matL
@@ -111,12 +111,13 @@ PetscErrorCode Simulation::correct_fields()
   PetscCall(MatMultAdd(matL, En, currJ, currJ));  // currJ = currJ + matL * E'^{n+1/2}
 
   PetscCall(VecDot(currJ, En, &w1));  // w1 = (currJ, E'^{n+1/2})
+  PetscCall(VecCopy(currJe, currJ));  // currJ = currJe
 
   // Solving Maxwell's equation to find correct
   // E^{n+1/2}, satisfying continuity equation
   PetscCall(advance_fields(currJe, matM));
 
-  PetscCall(VecDot(currJe, En, &w2));  // w2 = (currJe, E^{n+1/2})
+  PetscCall(VecDot(currJ, En, &w2));  // w2 = (currJ, E^{n+1/2})
 
   PetscCall(VecAXPBY(E, -1.0, 2.0, En));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
   PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
