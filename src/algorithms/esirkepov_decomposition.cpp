@@ -50,11 +50,11 @@ PetscReal Esirkepov_decomposition::get_Jx(
   PetscInt i = ((z * shape_width + y) * shape_width + x);
   PetscInt j = (z * shape_width + y);
 
-  PetscReal p_wx = -qx * (new_shape(i, X) - old_shape(i, X)) *
+  PetscReal wx_p = -qx * (new_shape(i, X) - old_shape(i, X)) *
     (new_shape(i, Y) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
       old_shape(i, Y) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
 
-  temp_jx[j] = ((x > 0) * temp_jx[j]) + p_wx;
+  temp_jx[j] = ((x > 0) * temp_jx[j]) + wx_p;
   PetscFunctionReturn(temp_jx[i]);
 }
 
@@ -66,11 +66,11 @@ PetscReal Esirkepov_decomposition::get_Jy(
   PetscInt i = ((z * shape_width + y) * shape_width + x);
   PetscInt j = (z * shape_width + x);
 
-  PetscReal p_wy = -qy * (new_shape(i, Y) - old_shape(i, Y)) *
+  PetscReal wy_p = -qy * (new_shape(i, Y) - old_shape(i, Y)) *
     (new_shape(i, X) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
       old_shape(i, X) * (2.0 * old_shape(i, Z) + new_shape(i, Z)));
 
-  temp_jy[j] = ((y > 0) * temp_jy[j]) + p_wy;
+  temp_jy[j] = ((y > 0) * temp_jy[j]) + wy_p;
   PetscFunctionReturn(temp_jy[j]);
 }
 
@@ -82,10 +82,10 @@ PetscReal Esirkepov_decomposition::get_Jz(
   PetscInt i = ((z * shape_width + y) * shape_width + x);
   PetscInt j = (y * shape_width + x);
 
-  PetscReal p_wz = -qz * (new_shape(i, Z) - old_shape(i, Z)) *
+  PetscReal wz_p = -qz * (new_shape(i, Z) - old_shape(i, Z)) *
     (new_shape(i, Y) * (2.0 * new_shape(i, X) + old_shape(i, X)) +
       old_shape(i, Y) * (2.0 * old_shape(i, X) + new_shape(i, X)));
 
-  temp_jz[j] = ((z > 0) * temp_jz[j]) + p_wz;
+  temp_jz[j] = ((z > 0) * temp_jz[j]) + wz_p;
   PetscFunctionReturn(temp_jz[j]);
 }
