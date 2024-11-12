@@ -40,6 +40,7 @@ set(algorithms
   src/algorithms/simple_interpolation.cpp
   src/algorithms/simple_decomposition.cpp
   src/algorithms/esirkepov_decomposition.cpp
+  src/algorithms/boris_push.cpp
 )
 
 set(diagnostics

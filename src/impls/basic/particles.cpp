@@ -1,5 +1,6 @@
 #include "particles.h"
 
+#include "src/algorithms/boris_push.h"
 #include "src/algorithms/esirkepov_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
 #include "src/impls/basic/simulation.h"
@@ -41,26 +42,26 @@ PetscErrorCode Particles::push()
   PetscCall(DMDAVecGetArrayWrite(da, local_J, &J));
 
 #pragma omp for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto it = points_.begin(); it != points_.end(); ++it) {
-    Vector3R point_E;
-    Vector3R point_B;
+  for (auto& point : points_) {
+    Vector3R E_p;
+    Vector3R B_p;
 
-    const Node node(it->r);
+    const Node node(point.r);
 
     static Shape shape[2];
 #pragma omp threadprivate(shape)
 
     shape[0].fill(node.g, node.r, false);
     shape[1].fill(node.g, node.r, true);
-    interpolate(node.g, shape[0], shape[1], point_E, point_B);
+    interpolate(node.g, shape[0], shape[1], E_p, B_p);
 
-    push(point_E, point_B, *it);
+    push(E_p, B_p, point);
 
-    const Node new_node(it->r);
+    const Node new_node(point.r);
 
     shape[0].fill(new_node.g, node.r, false);
     shape[1].fill(new_node.g, new_node.r, false);
-    decompose(new_node.g, shape[0], shape[1], *it);
+    decompose(new_node.g, shape[0], shape[1], point);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
@@ -75,32 +76,18 @@ PetscErrorCode Particles::push()
 }
 
 
-void Particles::interpolate(const Vector3I& p_g, Shape& no, Shape& sh,
-  Vector3R& point_E, Vector3R& point_B) const
+void Particles::interpolate(
+  const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& E_p, Vector3R& B_p) const
 {
   Simple_interpolation interpolation(shape_width, no, sh);
-  interpolation.process(p_g, {{point_E, E}}, {{point_B, B}});
+  interpolation.process(p_g, {{E_p, E}}, {{B_p, B}});
 }
 
 
-void Particles::push(
-  const Vector3R& point_E, const Vector3R& point_B, Point& point) const
+void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const
 {
-  PetscReal alpha = 0.5 * dt * charge(point);
-  PetscReal m = mass(point);
-
-  Vector3R& r = point.r;
-  Vector3R& p = point.p;
-
-  const Vector3R w = p + point_E * alpha;
-  PetscReal energy = sqrt(m * m + w.dot(w));
-
-  const Vector3R h = point_B * alpha / energy;
-  const Vector3R s = h * 2.0 / (1.0 + h.dot(h));
-  p = point_E * alpha + w * (1.0 - h.dot(s)) + w.cross(s) + h * (s.dot(w));
-
-  energy = sqrt(m * m + p.dot(p));
-  r += p * dt / energy;
+  Boris_push push(dt, E_p, B_p);
+  push.process_rel(point, *this);
 }
 
 
@@ -108,7 +95,7 @@ void Particles::decompose(
   const Vector3I& p_g, Shape& old_shape, Shape& new_shape, const Point& point)
 {
   const PetscReal alpha =
-    charge(point) * density(point) / particles_number(point) / (6.0 * dt);
+    charge(point) * density(point) / (particles_number(point) * (6.0 * dt));
 
   Esirkepov_decomposition decomposition(shape_width, alpha, old_shape, new_shape);
   decomposition.process(p_g, J);

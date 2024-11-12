@@ -74,6 +74,15 @@ struct Vector3 {
     return *this;
   }
 
+  template<typename U = T,
+    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
+  Vector3& operator/=(T scalar)
+  {
+    data[X] /= scalar;
+    data[Y] /= scalar;
+    data[Z] /= scalar;
+    return *this;
+  }
 
   Vector3 operator+(const Vector3& other) const
   {
