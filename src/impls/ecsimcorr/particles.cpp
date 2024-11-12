@@ -111,21 +111,20 @@ void Particles::first_interpolate(const Vector3I& p_g, const Shape& no,
 
 /// @note Also decomposes `Simulation::matL`
 void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
-  const Shape& sh, const Point& point, const Vector3R& point_B)
+  const Shape& sh, const Point& point, const Vector3R& B_p)
 {
   PetscFunctionBeginHot;
   const Vector3R& v = point.p;
 
-  PetscReal alpha = 0.5 * dt * charge(point) / mass(point) * point_B.length();
-  PetscReal alpha2 = POW2(alpha);
+  Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
+  PetscReal alpha2 = b.squared();
 
-  PetscReal betaI = charge(point) / (particles_number(point) * (1.0 + alpha));
+  PetscReal betaI = charge(point) / (particles_number(point) * (1.0 + alpha2));
   PetscReal betaL = charge(point) / mass(point) * betaI;
 
-  Vector3R h = point_B.normalized();
-  Vector3R J_p = betaI * (v + alpha * v.cross(h) + alpha2 * v.dot(h) * h);
+  Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
 
-  Simple_decomposition decomposition(shape_width1, J_p, no, sh);
+  Simple_decomposition decomposition(shape_width1, I_p, no, sh);
   PetscCallVoid(decomposition.process(p_g, currI));
 
 
@@ -176,17 +175,17 @@ void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
         sh(j, Z) * no(j, Y) * no(j, X),
       };
 
-      values[ind(i, j, X, X)] = s1[X] * s2[X] * betaL * (1.0 + alpha2 * h[X] * h[X]);
-      values[ind(i, j, X, Y)] = s1[X] * s2[Y] * betaL * alpha * (+h[Z] + alpha * h[X] * h[Y]);
-      values[ind(i, j, X, Z)] = s1[X] * s2[Z] * betaL * alpha * (-h[Y] + alpha * h[X] * h[Z]);
+      values[ind(i, j, X, X)] = s1[X] * s2[X] * betaL * (1.0   + b[X] * b[X]);
+      values[ind(i, j, X, Y)] = s1[X] * s2[Y] * betaL * (+b[Z] + b[X] * b[Y]);
+      values[ind(i, j, X, Z)] = s1[X] * s2[Z] * betaL * (-b[Y] + b[X] * b[Z]);
 
-      values[ind(i, j, Y, Y)] = s1[Y] * s2[Y] * betaL * (1.0 + alpha2 * h[Y] * h[Y]);
-      values[ind(i, j, Y, X)] = s1[Y] * s2[X] * betaL * alpha * (-h[Z] + alpha * h[Y] * h[X]);
-      values[ind(i, j, Y, Z)] = s1[Y] * s2[Z] * betaL * alpha * (+h[X] + alpha * h[Y] * h[Z]);
+      values[ind(i, j, Y, Y)] = s1[Y] * s2[Y] * betaL * (1.0   + b[Y] * b[Y]);
+      values[ind(i, j, Y, X)] = s1[Y] * s2[X] * betaL * (-b[Z] + b[Y] * b[X]);
+      values[ind(i, j, Y, Z)] = s1[Y] * s2[Z] * betaL * (+b[X] + b[Y] * b[Z]);
 
-      values[ind(i, j, Z, Z)] = s1[Z] * s2[Z] * betaL * (1.0 + alpha2 * h[Z] * h[Z]);
-      values[ind(i, j, Z, X)] = s1[Z] * s2[X] * betaL * alpha * (+h[Y] + alpha * h[X] * h[Z]);
-      values[ind(i, j, Z, Y)] = s1[Z] * s2[Y] * betaL * alpha * (-h[X] + alpha * h[Y] * h[Z]);
+      values[ind(i, j, Z, Z)] = s1[Z] * s2[Z] * betaL * (1.0   + b[Z] * b[Z]);
+      values[ind(i, j, Z, X)] = s1[Z] * s2[X] * betaL * (+b[Y] + b[X] * b[Z]);
+      values[ind(i, j, Z, Y)] = s1[Z] * s2[Y] * betaL * (-b[X] + b[Y] * b[Z]);
     }}}  // g'=g2
   }}}  // g=g1
   // clang-format on
