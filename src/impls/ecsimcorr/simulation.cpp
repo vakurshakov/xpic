@@ -120,6 +120,7 @@ PetscErrorCode Simulation::correct_fields()
 
 PetscErrorCode Simulation::advance_fields(Vec rhs, Mat Amat)
 {
+  PetscFunctionBeginUser;
   PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * rhs)
   PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
 
@@ -129,6 +130,7 @@ PetscErrorCode Simulation::advance_fields(Vec rhs, Mat Amat)
   /// @todo Convergence analysis, `KSPSolve()` may have diverged
   // KSPConvergedReason reason;
   // PetscCall(KSPGetConvergedReason(ksp, &reason));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
