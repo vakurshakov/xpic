@@ -114,7 +114,7 @@ PetscErrorCode Simulation::correct_fields()
 
   // Solving Maxwell's equation to find correct
   // E^{n+1/2}, satisfying continuity equation
-  PetscCall(advance_fields(currJ, matM));
+  PetscCall(advance_fields(currJe, matM));
 
   PetscCall(VecDot(currJe, En, &w2));  // w2 = (currJe, E^{n+1/2})
 
