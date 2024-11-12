@@ -12,7 +12,6 @@ PetscErrorCode Simulation::initialize_implementation()
   DM da = world_.da;
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &En));
-  PetscCall(DMCreateGlobalVector(da, &Ep));
   PetscCall(DMCreateGlobalVector(da, &B));
   PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &currI));
@@ -90,7 +89,7 @@ PetscErrorCode Simulation::predict_fields()
 {
   PetscFunctionBeginUser;
   // Storing identity current `currI` before we use it
-  // as a storage for the right hand side of the `ksp`.
+  // as a storage for the right hand side of the `ksp`
   PetscCall(VecCopy(currI, currJ));
 
   // The same copying is made for `matL`
@@ -102,7 +101,7 @@ PetscErrorCode Simulation::predict_fields()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
+/// @todo Do we use successive solve here? Check if we need to separate ksp in this case
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
@@ -110,7 +109,8 @@ PetscErrorCode Simulation::correct_fields()
   PetscCall(MatScale(matL, 0.5 * dt));  // matL = dt / 2 * matL
   PetscCall(MatMultAdd(matL, En, currJ, currJ));  // currJ = currJ + matL * E'^{n+1/2}
 
-  /// @todo Do we use successive solve here? Check if we need to separate ksp in this case.
+  // Solving Maxwell's equation to find correct
+  // E^{n+1/2}, satisfying continuity equation
   PetscCall(advance_fields(currJ, matM));
 
   PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
@@ -137,7 +137,6 @@ Simulation::~Simulation()
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&E));
   PetscCallVoid(VecDestroy(&En));
-  PetscCallVoid(VecDestroy(&Ep));
   PetscCallVoid(VecDestroy(&B));
   PetscCallVoid(VecDestroy(&B0));
   PetscCallVoid(VecDestroy(&currI));

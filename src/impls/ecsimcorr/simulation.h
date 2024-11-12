@@ -15,7 +15,6 @@ public:
 
   Vec E;
   Vec En;
-  Vec Ep;
   Vec B;
   Vec B0;
   Vec currI;
