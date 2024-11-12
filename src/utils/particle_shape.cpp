@@ -2,6 +2,11 @@
 
 Node::Node(const Vector3R& pr)
 {
+  update(pr);
+}
+
+void Node::update(const Vector3R& pr)
+{
   r = Node::make_r(pr);
   g = Node::make_g(r);
 }

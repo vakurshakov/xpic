@@ -46,7 +46,8 @@ PetscErrorCode Particles::push()
     Vector3R E_p;
     Vector3R B_p;
 
-    const Node node(point.r);
+    Vector3R old_nr = Node::make_r(point.r);
+    Node node(point.r);
 
     static Shape shape[2];
 #pragma omp threadprivate(shape)
@@ -56,12 +57,11 @@ PetscErrorCode Particles::push()
     interpolate(node.g, shape[0], shape[1], E_p, B_p);
 
     push(E_p, B_p, point);
+    node.update(point.r);
 
-    const Node new_node(point.r);
-
-    shape[0].fill(new_node.g, node.r, false);
-    shape[1].fill(new_node.g, new_node.r, false);
-    decompose(new_node.g, shape[0], shape[1], point);
+    shape[0].fill(node.g, old_nr, false);
+    shape[1].fill(node.g, node.r, false);
+    decompose(node.g, shape[0], shape[1], point);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));

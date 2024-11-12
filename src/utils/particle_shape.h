@@ -21,6 +21,8 @@ struct Node {
   Node() = default;
   Node(const Vector3R& pr);
 
+  void update(const Vector3R& pr);
+
   static Vector3R make_r(const Vector3R& pr);
   static Vector3I make_g(const Vector3R& nr);
 

@@ -30,11 +30,8 @@ private:
   void decompose_esirkepov_current(const Vector3I& p_g, const Shape& old_shape,
     const Shape& new_shape, const Point& point);
 
-  void first_interpolate(const Vector3I& p_g, const Shape& no, const Shape& sh,
-    Vector3R& point_B) const;
-
   void decompose_identity_current(const Vector3I& p_g, const Shape& no,
-    const Shape& sh, const Point& point, const Vector3R& point_B);
+    const Shape& sh, const Point& point, const Vector3R& B_p);
 
   Simulation& simulation_;
   Vec local_E;

@@ -1,5 +1,6 @@
 #include "particles.h"
 
+#include "src/algorithms/boris_push.h"
 #include "src/algorithms/esirkepov_decomposition.h"
 #include "src/algorithms/simple_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
@@ -33,12 +34,13 @@ PetscErrorCode Particles::clear_sources()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
 PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
   DM da = simulation_.world_.da;
   PetscCall(DMGetLocalVector(da, &local_B));
-  PetscCall(DMGlobalToLocalBegin(da, simulation_.B, INSERT_VALUES, local_B));
+  PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
   PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
   PetscCall(DMDAVecGetArrayWrite(da, local_currI, &currI));
@@ -48,7 +50,7 @@ PetscErrorCode Particles::first_push()
   for (auto& point : points_) {
     /// @todo We _must_ save particle initial point.p!
     Vector3R old_nr = Node::make_r(point.r);
-    point.r += point.p * dt;
+    point.r += point.p * (0.5 * dt);
 
     Shape shape[2];
     const Node node(point.r);
@@ -57,11 +59,14 @@ PetscErrorCode Particles::first_push()
     shape[1].fill(node.g, node.r, false, shape_func2, shape_width2);
     decompose_esirkepov_current(node.g, shape[0], shape[1], point);
 
-    Vector3R point_B;
     shape[0].fill(node.g, node.r, false, shape_func1, shape_width1);
     shape[1].fill(node.g, node.r, true, shape_func1, shape_width1);
-    first_interpolate(node.g, shape[0], shape[1], point_B);
-    decompose_identity_current(node.g, shape[0], shape[1], point, point_B);
+
+    Vector3R B_p;
+    Simple_interpolation interpolation(shape_width1, shape[0], shape[1]);
+    interpolation.process(node.g, {}, {{B_p, B}});
+
+    decompose_identity_current(node.g, shape[0], shape[1], point, B_p);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
@@ -78,11 +83,54 @@ PetscErrorCode Particles::first_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
+  DM da = simulation_.world_.da;
+  PetscCall(DMGetLocalVector(da, &local_E));
+  PetscCall(DMGetLocalVector(da, &local_B));
+  PetscCall(DMGlobalToLocal(da, simulation_.En, INSERT_VALUES, local_E));
+  PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
+
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
+
+#pragma omp for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+  for (auto& point : points_) {
+    Shape shape[2];
+
+    Vector3R old_nr = Node::make_r(point.r);
+    Node node(point.r);
+
+    shape[0].fill(node.g, node.r, false, shape_func1, shape_width1);
+    shape[1].fill(node.g, node.r, true, shape_func1, shape_width1);
+
+    Vector3R E_p, B_p;
+    Simple_interpolation interpolation(shape_width1, shape[0], shape[1]);
+    interpolation.process(node.g, {{E_p, E}}, {{B_p, B}});
+
+    Boris_push push((0.5 * dt), E_p, B_p);
+    push.process(point, *this);
+    node.update(point.r);
+
+    shape[0].fill(node.g, old_nr, false, shape_func2, shape_width2);
+    shape[1].fill(node.g, node.r, false, shape_func2, shape_width2);
+    decompose_esirkepov_current(node.g, shape[0], shape[1], point);
+  }
+
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
+
+  PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, simulation_.currJe));
+
+  PetscCall(DMRestoreLocalVector(da, &local_E));
+  PetscCall(DMRestoreLocalVector(da, &local_B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 PetscErrorCode Particles::final_update()
 {
@@ -95,19 +143,13 @@ void Particles::decompose_esirkepov_current(const Vector3I& p_g,
   const Shape& old_shape, const Shape& new_shape, const Point& point)
 {
   const PetscReal alpha =
-    charge(point) * density(point) / particles_number(point) / (6.0 * dt);
+    charge(point) * density(point) / (particles_number(point) * (3.0 * dt));
 
   Esirkepov_decomposition decomposition(
     shape_width2, alpha, old_shape, new_shape);
   PetscCallVoid(decomposition.process(p_g, currJe));
 }
 
-void Particles::first_interpolate(const Vector3I& p_g, const Shape& no,
-  const Shape& sh, Vector3R& point_B) const
-{
-  Simple_interpolation interpolation(shape_width1, no, sh);
-  PetscCallVoid(interpolation.process(p_g, {}, {{point_B, B}}));
-}
 
 /// @note Also decomposes `Simulation::matL`
 void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
