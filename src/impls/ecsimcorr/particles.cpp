@@ -46,9 +46,8 @@ PetscErrorCode Particles::first_push()
   PetscCall(DMDAVecGetArrayWrite(da, local_currI, &currI));
   PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
 
-#pragma omp for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    /// @todo We _must_ save particle initial point.p!
     Vector3R old_nr = Node::make_r(point.r);
     point.r += point.p * (0.5 * dt);
 
@@ -97,7 +96,7 @@ PetscErrorCode Particles::second_push()
   PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
   PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
 
-#pragma omp for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
     Shape shape[2];
 
@@ -135,6 +134,19 @@ PetscErrorCode Particles::second_push()
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
+  PetscReal w1 = simulation_.w1;
+  PetscReal w2 = simulation_.w2;
+  PetscReal wp = 0.0;
+
+#pragma omp parallel for reduction(+ : wp), \
+  schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+  for (auto& point : points_)
+    wp += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+
+#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+  for (auto& point : points_)
+    point.p *= 1.0 + dt * (w2 - w1) / wp;
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

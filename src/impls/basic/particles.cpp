@@ -41,7 +41,7 @@ PetscErrorCode Particles::push()
   PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
   PetscCall(DMDAVecGetArrayWrite(da, local_J, &J));
 
-#pragma omp for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
     Vector3R E_p;
     Vector3R B_p;

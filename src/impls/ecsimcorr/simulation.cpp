@@ -75,6 +75,8 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
+  w1 = 0.0;
+  w2 = 0.0;
   PetscCall(VecSet(currI, 0.0));
   PetscCall(VecSet(currJ, 0.0));
   PetscCall(VecSet(currJe, 0.0));
@@ -105,16 +107,19 @@ PetscErrorCode Simulation::predict_fields()
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
-  // Updating `currJ` which will be used in the particles correction step
   PetscCall(MatScale(matL, 0.5 * dt));  // matL = dt / 2 * matL
   PetscCall(MatMultAdd(matL, En, currJ, currJ));  // currJ = currJ + matL * E'^{n+1/2}
+
+  PetscCall(VecDot(currJ, En, &w1));  // w1 = (currJ, E'^{n+1/2})
 
   // Solving Maxwell's equation to find correct
   // E^{n+1/2}, satisfying continuity equation
   PetscCall(advance_fields(currJ, matM));
 
-  PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
+  PetscCall(VecDot(currJe, En, &w2));  // w2 = (currJe, E^{n+1/2})
+
   PetscCall(VecAXPBY(E, -1.0, 2.0, En));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
+  PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

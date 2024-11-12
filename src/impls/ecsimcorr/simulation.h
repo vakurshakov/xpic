@@ -34,6 +34,8 @@ public:
    */
   Mat matL;
 
+  PetscReal w1, w2;
+
   std::vector<Particles> particles_;
 
 private:
