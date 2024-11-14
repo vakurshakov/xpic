@@ -48,15 +48,12 @@ PetscErrorCode Particles::first_push()
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    Vector3R old_nr = Node::make_r(point.r);
+    const Vector3R old_nr = Node::make_r(point.r);
     point.r += point.p * (0.5 * dt);
 
+    /// @todo this can be combined into some structure too
     Shape shape[2];
     const Node node(point.r);
-
-    shape[0].fill(node.g, old_nr, false, shape_func2, shape_width2);
-    shape[1].fill(node.g, node.r, false, shape_func2, shape_width2);
-    decompose_esirkepov_current(node.g, shape[0], shape[1], point);
 
     shape[0].fill(node.g, node.r, false, shape_func1, shape_width1);
     shape[1].fill(node.g, node.r, true, shape_func1, shape_width1);
@@ -66,6 +63,10 @@ PetscErrorCode Particles::first_push()
     interpolation.process(node.g, {}, {{B_p, B}});
 
     decompose_identity_current(node.g, shape[0], shape[1], point, B_p);
+
+    shape[0].fill(node.g, old_nr, false, shape_func2, shape_width2);
+    shape[1].fill(node.g, node.r, false, shape_func2, shape_width2);
+    decompose_esirkepov_current(node.g, shape[0], shape[1], point);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
@@ -98,9 +99,9 @@ PetscErrorCode Particles::second_push()
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    Shape shape[2];
+    const Vector3R old_nr = Node::make_r(point.r);
 
-    Vector3R old_nr = Node::make_r(point.r);
+    Shape shape[2];
     Node node(point.r);
 
     shape[0].fill(node.g, node.r, false, shape_func1, shape_width1);

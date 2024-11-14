@@ -22,10 +22,12 @@ public:
 private:
   static constexpr int OMP_CHUNK_SIZE = 16;
 
+#if (PARTICLES_FORM_FACTOR == 2)
   static constexpr auto& shape_func1 = __1st_order_spline;
   static constexpr auto& shape_func2 = __2nd_order_spline;
-  static constexpr PetscInt shape_width1 = 2;
-  static constexpr PetscInt shape_width2 = 4;
+  static constexpr PetscInt shape_width1 = 3;
+  static constexpr PetscInt shape_width2 = 5;
+#endif
 
   void decompose_esirkepov_current(const Vector3I& p_g, const Shape& old_shape,
     const Shape& new_shape, const Point& point);
