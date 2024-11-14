@@ -10,6 +10,42 @@ enum Axis : PetscInt {
   C = 3,
 };
 
+/// @todo #pragma omp declare simd linear(z, y, x : 1), notinbranch
+/// @todo Additional motivation to make geom_n{x,y,z} constexpr is {s,v}_g.
+namespace indexing {
+
+/// @brief Standard notation inside PETSc, it's then reused to create aliases
+constexpr PetscInt petsc_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c,
+  PetscInt size_z, PetscInt size_y, PetscInt size_x, PetscInt size_c)
+{
+  return ((z * size_y + y) * size_x + x) * size_c + c;
+}
+
+/// @brief Grid indices for scalar fields in PETSc natural ordering
+inline PetscInt s_g(PetscInt z, PetscInt y, PetscInt x)
+{
+  return petsc_index(z, y, x, 0, geom_nz, geom_ny, geom_nz, 1);
+}
+
+/// @brief Grid indices for vector fields in PETSc natural ordering
+inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
+{
+  return petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nz, 3);
+}
+
+constexpr PetscInt s_p(PetscInt z, PetscInt y, PetscInt x, PetscInt width)
+{
+  return petsc_index(z, y, x, 0, width, width, width, 1);
+}
+
+constexpr PetscInt v_p(PetscInt s_p, PetscInt c)
+{
+  return s_p * 3 + c;
+}
+
+}  // namespace indexing
+
+
 #define REP2(A) A, A
 #define REP3(A) A, A, A
 #define REP4(A) A, A, A, A

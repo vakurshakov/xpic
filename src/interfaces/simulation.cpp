@@ -65,17 +65,6 @@ PetscErrorCode Simulation::diagnose(timestep_t timestep) const
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
-PetscInt Simulation::index(PetscInt z, PetscInt y, PetscInt x)
-{
-  return (z * geom_ny + y) * geom_nx + x;
-}
-
-PetscInt Simulation::index(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
-{
-  return index(z, y, x) * Vector3I::dim + c;
-}
-
 }  // namespace interfaces
 
 Simulation_up build_simulation()

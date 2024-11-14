@@ -13,9 +13,6 @@ protected:
   Operator(DM da, PetscInt mdof = 3, PetscInt ndof = 3);
   virtual ~Operator() = default;
 
-  /// @note in natural ordering, debug purpose
-  PetscInt index(
-    PetscInt z, PetscInt y, PetscInt x, PetscInt c, PetscInt dof = 3) const;
   PetscInt m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
   PetscInt n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
 

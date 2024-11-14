@@ -35,7 +35,7 @@ protected:
   PetscInt to_contiguous_index(PetscInt z, PetscInt y, PetscInt x)
   {
     constexpr PetscInt dim = 3;
-    return (z * dim + y) * dim + x;
+    return indexing::petsc_index(z, y, x, 0, dim, dim, dim, 1);
   }
 
   void from_contiguous_index(PetscInt index, PetscInt& z, PetscInt& y, PetscInt& x)

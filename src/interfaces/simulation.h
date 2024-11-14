@@ -19,10 +19,6 @@ public:
   PetscErrorCode calculate();
 
 protected:
-  /// @todo create common global function with sizes and reuse it
-  PetscInt index(PetscInt z, PetscInt y, PetscInt x);
-  PetscInt index(PetscInt z, PetscInt y, PetscInt x, PetscInt c);
-
   virtual PetscErrorCode initialize_implementation() = 0;
   virtual PetscErrorCode log_information() const;
 

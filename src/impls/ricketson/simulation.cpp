@@ -83,7 +83,7 @@ PetscErrorCode Simulation::calculate_B_norm_gradient()
   for (PetscInt z = start[Z]; z < start[Z] + size[Z]; ++z)
   for (PetscInt y = start[Y]; y < start[Y] + size[Y]; ++y)
   for (PetscInt x = start[X]; x < start[X] + size[X]; ++x)
-    B_norm[index(x, y, z)] = B[z][y][x].length();
+    B_norm[indexing::s_g(z, y, x)] = B[z][y][x].length();
   // clang-format on
 
   PetscCall(DMDAVecRestoreArrayRead(world_.da, B_, &B));

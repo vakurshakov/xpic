@@ -40,25 +40,20 @@ public:
     fill(p_g, p_r, shift, shape_function, shape_width);
   }
 
+  /// @note This function will work _only_ with `width` less than `shape_width`
   void fill(const Vector3I& p_g, const Vector3R& p_r, bool shift,
     PetscReal (&sfunc)(PetscReal), PetscInt width);
-
-#pragma omp declare simd linear(z, y, x : 1), notinbranch
-  static constexpr PetscInt index(PetscInt z, PetscInt y, PetscInt x)
-  {
-    return ((z * shape_width + y) * shape_width + x);
-  }
 
 #pragma omp declare simd linear(index : 1), notinbranch
   constexpr PetscReal& operator()(PetscInt index, PetscInt comp)
   {
-    return shape[index * Vector3I::dim + comp];
+    return shape[indexing::v_p(index, comp)];
   }
 
 #pragma omp declare simd linear(index : 1), notinbranch
   constexpr const PetscReal& operator()(PetscInt index, PetscInt comp) const
   {
-    return shape[index * Vector3I::dim + comp];
+    return shape[indexing::v_p(index, comp)];
   }
 
 private:

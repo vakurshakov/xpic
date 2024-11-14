@@ -12,20 +12,14 @@ Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
   PetscCallVoid(DMDAGetCorners(da_, REP3_A(&start_), REP3_A(&size_)));
 }
 
-PetscInt Operator::index(
-  PetscInt z, PetscInt y, PetscInt x, PetscInt c, PetscInt dof) const
-{
-  return ((z * geom_ny + y) * geom_nx + x) * dof + c;
-}
-
 PetscInt Operator::m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
 {
-  return index(z, y, x, c, mdof_);
+  return indexing::petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nx, mdof_);
 }
 
 PetscInt Operator::n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
 {
-  return index(z, y, x, c, ndof_);
+  return indexing::petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nx, ndof_);
 }
 
 

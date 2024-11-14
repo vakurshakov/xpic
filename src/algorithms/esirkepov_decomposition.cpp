@@ -1,5 +1,15 @@
 #include "esirkepov_decomposition.h"
 
+namespace indexing {
+
+PetscInt j_p(PetscInt x1, PetscInt x2, PetscInt width)
+{
+  return petsc_index(x1, x2, 0, 0, width, width, 1, 1);
+}
+
+}  // namespace indexing
+
+
 Esirkepov_decomposition::Esirkepov_decomposition(PetscInt width,
   PetscReal alpha, const Shape& old_shape, const Shape& new_shape)
   : width(width), alpha(alpha), old_shape(old_shape), new_shape(new_shape)
@@ -47,8 +57,8 @@ PetscReal Esirkepov_decomposition::get_Jx(
 {
   PetscFunctionBeginHot;
   PetscReal qx = alpha * dx;
-  PetscInt i = ((z * shape_width + y) * shape_width + x);
-  PetscInt j = (z * shape_width + y);
+  PetscInt i = indexing::s_p(z, y, x, width);
+  PetscInt j = indexing::j_p(z, y, width);
 
   PetscReal wx_p = -qx * (new_shape(i, X) - old_shape(i, X)) *
     (new_shape(i, Y) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
@@ -63,8 +73,8 @@ PetscReal Esirkepov_decomposition::get_Jy(
 {
   PetscFunctionBeginHot;
   PetscReal qy = alpha * dy;
-  PetscInt i = ((z * shape_width + y) * shape_width + x);
-  PetscInt j = (z * shape_width + x);
+  PetscInt i = indexing::s_p(z, y, x, width);
+  PetscInt j = indexing::j_p(z, x, width);
 
   PetscReal wy_p = -qy * (new_shape(i, Y) - old_shape(i, Y)) *
     (new_shape(i, X) * (2.0 * new_shape(i, Z) + old_shape(i, Z)) +
@@ -79,8 +89,8 @@ PetscReal Esirkepov_decomposition::get_Jz(
 {
   PetscFunctionBeginHot;
   PetscReal qz = alpha * dz;
-  PetscInt i = ((z * shape_width + y) * shape_width + x);
-  PetscInt j = (y * shape_width + x);
+  PetscInt i = indexing::s_p(z, y, x, width);
+  PetscInt j = indexing::j_p(y, x, width);
 
   PetscReal wz_p = -qz * (new_shape(i, Z) - old_shape(i, Z)) *
     (new_shape(i, Y) * (2.0 * new_shape(i, X) + old_shape(i, X)) +

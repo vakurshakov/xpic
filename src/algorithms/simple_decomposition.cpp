@@ -15,7 +15,7 @@ PetscErrorCode Simple_decomposition::process(const Vector3I& p_g, Context& J) co
   for (PetscInt z = 0; z < width; ++z) {
   for (PetscInt y = 0; y < width; ++y) {
   for (PetscInt x = 0; x < width; ++x) {
-    PetscInt i = Shape::index(z, y, x);
+    PetscInt i = indexing::s_p(z, y, x, width);
 
     Vector3R J_shape{
       no(i, Z) * no(i, Y) * sh(i, X),
