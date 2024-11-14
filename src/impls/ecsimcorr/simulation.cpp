@@ -13,6 +13,15 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
 
+  Sort_parameters parameters{
+    .Np = 1,
+    .n = +1.0,
+    .q = -1.0,
+    .m = +1.0,
+    .sort_name = "electrons",
+  };
+  auto& sort = particles_.emplace_back(*this, parameters);
+  sort.add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 4}, {0.0, 0.0, 0.5}});
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
