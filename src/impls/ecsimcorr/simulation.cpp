@@ -9,6 +9,16 @@ namespace ecsimcorr {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
+  PetscCall(init_vectors());
+  PetscCall(init_matrices());
+  PetscCall(init_ksp_solvers());
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::init_vectors()
+{
+  PetscFunctionBeginUser;
   DM da = world_.da;
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &En));
@@ -21,7 +31,13 @@ PetscErrorCode Simulation::initialize_implementation()
   /// @todo Should be created on scalar dmda!
   // PetscCall(DMCreateGlobalVector(da, &charge_density_old));
   // PetscCall(DMCreateGlobalVector(da, &charge_density));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+PetscErrorCode Simulation::init_matrices()
+{
+  PetscFunctionBeginUser;
+  DM da = world_.da;
   PetscCall(DMCreateMatrix(da, &matL));
   PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
 
@@ -42,10 +58,31 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCall(MatScale(rotE, -dt));
   PetscCall(MatScale(rotB, +dt));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
-  PetscCall(KSPSetFromOptions(ksp));
-  PetscCall(KSPSetUp(ksp));
+/// @todo We can optimize `correct` ksp further, by choosing appropriate KSPType
+PetscErrorCode Simulation::init_ksp_solvers()
+{
+  PetscFunctionBeginUser;
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &predict));
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &correct));
+  PetscCall(KSPSetErrorIfNotConverged(predict, PETSC_TRUE));
+  PetscCall(KSPSetErrorIfNotConverged(correct, PETSC_TRUE));
+
+  static constexpr PetscReal atol = 1e-10;
+  static constexpr PetscReal rtol = 1e-10;
+  PetscCall(KSPSetTolerances(predict, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
+  PetscCall(KSPSetTolerances(correct, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
+
+  PC pc;
+  PetscCall(KSPGetPC(predict, &pc));
+
+  // `matA` can be overwritten during `advance_fields()`, we would use only stored copy of `matL`
+  PetscCall(PCFactorSetUseInPlace(pc, PETSC_TRUE));
+
+  PetscCall(KSPSetOperators(correct, matM, matM));
+  PetscCall(KSPSetUp(correct));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -98,8 +135,11 @@ PetscErrorCode Simulation::predict_fields()
   PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));  // matA = matL
   PetscCall(MatAYPX(matA, 0.5 * POW2(dt), matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt^2 / 2 * matA
 
+  PetscCall(KSPSetOperators(predict, matA, matA));
+  PetscCall(KSPSetUp(predict));
+
   // Solving the Maxwell's equations to find prediction of E'^{n+1/2}
-  PetscCall(advance_fields(currI, matA));
+  PetscCall(advance_fields(predict, currI));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -115,7 +155,7 @@ PetscErrorCode Simulation::correct_fields()
 
   // Solving Maxwell's equation to find correct
   // E^{n+1/2}, satisfying continuity equation
-  PetscCall(advance_fields(currJe, matM));
+  PetscCall(advance_fields(correct, currJe));
 
   PetscCall(VecDot(currJ, En, &w2));  // w2 = (currJ, E^{n+1/2})
 
@@ -124,18 +164,16 @@ PetscErrorCode Simulation::correct_fields()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::advance_fields(Vec rhs, Mat Amat)
+PetscErrorCode Simulation::advance_fields(KSP ksp, Vec rhs)
 {
   PetscFunctionBeginUser;
   PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * rhs)
   PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
 
-  PetscCall(KSPSetOperators(ksp, Amat, Amat));
   PetscCall(KSPSolve(ksp, rhs, En));
 
-  /// @todo Convergence analysis, `KSPSolve()` may have diverged
-  // KSPConvergedReason reason;
-  // PetscCall(KSPGetConvergedReason(ksp, &reason));
+  // Convergence analysis
+  PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -161,7 +199,8 @@ Simulation::~Simulation()
   PetscCallVoid(MatDestroy(&rotB));
   PetscCallVoid(MatDestroy(&divE));
 
-  PetscCallVoid(KSPDestroy(&ksp));
+  PetscCallVoid(KSPDestroy(&predict));
+  PetscCallVoid(KSPDestroy(&correct));
   PetscFunctionReturnVoid();
 }
 

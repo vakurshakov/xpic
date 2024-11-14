@@ -42,10 +42,14 @@ private:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(timestep_t timestep) override;
 
+  PetscErrorCode init_vectors();
+  PetscErrorCode init_matrices();
+  PetscErrorCode init_ksp_solvers();
+
   PetscErrorCode clear_sources();
   PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
-  PetscErrorCode advance_fields(Vec rhs, Mat Amat);
+  PetscErrorCode advance_fields(KSP ksp, Vec rhs);
 
   // Vec charge_density_old;
   // Vec charge_density;
@@ -57,7 +61,8 @@ private:
   Mat rotB;
   Mat divE;
 
-  KSP ksp;
+  KSP predict;
+  KSP correct;
 };
 
 }  // namespace ecsimcorr
