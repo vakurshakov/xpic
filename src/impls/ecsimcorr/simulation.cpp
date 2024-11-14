@@ -171,6 +171,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec rhs)
   PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
 
   PetscCall(KSPSolve(ksp, rhs, En));
+  PetscCall(KSPGetSolution(ksp, &En));
 
   // Convergence analysis
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
