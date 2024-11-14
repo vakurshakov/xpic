@@ -1,6 +1,6 @@
 #include "esirkepov_decomposition.h"
 
-Esirkepov_decomposition::Esirkepov_decomposition(const Vector3I& width,
+Esirkepov_decomposition::Esirkepov_decomposition(PetscInt width,
   PetscReal alpha, const Shape& old_shape, const Shape& new_shape)
   : width(width), alpha(alpha), old_shape(old_shape), new_shape(new_shape)
 {
@@ -17,9 +17,9 @@ PetscErrorCode Esirkepov_decomposition::process(
   PetscInt g_x, g_y, g_z;
 
   // clang-format off: @todo create macro/range-based analogue for this loop
-  for (PetscInt z = 0; z < width[Z]; ++z) {
-  for (PetscInt y = 0; y < width[Y]; ++y) {
-  for (PetscInt x = 0; x < width[X]; ++x) {
+  for (PetscInt z = 0; z < width; ++z) {
+  for (PetscInt y = 0; y < width; ++y) {
+  for (PetscInt x = 0; x < width; ++x) {
     g_x = p_g[X] + x;
     g_y = p_g[Y] + y;
     g_z = p_g[Z] + z;

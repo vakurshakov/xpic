@@ -1,7 +1,7 @@
 #include "simple_decomposition.h"
 
 Simple_decomposition::Simple_decomposition(
-  const Vector3I& width, const Vector3R& J_p, const Shape& no, const Shape& sh)
+  PetscInt width, const Vector3R& J_p, const Shape& no, const Shape& sh)
   : width(width), J_p(J_p), no(no), sh(sh)
 {
 }
@@ -12,9 +12,9 @@ PetscErrorCode Simple_decomposition::process(const Vector3I& p_g, Context& J) co
   PetscInt g_x, g_y, g_z;
 
   // clang-format off: @todo create macro/range-based analogue for this loop
-  for (PetscInt z = 0; z < width[Z]; ++z) {
-  for (PetscInt y = 0; y < width[Y]; ++y) {
-  for (PetscInt x = 0; x < width[X]; ++x) {
+  for (PetscInt z = 0; z < width; ++z) {
+  for (PetscInt y = 0; y < width; ++y) {
+  for (PetscInt x = 0; x < width; ++x) {
     PetscInt i = Shape::index(z, y, x);
 
     Vector3R J_shape{

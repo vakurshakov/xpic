@@ -1,7 +1,7 @@
 #include "simple_interpolation.h"
 
 Simple_interpolation::Simple_interpolation(
-  const Vector3I& width, const Shape& no, const Shape& sh)
+  PetscInt width, const Shape& no, const Shape& sh)
   : width(width), no(no), sh(sh)
 {
 }
@@ -13,11 +13,9 @@ PetscErrorCode Simple_interpolation::process(
   PetscInt g_x, g_y, g_z;
 
   // clang-format off: @todo create macro/range-based analogue for this loop
-  for (PetscInt z = 0; z < width[Z]; ++z) {
-  for (PetscInt y = 0; y < width[Y]; ++y) {
-  for (PetscInt x = 0; x < width[X]; ++x) {
-    PetscInt i = Shape::index(z, y, x);
-
+  for (PetscInt z = 0; z < width; ++z) {
+  for (PetscInt y = 0; y < width; ++y) {
+  for (PetscInt x = 0; x < width; ++x) {
     Vector3R E_shape{
       no(i, Z) * no(i, Y) * sh(i, X),
       no(i, Z) * sh(i, Y) * no(i, X),

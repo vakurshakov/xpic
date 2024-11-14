@@ -6,7 +6,7 @@
 /// @brief Charge-conserving Esirkepov density decomposition.
 class Esirkepov_decomposition {
 public:
-  Esirkepov_decomposition(const Vector3I& width, PetscReal alpha,
+  Esirkepov_decomposition(PetscInt width, PetscReal alpha,
     const Shape& old_shape, const Shape& new_shape);
 
   /// @brief Decomposition context is a reference to outer global current.
@@ -19,7 +19,7 @@ private:
   PetscReal get_Jy(PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) const;
   PetscReal get_Jz(PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) const;
 
-  const Vector3I& width;
+  PetscInt width;
 
   PetscReal alpha;
   const Shape& old_shape;

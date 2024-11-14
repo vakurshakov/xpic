@@ -3,10 +3,13 @@
 
 #include "src/utils/particle_shape.h"
 
-/// @brief Simple (dump) density decomposition using shifted and non-shifted shapes.
+/**
+ * @brief Simple (dump) density decomposition using shifted and non-shifted shapes.
+ * There is no additional memory-cost of temporary storage like in `Esirkepov_decomposition`.
+ */
 class Simple_decomposition {
 public:
-  Simple_decomposition(const Vector3I& width, const Vector3R& J_p,
+  Simple_decomposition(PetscInt width, const Vector3R& J_p,
     const Shape& no, const Shape& sh);
 
   /// @brief Decomposition context is a reference to outer global current.
@@ -15,7 +18,7 @@ public:
   PetscErrorCode process(const Vector3I& p_g, Context& J) const;
 
 private:
-  const Vector3I& width;
+  PetscInt width;
 
   Vector3R J_p;
   const Shape& no;
