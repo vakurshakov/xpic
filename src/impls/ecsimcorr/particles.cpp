@@ -174,12 +174,11 @@ void Particles::decompose_identity_current(
   /// @todo Combine it with `Simple_decomposition::process()`?
   Mat matL = simulation_.matL;
 
-  constexpr PetscInt m = POW3(static_cast<PetscInt>(2.0 * shape_radius1) + 1);
-  constexpr PetscInt n = POW3(static_cast<PetscInt>(2.0 * shape_radius1) + 1);
-  MatStencil idxm[m], idxn[n];
-  PetscInt i, j;
+  const PetscInt m = shape.size.elements_product();
+  const PetscInt n = m;
 
-  PetscReal values[m * n * POW2(3)];
+  std::vector<MatStencil> idxm(m), idxn(n);
+  std::vector<PetscReal> values(m * n * POW2(3));
 
   /**
    * @brief indexing of `values` buffer for `MatSetValuesBlocked*()`
@@ -196,7 +195,7 @@ void Particles::decompose_identity_current(
   for (PetscInt z1 = 0; z1 < shape.size[Z]; ++z1) {
   for (PetscInt y1 = 0; y1 < shape.size[Y]; ++y1) {
   for (PetscInt x1 = 0; x1 < shape.size[X]; ++x1) {
-    i = shape.s_p(z1, y1, x1);
+    PetscInt i = shape.s_p(z1, y1, x1);
     Vector3R s1 = shape.electric(i);
 
     idxm[i] = MatStencil{
@@ -209,7 +208,7 @@ void Particles::decompose_identity_current(
     for (PetscInt z2 = 0; z2 < shape.size[Z]; ++z2) {
     for (PetscInt y2 = 0; y2 < shape.size[Y]; ++y2) {
     for (PetscInt x2 = 0; x2 < shape.size[X]; ++x2) {
-      j = shape.s_p(z2, y2, x2);
+      PetscInt j = shape.s_p(z2, y2, x2);
       Vector3R s2 = shape.electric(j);
 
       idxn[j] = MatStencil{
@@ -236,7 +235,7 @@ void Particles::decompose_identity_current(
 #pragma omp critical
   {
     // cannot use `PetscCall()`, omp section cannot be broken by return statement
-    MatSetValuesBlockedStencil(matL, m, idxm, n, idxn, values, ADD_VALUES);
+    MatSetValuesBlockedStencil(matL, m, idxm.data(), n, idxn.data(), values.data(), ADD_VALUES);
   }
   PetscFunctionReturnVoid();
 }
