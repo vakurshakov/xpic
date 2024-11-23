@@ -27,8 +27,7 @@ private:
 
     PetscReal dt, m, q;
 
-    Node node;
-    Shape shape[2];
+    Shape shape;
 
     Vector3R x_n, v_n, x_h, v_h;
     Vector3R v_hp, v_ht, v_E, DB_pp, DB_pt;

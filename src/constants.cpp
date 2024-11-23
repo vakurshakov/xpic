@@ -1,5 +1,7 @@
 #include "constants.h"
 
+#include "src/utils/utils.h"
+
 PetscReal Dx[3] = {0.0, 0.0, 0.0};    // c/w_pe
 PetscReal dx = 0.0;                   // c/w_pe
 PetscReal dy = 0.0;                   // c/w_pe
@@ -34,10 +36,10 @@ void set_world_geometry(PetscReal _gx, PetscReal _gy, PetscReal _gz,
   Geom[2] = geom_z = _gz;
   geom_t = _gt;
 
-  Geom_n[0] = geom_nx = (PetscInt)std::round(geom_x / dx);
-  Geom_n[1] = geom_ny = (PetscInt)std::round(geom_y / dy);
-  Geom_n[2] = geom_nz = (PetscInt)std::round(geom_z / dz);
-  geom_nt = (PetscInt)std::round(geom_t / dt);
+  Geom_n[0] = geom_nx = TO_STEP(geom_x, dx);
+  Geom_n[1] = geom_ny = TO_STEP(geom_y, dy);
+  Geom_n[2] = geom_nz = TO_STEP(geom_z, dz);
+  geom_nt = TO_STEP(geom_t, dt);
 
   diagnose_period = _dtp;
 }

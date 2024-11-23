@@ -15,7 +15,7 @@ PetscErrorCode World::initialize()
 {
   PetscFunctionBegin;
   const PetscInt dof = Vector3R::dim;
-  const PetscInt s = shape_radius;
+  const PetscInt s = static_cast<PetscInt>(std::ceil(shape_radius));
 
   Configuration::get_boundaries_type(REP3_A(bounds));
   Configuration::get_processors(REP3_A(procs));

@@ -187,12 +187,10 @@ PetscErrorCode Particles::Context::update(
   PetscFunctionBeginUser;
   x_h = 0.5 * (x_nn + x_n);
 
-  node = Node(x_h);
-  shape[0].fill(node.g, node.r, false);
-  shape[1].fill(node.g, node.r, true);
+  shape.setup(x_h);
 
-  Simple_interpolation interpolation(shape_width, shape[0], shape[1]);
-  PetscCall(interpolation.process(node.g, {{E_p, E}}, {{B_p, B}, {DB_p, DB}}));
+  Simple_interpolation interpolation(shape);
+  PetscCall(interpolation.process({{E_p, E}}, {{B_p, B}, {DB_p, DB}}));
 
   DB_pp = DB_p.parallel_to(B_p);
   DB_pt = DB_p.transverse_to(B_p);

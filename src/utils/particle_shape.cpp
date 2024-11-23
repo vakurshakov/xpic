@@ -1,58 +1,94 @@
 #include "particle_shape.h"
 
-Node::Node(const Vector3R& pr)
-{
-  update(pr);
-}
-
-void Node::update(const Vector3R& pr)
-{
-  r = Node::make_r(pr);
-  g = Node::make_g(r);
-}
-
-/* static */ Vector3R Node::make_r(const Vector3R& pr)
+/* static */ Vector3R Shape::make_r(const Vector3R& r)
 {
   return {
-    pr.x() / dx,
-    pr.y() / dy,
-    pr.z() / dz,
+    r.x() / dx,
+    r.y() / dy,
+    r.z() / dz,
   };
 }
 
-/* static */ Vector3I Node::make_g(const Vector3R& nr)
+/* static */ Vector3I Shape::make_g(const Vector3R& p_r)
 {
   return {
-    ROUND(nr.x()) - shape_radius,
-    ROUND(nr.y()) - shape_radius,
-    ROUND(nr.z()) - shape_radius,
+    static_cast<PetscInt>(std::round(p_r[X]) - shape_radius),
+    static_cast<PetscInt>(std::round(p_r[Y]) - shape_radius),
+    static_cast<PetscInt>(std::round(p_r[Z]) - shape_radius),
   };
 }
 
-void Shape::fill(const Vector3I& p_g, const Vector3R& p_r, bool shift,
-  PetscReal (&sfunc)(PetscReal), PetscInt width)
+/* static */ Vector3I Shape::make_start(const Vector3R& p_r, PetscReal radius)
 {
-  PetscReal g_x, g_y, g_z;
+  return {
+    static_cast<PetscInt>(std::round(p_r[X] - radius)),
+    static_cast<PetscInt>(std::round(p_r[Y] - radius)),
+    static_cast<PetscInt>(std::round(p_r[Z] - radius)),
+  };
+}
 
+/* static */ Vector3I Shape::make_end(const Vector3R& p_r, PetscReal radius)
+{
+  return {
+    static_cast<PetscInt>(std::floor(p_r[X] + radius)),
+    static_cast<PetscInt>(std::floor(p_r[Y] + radius)),
+    static_cast<PetscInt>(std::floor(p_r[Z] + radius)),
+  };
+}
+
+
+void Shape::setup(const Vector3R& old_r, const Vector3R& new_r,
+  PetscReal radius, PetscReal (&sfunc)(PetscReal))
+{
+  const Vector3R old_p_r = Shape::make_r(old_r);
+  const Vector3R new_p_r = Shape::make_r(new_r);
+
+  start = Shape::make_start(min(old_p_r, new_p_r), radius);
+  size = Shape::make_end(max(old_p_r, new_p_r), radius);
+  size -= start;
+
+  fill(old_p_r, new_p_r, Old, New, sfunc);
+}
+
+void Shape::setup(
+  const Vector3R& r, PetscReal radius, PetscReal (&sfunc)(PetscReal))
+{
+  const Vector3R p_r = Shape::make_r(r);
+
+  start = Shape::make_start(p_r, radius);
+  size = Shape::make_end(p_r, radius);
+  size -= start;
+
+  fill(p_r, p_r, No, Sh, sfunc);
+}
+
+
+void Shape::fill(const Vector3R& p_r1, const Vector3R& p_r2, ShapeType t1,
+  ShapeType t2, PetscReal (&sfunc)(PetscReal))
+{
 #pragma omp simd collapse(Vector3I::dim)
   // clang-format off
-  for (PetscInt z = 0; z < width; ++z) {
-  for (PetscInt y = 0; y < width; ++y) {
-  for (PetscInt x = 0; x < width; ++x) {
-    g_x = p_g[X] + x;
-    g_y = p_g[Y] + y;
-    g_z = p_g[Z] + z;
+  for (PetscInt z = 0; z < size[Z]; ++z) {
+  for (PetscInt y = 0; y < size[Y]; ++y) {
+  for (PetscInt x = 0; x < size[X]; ++x) {
+    PetscInt i = s_p(z, y, x);
+    auto g_x = static_cast<PetscReal>(start[X] + x);
+    auto g_y = static_cast<PetscReal>(start[Y] + y);
+    auto g_z = static_cast<PetscReal>(start[Z] + z);
 
-    if (shift) {
+    shape[i_p(i, t1, X)] = sfunc(p_r1[X] - g_x);
+    shape[i_p(i, t1, Y)] = sfunc(p_r1[Y] - g_y);
+    shape[i_p(i, t1, Z)] = sfunc(p_r1[Z] - g_z);
+
+    if (t2 == ShapeType::Sh) {
       g_x += 0.5;
       g_y += 0.5;
       g_z += 0.5;
     }
 
-    PetscInt i = indexing::s_p(z, y, x, width);
-    shape[indexing::v_p(i, X)] = sfunc(p_r[X] - g_x);
-    shape[indexing::v_p(i, Y)] = sfunc(p_r[Y] - g_y);
-    shape[indexing::v_p(i, Z)] = sfunc(p_r[Z] - g_z);
+    shape[i_p(i, t2, X)] = sfunc(p_r2[X] - g_x);
+    shape[i_p(i, t2, Y)] = sfunc(p_r2[Y] - g_y);
+    shape[i_p(i, t2, Z)] = sfunc(p_r2[Z] - g_z);
   }}}
   // clang-format on
 }

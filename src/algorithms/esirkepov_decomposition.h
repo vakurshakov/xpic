@@ -6,8 +6,7 @@
 /// @brief Charge-conserving Esirkepov density decomposition.
 class Esirkepov_decomposition {
 public:
-  Esirkepov_decomposition(PetscInt width, PetscReal alpha,
-    const Shape& old_shape, const Shape& new_shape);
+  Esirkepov_decomposition(const Shape& shape, PetscReal alpha);
 
   /// @brief Decomposition context is a reference to outer global current.
   using Context = Vector3R***;
@@ -15,18 +14,15 @@ public:
   /// @note A temporary buffer is allocated with a maximum size of
   /// `shape_width` so that a lower-order shape can fit into it.
   /// @todo Think on std::vector<PetscReal> instead.
-  PetscErrorCode process(const Vector3I& p_g, Context& J) const;
+  PetscErrorCode process(Context& J) const;
 
 private:
   PetscReal get_Jx(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jx) const;
   PetscReal get_Jy(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jy) const;
   PetscReal get_Jz(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jz) const;
 
-  PetscInt width;
-
+  const Shape& shape;
   PetscReal alpha;
-  const Shape& old_shape;
-  const Shape& new_shape;
 };
 
 #endif  // SRC_ALGORITHMS_ESIRKEPOV_DECOMPOSITION_H

@@ -9,20 +9,16 @@
  */
 class Simple_decomposition {
 public:
-  Simple_decomposition(PetscInt width, const Vector3R& J_p,
-    const Shape& no, const Shape& sh);
+  Simple_decomposition(const Shape& shape, const Vector3R& J_p);
 
   /// @brief Decomposition context is a reference to outer global current.
   using Context = Vector3R***;
 
-  PetscErrorCode process(const Vector3I& p_g, Context& J) const;
+  PetscErrorCode process(Context& J) const;
 
 private:
-  PetscInt width;
-
+  const Shape& shape;
   Vector3R J_p;
-  const Shape& no;
-  const Shape& sh;
 };
 
 #endif  // SRC_ALGORITHMS_SIMPLE_DECOMPOSITION_H

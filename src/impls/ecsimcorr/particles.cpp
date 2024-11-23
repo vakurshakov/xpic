@@ -48,25 +48,20 @@ PetscErrorCode Particles::first_push()
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    const Vector3R old_nr = Node::make_r(point.r);
+    const Vector3R old_r = point.r;
     point.r += point.p * (0.5 * dt);
 
-    /// @todo this can be combined into some structure too
-    Shape shape[2];
-    const Node node(point.r);
-
-    shape[0].fill(node.g, node.r, false, shape_func1, shape_width1);
-    shape[1].fill(node.g, node.r, true, shape_func1, shape_width1);
+    Shape shape;
+    shape.setup(point.r, shape_radius1, shape_func1);
 
     Vector3R B_p;
-    Simple_interpolation interpolation(shape_width1, shape[0], shape[1]);
-    interpolation.process(node.g, {}, {{B_p, B}});
+    Simple_interpolation interpolation(shape);
+    interpolation.process({}, {{B_p, B}});
 
-    decompose_identity_current(node.g, shape[0], shape[1], point, B_p);
+    decompose_identity_current(shape, point, B_p);
 
-    shape[0].fill(node.g, old_nr, false, shape_func2, shape_width2);
-    shape[1].fill(node.g, node.r, false, shape_func2, shape_width2);
-    decompose_esirkepov_current(node.g, shape[0], shape[1], point);
+    shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    decompose_esirkepov_current(shape, point);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
@@ -99,25 +94,20 @@ PetscErrorCode Particles::second_push()
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    const Vector3R old_nr = Node::make_r(point.r);
+    const Vector3R old_r = point.r;
 
-    Shape shape[2];
-    Node node(point.r);
-
-    shape[0].fill(node.g, node.r, false, shape_func1, shape_width1);
-    shape[1].fill(node.g, node.r, true, shape_func1, shape_width1);
+    Shape shape;
+    shape.setup(point.r, shape_radius1, shape_func1);
 
     Vector3R E_p, B_p;
-    Simple_interpolation interpolation(shape_width1, shape[0], shape[1]);
-    interpolation.process(node.g, {{E_p, E}}, {{B_p, B}});
+    Simple_interpolation interpolation(shape);
+    interpolation.process({{E_p, E}}, {{B_p, B}});
 
     Boris_push push((0.5 * dt), E_p, B_p);
     push.process(point, *this);
-    node.update(point.r);
 
-    shape[0].fill(node.g, old_nr, false, shape_func2, shape_width2);
-    shape[1].fill(node.g, node.r, false, shape_func2, shape_width2);
-    decompose_esirkepov_current(node.g, shape[0], shape[1], point);
+    shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    decompose_esirkepov_current(shape, point);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
@@ -152,21 +142,19 @@ PetscErrorCode Particles::final_update()
 }
 
 
-void Particles::decompose_esirkepov_current(const Vector3I& p_g,
-  const Shape& old_shape, const Shape& new_shape, const Point& point)
+void Particles::decompose_esirkepov_current(const Shape& shape, const Point& point)
 {
   const PetscReal alpha =
     charge(point) * density(point) / (particles_number(point) * (3.0 * dt));
 
-  Esirkepov_decomposition decomposition(
-    shape_width2, alpha, old_shape, new_shape);
-  PetscCallVoid(decomposition.process(p_g, currJe));
+  Esirkepov_decomposition decomposition(shape, alpha);
+  PetscCallVoid(decomposition.process(currJe));
 }
 
 
 /// @note Also decomposes `Simulation::matL`
-void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
-  const Shape& sh, const Point& point, const Vector3R& B_p)
+void Particles::decompose_identity_current(
+  const Shape& shape, const Point& point, const Vector3R& B_p)
 {
   PetscFunctionBeginHot;
   const Vector3R& v = point.p;
@@ -179,15 +167,15 @@ void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
 
   Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
 
-  Simple_decomposition decomposition(shape_width1, I_p, no, sh);
-  PetscCallVoid(decomposition.process(p_g, currI));
+  Simple_decomposition decomposition(shape, I_p);
+  PetscCallVoid(decomposition.process(currI));
 
 
   /// @todo Combine it with `Simple_decomposition::process()`?
   Mat matL = simulation_.matL;
 
-  constexpr PetscInt m = POW3(shape_width1);
-  constexpr PetscInt n = POW3(shape_width1);
+  constexpr PetscInt m = POW3(static_cast<PetscInt>(2.0 * shape_radius1) + 1);
+  constexpr PetscInt n = POW3(static_cast<PetscInt>(2.0 * shape_radius1) + 1);
   MatStencil idxm[m], idxn[n];
   PetscInt i, j;
 
@@ -205,29 +193,29 @@ void Particles::decompose_identity_current(const Vector3I& p_g, const Shape& no,
   };
 
   // clang-format off
-  for (PetscInt z1 = 0; z1 < shape_width1; ++z1) {
-  for (PetscInt y1 = 0; y1 < shape_width1; ++y1) {
-  for (PetscInt x1 = 0; x1 < shape_width1; ++x1) {
-    i = indexing::s_p(z1, y1, x1, shape_width1);
-    idxm[i] = MatStencil{ p_g[Z] + z1, p_g[Y] + y1, p_g[X] + x1 };
+  for (PetscInt z1 = 0; z1 < shape.size[Z]; ++z1) {
+  for (PetscInt y1 = 0; y1 < shape.size[Y]; ++y1) {
+  for (PetscInt x1 = 0; x1 < shape.size[X]; ++x1) {
+    i = shape.s_p(z1, y1, x1);
+    Vector3R s1 = shape.electric(i);
 
-    Vector3R s1{
-      no(i, Z) * no(i, Y) * sh(i, X),
-      no(i, Z) * sh(i, Y) * no(i, X),
-      sh(i, Z) * no(i, Y) * no(i, X),
+    idxm[i] = MatStencil{
+      shape.start[Z] + z1,
+      shape.start[Y] + y1,
+      shape.start[X] + x1,
     };
 
     // Shifts of g'=g2 iteration
-    for (PetscInt z2 = 0; z2 < shape_width1; ++z2) {
-    for (PetscInt y2 = 0; y2 < shape_width1; ++y2) {
-    for (PetscInt x2 = 0; x2 < shape_width1; ++x2) {
-      j = indexing::s_p(z2, y2, x2, shape_width1);
-      idxn[j] = MatStencil{ p_g[Z] + z2, p_g[Y] + y2, p_g[X] + x2 };
+    for (PetscInt z2 = 0; z2 < shape.size[Z]; ++z2) {
+    for (PetscInt y2 = 0; y2 < shape.size[Y]; ++y2) {
+    for (PetscInt x2 = 0; x2 < shape.size[X]; ++x2) {
+      j = shape.s_p(z2, y2, x2);
+      Vector3R s2 = shape.electric(j);
 
-      Vector3R s2{
-        no(j, Z) * no(j, Y) * sh(j, X),
-        no(j, Z) * sh(j, Y) * no(j, X),
-        sh(j, Z) * no(j, Y) * no(j, X),
+      idxn[j] = MatStencil{
+        shape.start[Z] + z2,
+        shape.start[Y] + y2,
+        shape.start[X] + x2,
       };
 
       values[ind(i, j, X, X)] = s1[X] * s2[X] * betaL * (1.0   + b[X] * b[X]);

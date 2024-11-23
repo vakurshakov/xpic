@@ -25,15 +25,14 @@ private:
 #if (PARTICLES_FORM_FACTOR == 2)
   static constexpr auto& shape_func1 = __1st_order_spline;
   static constexpr auto& shape_func2 = __2nd_order_spline;
-  static constexpr PetscInt shape_width1 = 3;
-  static constexpr PetscInt shape_width2 = 5;
+  static constexpr PetscReal shape_radius1 = 1.0;
+  static constexpr PetscReal shape_radius2 = 1.5;
 #endif
 
-  void decompose_esirkepov_current(const Vector3I& p_g, const Shape& old_shape,
-    const Shape& new_shape, const Point& point);
+  void decompose_esirkepov_current(const Shape& shape, const Point& point);
 
-  void decompose_identity_current(const Vector3I& p_g, const Shape& no,
-    const Shape& sh, const Point& point, const Vector3R& B_p);
+  void decompose_identity_current(
+    const Shape& shape, const Point& point, const Vector3R& B_p);
 
   Simulation& simulation_;
   Vec local_E;

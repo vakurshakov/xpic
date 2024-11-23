@@ -43,25 +43,18 @@ PetscErrorCode Particles::push()
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    Vector3R E_p;
-    Vector3R B_p;
+    const Vector3R old_r = point.r;
 
-    Vector3R old_nr = Node::make_r(point.r);
-    Node node(point.r);
+    Shape shape;
+    shape.setup(point.r);
 
-    static Shape shape[2];
-#pragma omp threadprivate(shape)
-
-    shape[0].fill(node.g, node.r, false);
-    shape[1].fill(node.g, node.r, true);
-    interpolate(node.g, shape[0], shape[1], E_p, B_p);
+    Vector3R E_p, B_p;
+    interpolate(shape, E_p, B_p);
 
     push(E_p, B_p, point);
-    node.update(point.r);
 
-    shape[0].fill(node.g, old_nr, false);
-    shape[1].fill(node.g, node.r, false);
-    decompose(node.g, shape[0], shape[1], point);
+    shape.setup(old_r, point.r);
+    decompose(shape, point);
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
@@ -76,11 +69,10 @@ PetscErrorCode Particles::push()
 }
 
 
-void Particles::interpolate(
-  const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& E_p, Vector3R& B_p) const
+void Particles::interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const
 {
-  Simple_interpolation interpolation(shape_width, no, sh);
-  interpolation.process(p_g, {{E_p, E}}, {{B_p, B}});
+  Simple_interpolation interpolation(shape);
+  interpolation.process({{E_p, E}}, {{B_p, B}});
 }
 
 
@@ -91,14 +83,13 @@ void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) con
 }
 
 
-void Particles::decompose(
-  const Vector3I& p_g, Shape& old_shape, Shape& new_shape, const Point& point)
+void Particles::decompose(const Shape& shape, const Point& point)
 {
   const PetscReal alpha =
     charge(point) * density(point) / (particles_number(point) * (6.0 * dt));
 
-  Esirkepov_decomposition decomposition(shape_width, alpha, old_shape, new_shape);
-  decomposition.process(p_g, J);
+  Esirkepov_decomposition decomposition(shape, alpha);
+  decomposition.process(J);
 }
 
 }  // namespace basic

@@ -54,7 +54,7 @@ PetscErrorCode Distribution_moment::set_data_views(const Region& region)
   PetscCall(Field_view::set_data_views(region));
 
   // Later we'll use `Node` structure that uses shifted coordinates
-  region_.start -= shape_radius;
+  region_.start -= static_cast<PetscInt>(std::ceil(shape_radius));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -137,29 +137,30 @@ PetscErrorCode Distribution_moment::collect()
 
 #pragma omp parallel for
   for (const Point& point : particles_.points()) {
-    Node node(point.r);
+    /// @todo We can reuse `Simple_decomposition`
+    /// algorithm here and make `Shape::make*()` private
+    const Vector3R p_r = Shape::make_r(point.r);
+    const Vector3I p_g = Shape::make_g(p_r);
 
     if (!is_point_within_bounds(
-          node.g, vector_cast(region_.start), vector_cast(region_.size)))
+          p_g, vector_cast(region_.start), vector_cast(region_.size)))
       continue;
 
     PetscReal n = particles_.density(point) / particles_.particles_number(point);
-
-    PetscInt g_x, g_y, g_z;
 
     // clang-format off
     for (PetscInt z = 0; z < shape_width; ++z) {
     for (PetscInt y = 0; y < shape_width; ++y) {
     for (PetscInt x = 0; x < shape_width; ++x) {
-      g_x = node.g[X] + x;
-      g_y = node.g[Y] + y;
-      g_z = node.g[Z] + z;
+      PetscInt g_x = p_g[X] + x;
+      PetscInt g_y = p_g[Y] + y;
+      PetscInt g_z = p_g[Z] + z;
 
 #pragma omp atomic update
       arr[g_z][g_y][g_x] += moment_.get(particles_, point) * n *
-        shape_function(node.r[X] - g_x) *
-        shape_function(node.r[Y] - g_y) *
-        shape_function(node.r[Z] - g_z);
+        shape_function(p_r[X] - g_x) *
+        shape_function(p_r[Y] - g_y) *
+        shape_function(p_r[Z] - g_z);
     }}}
     // clang-format on
   }

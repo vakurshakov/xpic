@@ -19,13 +19,9 @@ public:
 private:
   static constexpr int OMP_CHUNK_SIZE = 16;
 
-  void interpolate(const Vector3I& p_g, Shape& no, Shape& sh, Vector3R& E_p,
-    Vector3R& B_p) const;
-
+  void interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const;
   void push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const;
-
-  void decompose(const Vector3I& p_g, Shape& old_shape, Shape& new_shape,
-    const Point& point);
+  void decompose(const Shape& shape, const Point& point);
 
   Simulation& simulation_;
   Vec local_E;

@@ -9,18 +9,15 @@
  */
 class Simple_interpolation {
 public:
-  Simple_interpolation(PetscInt width, const Shape& no, const Shape& sh);
+  Simple_interpolation(const Shape& shape);
 
   /// @brief Interpolation field context is a pair of point and global fields.
   using Context = std::vector<std::pair<Vector3R&, Vector3R*** const&>>;
 
-  PetscErrorCode process(const Vector3I& p_g, const Context& e_fields,
-    const Context& b_fields) const;
+  PetscErrorCode process(const Context& e_fields, const Context& b_fields) const;
 
 private:
-  PetscInt width;
-  const Shape& no;
-  const Shape& sh;
+  const Shape& shape;
 };
 
 #endif  // SRC_ALGORITHMS_SIMPLE_INTERPOLATION_H

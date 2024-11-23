@@ -33,16 +33,6 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
   return petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nz, 3);
 }
 
-constexpr PetscInt s_p(PetscInt z, PetscInt y, PetscInt x, PetscInt width)
-{
-  return petsc_index(z, y, x, 0, width, width, width, 1);
-}
-
-constexpr PetscInt v_p(PetscInt s_p, PetscInt c)
-{
-  return s_p * 3 + c;
-}
-
 }  // namespace indexing
 
 
@@ -71,8 +61,7 @@ constexpr PetscInt v_p(PetscInt s_p, PetscInt c)
 #define POW4(A) ((A) * (A) * (A) * (A))
 #define POW5(A) ((A) * (A) * (A) * (A) * (A))
 
-#define ROUND(s)       static_cast<PetscInt>(std::round(s))
-#define TO_STEP(s, ds) ROUND((s) / (ds))
+#define TO_STEP(s, ds) static_cast<PetscInt>(std::round((s) / (ds)))
 
 #define PetscCallThrow(...)                                      \
   do {                                                           \
