@@ -59,6 +59,7 @@ static constexpr const auto& shape_function = __5th_order_spline;
   #error "Unknown PARTICLES_FORM_FACTOR is specified!"
 #endif
 
-static constexpr PetscInt shape_width = static_cast<PetscInt>(2.0 * shape_radius) + 1;
+static constexpr PetscInt shape_width =
+  static_cast<PetscInt>(2.0 * shape_radius) + 1;
 
 #endif  // SRC_INTERFACES_SORT_PARAMETERS_H

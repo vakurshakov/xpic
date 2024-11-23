@@ -85,7 +85,6 @@ public:
   }
 
 private:
-
   void fill(const Vector3R& p_r1, const Vector3R& p_r2, ShapeType t1,
     ShapeType t2, PetscReal (&sfunc)(PetscReal));
 
