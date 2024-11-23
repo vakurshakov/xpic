@@ -293,7 +293,7 @@ PetscErrorCode Particles::form_Picard_iteration(
     Vector3R f_pE = ctx.DB_pt.parallel_to(v_Ed);
     Vector3R f_tE = ctx.DB_pt.transverse_to(v_Ed);
 
-    G_t = zeta * v_hpn / v_htn * G_p * v_Ed -
+    G_t = zeta * v_hpn / v_htn * G_p.elementwise_product(v_Ed) -
       mu * (zeta * f_pE + f_tE / (1.0 - 1.0 / zeta));
   }
 

@@ -58,14 +58,6 @@ struct Vector3 {
     return *this;
   }
 
-  Vector3& operator*=(const Vector3& other)
-  {
-    data[X] *= other[X];
-    data[Y] *= other[Y];
-    data[Z] *= other[Z];
-    return *this;
-  }
-
   Vector3& operator*=(T scalar)
   {
     data[X] *= scalar;
@@ -102,7 +94,7 @@ struct Vector3 {
     };
   }
 
-  Vector3 operator*(const Vector3& other) const
+  Vector3 elementwise_product(const Vector3& other) const
   {
     return Vector3{
       data[X] * other[X],
@@ -134,6 +126,11 @@ struct Vector3 {
   PetscReal length() const
   {
     return sqrt((PetscReal)squared());
+  }
+
+  T elements_product() const
+  {
+    return data[X] * data[Y] * data[Z];
   }
 
   T dot(const Vector3& other) const
