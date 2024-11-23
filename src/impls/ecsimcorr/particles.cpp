@@ -196,7 +196,7 @@ void Particles::decompose_identity_current(
   for (PetscInt y1 = 0; y1 < shape.size[Y]; ++y1) {
   for (PetscInt x1 = 0; x1 < shape.size[X]; ++x1) {
     PetscInt i = shape.s_p(z1, y1, x1);
-    Vector3R s1 = shape.electric(i);
+    Vector3R si = shape.electric(i);
 
     idxm[i] = MatStencil{
       shape.start[Z] + z1,
@@ -209,7 +209,7 @@ void Particles::decompose_identity_current(
     for (PetscInt y2 = 0; y2 < shape.size[Y]; ++y2) {
     for (PetscInt x2 = 0; x2 < shape.size[X]; ++x2) {
       PetscInt j = shape.s_p(z2, y2, x2);
-      Vector3R s2 = shape.electric(j);
+      Vector3R sj = shape.electric(j);
 
       idxn[j] = MatStencil{
         shape.start[Z] + z2,
@@ -217,17 +217,17 @@ void Particles::decompose_identity_current(
         shape.start[X] + x2,
       };
 
-      values[ind(i, j, X, X)] = s1[X] * s2[X] * betaL * (1.0   + b[X] * b[X]);
-      values[ind(i, j, X, Y)] = s1[X] * s2[Y] * betaL * (+b[Z] + b[X] * b[Y]);
-      values[ind(i, j, X, Z)] = s1[X] * s2[Z] * betaL * (-b[Y] + b[X] * b[Z]);
+      values[ind(i, j, X, X)] = si[X] * sj[X] * betaL * (1.0   + b[X] * b[X]);
+      values[ind(i, j, X, Y)] = si[X] * sj[Y] * betaL * (+b[Z] + b[X] * b[Y]);
+      values[ind(i, j, X, Z)] = si[X] * sj[Z] * betaL * (-b[Y] + b[X] * b[Z]);
 
-      values[ind(i, j, Y, Y)] = s1[Y] * s2[Y] * betaL * (1.0   + b[Y] * b[Y]);
-      values[ind(i, j, Y, X)] = s1[Y] * s2[X] * betaL * (-b[Z] + b[Y] * b[X]);
-      values[ind(i, j, Y, Z)] = s1[Y] * s2[Z] * betaL * (+b[X] + b[Y] * b[Z]);
+      values[ind(i, j, Y, Y)] = si[Y] * sj[Y] * betaL * (1.0   + b[Y] * b[Y]);
+      values[ind(i, j, Y, X)] = si[Y] * sj[X] * betaL * (-b[Z] + b[Y] * b[X]);
+      values[ind(i, j, Y, Z)] = si[Y] * sj[Z] * betaL * (+b[X] + b[Y] * b[Z]);
 
-      values[ind(i, j, Z, Z)] = s1[Z] * s2[Z] * betaL * (1.0   + b[Z] * b[Z]);
-      values[ind(i, j, Z, X)] = s1[Z] * s2[X] * betaL * (+b[Y] + b[X] * b[Z]);
-      values[ind(i, j, Z, Y)] = s1[Z] * s2[Y] * betaL * (-b[X] + b[Y] * b[Z]);
+      values[ind(i, j, Z, Z)] = si[Z] * sj[Z] * betaL * (1.0   + b[Z] * b[Z]);
+      values[ind(i, j, Z, X)] = si[Z] * sj[X] * betaL * (+b[Y] + b[X] * b[Z]);
+      values[ind(i, j, Z, Y)] = si[Z] * sj[Y] * betaL * (-b[X] + b[Y] * b[Z]);
     }}}  // g'=g2
   }}}  // g=g1
   // clang-format on
@@ -235,7 +235,8 @@ void Particles::decompose_identity_current(
 #pragma omp critical
   {
     // cannot use `PetscCall()`, omp section cannot be broken by return statement
-    MatSetValuesBlockedStencil(matL, m, idxm.data(), n, idxn.data(), values.data(), ADD_VALUES);
+    MatSetValuesBlockedStencil(
+      matL, m, idxm.data(), n, idxn.data(), values.data(), ADD_VALUES);
   }
   PetscFunctionReturnVoid();
 }
