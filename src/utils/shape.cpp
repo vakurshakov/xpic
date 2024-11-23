@@ -2,7 +2,7 @@
 
 /* static */ Vector3R Shape::make_r(const Vector3R& r)
 {
-  return {
+  return Vector3R{
     r.x() / dx,
     r.y() / dy,
     r.z() / dz,
@@ -11,7 +11,7 @@
 
 /* static */ Vector3I Shape::make_g(const Vector3R& p_r)
 {
-  return {
+  return Vector3I{
     static_cast<PetscInt>(std::round(p_r[X]) - shape_radius),
     static_cast<PetscInt>(std::round(p_r[Y]) - shape_radius),
     static_cast<PetscInt>(std::round(p_r[Z]) - shape_radius),
@@ -20,7 +20,7 @@
 
 /* static */ Vector3I Shape::make_start(const Vector3R& p_r, PetscReal radius)
 {
-  return {
+  return Vector3I{
     static_cast<PetscInt>(std::round(p_r[X] - radius)),
     static_cast<PetscInt>(std::round(p_r[Y] - radius)),
     static_cast<PetscInt>(std::round(p_r[Z] - radius)),
@@ -29,13 +29,25 @@
 
 /* static */ Vector3I Shape::make_end(const Vector3R& p_r, PetscReal radius)
 {
-  return {
+  return Vector3I{
     static_cast<PetscInt>(std::floor(p_r[X] + radius)),
     static_cast<PetscInt>(std::floor(p_r[Y] + radius)),
     static_cast<PetscInt>(std::floor(p_r[Z] + radius)),
   };
 }
 
+
+void Shape::setup(
+  const Vector3R& r, PetscReal radius, PetscReal (&sfunc)(PetscReal))
+{
+  const Vector3R p_r = Shape::make_r(r);
+
+  start = Shape::make_start(p_r, radius);
+  size = Shape::make_end(p_r, radius);
+  size -= start;
+
+  fill(p_r, p_r, No, Sh, sfunc);
+}
 
 void Shape::setup(const Vector3R& old_r, const Vector3R& new_r,
   PetscReal radius, PetscReal (&sfunc)(PetscReal))
@@ -50,17 +62,6 @@ void Shape::setup(const Vector3R& old_r, const Vector3R& new_r,
   fill(old_p_r, new_p_r, Old, New, sfunc);
 }
 
-void Shape::setup(
-  const Vector3R& r, PetscReal radius, PetscReal (&sfunc)(PetscReal))
-{
-  const Vector3R p_r = Shape::make_r(r);
-
-  start = Shape::make_start(p_r, radius);
-  size = Shape::make_end(p_r, radius);
-  size -= start;
-
-  fill(p_r, p_r, No, Sh, sfunc);
-}
 
 
 void Shape::fill(const Vector3R& p_r1, const Vector3R& p_r2, ShapeType t1,

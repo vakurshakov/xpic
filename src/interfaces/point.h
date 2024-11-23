@@ -6,8 +6,8 @@
 
 class Point {
 public:
-  Vector3R r = 0.0;
-  Vector3R p = 0.0;
+  Vector3R r;
+  Vector3R p;
 
   Point() = default;
   Point(const Vector3R& r, const Vector3R& p);

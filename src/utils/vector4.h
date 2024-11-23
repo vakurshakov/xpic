@@ -81,7 +81,7 @@ struct Vector4 {
 
   Vector4 operator+(const Vector4& other) const
   {
-    return {
+    return Vector4{
       data[X] + other[X],
       data[Y] + other[Y],
       data[Z] + other[Z],
@@ -91,7 +91,7 @@ struct Vector4 {
 
   Vector4 operator-(const Vector4& other) const
   {
-    return {
+    return Vector4{
       data[X] - other[X],
       data[Y] - other[Y],
       data[Z] - other[Z],
@@ -101,7 +101,7 @@ struct Vector4 {
 
   Vector4 operator*(const Vector4& other) const
   {
-    return {
+    return Vector4{
       data[X] * other[X],
       data[Y] * other[Y],
       data[Z] * other[Z],
@@ -113,7 +113,7 @@ struct Vector4 {
     typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector4<PetscReal> operator/(T scalar) const
   {
-    return {
+    return Vector4{
       (PetscReal)data[X] / scalar,
       (PetscReal)data[Y] / scalar,
       (PetscReal)data[Z] / scalar,
@@ -186,7 +186,7 @@ using Vector4I = Vector4<PetscInt>;
 template<typename T>
 Vector4<T> operator*(const Vector4<T>& vector, T scalar)
 {
-  return {
+  return Vector4{
     vector[X] * scalar,
     vector[Y] * scalar,
     vector[Z] * scalar,
@@ -203,7 +203,7 @@ Vector4<T> operator*(T scalar, const Vector4<T>& vector)
 template<typename T>
 Vector4<T> min(const Vector4<T>& lhs, const Vector4<T>& rhs)
 {
-  return {
+  return Vector4{
     std::min(lhs[X], rhs[X]),
     std::min(lhs[Y], rhs[Y]),
     std::min(lhs[Z], rhs[Z]),
@@ -214,7 +214,7 @@ Vector4<T> min(const Vector4<T>& lhs, const Vector4<T>& rhs)
 template<typename T>
 Vector4<T> max(const Vector4<T>& lhs, const Vector4<T>& rhs)
 {
-  return {
+  return Vector4{
     std::max(lhs[X], rhs[X]),
     std::max(lhs[Y], rhs[Y]),
     std::max(lhs[Z], rhs[Z]),

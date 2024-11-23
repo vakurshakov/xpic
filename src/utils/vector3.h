@@ -86,7 +86,7 @@ struct Vector3 {
 
   Vector3 operator+(const Vector3& other) const
   {
-    return {
+    return Vector3{
       data[X] + other[X],
       data[Y] + other[Y],
       data[Z] + other[Z],
@@ -95,7 +95,7 @@ struct Vector3 {
 
   Vector3 operator-(const Vector3& other) const
   {
-    return {
+    return Vector3{
       data[X] - other[X],
       data[Y] - other[Y],
       data[Z] - other[Z],
@@ -104,7 +104,7 @@ struct Vector3 {
 
   Vector3 operator*(const Vector3& other) const
   {
-    return {
+    return Vector3{
       data[X] * other[X],
       data[Y] * other[Y],
       data[Z] * other[Z],
@@ -115,7 +115,7 @@ struct Vector3 {
     typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector3<PetscReal> operator/(T scalar) const
   {
-    return {
+    return Vector3{
       (PetscReal)data[X] / scalar,
       (PetscReal)data[Y] / scalar,
       (PetscReal)data[Z] / scalar,
@@ -179,7 +179,7 @@ struct Vector3 {
 
   Vector3 cross(const Vector3& other) const
   {
-    return {
+    return Vector3{
       +(data[Y] * other[Z] - data[Z] * other[Y]),
       -(data[X] * other[Z] - data[Z] * other[X]),
       +(data[X] * other[Y] - data[Y] * other[X]),
@@ -193,7 +193,7 @@ using Vector3I = Vector3<PetscInt>;
 template<typename T>
 Vector3<T> operator*(const Vector3<T>& vector, T scalar)
 {
-  return {
+  return Vector3{
     vector[X] * scalar,
     vector[Y] * scalar,
     vector[Z] * scalar,
@@ -209,7 +209,7 @@ Vector3<T> operator*(T scalar, const Vector3<T>& vector)
 template<typename T>
 Vector3<T> min(const Vector3<T>& lhs, const Vector3<T>& rhs)
 {
-  return {
+  return Vector3{
     std::min(lhs[X], rhs[X]),
     std::min(lhs[Y], rhs[Y]),
     std::min(lhs[Z], rhs[Z]),

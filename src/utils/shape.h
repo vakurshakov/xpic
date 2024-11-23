@@ -37,29 +37,29 @@ public:
 
   constexpr PetscInt i_p(PetscInt i, ShapeType t, PetscInt c) const
   {
-    return i * shape_geom + ((t % 2) * Vector3I::dim + c);
-  }
-
-  inline void setup(const Vector3R& old_r, const Vector3R& new_r)
-  {
-    setup(old_r, new_r, shape_width, shape_function);
+    return i * shape_comp + ((t % 2) * Vector3I::dim + c);
   }
 
   inline void setup(const Vector3R& p_r)
   {
-    setup(p_r, shape_width, shape_function);
+    setup(p_r, shape_radius, shape_function);
   }
+
+  inline void setup(const Vector3R& old_r, const Vector3R& new_r)
+  {
+    setup(old_r, new_r, shape_radius, shape_function);
+  }
+
+  void setup(const Vector3R& r, PetscReal radius, PetscReal (&sfunc)(PetscReal));
 
   void setup(const Vector3R& old_r, const Vector3R& new_r, PetscReal radius,
     PetscReal (&sfunc)(PetscReal));
-
-  void setup(const Vector3R& r, PetscReal radius, PetscReal (&sfunc)(PetscReal));
 
   /// @returns Vector of shape products corresponding to electric fields.
   /// @note No check is performed to see if the `ShapeType::No/Sh` type pair is set.
   constexpr Vector3R electric(PetscInt i) const
   {
-    return {
+    return Vector3R{
       shape[i_p(i, No, Z)] * shape[i_p(i, No, Y)] * shape[i_p(i, Sh, X)],
       shape[i_p(i, No, Z)] * shape[i_p(i, Sh, Y)] * shape[i_p(i, No, X)],
       shape[i_p(i, Sh, Z)] * shape[i_p(i, No, Y)] * shape[i_p(i, No, X)],
@@ -70,7 +70,7 @@ public:
   /// @note No check is performed to see if the `ShapeType::No/Sh` type pair is set.
   constexpr Vector3R magnetic(PetscInt i) const
   {
-    return {
+    return Vector3R{
       shape[i_p(i, Sh, Z)] * shape[i_p(i, Sh, Y)] * shape[i_p(i, No, X)],
       shape[i_p(i, Sh, Z)] * shape[i_p(i, No, Y)] * shape[i_p(i, Sh, X)],
       shape[i_p(i, No, Z)] * shape[i_p(i, Sh, Y)] * shape[i_p(i, Sh, X)],
