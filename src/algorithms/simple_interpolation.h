@@ -1,7 +1,7 @@
 #ifndef SRC_ALGORITHMS_SIMPLE_INTERPOLATION_H
 #define SRC_ALGORITHMS_SIMPLE_INTERPOLATION_H
 
-#include "src/utils/particle_shape.h"
+#include "src/utils/shape.h"
 
 /**
  * @brief Simple interpolator tightly coupled with `Shape` class.

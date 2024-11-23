@@ -1,5 +1,5 @@
-#ifndef SRC_IMPLS_PARTICLE_SHAPE_H
-#define SRC_IMPLS_PARTICLE_SHAPE_H
+#ifndef SRC_UTILS_SHAPE_H
+#define SRC_UTILS_SHAPE_H
 
 #include "src/interfaces/sort_parameters.h"
 #include "src/utils/vector3.h"
@@ -95,4 +95,4 @@ private:
   PetscReal shape[shape_geom * shape_comp];
 };
 
-#endif  // SRC_IMPLS_PARTICLE_SHAPE_H
+#endif  // SRC_UTILS_SHAPE_H

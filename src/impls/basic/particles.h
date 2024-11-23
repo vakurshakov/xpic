@@ -3,7 +3,7 @@
 
 #include "src/pch.h"
 #include "src/interfaces/particles.h"
-#include "src/utils/particle_shape.h"
+#include "src/utils/shape.h"
 
 namespace basic {
 

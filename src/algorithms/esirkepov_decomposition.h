@@ -1,7 +1,7 @@
 #ifndef SRC_ALGORITHMS_ESIRKEPOV_DECOMPOSITION_H
 #define SRC_ALGORITHMS_ESIRKEPOV_DECOMPOSITION_H
 
-#include "src/utils/particle_shape.h"
+#include "src/utils/shape.h"
 
 /// @brief Charge-conserving Esirkepov density decomposition.
 class Esirkepov_decomposition {

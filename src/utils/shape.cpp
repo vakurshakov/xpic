@@ -1,4 +1,4 @@
-#include "particle_shape.h"
+#include "shape.h"
 
 /* static */ Vector3R Shape::make_r(const Vector3R& r)
 {

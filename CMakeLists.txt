@@ -59,7 +59,7 @@ set(utils
   src/utils/sync_binary_file.cpp
   src/utils/region_operations.cpp
   src/utils/operators.cpp
-  src/utils/particle_shape.cpp
+  src/utils/shape.cpp
 )
 
 set(impls_basic

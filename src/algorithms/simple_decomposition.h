@@ -1,7 +1,7 @@
 #ifndef SRC_ALGORITHMS_SIMPLE_DECOMPOSITION_H
 #define SRC_ALGORITHMS_SIMPLE_DECOMPOSITION_H
 
-#include "src/utils/particle_shape.h"
+#include "src/utils/shape.h"
 
 /**
  * @brief Simple (dump) density decomposition using shifted and non-shifted shapes.
