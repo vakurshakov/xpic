@@ -10,7 +10,7 @@
 template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
 struct Vector3 {
   static constexpr PetscInt dim = 3;
-  T data[dim];
+  std::array<T, dim> data;
 
   constexpr Vector3()
     : data{(T)0, (T)0, (T)0}
@@ -34,12 +34,12 @@ struct Vector3 {
 
   operator const T*() const
   {
-    return data;
+    return data.data();
   }
 
   operator T*()
   {
-    return data;
+    return data.data();
   }
 
   Vector3& operator+=(const Vector3& other)
