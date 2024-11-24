@@ -178,7 +178,9 @@ void Particles::decompose_identity_current(
   const PetscInt n = m;
 
   std::vector<MatStencil> idxm(m), idxn(n);
-  std::vector<PetscReal> values(m * n * POW2(3));
+  std::vector<PetscReal> values(m * n * POW2(3), 0);
+
+  constexpr PetscReal shape_tolerance = 1e-10;
 
   /**
    * @brief indexing of `values` buffer for `MatSetValuesBlocked*()`
@@ -216,6 +218,9 @@ void Particles::decompose_identity_current(
         shape.start[Y] + y2,
         shape.start[X] + x2,
       };
+
+      if (si.abs_max() < shape_tolerance || sj.abs_max() < shape_tolerance)
+        continue;
 
       values[ind(i, j, X, X)] = si[X] * sj[X] * betaL * (1.0   + b[X] * b[X]);
       values[ind(i, j, X, Y)] = si[X] * sj[Y] * betaL * (+b[Z] + b[X] * b[Y]);

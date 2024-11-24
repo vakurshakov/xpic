@@ -146,6 +146,12 @@ struct Vector3 {
     return dot(*this);
   }
 
+  T abs_max()
+  {
+    return std::max(std::abs(data[X]), //
+      std::max(std::abs(data[Y]), std::abs(data[Z])));
+  }
+
   template<typename U = T,
     typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector3<PetscReal> parallel_to(const Vector3& ref) const
