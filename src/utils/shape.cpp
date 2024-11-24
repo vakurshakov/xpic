@@ -30,9 +30,9 @@
 /* static */ Vector3I Shape::make_end(const Vector3R& p_r, PetscReal radius)
 {
   return Vector3I{
-    static_cast<PetscInt>(std::floor(p_r[X] + radius)),
-    static_cast<PetscInt>(std::floor(p_r[Y] + radius)),
-    static_cast<PetscInt>(std::floor(p_r[Z] + radius)),
+    static_cast<PetscInt>(std::floor(p_r[X] + radius)) + 1,
+    static_cast<PetscInt>(std::floor(p_r[Y] + radius)) + 1,
+    static_cast<PetscInt>(std::floor(p_r[Z] + radius)) + 1,
   };
 }
 
