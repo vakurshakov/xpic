@@ -9,6 +9,7 @@
  */
 class Simple_interpolation {
 public:
+  Simple_interpolation() = delete;
   Simple_interpolation(const Shape& shape);
 
   /// @brief Interpolation field context is a pair of point and global fields.

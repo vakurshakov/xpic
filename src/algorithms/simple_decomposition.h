@@ -9,6 +9,7 @@
  */
 class Simple_decomposition {
 public:
+  Simple_decomposition() = delete;
   Simple_decomposition(const Shape& shape, const Vector3R& J_p);
 
   /// @brief Decomposition context is a reference to outer global current.

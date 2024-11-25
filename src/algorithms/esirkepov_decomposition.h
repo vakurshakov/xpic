@@ -6,6 +6,7 @@
 /// @brief Charge-conserving Esirkepov density decomposition.
 class Esirkepov_decomposition {
 public:
+  Esirkepov_decomposition() = delete;
   Esirkepov_decomposition(const Shape& shape, PetscReal alpha);
 
   /// @brief Decomposition context is a reference to outer global current.
