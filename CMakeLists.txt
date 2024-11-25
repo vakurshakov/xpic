@@ -23,8 +23,7 @@ set(CMAKE_CXX_FLAGS "-fpic -fopenmp -pthread")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-missing-field-initializers")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
 
-set(main
-  src/main.cpp
+set(constants
   src/constants.cpp
 )
 
@@ -80,9 +79,9 @@ set(impls_ricketson
   src/impls/ricketson/particles.cpp
 )
 
-add_executable(
-  ${PROJECT_NAME}
-  ${main}
+add_library(
+  ${PROJECT_NAME} SHARED
+  ${constants}
   ${interfaces}
   ${algorithms}
   ${commands}
@@ -95,20 +94,20 @@ add_executable(
 
 target_precompile_headers(
   ${PROJECT_NAME}
-  PRIVATE src/pch.h
+  PUBLIC src/pch.h
 )
 
 target_include_directories(
   ${PROJECT_NAME}
-  PRIVATE .
-  PRIVATE ${JSON_DIR}/include
-  PRIVATE ${PETSC_DIR}/include
-  PRIVATE ${PETSC_DIR}/${PETSC_ARCH}/include
+  PUBLIC .
+  PUBLIC ${JSON_DIR}/include
+  PUBLIC ${PETSC_DIR}/include
+  PUBLIC ${PETSC_DIR}/${PETSC_ARCH}/include
 )
 
 target_link_directories(
   ${PROJECT_NAME}
-  PRIVATE ${PETSC_DIR}/${PETSC_ARCH}/lib
+  PUBLIC ${PETSC_DIR}/${PETSC_ARCH}/lib
 )
 
 target_link_libraries(
@@ -120,3 +119,7 @@ target_link_libraries(
   X11
 )
 
+add_executable(${PROJECT_NAME}.out src/main.cpp)
+target_link_libraries(${PROJECT_NAME}.out ${PROJECT_NAME})
+
+add_subdirectory(tests)

@@ -8,7 +8,7 @@
             "name": "consequetive",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/xpic",
+            "program": "${workspaceFolder}/build/xpic.out",
             "args": [
                 // Configuration file needed for the simulation
                 "config.json",
@@ -39,8 +39,27 @@
                     // "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "Project build-script",
+            "preLaunchTask": "${defaultBuildTask}",
             "miDebuggerPath": "/usr/bin/gdb"
         },
+        {
+            "name": "tests",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/tests/gyration.out",
+            "args": [],
+            "cwd": "${workspaceFolder}/",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "text": "-enable-pretty-printing",
+                    // "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "${defaultBuildTask}",
+            "miDebuggerPath": "/usr/bin/gdb"
+        }
       ]
 }
