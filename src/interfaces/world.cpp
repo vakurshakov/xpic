@@ -37,5 +37,6 @@ PetscErrorCode World::initialize()
 
 World::~World()
 {
-  PetscCallVoid(DMDestroy(&da));
+  if (da)
+    PetscCallVoid(DMDestroy(&da));
 }

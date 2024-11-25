@@ -10,15 +10,8 @@ Particles::Particles(const World& world, const Sort_parameters& parameters)
 PetscErrorCode Particles::add_particle(const Point& point)
 {
   PetscFunctionBeginUser;
-  const Vector3R& r = point.r;
-  // clang-format off
-  if (world_.start.x() <= r.x() && r.x() < world_.end.x() &&
-      world_.start.y() <= r.y() && r.y() < world_.end.y() &&
-      world_.start.z() <= r.z() && r.z() < world_.end.z()) {
 #pragma omp critical
-    points_.emplace_back(point);
-  }
-  // clang-format on
+  points_.emplace_back(point);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

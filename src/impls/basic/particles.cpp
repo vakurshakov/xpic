@@ -13,7 +13,7 @@ Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
   PetscFunctionBeginUser;
   /// @note This local current is local to each particle!
   /// It's can be useful for diagnosing it.
-  DM da = simulation_.world_.da;
+  DM da = world_.da;
   PetscCallVoid(DMCreateLocalVector(da, &local_J));
   PetscFunctionReturnVoid();
 }
@@ -29,7 +29,7 @@ Particles::~Particles()
 PetscErrorCode Particles::push()
 {
   PetscFunctionBeginUser;
-  DM da = simulation_.world_.da;
+  DM da = world_.da;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
 

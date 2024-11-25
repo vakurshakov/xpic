@@ -12,7 +12,7 @@ Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
   : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
-  DM da = simulation_.world_.da;
+  DM da = world_.da;
   PetscCallVoid(DMCreateLocalVector(da, &local_currI));
   PetscCallVoid(DMCreateLocalVector(da, &local_currJe));
   PetscFunctionReturnVoid();
@@ -38,7 +38,7 @@ PetscErrorCode Particles::clear_sources()
 PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
-  DM da = simulation_.world_.da;
+  DM da = world_.da;
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
@@ -82,7 +82,7 @@ PetscErrorCode Particles::first_push()
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
-  DM da = simulation_.world_.da;
+  DM da = world_.da;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.En, INSERT_VALUES, local_E));
