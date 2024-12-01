@@ -2,8 +2,8 @@
 #include "src/algorithms/boris_push.h"
 #include "tests/common.h"
 
-constexpr Vector3R E0(0.0, 0.0, 0.0);
-constexpr Vector3R B0(0.0, 0.0, 0.2);
+constexpr Vector3R E0(0.0, 0.001, 0.0);
+constexpr Vector3R B0(0.0, 0.000, 0.2);
 constexpr Vector3R r0(0.0, -0.1, 0.0);
 constexpr Vector3R v0(0.02, 0.0, 0.0);
 
@@ -32,13 +32,14 @@ int main(int argc, char** argv)
     5.0,
   };
 
+  const Vector3R v_E = E0.cross(B0) / B0.squared();
+
   for (PetscReal factor : time_factors) {
     PetscReal dt = factor / std::abs(Omega);
     geom_nt = TO_STEP(geom_t, dt);
 
-    /// @todo Gyration mean coordinate diverges with growing `dt`
     PetscReal check_counter_clockwise = 0.0;
-    PetscReal check_mean_radius = 0.0;
+    Vector3R check_drift_coord;
 
     point.r = r0;
     point.p = v0;
@@ -47,14 +48,19 @@ int main(int argc, char** argv)
       const Vector3R old_r = point.r;
 
       Boris_push push(dt, E0, B0);
-      push.process(point, particles);
+      push.process_rel(point, particles);
 
       update_clockwise(old_r, point.r, check_counter_clockwise);
-      check_mean_radius += point.r.length() / (PetscReal)geom_nt;
+      check_drift_coord += ((point.r - r0) - v_E * (t * dt)) / (PetscReal)geom_nt;
     }
     assert(check_counter_clockwise * Omega < 0.0);
 
-    PetscReal effective_radius = rho * std::sqrt(1 + POW2(Omega * dt) / 4.0);
-    assert(std::abs(check_mean_radius - effective_radius) < 1e-1);
+    PetscReal check_parallel = check_drift_coord.parallel_to(v_E).length();
+    assert(check_parallel < 1e-1);
+
+    /// @todo Why mean coordinate of transverse motion is not zero?
+    PetscReal check_transverse = check_drift_coord.transverse_to(v_E).length();
+    assert(check_transverse < rho);
+    assert(check_transverse < 1e-1);
   }
 }

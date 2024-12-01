@@ -12,7 +12,7 @@ struct World {
 
   PetscErrorCode initialize();
 
-  DM da;
+  DM da = nullptr;
   PetscInt procs[3];
   DMBoundaryType bounds[3];
 

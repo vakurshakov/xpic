@@ -78,17 +78,19 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 
 
 #if LOGGING
-  #define LOG_FLUSH() std::cout.flush()
-  #define LOG(...)                                     \
-    do {                                               \
-      PetscMPIInt rank;                                \
-      MPI_Comm_rank(PETSC_COMM_WORLD, &rank);          \
-      if (rank == 0)                                   \
-        std::cout << std::format(__VA_ARGS__) << "\n"; \
-    }                                                  \
+  #define LOG_FLUSH()   std::cout.flush()
+  #define LOG_IMPL(...) std::cout << std::format(__VA_ARGS__) << "\n";
+  #define LOG(...)                            \
+    do {                                      \
+      PetscMPIInt rank;                       \
+      MPI_Comm_rank(PETSC_COMM_WORLD, &rank); \
+      if (rank == 0)                          \
+        LOG_IMPL(__VA_ARGS__);                \
+    }                                         \
     while (0)
 #else
   #define LOG_FLUSH()
+  #define LOG_IMPL(...)
   #define LOG(...)
 #endif
 
