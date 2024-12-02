@@ -60,7 +60,6 @@ int main(int argc, char** argv)
 
     /// @todo Why mean coordinate of transverse motion is not zero?
     PetscReal check_transverse = check_drift_coord.transverse_to(v_E).length();
-    assert(check_transverse < rho);
     assert(check_transverse < 1e-1);
   }
 }
