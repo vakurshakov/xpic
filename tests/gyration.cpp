@@ -49,7 +49,7 @@ int main(int argc, char** argv)
       Boris_push push(dt, E0, B0);
       push.process(point, particles);
 
-      update_clockwise(old_r, point.r, check_counter_clockwise);
+      update_counter_clockwise(old_r, point.r, check_counter_clockwise);
       check_mean_radius += point.r.length() / (PetscReal)geom_nt;
     }
     assert(check_counter_clockwise * Omega < 0.0);
