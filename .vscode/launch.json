@@ -46,7 +46,7 @@
             "name": "tests",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/tests/gyration.out",
+            "program": "${workspaceFolder}/build/tests/${fileBasenameNoExtension}.out",
             "args": [],
             "cwd": "${workspaceFolder}/",
             "environment": [],
@@ -61,5 +61,5 @@
             "preLaunchTask": "${defaultBuildTask}",
             "miDebuggerPath": "/usr/bin/gdb"
         }
-      ]
+    ]
 }
