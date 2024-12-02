@@ -54,7 +54,7 @@ int main(int argc, char** argv)
     }
     assert(check_counter_clockwise * Omega < 0.0);
 
-    PetscReal effective_radius = rho * std::sqrt(1 + POW2(Omega * dt) / 4.0);
-    assert(std::abs(check_mean_radius - effective_radius) < 1e-1);
+    PetscReal effective_rho = rho * std::sqrt(1 + POW2(Omega * dt) / 4.0);
+    assert(std::abs(check_mean_radius / effective_rho - 1.0) < 8e-2 * POW2(Omega * dt));
   }
 }
