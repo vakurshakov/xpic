@@ -176,7 +176,6 @@ PetscErrorCode Particles::push(Point& point)
   // Resetting to their inital values in case of no convergence.
   point.r = ctx.x_n;
   point.p = ctx.v_n;
-  PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

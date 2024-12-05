@@ -66,12 +66,12 @@ PetscErrorCode DistributionMoment::set_da(const Region& region)
   Vector3I g_size = vector_cast(region.size);
   Vector3I g_end = g_start + g_size;
 
-  PetscInt dim, s;
+  PetscInt s;
   DMDAStencilType st;
   PetscInt size[3];
   PetscInt proc[3];
   DMBoundaryType bound[3];
-  PetscCall(DMDAGetInfo(da_, &dim, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
+  PetscCall(DMDAGetInfo(da_, nullptr, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
 
   const PetscInt* ownership[3];
   PetscCall(DMDAGetOwnershipRanges(da_, REP3_A(&ownership)));
@@ -81,7 +81,10 @@ PetscErrorCode DistributionMoment::set_da(const Region& region)
   std::vector<PetscInt> l_ownership[3];
 
   // Collecting number of processes and ownership ranges using global DMDA
-  for (PetscInt i = 0; i < dim; ++i) {
+  for (PetscInt i = 0; i < 3; ++i) {
+    l_proc[i] = 0;
+    l_bound[i] = DM_BOUNDARY_NONE;
+
     PetscInt start = 0;
     PetscInt end = ownership[i][0];
 

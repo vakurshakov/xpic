@@ -1,11 +1,11 @@
 Checks: >
   -*,
   bugprone-*,
+  cert-*,
+  clang-analyzer-*,
   -bugprone-easily-swappable-parameters,
   readability-identifier-naming,
 
-# cert-*,
-# clang-analyzer-*,
 # concurrency-*,
 # cppcoreguidelines-init-variables,
 # cppcoreguidelines-virtual-class-destructor,

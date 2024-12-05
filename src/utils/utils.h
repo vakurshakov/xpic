@@ -63,6 +63,7 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 
 #define TO_STEP(s, ds) static_cast<PetscInt>(std::round((s) / (ds)))
 
+// NOLINTBEGIN
 #define PetscCallThrow(...)                                      \
   do {                                                           \
     PetscStackUpdateLine;                                        \
@@ -75,6 +76,7 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
     }                                                            \
   }                                                              \
   while (0)
+// NOLINTEND
 
 
 #if LOGGING
