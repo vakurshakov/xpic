@@ -2,8 +2,8 @@
 
 namespace fs = std::filesystem;
 
-MPI_BinaryFile::MPI_BinaryFile(MPI_Comm comm,
-  const std::string& directory_path, const std::string& file_name)
+MPI_BinaryFile::MPI_BinaryFile(MPI_Comm comm, const std::string& directory_path,
+  const std::string& file_name)
 {
   PetscCallVoid(open(comm, directory_path, file_name));
 }

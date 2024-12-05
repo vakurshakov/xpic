@@ -20,8 +20,7 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
   PetscFunctionBeginHot;
   static constexpr PetscInt j_geom = POW2(shape_width);
   static constexpr PetscInt j_comp = Vector3I::dim;
-  static constexpr std::size_t j_size =
-    static_cast<std::size_t>(j_geom) * j_comp;
+  static constexpr std::size_t j_size = static_cast<std::size_t>(j_geom) * j_comp;
 
   std::array<PetscReal, j_size> temp_j;
 
