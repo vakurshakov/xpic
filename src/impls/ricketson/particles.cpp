@@ -151,7 +151,8 @@ PetscErrorCode Particles::push(Point& point)
     point.pz() = arr[5];
     PetscCall(VecRestoreArray(solution_, &arr));
 
-    PetscInt iterations, evals;
+    PetscInt iterations;
+    PetscInt evals;
     PetscCall(SNESGetIterationNumber(snes_, &iterations));
     PetscCall(SNESGetNumberFunctionEvals(snes_, &evals));
     LOG("Iterations number: {}, Function evaluations: {}", iterations, evals);

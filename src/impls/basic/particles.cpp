@@ -48,7 +48,8 @@ PetscErrorCode Particles::push()
     Shape shape;
     shape.setup(point.r);
 
-    Vector3R E_p, B_p;
+    Vector3R E_p;
+    Vector3R B_p;
     interpolate(shape, E_p, B_p);
 
     push(E_p, B_p, point);

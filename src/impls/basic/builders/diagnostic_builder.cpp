@@ -26,7 +26,7 @@ const Vec& DiagnosticBuilder::get_field(const std::string& name) const
   throw std::runtime_error("Unknown field name " + name);
 }
 
-Axis DiagnosticBuilder::get_component(const std::string& name) const
+/* static */ Axis DiagnosticBuilder::get_component(const std::string& name)
 {
   if (name == "x")
     return X;
@@ -78,8 +78,8 @@ Vector3R DiagnosticBuilder::parse_vector(
 }
 
 
-PetscErrorCode DiagnosticBuilder::check_region(const Vector3I& start,
-  const Vector3I& size, const std::string& diag_name) const
+/* static */ PetscErrorCode DiagnosticBuilder::check_region(
+  const Vector3I& start, const Vector3I& size, const std::string& diag_name)
 {
   PetscFunctionBeginUser;
 

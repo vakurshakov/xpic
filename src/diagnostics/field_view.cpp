@@ -25,7 +25,10 @@ PetscErrorCode FieldView::get_local_communicator(
   DM da, const Region& region, MPI_Comm* newcomm)
 {
   PetscFunctionBeginUser;
-  Vector3I r_start(region.start), r_size(region.size), start, size;
+  Vector3I r_start(region.start);
+  Vector3I r_size(region.size);
+  Vector3I start;
+  Vector3I size;
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
   PetscMPIInt color =
@@ -49,8 +52,10 @@ PetscErrorCode FieldView::set_data_views(const Region& region)
   PetscFunctionBeginUser;
   region_ = region;
 
-  Vector4I l_start, g_start = region_.start;
-  Vector4I m_size, f_size = region_.size;
+  Vector4I l_start;
+  Vector4I m_size;
+  Vector4I g_start = region_.start;
+  Vector4I f_size = region_.size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&l_start), REP3_A(&m_size)));
   PetscCall(DMDAGetDof(da_, &m_size[3]));
 

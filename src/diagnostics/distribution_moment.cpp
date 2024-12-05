@@ -173,7 +173,7 @@ PetscErrorCode DistributionMoment::collect()
 }
 
 
-inline PetscReal get_zeroth(const Particles&, const Point&)
+inline PetscReal get_zeroth(const Particles& /* particles */, const Point& /* point */)
 {
   return 1.0;
 }

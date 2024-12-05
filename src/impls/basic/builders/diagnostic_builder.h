@@ -21,16 +21,15 @@ protected:
   virtual std::string_view usage_message() const = 0;
 
   const Vec& get_field(const std::string& name) const;
-  Axis get_component(const std::string& name) const;
+  static Axis get_component(const std::string& name);
 
   const Particles& get_sort(const std::string& name) const;
   Vector3R parse_vector(
     const Configuration::json_t& json, const std::string& name) const;
 
-  PetscErrorCode check_region(const Vector3I& start, const Vector3I& size,
-    const std::string& diag_name) const;
+  static PetscErrorCode check_region(
+    const Vector3I& start, const Vector3I& size, const std::string& diag_name);
 
-protected:
   const Simulation& simulation_;
 
   using Diagnostics_vector = std::vector<Diagnostic_up>;
@@ -40,7 +39,7 @@ protected:
 using Diagnostic_builder_up = std::unique_ptr<DiagnosticBuilder>;
 
 PetscErrorCode build_diagnostics(
-  const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
+  const Simulation& simulation, std::vector<Diagnostic_up>& result);
 
 }  // namespace basic
 

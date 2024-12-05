@@ -15,7 +15,7 @@ struct SortParameters {
   PetscReal Tx = 0.0;  // Temperature in x direction.
   PetscReal Ty = 0.0;  // Temperature in y direction.
   PetscReal Tz = 0.0;  // Temperature in z direction.
-  std::string sort_name = {};
+  std::string sort_name;
 };
 
 

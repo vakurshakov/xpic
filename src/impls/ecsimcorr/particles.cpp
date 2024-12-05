@@ -99,7 +99,8 @@ PetscErrorCode Particles::second_push()
     Shape shape;
     shape.setup(point.r, shape_radius1, shape_func1);
 
-    Vector3R E_p, B_p;
+    Vector3R E_p;
+    Vector3R B_p;
     SimpleInterpolation interpolation(shape);
     interpolation.process({{E_p, E}}, {{B_p, B}});
 
@@ -152,6 +153,8 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
 }
 
 
+// NOLINTBEGIN(readability-function-cognitive-complexity)
+
 /// @note Also decomposes `Simulation::matL`
 void Particles::decompose_identity_current(
   const Shape& shape, const Point& point, const Vector3R& B_p)
@@ -177,7 +180,8 @@ void Particles::decompose_identity_current(
   const PetscInt m = shape.size.elements_product();
   const PetscInt n = m;
 
-  std::vector<MatStencil> idxm(m), idxn(n);
+  std::vector<MatStencil> idxm(m);
+  std::vector<MatStencil> idxn(n);
   std::vector<PetscReal> values(static_cast<std::size_t>(m * n * POW2(3)), 0);
 
   constexpr PetscReal shape_tolerance = 1e-10;
@@ -245,5 +249,7 @@ void Particles::decompose_identity_current(
   }
   PetscFunctionReturnVoid();
 }
+
+// NOLINTEND(readability-function-cognitive-complexity)
 
 }  // namespace ecsimcorr

@@ -23,7 +23,8 @@ PetscErrorCode Simulation::initialize_implementation()
   const PetscReal radius = 3;
   const PetscReal distance = 15;
 
-  PetscInt rstart[3], rsize[3];
+  PetscInt rstart[3];
+  PetscInt rsize[3];
   PetscCall(DMDAGetCorners(world_.da, REP3_A(&rstart), REP3_A(&rsize)));
 
   Vector3R*** B;
@@ -76,7 +77,8 @@ PetscErrorCode Simulation::calculate_b_norm_gradient()
   PetscReal* B_norm;
   PetscCall(VecGetArrayWrite(B_norm_, &B_norm));
 
-  PetscInt start[3], size[3];
+  PetscInt start[3];
+  PetscInt size[3];
   PetscCall(DMDAGetCorners(world_.da, REP3_A(&start), REP3_A(&size)));
 
   // clang-format off
@@ -100,7 +102,8 @@ PetscErrorCode Simulation::setup_norm_gradient()
   DM da = world_.da;
   PetscCall(DMCreateGlobalVector(da, &DB_));
 
-  PetscInt start[3], size[3];
+  PetscInt start[3];
+  PetscInt size[3];
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
   VecType vtype;

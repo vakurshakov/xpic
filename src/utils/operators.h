@@ -61,8 +61,8 @@ protected:
 
   /// @brief Almost identical to `MatSetValuesStencil()`,
   /// but can use different dof for rows and columns.
-  PetscErrorCode mat_set_values_stencil(Mat, PetscInt, const MatStencil[],
-    PetscInt, const MatStencil[], const PetscScalar[], InsertMode) const;
+  PetscErrorCode mat_set_values_stencil(Mat mat, PetscInt m, const MatStencil idxm[],
+    PetscInt n, const MatStencil idxn[], const PetscScalar v[], InsertMode addv) const;
 
   const std::vector<PetscReal> values_;
 };

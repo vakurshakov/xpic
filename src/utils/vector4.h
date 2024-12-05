@@ -37,12 +37,12 @@ struct Vector4 {
   {
   }
 
-  operator const T*() const
+  constexpr operator const T*() const
   {
     return data.data();
   }
 
-  operator T*()
+  constexpr operator T*()
   {
     return data.data();
   }

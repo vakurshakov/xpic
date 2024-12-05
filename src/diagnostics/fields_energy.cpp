@@ -18,19 +18,25 @@ PetscErrorCode FieldsEnergy::diagnose(timestep_t t)
 {
   PetscFunctionBeginUser;
 
-  Vector3R ***E, ***B;
+  Vector3R*** E;
+  Vector3R*** B;
   PetscCall(DMDAVecGetArrayRead(da_, E_, reinterpret_cast<void*>(&E)));
   PetscCall(DMDAVecGetArrayRead(da_, B_, reinterpret_cast<void*>(&B)));
 
-  Vector3I start, end;
+  Vector3I start;
+  Vector3I end;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;
 
-  PetscReal WEx = 0.0, WEy = 0.0, WEz = 0.0;
-  PetscReal WBx = 0.0, WBy = 0.0, WBz = 0.0;
+  PetscReal WEx = 0.0;
+  PetscReal WEy = 0.0;
+  PetscReal WEz = 0.0;
+  PetscReal WBx = 0.0;
+  PetscReal WBy = 0.0;
+  PetscReal WBz = 0.0;
 
-  // clang-format off
 #pragma omp parallel for simd reduction(+ : WEx, WEy, WEz, WBx, WBy, WBz)
+  // clang-format off
   for (PetscInt z = start.z(); z < end.z(); ++z) {
   for (PetscInt y = start.y(); y < end.y(); ++y) {
   for (PetscInt x = start.x(); x < end.x(); ++x) {

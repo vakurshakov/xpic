@@ -7,7 +7,7 @@
 
 class RandomGenerator {
 public:
-  static inline std::mt19937& get()
+  static std::mt19937& get()
   {
     static RandomGenerator single_instance;
     return single_instance.gen;

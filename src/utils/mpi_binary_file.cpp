@@ -65,7 +65,9 @@ PetscErrorCode create_subarray(PetscInt ndim, const PetscInt sizes[],
   PetscMPIInt d;
   PetscCall(PetscMPIIntCast(ndim, &d));
 
-  std::vector<PetscMPIInt> sz(d), st(d), sb(d);
+  std::vector<PetscMPIInt> sz(d);
+  std::vector<PetscMPIInt> st(d);
+  std::vector<PetscMPIInt> sb(d);
   for (PetscMPIInt i = 0; i < d; ++i) {
     PetscCall(PetscMPIIntCast(sizes[i], &sz[i]));
     PetscCall(PetscMPIIntCast(starts[i], &st[i]));

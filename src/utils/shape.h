@@ -30,22 +30,22 @@ public:
   static Vector3I make_start(const Vector3R& p_r, PetscReal radius);
   static Vector3I make_end(const Vector3R& p_r, PetscReal radius);
 
-  inline PetscInt s_p(PetscInt z, PetscInt y, PetscInt x) const
+  constexpr PetscInt s_p(PetscInt z, PetscInt y, PetscInt x) const
   {
     return indexing::petsc_index(z, y, x, 0, size[Z], size[Y], size[X], 1);
   }
 
-  constexpr PetscInt i_p(PetscInt i, ShapeType t, PetscInt c) const
+  static constexpr PetscInt i_p(PetscInt i, ShapeType t, PetscInt c)
   {
     return i * shape_comp + ((t % 2) * Vector3I::dim + c);
   }
 
-  inline void setup(const Vector3R& p_r)
+  void setup(const Vector3R& p_r)
   {
     setup(p_r, shape_radius, shape_function);
   }
 
-  inline void setup(const Vector3R& old_r, const Vector3R& new_r)
+  void setup(const Vector3R& old_r, const Vector3R& new_r)
   {
     setup(old_r, new_r, shape_radius, shape_function);
   }

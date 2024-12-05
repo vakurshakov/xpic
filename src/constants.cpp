@@ -22,8 +22,9 @@ PetscInt geom_nt = 0;                 // units of dt
 
 PetscInt diagnose_period = 0;         // units of dt
 
-void set_world_geometry(PetscReal _gx, PetscReal _gy, PetscReal _gz,
-  PetscReal _gt, PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,
+void set_world_geometry( //
+  PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
+  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
   PetscInt _dtp)
 {
   Dx[0] = dx = _dx;
@@ -44,11 +45,12 @@ void set_world_geometry(PetscReal _gx, PetscReal _gy, PetscReal _gz,
   diagnose_period = _dtp;
 }
 
-void set_world_geometry(PetscInt _gnx, PetscInt _gny, PetscInt _gnz,
-  PetscInt _gnt, PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,
+void set_world_geometry( //
+  PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
+  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
   PetscInt _dtp)
 {
-  set_world_geometry(                   //
+  set_world_geometry( //
     static_cast<PetscReal>(_gnx) * _dx, //
     static_cast<PetscReal>(_gny) * _dy, //
     static_cast<PetscReal>(_gnz) * _dz, //

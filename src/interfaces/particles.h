@@ -32,20 +32,6 @@ protected:
   static constexpr PetscInt MPI_TAG_NUMBERS = 2;
   static constexpr PetscInt MPI_TAG_POINTS = 4;
 
-  PetscInt to_contiguous_index(PetscInt z, PetscInt y, PetscInt x)
-  {
-    constexpr PetscInt dim = 3;
-    return indexing::petsc_index(z, y, x, 0, dim, dim, dim, 1);
-  }
-
-  void from_contiguous_index(PetscInt index, PetscInt& z, PetscInt& y, PetscInt& x)
-  {
-    constexpr PetscInt dim = 3;
-    x = (index) % dim;
-    y = (index / dim) % dim;
-    z = (index / dim) / dim;
-  }
-
   SortParameters parameters_;
   std::vector<Point> points_;
 };

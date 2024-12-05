@@ -126,7 +126,9 @@ PetscErrorCode FiniteDifferenceOperator::mat_set_values_stencil(Mat mat,
     PetscBool noc = static_cast<PetscBool>(mdof == 1);
     PetscInt dim = 3 + static_cast<PetscInt>(!noc);
 
-    PetscInt i, j, tmp;
+    PetscInt i;
+    PetscInt j;
+    PetscInt tmp;
     PetscInt* dxm = reinterpret_cast<PetscInt*>(const_cast<MatStencil*>(idxm));
 
     for (i = 0; i < m; ++i) {
@@ -255,7 +257,11 @@ PetscErrorCode NonRectangularOperator::create_matrix(Mat* mat)
 PetscErrorCode NonRectangularOperator::create_scalar_da()
 {
   PetscFunctionBeginUser;
-  PetscInt dim, g_size[3], procs[3], dof, s;
+  PetscInt dim;
+  PetscInt g_size[3];
+  PetscInt procs[3];
+  PetscInt dof;
+  PetscInt s;
   DMBoundaryType bounds[3];
   DMDAStencilType st;
   PetscCall(DMDAGetInfo(da_, &dim, REP3_A(&g_size), REP3_A(&procs), &dof, &s, REP3_A(&bounds), &st));

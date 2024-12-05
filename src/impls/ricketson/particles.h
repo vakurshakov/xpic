@@ -40,7 +40,7 @@ private:
   PetscErrorCode adaptive_time_stepping(const Point& point);
 
   static PetscErrorCode form_picard_iteration(
-    SNES snes, Vec vx, Vec vf, void* context);
+    SNES snes, Vec vx, Vec vf, void* vctx);
 
   Simulation& simulation_;
 
