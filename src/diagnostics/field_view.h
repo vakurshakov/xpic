@@ -41,7 +41,7 @@ protected:
   Region region_;
 
   MPI_Comm comm_;
-  MPI_binary_file file_;
+  MPI_BinaryFile file_;
 };
 
 #endif  // SRC_DIAGNOSTICS_FIELD_VIEW_H

@@ -3,13 +3,13 @@
 
 #include "src/pch.h"
 
-class MPI_binary_file {
+class MPI_BinaryFile {
 public:
-  MPI_binary_file() = default;
-  ~MPI_binary_file();
+  MPI_BinaryFile() = default;
+  ~MPI_BinaryFile();
 
   /// @brief Construct a new binary file and its directory path recursively.
-  MPI_binary_file(MPI_Comm comm, const std::string& directory_path,
+  MPI_BinaryFile(MPI_Comm comm, const std::string& directory_path,
     const std::string& file_name);
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
