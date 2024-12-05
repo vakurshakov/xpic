@@ -20,8 +20,7 @@ public:
   SyncBinaryFile& operator=(SyncBinaryFile&& other) = default;
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
-  SyncBinaryFile(
-    const std::string& directory_path, const std::string& file_name);
+  SyncBinaryFile(const std::string& directory_path, const std::string& file_name);
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
   PetscErrorCode open(

@@ -10,8 +10,7 @@ constexpr PetscInt j_p(PetscInt x1, PetscInt x2)
 }  // namespace indexing
 
 
-EsirkepovDecomposition::EsirkepovDecomposition(
-  const Shape& shape, PetscReal alpha)
+EsirkepovDecomposition::EsirkepovDecomposition(const Shape& shape, PetscReal alpha)
   : shape(shape), alpha(alpha)
 {
 }
