@@ -20,7 +20,7 @@ protected:
   std::string out_dir_;
 };
 
-}
+}  // namespace interfaces
 
 using Diagnostic_up = std::unique_ptr<interfaces::Diagnostic>;
 

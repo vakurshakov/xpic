@@ -164,7 +164,12 @@ PetscErrorCode Particles::push(Point& point)
       PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
       const PetscInt size = 9;
       const PetscReal data[size] = {
-        (PetscReal)i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p)};
+        static_cast<PetscReal>(i),
+        Omega_dt,
+        mu,
+        REP3_A(point.r),
+        REP3_A(point.p),
+      };
 
       PetscCall(particle_iterations_log.write_floats(size, data));
       PetscFunctionReturn(PETSC_SUCCESS);
@@ -265,8 +270,8 @@ PetscErrorCode Particles::form_picard_iteration(
 
   const PetscReal* x;
   PetscCall(VecGetArrayRead(vx, &x));
-  Vector3R x_nn = {x[0], x[1], x[2]};
-  Vector3R v_nn = {x[3], x[4], x[5]};
+  Vector3R x_nn{x[0], x[1], x[2]};
+  Vector3R v_nn{x[3], x[4], x[5]};
   PetscCall(VecRestoreArrayRead(vx, &x));
 
   PetscCall(ctx.update(x_nn, v_nn));

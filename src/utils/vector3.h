@@ -13,7 +13,11 @@ struct Vector3 {
   std::array<T, dim> data;
 
   constexpr Vector3()
-    : data{(T)0, (T)0, (T)0}
+    : data{
+        static_cast<T>(0), //
+        static_cast<T>(0), //
+        static_cast<T>(0)  //
+      }
   {
   }
 
@@ -108,9 +112,9 @@ struct Vector3 {
   Vector3<PetscReal> operator/(T scalar) const
   {
     return Vector3{
-      (PetscReal)data[X] / scalar,
-      (PetscReal)data[Y] / scalar,
-      (PetscReal)data[Z] / scalar,
+      static_cast<PetscReal>(data[X]) / scalar,
+      static_cast<PetscReal>(data[Y]) / scalar,
+      static_cast<PetscReal>(data[Z]) / scalar,
     };
   }
 
@@ -125,7 +129,7 @@ struct Vector3 {
     typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   PetscReal length() const
   {
-    return sqrt((PetscReal)squared());
+    return sqrt(static_cast<PetscReal>(squared()));
   }
 
   T elements_product() const
@@ -222,7 +226,7 @@ Vector3<T> min(const Vector3<T>& lhs, const Vector3<T>& rhs)
 template<typename T>
 Vector3<T> max(const Vector3<T>& lhs, const Vector3<T>& rhs)
 {
-  return {
+  return Vector3{
     std::max(lhs[X], rhs[X]),
     std::max(lhs[Y], rhs[Y]),
     std::max(lhs[Z], rhs[Z]),

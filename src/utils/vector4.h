@@ -13,7 +13,12 @@ struct Vector4 {
   std::array<T, dim> data;
 
   constexpr Vector4()
-    : data{(T)0, (T)0, (T)0, (T)0}
+    : data{
+        static_cast<T>(0), //
+        static_cast<T>(0), //
+        static_cast<T>(0), //
+        static_cast<T>(0)  //
+      }
   {
   }
 
@@ -105,10 +110,10 @@ struct Vector4 {
   Vector4<PetscReal> operator/(T scalar) const
   {
     return Vector4{
-      (PetscReal)data[X] / scalar,
-      (PetscReal)data[Y] / scalar,
-      (PetscReal)data[Z] / scalar,
-      (PetscReal)data[C] / scalar,
+      static_cast<PetscReal>(data[X]) / scalar,
+      static_cast<PetscReal>(data[Y]) / scalar,
+      static_cast<PetscReal>(data[Z]) / scalar,
+      static_cast<PetscReal>(data[C]) / scalar,
     };
   }
 
@@ -123,7 +128,7 @@ struct Vector4 {
     typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   PetscReal length() const
   {
-    return sqrt((PetscReal)square());
+    return sqrt(static_cast<PetscReal>(squared()));
   }
 
   T elements_product() const
@@ -140,7 +145,7 @@ struct Vector4 {
       data[C] * other[C];
   }
 
-  T square() const
+  T squared() const
   {
     return dot(*this);
   }

@@ -91,7 +91,10 @@ private:
   /// @note `Vector3I::dim` is used as a coordinate space dimensionality.
   static constexpr PetscInt shape_geom = POW3(shape_width);
   static constexpr PetscInt shape_comp = Vector3I::dim * 2;
-  std::array<PetscReal, static_cast<std::size_t>(shape_geom * shape_comp)> shape;
+  static constexpr std::size_t shape_size =
+    static_cast<const std::size_t>(shape_geom) * shape_comp;
+
+  std::array<PetscReal, shape_size> shape;
 };
 
 #endif  // SRC_UTILS_SHAPE_H

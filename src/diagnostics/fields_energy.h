@@ -25,6 +25,6 @@ private:
   Vec B_;
 };
 
-}
+}  // namespace basic
 
 #endif  // SRC_DIAGNOSTICS_FIELDS_ENERGY_H

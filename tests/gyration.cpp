@@ -50,7 +50,7 @@ int main(int argc, char** argv)
       push.process(point, particles);
 
       update_clockwise(old_r, point.r, check_counter_clockwise);
-      check_mean_radius += point.r.length() / (PetscReal)geom_nt;
+      check_mean_radius += point.r.length() / static_cast<PetscReal>(geom_nt);
     }
     assert(check_counter_clockwise * Omega < 0.0);
 

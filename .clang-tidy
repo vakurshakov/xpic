@@ -1,14 +1,16 @@
 Checks: >
   -*,
   bugprone-*,
+  -bugprone-easily-swappable-parameters,
   cert-*,
   clang-analyzer-*,
   concurrency-*,
   cppcoreguidelines-virtual-class-destructor,
-  -bugprone-easily-swappable-parameters,
+  google-*,
+  -google-explicit-constructor,
+  -google-readability-braces-around-statements,
   readability-identifier-naming,
 
-# google-*,
 # hicpp-*,
 # misc-*,
 # modernize-*,

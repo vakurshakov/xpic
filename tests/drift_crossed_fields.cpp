@@ -51,7 +51,7 @@ int main(int argc, char** argv)
       push.process_rel(point, particles);
 
       update_clockwise(old_r, point.r, check_counter_clockwise);
-      check_drift_coord += ((point.r - r0) - v_E * (t * dt)) / (PetscReal)geom_nt;
+      check_drift_coord += ((point.r - r0) - v_E * (t * dt)) / static_cast<PetscReal>(geom_nt);
     }
     assert(check_counter_clockwise * Omega < 0.0);
 

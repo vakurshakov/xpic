@@ -6,9 +6,9 @@
 
 void convert(Vector3R& vector, const Vector3I& other)
 {
-  vector.x() = (PetscReal)other.x() * dx;
-  vector.y() = (PetscReal)other.y() * dy;
-  vector.z() = (PetscReal)other.z() * dz;
+  vector.x() = static_cast<PetscReal>(other.x()) * dx;
+  vector.y() = static_cast<PetscReal>(other.y()) * dy;
+  vector.z() = static_cast<PetscReal>(other.z()) * dz;
 }
 
 PetscErrorCode World::initialize()

@@ -48,6 +48,10 @@ void set_world_geometry(PetscInt _gnx, PetscInt _gny, PetscInt _gnz,
   PetscInt _gnt, PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,
   PetscInt _dtp)
 {
-  set_world_geometry((PetscReal)_gnx * _dx, (PetscReal)_gny * _dy,
-    (PetscReal)_gnz * _dz, (PetscReal)_gnt * _dt, _dx, _dy, _dz, _dt, _dtp);
+  set_world_geometry(                   //
+    static_cast<PetscReal>(_gnx) * _dx, //
+    static_cast<PetscReal>(_gny) * _dy, //
+    static_cast<PetscReal>(_gnz) * _dz, //
+    static_cast<PetscReal>(_gnt) * _dt, //
+    _dx, _dy, _dz, _dt, _dtp);
 }
