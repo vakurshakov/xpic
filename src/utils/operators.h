@@ -9,9 +9,11 @@
 
 /// @brief Utility class to create constant operators on a `DMDA` grid.
 class Operator {
+public:
+  virtual ~Operator() = default;
+
 protected:
   Operator(DM da, PetscInt mdof = 3, PetscInt ndof = 3);
-  virtual ~Operator() = default;
 
   PetscInt m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
   PetscInt n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
@@ -77,10 +79,12 @@ private:
 
 
 class NonRectangularOperator : public FiniteDifferenceOperator {
+public:
+  ~NonRectangularOperator() override;
+
 protected:
   NonRectangularOperator(
     DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v);
-  ~NonRectangularOperator() override;
 
   PetscErrorCode create_matrix(Mat* mat) override;
 
