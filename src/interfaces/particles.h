@@ -10,6 +10,8 @@ namespace interfaces {
 
 class Particles {
 public:
+  DEFAULT_MOVABLE(Particles);
+
   Particles(const World& world, const SortParameters& parameters);
   virtual ~Particles() = default;
 

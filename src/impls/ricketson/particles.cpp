@@ -60,7 +60,7 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 }
 
 
-Particles::Particles(Particles&& other)
+Particles::Particles(Particles&& other) noexcept
   : interfaces::Particles(other.world_, other.parameters_),
     simulation_(other.simulation_)
 {

@@ -2,11 +2,14 @@
 #define SRC_INTERFACES_DIAGNOSTIC_H
 
 #include "src/pch.h"
+#include "src/utils/utils.h"
 
 namespace interfaces {
 
 class Diagnostic {
 public:
+  DEFAULT_MOVABLE(Diagnostic);
+
   virtual ~Diagnostic() = default;
 
   Diagnostic(const std::string& out_dir)

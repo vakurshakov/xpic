@@ -14,13 +14,13 @@ public:
   }
 
 private:
-  std::random_device rd;
-  std::mt19937 gen = std::mt19937(rd());
+  DEFAULT_MOVABLE(RandomGenerator);
 
   RandomGenerator() = default;
+  ~RandomGenerator() = default;
 
-  RandomGenerator(const RandomGenerator&) = delete;
-  RandomGenerator& operator=(const RandomGenerator&) = delete;
+  std::random_device rd;
+  std::mt19937 gen = std::mt19937(rd());
 };
 
 inline double random_01()

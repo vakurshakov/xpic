@@ -10,6 +10,8 @@ namespace interfaces {
 
 class Simulation {
 public:
+  DEFAULT_MOVABLE(Simulation);
+
   Simulation() = default;
   virtual ~Simulation() = default;
 

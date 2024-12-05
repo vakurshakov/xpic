@@ -2,9 +2,12 @@
 #define SRC_UTILS_MPI_BINARY_FILE
 
 #include "src/pch.h"
+#include "src/utils/utils.h"
 
 class MPI_BinaryFile {
 public:
+  DEFAULT_MOVABLE(MPI_BinaryFile);
+
   MPI_BinaryFile() = default;
   ~MPI_BinaryFile();
 

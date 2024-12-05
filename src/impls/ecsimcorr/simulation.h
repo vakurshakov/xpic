@@ -10,6 +10,8 @@ namespace ecsimcorr {
 
 class Simulation : public interfaces::Simulation {
 public:
+  DEFAULT_MOVABLE(Simulation);
+
   Simulation() = default;
   ~Simulation() override;
 

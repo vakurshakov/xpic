@@ -14,9 +14,15 @@ class Simulation;
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const SortParameters& parameters);
+  Particles(const Particles& other) = delete;
+  Particles& operator=(const Particles& other) = delete;
+
   Particles(Particles&& other) noexcept;
-  ~Particles();
+  Particles& operator=(Particles&& other) noexcept = delete;
+
+  ~Particles() final;
+
+  Particles(Simulation& simulation, const SortParameters& parameters);
 
   PetscErrorCode push();
 

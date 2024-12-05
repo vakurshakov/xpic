@@ -123,13 +123,14 @@ PetscErrorCode FiniteDifferenceOperator::mat_set_values_stencil(Mat mat,
     dims[3] = mdof;
     starts[3] = 0;
 
-    PetscBool noc = static_cast<PetscBool>(mdof == 1);
+    auto noc = static_cast<PetscBool>(mdof == 1);
     PetscInt dim = 3 + static_cast<PetscInt>(!noc);
+
+    auto* dxm = reinterpret_cast<PetscInt*>(const_cast<MatStencil*>(idxm));
 
     PetscInt i;
     PetscInt j;
     PetscInt tmp;
-    PetscInt* dxm = reinterpret_cast<PetscInt*>(const_cast<MatStencil*>(idxm));
 
     for (i = 0; i < m; ++i) {
       tmp = *dxm++ - starts[0];

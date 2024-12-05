@@ -46,11 +46,13 @@ inline PetscReal get_m_vphi_vphi(const interfaces::Particles& particles, const P
  */
 class DistributionMoment : public FieldView {
 public:
+  DEFAULT_MOVABLE(DistributionMoment);
+
   static std::unique_ptr<DistributionMoment> create(const std::string& out_dir,
     const interfaces::Particles& particles, const Moment& moment,
     const Region& region);
 
-  ~DistributionMoment();
+  ~DistributionMoment() override;
 
   PetscErrorCode diagnose(timestep_t t) override;
 

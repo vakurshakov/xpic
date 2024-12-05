@@ -2,6 +2,7 @@
 #define SRC_UTILS_SYNC_BINARY_FILE
 
 #include "src/pch.h"
+#include "src/utils/utils.h"
 
 /**
  * @note In most cases it should be used for scalar variables diagnostics.
@@ -9,15 +10,11 @@
  */
 class SyncBinaryFile {
 public:
-  SyncBinaryFile() = default;
-
   /// @warning std::ofstream is not copyable.
-  SyncBinaryFile(const SyncBinaryFile& other) = delete;
-  SyncBinaryFile& operator=(const SyncBinaryFile& other) = delete;
+  DEFAULT_MOVABLE(SyncBinaryFile);
 
-  /// @note Default move constructors are fine.
-  SyncBinaryFile(SyncBinaryFile&& other) noexcept = default;
-  SyncBinaryFile& operator=(SyncBinaryFile&& other) noexcept = default;
+  SyncBinaryFile() = default;
+  ~SyncBinaryFile() = default;
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
   SyncBinaryFile(const std::string& directory_path, const std::string& file_name);

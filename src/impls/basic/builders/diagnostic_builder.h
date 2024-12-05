@@ -11,6 +11,8 @@ namespace basic {
 
 class DiagnosticBuilder {
 public:
+  DEFAULT_MOVABLE(DiagnosticBuilder);
+
   DiagnosticBuilder(
     const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
   virtual ~DiagnosticBuilder() = default;
