@@ -6,6 +6,9 @@ set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
+# enables clang-tidy in the `build` directory
+set(CMAKE_EXPORT_COMPILE_COMMANDS true)
+
 
 project(xpic VERSION 0.1 LANGUAGES CXX)
 
