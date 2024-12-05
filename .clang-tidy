@@ -10,7 +10,6 @@ Checks: >
   -google-explicit-constructor,
   -google-readability-braces-around-statements,
   hicpp-*,
-  -hicpp-vararg,
   -hicpp-member-init,
   -hicpp-avoid-c-arrays,
   -hicpp-explicit-conversions,
