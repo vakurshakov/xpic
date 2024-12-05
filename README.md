@@ -1,4 +1,4 @@
-### Installation guide
+## Installation guide
 
 #### 1. Install [nlohmann::json](https://github.com/nlohmann/json)
 ```sh
@@ -54,4 +54,12 @@ Now, the executable can be built successfully. To do so, run the following comma
 The binary will be created in the `./build` folder. Execution of the code should be performed from the home directory too:
 ```sh
   ./run.sh <config.json>
+```
+
+## Examining clang-tidy errors
+
+To run clang-tidy over the project we use the approach with `compile_commands.json`. To produce this file, we explicitly set the `CMAKE_EXPORT_COMPILE_COMMANDS` in our cmake, so after the build we can use
+
+```sh
+run-clang-tidy -p ./build -extra-arg="-I/opt/mpich/include" 2>&1 | tee clang-tidy.log
 ```
