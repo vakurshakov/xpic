@@ -92,7 +92,7 @@ private:
   static constexpr PetscInt shape_geom = POW3(shape_width);
   static constexpr PetscInt shape_comp = Vector3I::dim * 2;
   static constexpr std::size_t shape_size =
-    static_cast<const std::size_t>(shape_geom) * shape_comp;
+    static_cast<std::size_t>(shape_geom) * shape_comp;
 
   std::array<PetscReal, shape_size> shape;
 };
