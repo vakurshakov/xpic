@@ -4,10 +4,10 @@
 #include "src/utils/shape.h"
 
 /// @brief Charge-conserving Esirkepov density decomposition.
-class Esirkepov_decomposition {
+class EsirkepovDecomposition {
 public:
-  Esirkepov_decomposition() = delete;
-  Esirkepov_decomposition(const Shape& shape, PetscReal alpha);
+  EsirkepovDecomposition() = delete;
+  EsirkepovDecomposition(const Shape& shape, PetscReal alpha);
 
   /// @brief Decomposition context is a reference to outer global current.
   using Context = Vector3R***;
@@ -18,9 +18,9 @@ public:
   PetscErrorCode process(Context& J) const;
 
 private:
-  PetscReal get_Jx(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jx) const;
-  PetscReal get_Jy(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jy) const;
-  PetscReal get_Jz(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jz) const;
+  PetscReal get_jx(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jx) const;
+  PetscReal get_jy(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jy) const;
+  PetscReal get_jz(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jz) const;
 
   const Shape& shape;
   PetscReal alpha;

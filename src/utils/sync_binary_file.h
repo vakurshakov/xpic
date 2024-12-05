@@ -7,20 +7,20 @@
  * @note In most cases it should be used for scalar variables diagnostics.
  * @todo Should be inherited from MPI_binary_file to reuse it's logic.
  */
-class Sync_binary_file {
+class SyncBinaryFile {
 public:
-  Sync_binary_file() = default;
+  SyncBinaryFile() = default;
 
   /// @warning std::ofstream is not copyable.
-  Sync_binary_file(const Sync_binary_file& other) = delete;
-  Sync_binary_file& operator=(const Sync_binary_file& other) = delete;
+  SyncBinaryFile(const SyncBinaryFile& other) = delete;
+  SyncBinaryFile& operator=(const SyncBinaryFile& other) = delete;
 
   /// @note Default move constructors are fine.
-  Sync_binary_file(Sync_binary_file&& other) = default;
-  Sync_binary_file& operator=(Sync_binary_file&& other) = default;
+  SyncBinaryFile(SyncBinaryFile&& other) = default;
+  SyncBinaryFile& operator=(SyncBinaryFile&& other) = default;
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
-  Sync_binary_file(
+  SyncBinaryFile(
     const std::string& directory_path, const std::string& file_name);
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.

@@ -1,11 +1,11 @@
 #include "boris_push.h"
 
-Boris_push::Boris_push(PetscReal dt, const Vector3R& E_p, const Vector3R& B_p)
+BorisPush::BorisPush(PetscReal dt, const Vector3R& E_p, const Vector3R& B_p)
   : dt(dt), E_p(E_p), B_p(B_p)
 {
 }
 
-PetscErrorCode Boris_push::process(Point& point, const Context& particles) const
+PetscErrorCode BorisPush::process(Point& point, const Context& particles) const
 {
   PetscFunctionBeginHot;
   update_u(point, false, particles);
@@ -13,7 +13,7 @@ PetscErrorCode Boris_push::process(Point& point, const Context& particles) const
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Boris_push::process_rel(Point& point, const Context& particles) const
+PetscErrorCode BorisPush::process_rel(Point& point, const Context& particles) const
 {
   PetscFunctionBeginHot;
   update_u(point, true, particles);
@@ -21,7 +21,7 @@ PetscErrorCode Boris_push::process_rel(Point& point, const Context& particles) c
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void Boris_push::update_u(
+void BorisPush::update_u(
   Point& point, bool need_gamma, const Context& particles) const
 {
   PetscReal m = particles.mass(point);

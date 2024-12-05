@@ -9,11 +9,11 @@
 
 namespace basic {
 
-class Diagnostic_builder {
+class DiagnosticBuilder {
 public:
-  Diagnostic_builder(
+  DiagnosticBuilder(
     const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
-  virtual ~Diagnostic_builder() = default;
+  virtual ~DiagnosticBuilder() = default;
 
   virtual PetscErrorCode build(const Configuration::json_t& diag_info) = 0;
 
@@ -37,7 +37,7 @@ protected:
   Diagnostics_vector& diagnostics_;
 };
 
-using Diagnostic_builder_up = std::unique_ptr<Diagnostic_builder>;
+using Diagnostic_builder_up = std::unique_ptr<DiagnosticBuilder>;
 
 PetscErrorCode build_diagnostics(
   const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);

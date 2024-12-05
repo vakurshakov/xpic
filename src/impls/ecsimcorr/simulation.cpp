@@ -13,7 +13,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
 
-  Sort_parameters parameters{
+  SortParameters parameters{
     .Np = 1,
     .n = +1.0,
     .q = -1.0,

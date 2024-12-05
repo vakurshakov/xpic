@@ -7,7 +7,7 @@
 
 namespace basic {
 
-Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
+Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
@@ -71,14 +71,14 @@ PetscErrorCode Particles::push()
 
 void Particles::interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const
 {
-  Simple_interpolation interpolation(shape);
+  SimpleInterpolation interpolation(shape);
   interpolation.process({{E_p, E}}, {{B_p, B}});
 }
 
 
 void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const
 {
-  Boris_push push(dt, E_p, B_p);
+  BorisPush push(dt, E_p, B_p);
   push.process_rel(point, *this);
 }
 
@@ -88,7 +88,7 @@ void Particles::decompose(const Shape& shape, const Point& point)
   const PetscReal alpha =
     charge(point) * density(point) / (particles_number(point) * (6.0 * dt));
 
-  Esirkepov_decomposition decomposition(shape, alpha);
+  EsirkepovDecomposition decomposition(shape, alpha);
   decomposition.process(J);
 }
 

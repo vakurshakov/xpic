@@ -2,7 +2,7 @@
 
 namespace fs = std::filesystem;
 
-Sync_binary_file::Sync_binary_file(
+SyncBinaryFile::SyncBinaryFile(
   const std::string& directory_path, const std::string& file_name)
 {
   PetscCallVoid(open(directory_path, file_name));
@@ -14,7 +14,7 @@ Sync_binary_file::Sync_binary_file(
   if (rank != 0)                                       \
   return PETSC_SUCCESS
 
-PetscErrorCode Sync_binary_file::open(
+PetscErrorCode SyncBinaryFile::open(
   const std::string& directory_path, const std::string& file_name)
 {
   SYNC_GUARD;
@@ -26,7 +26,7 @@ PetscErrorCode Sync_binary_file::open(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Sync_binary_file::flush()
+PetscErrorCode SyncBinaryFile::flush()
 {
   SYNC_GUARD;
   PetscFunctionBeginHot;
@@ -34,7 +34,7 @@ PetscErrorCode Sync_binary_file::flush()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Sync_binary_file::close()
+PetscErrorCode SyncBinaryFile::close()
 {
   SYNC_GUARD;
   PetscFunctionBeginHot;
@@ -46,7 +46,7 @@ PetscErrorCode Sync_binary_file::close()
 }
 
 
-PetscErrorCode Sync_binary_file::write_floats(PetscInt size, const PetscReal* data)
+PetscErrorCode SyncBinaryFile::write_floats(PetscInt size, const PetscReal* data)
 {
   SYNC_GUARD;
   PetscFunctionBeginHot;

@@ -8,7 +8,7 @@
 
 namespace ecsimcorr {
 
-Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
+Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
@@ -55,7 +55,7 @@ PetscErrorCode Particles::first_push()
     shape.setup(point.r, shape_radius1, shape_func1);
 
     Vector3R B_p;
-    Simple_interpolation interpolation(shape);
+    SimpleInterpolation interpolation(shape);
     interpolation.process({}, {{B_p, B}});
 
     decompose_identity_current(shape, point, B_p);
@@ -100,10 +100,10 @@ PetscErrorCode Particles::second_push()
     shape.setup(point.r, shape_radius1, shape_func1);
 
     Vector3R E_p, B_p;
-    Simple_interpolation interpolation(shape);
+    SimpleInterpolation interpolation(shape);
     interpolation.process({{E_p, E}}, {{B_p, B}});
 
-    Boris_push push((0.5 * dt), E_p, B_p);
+    BorisPush push((0.5 * dt), E_p, B_p);
     push.process(point, *this);
 
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
@@ -147,7 +147,7 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
   const PetscReal alpha =
     charge(point) * density(point) / (particles_number(point) * (3.0 * dt));
 
-  Esirkepov_decomposition decomposition(shape, alpha);
+  EsirkepovDecomposition decomposition(shape, alpha);
   PetscCallVoid(decomposition.process(currJe));
 }
 
@@ -167,7 +167,7 @@ void Particles::decompose_identity_current(
 
   Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
 
-  Simple_decomposition decomposition(shape, I_p);
+  SimpleDecomposition decomposition(shape, I_p);
   PetscCallVoid(decomposition.process(currI));
 
 

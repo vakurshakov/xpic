@@ -1,6 +1,6 @@
 #include "sort_parameters.h"
 
-PetscReal __0th_order_spline(PetscReal s)
+PetscReal spline_of_0th_order(PetscReal s)
 {
   s = abs(s);
 
@@ -10,7 +10,7 @@ PetscReal __0th_order_spline(PetscReal s)
     return 0.0;
 }
 
-PetscReal __1st_order_spline(PetscReal s)
+PetscReal spline_of_1st_order(PetscReal s)
 {
   s = abs(s);
 
@@ -20,7 +20,7 @@ PetscReal __1st_order_spline(PetscReal s)
     return 0.0;
 }
 
-PetscReal __2nd_order_spline(PetscReal s)
+PetscReal spline_of_2nd_order(PetscReal s)
 {
   s = abs(s);
 
@@ -32,7 +32,7 @@ PetscReal __2nd_order_spline(PetscReal s)
     return 0.0;
 }
 
-PetscReal __3rd_order_spline(PetscReal s)
+PetscReal spline_of_3rd_order(PetscReal s)
 {
   s = abs(s);
   PetscReal s2 = POW2(s);
@@ -46,7 +46,7 @@ PetscReal __3rd_order_spline(PetscReal s)
     return 0.0;
 }
 
-PetscReal __4th_order_spline(PetscReal s)
+PetscReal spline_of_4th_order(PetscReal s)
 {
   s = abs(s);
   PetscReal s2 = POW2(s);
@@ -63,7 +63,7 @@ PetscReal __4th_order_spline(PetscReal s)
     return 0.0;
 }
 
-PetscReal __5th_order_spline(PetscReal s)
+PetscReal spline_of_5th_order(PetscReal s)
 {
   s = abs(s);
   PetscReal s2 = POW2(s);

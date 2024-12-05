@@ -6,9 +6,9 @@
 
 namespace basic {
 
-class Field_view_builder : public Diagnostic_builder {
+class FieldViewBuilder : public DiagnosticBuilder {
 public:
-  Field_view_builder(
+  FieldViewBuilder(
     const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& diag_info) override;
@@ -29,18 +29,18 @@ private:
     // clang-format on
   }
 
-  struct Field_description {
+  struct FieldDescription {
     std::string field_name;
     std::string component_name;
-    Field_view::Region region;
+    FieldView::Region region;
     MPI_Comm comm;
   };
 
-  using Fields_description = std::vector<Field_description>;
+  using Fields_description = std::vector<FieldDescription>;
   Fields_description fields_desc_;
 
   PetscErrorCode parse_field_info(
-    const Configuration::json_t& json, Field_description& desc);
+    const Configuration::json_t& json, FieldDescription& desc);
 };
 
 }  // namespace basic

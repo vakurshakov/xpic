@@ -10,14 +10,14 @@ namespace interfaces {
 
 class Particles {
 public:
-  Particles(const World& world, const Sort_parameters& parameters);
+  Particles(const World& world, const SortParameters& parameters);
   virtual ~Particles() = default;
 
   const World& world_;
 
   PetscErrorCode add_particle(const Point& point);
 
-  const Sort_parameters& parameters() const;
+  const SortParameters& parameters() const;
   const std::vector<Point>& points() const;
 
   PetscInt particles_number(const Point& point) const;
@@ -46,7 +46,7 @@ protected:
     z = (index / dim) / dim;
   }
 
-  Sort_parameters parameters_;
+  SortParameters parameters_;
   std::vector<Point> points_;
 };
 

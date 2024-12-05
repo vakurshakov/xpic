@@ -6,9 +6,9 @@
 
 namespace basic {
 
-class Distribution_moment_builder : public Diagnostic_builder {
+class DistributionMomentBuilder : public DiagnosticBuilder {
 public:
-  Distribution_moment_builder(const Simulation& simulation,
+  DistributionMomentBuilder(const Simulation& simulation,
     std::vector<Diagnostic_up>& diagnostics, const std::string& moment_name,
     const std::string& proj_name);
 
@@ -40,17 +40,17 @@ private:
   std::string moment_name;
   std::string proj_name;
 
-  struct Moment_description {
+  struct MomentDescription {
     std::string particles_name;
-    Field_view::Region region;
+    FieldView::Region region;
     MPI_Comm comm;
   };
 
-  using Moments_description = std::vector<Moment_description>;
+  using Moments_description = std::vector<MomentDescription>;
   Moments_description moments_desc_;
 
   PetscErrorCode parse_moment_info(
-    const Configuration::json_t& json, Moment_description& desc);
+    const Configuration::json_t& json, MomentDescription& desc);
 };
 
 }  // namespace basic

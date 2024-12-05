@@ -3,7 +3,7 @@
 #include "src/utils/configuration.h"
 #include "src/utils/random_generator.h"
 
-Inject_particles::Inject_particles(interfaces::Particles& ionized,
+InjectParticles::InjectParticles(interfaces::Particles& ionized,
   interfaces::Particles& ejected, timestep_t injection_start,
   timestep_t injection_end, PetscInt per_step_particles_num,
   const Coordinate_generator& set_point_of_birth,
@@ -22,7 +22,7 @@ Inject_particles::Inject_particles(interfaces::Particles& ionized,
   // ejected_.points_.reserve(per_step_particles_num_ * (injection_end_ - injection_start_) + 10'000);
 }
 
-PetscErrorCode Inject_particles::execute(timestep_t t)
+PetscErrorCode InjectParticles::execute(timestep_t t)
 {
   PetscFunctionBeginUser;
   const PetscInt Npi = ionized_.parameters().Np;

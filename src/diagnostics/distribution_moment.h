@@ -23,37 +23,37 @@ struct Moment {
 
 /// @note The list of available moment getters
 inline PetscReal get_zeroth(const interfaces::Particles&, const Point&);
-inline PetscReal get_Vx(const interfaces::Particles&, const Point&);
-inline PetscReal get_Vy(const interfaces::Particles&, const Point&);
-inline PetscReal get_Vz(const interfaces::Particles&, const Point&);
-inline PetscReal get_Vr(const interfaces::Particles&, const Point&);
-inline PetscReal get_Vphi(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVxVx(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVxVy(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVxVz(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVyVy(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVyVz(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVzVz(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVrVr(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVrVphi(const interfaces::Particles&, const Point&);
-inline PetscReal get_mVphiVphi(const interfaces::Particles&, const Point&);
+inline PetscReal get_vx(const interfaces::Particles&, const Point&);
+inline PetscReal get_vy(const interfaces::Particles&, const Point&);
+inline PetscReal get_vz(const interfaces::Particles&, const Point&);
+inline PetscReal get_vr(const interfaces::Particles&, const Point&);
+inline PetscReal get_vphi(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vx_vx(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vx_vy(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vx_vz(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vy_vy(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vy_vz(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vz_vz(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vr_vr(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vr_vphi(const interfaces::Particles&, const Point&);
+inline PetscReal get_m_vphi_vphi(const interfaces::Particles&, const Point&);
 
 
 /**
  * @brief Diagnostic of particles _coordinate_ distribution moment
  */
-class Distribution_moment : public Field_view {
+class DistributionMoment : public FieldView {
 public:
-  static std::unique_ptr<Distribution_moment> create(const std::string& out_dir,
+  static std::unique_ptr<DistributionMoment> create(const std::string& out_dir,
     const interfaces::Particles& particles, const Moment& moment,
     const Region& region);
 
-  ~Distribution_moment();
+  ~DistributionMoment();
 
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
-  Distribution_moment(const std::string& out_dir,
+  DistributionMoment(const std::string& out_dir,
     const interfaces::Particles& particles, const Moment& moment,
     MPI_Comm newcomm);
 

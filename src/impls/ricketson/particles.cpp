@@ -30,19 +30,19 @@ static constexpr PetscReal gamma = 0.1;
 static constexpr PetscReal t_res = 10;
 
 
-Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
+Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
   particle_iterations_log =
-    Sync_binary_file(CONFIG().out_dir, "particle_iterations");
+    SyncBinaryFile(CONFIG().out_dir, "particle_iterations");
 
   /// @todo It'd be more reusable to place particle mover into separate class
 
   // Nonlinear solver should be created for each process.
   PetscCallVoid(SNESCreate(PETSC_COMM_SELF, &snes_));
   PetscCallVoid(SNESSetType(snes_, SNESNRICHARDSON));
-  PetscCallVoid(SNESSetFunction(snes_, nullptr, Particles::form_Picard_iteration, &ctx));
+  PetscCallVoid(SNESSetFunction(snes_, nullptr, Particles::form_picard_iteration, &ctx));
   PetscCallVoid(SNESSetTolerances(snes_, atol, rtol, stol, maxit, maxf));
 
   PetscCallVoid(VecCreate(PETSC_COMM_SELF, &solution_));
@@ -189,7 +189,7 @@ PetscErrorCode Particles::Context::update(
 
   shape.setup(x_h);
 
-  Simple_interpolation interpolation(shape);
+  SimpleInterpolation interpolation(shape);
   PetscCall(interpolation.process({{E_p, E}}, {{B_p, B}, {DB_p, DB}}));
 
   DB_pp = DB_p.parallel_to(B_p);
@@ -256,7 +256,7 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point)
  * F(x^{k}), where lambda -- damping coefficient, lambda = +1.0 by default (no
  * damping).
  */
-PetscErrorCode Particles::form_Picard_iteration(
+PetscErrorCode Particles::form_picard_iteration(
   SNES snes, Vec vx, Vec vf, void* __ctx)
 {
   PetscFunctionBeginUser;

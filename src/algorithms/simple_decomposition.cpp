@@ -1,11 +1,11 @@
 #include "simple_decomposition.h"
 
-Simple_decomposition::Simple_decomposition(const Shape& shape, const Vector3R& J_p)
+SimpleDecomposition::SimpleDecomposition(const Shape& shape, const Vector3R& J_p)
   : shape(shape), J_p(J_p)
 {
 }
 
-PetscErrorCode Simple_decomposition::process(Context& J) const
+PetscErrorCode SimpleDecomposition::process(Context& J) const
 {
   PetscFunctionBeginHot;
   // clang-format off: @todo create macro/range-based analogue for this loop

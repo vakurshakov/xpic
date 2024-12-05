@@ -7,10 +7,10 @@
  * @brief Simple interpolator tightly coupled with `Shape` class.
  * Unifies the calling sequence, when the Yee interpolation is needed.
  */
-class Simple_interpolation {
+class SimpleInterpolation {
 public:
-  Simple_interpolation() = delete;
-  Simple_interpolation(const Shape& shape);
+  SimpleInterpolation() = delete;
+  SimpleInterpolation(const Shape& shape);
 
   /// @brief Interpolation field context is a pair of point and global fields.
   using Context = std::vector<std::pair<Vector3R&, Vector3R*** const&>>;

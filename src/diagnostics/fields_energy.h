@@ -11,14 +11,14 @@
 /// @todo Remove namespace here
 namespace basic {
 
-class Fields_energy : public interfaces::Diagnostic {
+class FieldsEnergy : public interfaces::Diagnostic {
 public:
-  Fields_energy(const std::string& out_dir, DM da, Vec E, Vec B);
+  FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B);
 
   PetscErrorCode diagnose(timestep_t t) override;
 
 private:
-  Sync_binary_file file_;
+  SyncBinaryFile file_;
 
   DM da_;
   Vec E_;

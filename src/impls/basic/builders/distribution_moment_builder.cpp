@@ -5,24 +5,24 @@
 
 namespace basic {
 
-Distribution_moment_builder::Distribution_moment_builder(
+DistributionMomentBuilder::DistributionMomentBuilder(
   const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics,
   const std::string& moment_name, const std::string& proj_name)
-  : Diagnostic_builder(simulation, diagnostics),
+  : DiagnosticBuilder(simulation, diagnostics),
     moment_name(moment_name),
     proj_name(proj_name)
 {
 }
 
 
-PetscErrorCode Distribution_moment_builder::build(
+PetscErrorCode DistributionMomentBuilder::build(
   const Configuration::json_t& diag_info)
 {
   PetscFunctionBeginUser;
 
   auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
     PetscFunctionBeginHot;
-    Moment_description desc;
+    MomentDescription desc;
     PetscCall(parse_moment_info(info, desc));
     moments_desc_.emplace_back(std::move(desc));
     PetscFunctionReturn(PETSC_SUCCESS);
@@ -31,7 +31,7 @@ PetscErrorCode Distribution_moment_builder::build(
   /// @todo Vectorisation of parameters
   PetscCall(parse_info(diag_info));
 
-  for (const Moment_description& desc : moments_desc_) {
+  for (const MomentDescription& desc : moments_desc_) {
     LOG("Add {}_of_{} diagnostic for {}", moment_name, proj_name, desc.particles_name);
 
     std::string res_dir = CONFIG().out_dir + "/" + desc.particles_name + "/" +
@@ -41,7 +41,7 @@ PetscErrorCode Distribution_moment_builder::build(
 
     auto&& moment = Moment::from_string(particles, moment_name);
 
-    if (auto&& diag = Distribution_moment::create(
+    if (auto&& diag = DistributionMoment::create(
           res_dir, particles, std::move(moment), desc.region)) {
       diagnostics_.emplace_back(std::move(diag));
     }
@@ -49,8 +49,8 @@ PetscErrorCode Distribution_moment_builder::build(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Distribution_moment_builder::parse_moment_info(
-  const Configuration::json_t& json, Moment_description& desc)
+PetscErrorCode DistributionMomentBuilder::parse_moment_info(
+  const Configuration::json_t& json, MomentDescription& desc)
 {
   PetscFunctionBeginUser;
   desc.region.dim = 3;

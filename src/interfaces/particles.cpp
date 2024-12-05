@@ -2,7 +2,7 @@
 
 namespace interfaces {
 
-Particles::Particles(const World& world, const Sort_parameters& parameters)
+Particles::Particles(const World& world, const SortParameters& parameters)
   : world_(world), parameters_(parameters)
 {
 }
@@ -106,7 +106,7 @@ PetscErrorCode Particles::communicate()
 }
 
 
-const Sort_parameters& Particles::parameters() const
+const SortParameters& Particles::parameters() const
 {
   return parameters_;
 }

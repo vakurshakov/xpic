@@ -37,13 +37,13 @@ PetscErrorCode Identity::create(Mat* mat) const
 }
 
 
-Finite_difference_operator::Finite_difference_operator(
+FiniteDifferenceOperator::FiniteDifferenceOperator(
   DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v)
   : Operator(da, mdof, ndof), values_(v)
 {
 }
 
-PetscErrorCode Finite_difference_operator::create_positive(Mat* mat)
+PetscErrorCode FiniteDifferenceOperator::create_positive(Mat* mat)
 {
   PetscFunctionBeginUser;
   PetscCall(create_matrix(mat));
@@ -51,7 +51,7 @@ PetscErrorCode Finite_difference_operator::create_positive(Mat* mat)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Finite_difference_operator::create_negative(Mat* mat)
+PetscErrorCode FiniteDifferenceOperator::create_negative(Mat* mat)
 {
   PetscFunctionBeginUser;
   PetscCall(create_matrix(mat));
@@ -59,14 +59,14 @@ PetscErrorCode Finite_difference_operator::create_negative(Mat* mat)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Finite_difference_operator::create_matrix(Mat* mat)
+PetscErrorCode FiniteDifferenceOperator::create_matrix(Mat* mat)
 {
   PetscFunctionBeginUser;
   PetscCall(DMCreateMatrix(da_, mat));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Finite_difference_operator::fill_matrix(Mat mat, Yee_shift shift)
+PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
 {
   PetscFunctionBeginUser;
 
@@ -99,7 +99,7 @@ PetscErrorCode Finite_difference_operator::fill_matrix(Mat mat, Yee_shift shift)
  * @todo Try to simply set `MatSetBlockSizes()` as it was used
  * internally by `DMCreateMatrix()` with blocksize of 3 (dof).
  */
-PetscErrorCode Finite_difference_operator::mat_set_values_stencil(Mat mat,
+PetscErrorCode FiniteDifferenceOperator::mat_set_values_stencil(Mat mat,
   PetscInt m, const MatStencil idxm[], PetscInt n, const MatStencil idxn[],
   const PetscScalar v[], InsertMode addv) const
 {
@@ -158,7 +158,7 @@ std::tuple<REP3(PetscInt)> get_negative_offsets(PetscInt x, PetscInt y, PetscInt
 
 
 Rotor::Rotor(DM da)
-  : Finite_difference_operator(da, 3, 3,
+  : FiniteDifferenceOperator(da, 3, 3,
       {
         +1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz,  //
         +1.0 / dz, -1.0 / dz, -1.0 / dx, +1.0 / dx,  //
@@ -220,18 +220,18 @@ void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
 }
 
 
-Non_rectangular_operator::Non_rectangular_operator(
+NonRectangularOperator::NonRectangularOperator(
   DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v)
-  : Finite_difference_operator(da, mdof, ndof, v)
+  : FiniteDifferenceOperator(da, mdof, ndof, v)
 {
 }
 
-Non_rectangular_operator::~Non_rectangular_operator()
+NonRectangularOperator::~NonRectangularOperator()
 {
   PetscCallVoid(DMDestroy(&sda_));
 }
 
-PetscErrorCode Non_rectangular_operator::create_matrix(Mat* mat)
+PetscErrorCode NonRectangularOperator::create_matrix(Mat* mat)
 {
   PetscFunctionBeginUser;
   MPI_Comm comm;
@@ -249,7 +249,7 @@ PetscErrorCode Non_rectangular_operator::create_matrix(Mat* mat)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Non_rectangular_operator::create_scalar_da()
+PetscErrorCode NonRectangularOperator::create_scalar_da()
 {
   PetscFunctionBeginUser;
   PetscInt dim, g_size[3], procs[3], dof, s;
@@ -274,7 +274,7 @@ PetscErrorCode Non_rectangular_operator::create_scalar_da()
 
 
 Divergence::Divergence(DM da)
-  : Non_rectangular_operator(da, 1, 3,
+  : NonRectangularOperator(da, 1, 3,
       {
         +1.0 / dx, -1.0 / dx,  //
         +1.0 / dy, -1.0 / dy,  //
@@ -333,7 +333,7 @@ PetscErrorCode Divergence::set_sizes_and_ltog(Mat mat) const
 
 
 Gradient::Gradient(DM da)
-  : Non_rectangular_operator(da, 3, 1,
+  : NonRectangularOperator(da, 3, 1,
       {
         +1.0 / dx, -1.0 / dx,  //
         +1.0 / dy, -1.0 / dy,  //

@@ -33,9 +33,9 @@ public:
 };
 
 /// @brief Used to execute command once in the simulation cycle.
-class Command_once : public Command {
+class CommandOnce : public Command {
 public:
-  virtual ~Command_once() = default;
+  virtual ~CommandOnce() = default;
 
   /// @brief Since command is executed once, it always return true.
   bool needs_to_be_removed(timestep_t timestep) const final

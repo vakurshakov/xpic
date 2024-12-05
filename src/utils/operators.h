@@ -34,14 +34,14 @@ public:
  * difference approximation. Yee stencil is used, so each operator can be
  * represented with both positive/negative offsets.
  */
-class Finite_difference_operator : public Operator {
+class FiniteDifferenceOperator : public Operator {
 public:
   PetscErrorCode create_positive(Mat* mat);
   PetscErrorCode create_negative(Mat* mat);
 
 protected:
   /// @brief Can not be created explicitly as it is abstract operator.
-  Finite_difference_operator(
+  FiniteDifferenceOperator(
     DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v);
 
   enum class Yee_shift {
@@ -66,7 +66,7 @@ protected:
 };
 
 
-class Rotor final : public Finite_difference_operator {
+class Rotor final : public FiniteDifferenceOperator {
 public:
   Rotor(DM da);
 
@@ -76,11 +76,11 @@ private:
 };
 
 
-class Non_rectangular_operator : public Finite_difference_operator {
+class NonRectangularOperator : public FiniteDifferenceOperator {
 protected:
-  Non_rectangular_operator(
+  NonRectangularOperator(
     DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v);
-  ~Non_rectangular_operator() override;
+  ~NonRectangularOperator() override;
 
   PetscErrorCode create_matrix(Mat* mat) override;
 
@@ -93,7 +93,7 @@ protected:
 };
 
 
-class Divergence final : public Non_rectangular_operator {
+class Divergence final : public NonRectangularOperator {
 public:
   Divergence(DM da);
 
@@ -104,7 +104,7 @@ protected:
 };
 
 
-class Gradient final : public Non_rectangular_operator {
+class Gradient final : public NonRectangularOperator {
 public:
   Gradient(DM da);
 

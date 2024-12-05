@@ -14,7 +14,7 @@ class Simulation;
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const Sort_parameters& parameters);
+  Particles(Simulation& simulation, const SortParameters& parameters);
   Particles(Particles&& other);
   ~Particles();
 
@@ -39,7 +39,7 @@ private:
   PetscErrorCode push(Point& point);
   PetscErrorCode adaptive_time_stepping(const Point& point);
 
-  static PetscErrorCode form_Picard_iteration(
+  static PetscErrorCode form_picard_iteration(
     SNES snes, Vec vx, Vec vf, void* context);
 
   Simulation& simulation_;
@@ -54,7 +54,7 @@ private:
   Vec solution_;
   Context ctx;
 
-  Sync_binary_file particle_iterations_log;
+  SyncBinaryFile particle_iterations_log;
 };
 
 }  // namespace ricketson

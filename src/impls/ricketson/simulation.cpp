@@ -50,7 +50,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, &B));
 
 #if THERE_ARE_PARTICLES
-  Sort_parameters parameters = {
+  SortParameters parameters = {
     .Np = 1, .n = +1.0, .q = +1.0, .m = +1.0, .sort_name = "positron"};
   auto& sort = particles_.emplace_back(*this, parameters);
 
@@ -66,7 +66,7 @@ PetscErrorCode Simulation::initialize_implementation()
 }
 
 
-PetscErrorCode Simulation::calculate_B_norm_gradient()
+PetscErrorCode Simulation::calculate_b_norm_gradient()
 {
   PetscFunctionBeginUser;
 
@@ -125,7 +125,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
 {
   PetscFunctionBeginUser;
 
-  PetscCall(calculate_B_norm_gradient());
+  PetscCall(calculate_b_norm_gradient());
 
   for (auto& sort : particles_)
     PetscCall(sort.push());

@@ -4,7 +4,7 @@
 #include "src/utils/utils.h"
 
 
-std::unique_ptr<Field_view> Field_view::create(
+std::unique_ptr<FieldView> FieldView::create(
   const std::string& out_dir, DM da, Vec field, const Region& region)
 {
   PetscFunctionBeginUser;
@@ -13,15 +13,15 @@ std::unique_ptr<Field_view> Field_view::create(
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
-  auto* diagnostic = new Field_view(out_dir, da, field, newcomm);
+  auto* diagnostic = new FieldView(out_dir, da, field, newcomm);
   PetscCallThrow(diagnostic->set_data_views(region));
-  PetscFunctionReturn(std::unique_ptr<Field_view>(diagnostic));
+  PetscFunctionReturn(std::unique_ptr<FieldView>(diagnostic));
 }
 
 
 /// @returns Non-null communicator for those processes,
 /// where region intersects with local boundaries of DM.
-PetscErrorCode Field_view::get_local_communicator(
+PetscErrorCode FieldView::get_local_communicator(
   DM da, const Region& region, MPI_Comm* newcomm)
 {
   PetscFunctionBeginUser;
@@ -37,14 +37,14 @@ PetscErrorCode Field_view::get_local_communicator(
 }
 
 
-Field_view::Field_view(
+FieldView::FieldView(
   const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm)
   : interfaces::Diagnostic(out_dir), da_(da), field_(field), comm_(newcomm)
 {
 }
 
 
-PetscErrorCode Field_view::set_data_views(const Region& region)
+PetscErrorCode FieldView::set_data_views(const Region& region)
 {
   PetscFunctionBeginUser;
   region_ = region;
@@ -81,7 +81,7 @@ PetscErrorCode Field_view::set_data_views(const Region& region)
 }
 
 
-PetscErrorCode Field_view::diagnose(timestep_t t)
+PetscErrorCode FieldView::diagnose(timestep_t t)
 {
   if (t % diagnose_period != 0)
     PetscFunctionReturn(PETSC_SUCCESS);

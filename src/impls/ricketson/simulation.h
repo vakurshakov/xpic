@@ -16,7 +16,7 @@ public:
   Vec DB_;
   std::vector<Particles> particles_;
 
-  PetscErrorCode calculate_B_norm_gradient();
+  PetscErrorCode calculate_b_norm_gradient();
 
 private:
   PetscErrorCode initialize_implementation() override;

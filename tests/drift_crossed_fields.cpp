@@ -10,7 +10,7 @@ constexpr Vector3R v0(0.02, 0.0, 0.0);
 int main(int argc, char** argv)
 {
   World world;
-  Sort_parameters parameters;
+  SortParameters parameters;
   parameters.q = (-1.0) * physical_constants::e;
   parameters.m = physical_constants::me;
 
@@ -47,7 +47,7 @@ int main(int argc, char** argv)
     for (PetscInt t = 0; t < geom_nt; ++t) {
       const Vector3R old_r = point.r;
 
-      Boris_push push(dt, E0, B0);
+      BorisPush push(dt, E0, B0);
       push.process_rel(point, particles);
 
       update_clockwise(old_r, point.r, check_counter_clockwise);

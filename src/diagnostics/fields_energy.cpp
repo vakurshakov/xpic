@@ -8,13 +8,13 @@ namespace fs = std::filesystem;
 
 namespace basic {
 
-Fields_energy::Fields_energy(const std::string& out_dir, DM da, Vec E, Vec B)
+FieldsEnergy::FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B)
   : interfaces::Diagnostic(out_dir), da_(da), E_(E), B_(B)
 {
-  file_ = Sync_binary_file(out_dir_, "fields_energy");
+  file_ = SyncBinaryFile(out_dir_, "fields_energy");
 }
 
-PetscErrorCode Fields_energy::diagnose(timestep_t t)
+PetscErrorCode FieldsEnergy::diagnose(timestep_t t)
 {
   PetscFunctionBeginUser;
 

@@ -8,14 +8,14 @@
 
 namespace basic {
 
-Diagnostic_builder::Diagnostic_builder(
+DiagnosticBuilder::DiagnosticBuilder(
   const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
   : simulation_(simulation), diagnostics_(diagnostics)
 {
 }
 
 
-const Vec& Diagnostic_builder::get_field(const std::string& name) const
+const Vec& DiagnosticBuilder::get_field(const std::string& name) const
 {
   if (name == "E")
     return simulation_.E_;
@@ -26,7 +26,7 @@ const Vec& Diagnostic_builder::get_field(const std::string& name) const
   throw std::runtime_error("Unknown field name " + name);
 }
 
-Axis Diagnostic_builder::get_component(const std::string& name) const
+Axis DiagnosticBuilder::get_component(const std::string& name) const
 {
   if (name == "x")
     return X;
@@ -38,7 +38,7 @@ Axis Diagnostic_builder::get_component(const std::string& name) const
 }
 
 
-const Particles& Diagnostic_builder::get_sort(const std::string& name) const
+const Particles& DiagnosticBuilder::get_sort(const std::string& name) const
 {
   const std::vector<Particles>& particles = simulation_.particles_;
 
@@ -53,7 +53,7 @@ const Particles& Diagnostic_builder::get_sort(const std::string& name) const
 }
 
 
-Vector3R Diagnostic_builder::parse_vector(
+Vector3R DiagnosticBuilder::parse_vector(
   const Configuration::json_t& json, const std::string& name) const
 {
   std::string message;
@@ -78,7 +78,7 @@ Vector3R Diagnostic_builder::parse_vector(
 }
 
 
-PetscErrorCode Diagnostic_builder::check_region(const Vector3I& start,
+PetscErrorCode DiagnosticBuilder::check_region(const Vector3I& start,
   const Vector3I& size, const std::string& diag_name) const
 {
   PetscFunctionBeginUser;
@@ -116,12 +116,12 @@ PetscErrorCode build_diagnostics(
 #if THERE_ARE_FIELDS
     if (diag_name == "fields_energy") {
       LOG("Adding fields energy diagnostic");
-      builder = std::make_unique<Fields_energy_builder>(simulation, result);
+      builder = std::make_unique<FieldsEnergyBuilder>(simulation, result);
       PetscCall(builder->build(diag_info));
     }
     else if (diag_name == "field_view") {
       LOG("Adding field view diagnostic(s)");
-      builder = std::make_unique<Field_view_builder>(simulation, result);
+      builder = std::make_unique<FieldViewBuilder>(simulation, result);
       PetscCall(builder->build(diag_info));
     }
 #endif
@@ -148,7 +148,7 @@ PetscErrorCode build_diagnostics(
           diag_name == "mVphiVphi_moment") {
       LOG("Adding {} diagnostics(s)", diag_name);
       std::string moment_name = (diag_name == "density") ? "zeroth_moment" : diag_name;
-      builder = std::make_unique<Distribution_moment_builder>(simulation, result, moment_name, "(x_y_z)");
+      builder = std::make_unique<DistributionMomentBuilder>(simulation, result, moment_name, "(x_y_z)");
       PetscCall(builder->build(diag_info));
     }
       // clang-format on
