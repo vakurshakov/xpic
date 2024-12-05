@@ -211,7 +211,7 @@ PetscErrorCode Particles::Context::update(
 }
 
 
-PetscErrorCode Particles::adaptive_time_stepping(const Point& point)
+PetscErrorCode Particles::adaptive_time_stepping(const Point& /* point */)
 {
   PetscFunctionBeginUser;
   PetscReal B_norm = ctx.B_p.length();
@@ -262,7 +262,7 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point)
  * damping).
  */
 PetscErrorCode Particles::form_picard_iteration(
-  SNES snes, Vec vx, Vec vf, void* vctx)
+  SNES /* snes */, Vec vx, Vec vf, void* vctx)
 {
   PetscFunctionBeginUser;
   auto& ctx = *reinterpret_cast<Particles::Context*>(vctx);

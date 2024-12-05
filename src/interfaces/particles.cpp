@@ -132,22 +132,22 @@ const std::vector<Point>& Particles::points() const
   return points_;
 }
 
-PetscInt Particles::particles_number(const Point& point) const
+PetscInt Particles::particles_number(const Point& /* point */) const
 {
   return parameters_.Np;
 }
 
-PetscReal Particles::density(const Point& point) const
+PetscReal Particles::density(const Point& /* point */) const
 {
   return parameters_.n;
 }
 
-PetscReal Particles::charge(const Point& point) const
+PetscReal Particles::charge(const Point& /* point */) const
 {
   return parameters_.q;
 }
 
-PetscReal Particles::mass(const Point& point) const
+PetscReal Particles::mass(const Point& /* point */) const
 {
   return parameters_.m;
 }

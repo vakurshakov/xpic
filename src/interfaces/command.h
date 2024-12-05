@@ -30,7 +30,7 @@ public:
    * @return True if command must be removed from the
    * list (false otherwise). By default returns false.
    */
-  virtual bool needs_to_be_removed(timestep_t timestep) const
+  virtual bool needs_to_be_removed(timestep_t /* timestep */) const
   {
     return false;
   }
@@ -45,7 +45,7 @@ public:
   ~CommandOnce() override = default;
 
   /// @brief Since command is executed once, it always return true.
-  bool needs_to_be_removed(timestep_t timestep) const final
+  bool needs_to_be_removed(timestep_t /* timestep */) const final
   {
     return true;
   }

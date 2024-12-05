@@ -4,8 +4,6 @@
 #include "src/utils/vector3.h"
 
 
-namespace fs = std::filesystem;
-
 namespace basic {
 
 FieldsEnergy::FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B)

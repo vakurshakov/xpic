@@ -7,7 +7,7 @@ constexpr Vector3R B0(0.0, 0.0, 0.2);
 constexpr Vector3R r0(0.0, -0.1, 0.0);
 constexpr Vector3R v0(0.02, 0.0, 0.0);
 
-int main(int argc, char** argv)
+int main()
 {
   World world;
   SortParameters parameters;

@@ -16,7 +16,7 @@ namespace indexing {
 
 /// @brief Standard notation inside PETSc, it's then reused to create aliases
 constexpr PetscInt petsc_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c,
-  PetscInt size_z, PetscInt size_y, PetscInt size_x, PetscInt size_c)
+  PetscInt /* size_z */, PetscInt size_y, PetscInt size_x, PetscInt size_c)
 {
   return ((z * size_y + y) * size_x + x) * size_c + c;
 }

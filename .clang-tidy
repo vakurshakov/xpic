@@ -15,6 +15,10 @@ Checks: >
   -hicpp-explicit-conversions,
   -hicpp-braces-around-statements,
   -hicpp-no-array-decay,
+  misc-*,
+  -misc-include-cleaner,
+  -misc-const-correctness,
+  -misc-non-private-member-variables-in-classes,
   mpi-*,
   openmp-*,
   -openmp-use-default-none,
@@ -25,11 +29,6 @@ Checks: >
   -readability-magic-numbers,
   -readability-braces-around-statements,
   -readability-implicit-bool-conversion,
-
-
-# misc-*,
-# -misc-include-cleaner,
-# -misc-non-private-member-variables-in-classes,
 
 # modernize-*,
 # -modernize-avoid-c-arrays,

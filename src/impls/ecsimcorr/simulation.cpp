@@ -96,7 +96,7 @@ PetscErrorCode Simulation::init_ksp_solvers()
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
+PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 {
   PetscFunctionBeginUser;
   PetscCall(clear_sources());
