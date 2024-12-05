@@ -70,7 +70,7 @@ PetscErrorCode Particles::communicate()
 
     correct_coordinates(*it, world_);
 
-    outgoing[index].emplace_back(std::move(*it));
+    outgoing[index].emplace_back(*it);
     std::swap(*it, *(end - 1));
     --it;
     --end;

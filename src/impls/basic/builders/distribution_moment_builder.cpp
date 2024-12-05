@@ -41,8 +41,8 @@ PetscErrorCode DistributionMomentBuilder::build(
 
     auto&& moment = Moment::from_string(particles, moment_name);
 
-    if (auto&& diag = DistributionMoment::create(
-          res_dir, particles, std::move(moment), desc.region)) {
+    if (auto&& diag =
+          DistributionMoment::create(res_dir, particles, moment, desc.region)) {
       diagnostics_.emplace_back(std::move(diag));
     }
   }

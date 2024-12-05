@@ -16,8 +16,8 @@ public:
   SyncBinaryFile& operator=(const SyncBinaryFile& other) = delete;
 
   /// @note Default move constructors are fine.
-  SyncBinaryFile(SyncBinaryFile&& other) = default;
-  SyncBinaryFile& operator=(SyncBinaryFile&& other) = default;
+  SyncBinaryFile(SyncBinaryFile&& other) noexcept = default;
+  SyncBinaryFile& operator=(SyncBinaryFile&& other) noexcept = default;
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
   SyncBinaryFile(const std::string& directory_path, const std::string& file_name);

@@ -12,6 +12,8 @@ Checks: >
   mpi-*,
   openmp-*,
   -openmp-use-default-none,
+  performance-*,
+  portability-*,
   readability-*,
   -readability-identifier-length,
   -readability-magic-numbers,
@@ -33,9 +35,6 @@ Checks: >
 # -modernize-use-ranges,
 # -modernize-use-nodiscard,
 # -modernize-use-trailing-return-type,
-
-# performance-*,
-# portability-*,
 
 # WarningsAsErrors: '*'
 

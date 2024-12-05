@@ -4,7 +4,7 @@
 #include "src/interfaces/sort_parameters.h"
 #include "src/utils/vector3.h"
 
-enum ShapeType : PetscInt {
+enum ShapeType : std::uint8_t {
   No = 0,
   Sh = 1,
   Old = 2,
@@ -24,8 +24,8 @@ public:
 
   Vector3I start, size;
 
-  static Vector3R make_r(const Vector3R& pr);
-  static Vector3I make_g(const Vector3R& nr);
+  static Vector3R make_r(const Vector3R& r);
+  static Vector3I make_g(const Vector3R& p_r);
 
   static Vector3I make_start(const Vector3R& p_r, PetscReal radius);
   static Vector3I make_end(const Vector3R& p_r, PetscReal radius);

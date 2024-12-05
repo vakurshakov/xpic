@@ -46,7 +46,7 @@ protected:
   FiniteDifferenceOperator(
     DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v);
 
-  enum class Yee_shift {
+  enum class Yee_shift : std::uint8_t {
     Positive,
     Negative,
   };
@@ -61,8 +61,9 @@ protected:
 
   /// @brief Almost identical to `MatSetValuesStencil()`,
   /// but can use different dof for rows and columns.
-  PetscErrorCode mat_set_values_stencil(Mat mat, PetscInt m, const MatStencil idxm[],
-    PetscInt n, const MatStencil idxn[], const PetscScalar v[], InsertMode addv) const;
+  PetscErrorCode mat_set_values_stencil(Mat mat, PetscInt m,
+    const MatStencil idxm[], PetscInt n, const MatStencil idxn[],
+    const PetscScalar v[], InsertMode addv) const;
 
   const std::vector<PetscReal> values_;
 };
