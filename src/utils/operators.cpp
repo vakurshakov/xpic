@@ -73,7 +73,7 @@ PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
   std::vector<MatStencil> row(3);
   std::vector<MatStencil> col(values_.size());
 
-  const PetscInt chunk_size = values_.size() / 3;
+  const PetscInt chunk_size = static_cast<PetscInt>(values_.size()) / 3;
 
   // clang-format off
   for (PetscInt z = start_[Z]; z < start_[Z] + size_[Z]; ++z) {
@@ -83,7 +83,10 @@ PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
 
     // Periodic boundaries are handled by PETSc internally
     for (PetscInt c = 0; c < 3; ++c) {
-      PetscCall(mat_set_values_stencil(mat, 1, &row[c], chunk_size, (col.data() + chunk_size * c), (values_.data() + chunk_size * c), ADD_VALUES));
+      PetscCall(mat_set_values_stencil(mat, 1, &row[c], chunk_size,
+        (col.data() + static_cast<std::ptrdiff_t>(chunk_size * c)),
+        (values_.data() + static_cast<std::ptrdiff_t>(chunk_size * c)),
+        ADD_VALUES));
     }
   }}}
   // clang-format on

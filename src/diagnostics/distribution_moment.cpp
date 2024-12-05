@@ -133,7 +133,7 @@ PetscErrorCode DistributionMoment::collect()
   PetscCall(VecSet(field_, 0.0));
 
   PetscReal*** arr;
-  PetscCall(DMDAVecGetArrayWrite(da_, local_, &arr));
+  PetscCall(DMDAVecGetArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
 
 #pragma omp parallel for
   for (const Point& point : particles_.points()) {
@@ -164,7 +164,7 @@ PetscErrorCode DistributionMoment::collect()
     }}}
     // clang-format on
   }
-  PetscCall(DMDAVecRestoreArrayWrite(da_, local_, &arr));
+  PetscCall(DMDAVecRestoreArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
   PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, field_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

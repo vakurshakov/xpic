@@ -42,9 +42,9 @@ PetscErrorCode Particles::first_push()
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currI, &currI));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -64,9 +64,9 @@ PetscErrorCode Particles::first_push()
     decompose_esirkepov_current(shape, point);
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, &currI));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
   PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, simulation_.currI));
   PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, simulation_.currJe));
@@ -88,9 +88,9 @@ PetscErrorCode Particles::second_push()
   PetscCall(DMGlobalToLocal(da, simulation_.En, INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -110,9 +110,9 @@ PetscErrorCode Particles::second_push()
     decompose_esirkepov_current(shape, point);
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
   PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, simulation_.currJe));
 
@@ -178,7 +178,7 @@ void Particles::decompose_identity_current(
   const PetscInt n = m;
 
   std::vector<MatStencil> idxm(m), idxn(n);
-  std::vector<PetscReal> values(m * n * POW2(3), 0);
+  std::vector<PetscReal> values(static_cast<std::size_t>(m * n * POW2(3)), 0);
 
   constexpr PetscReal shape_tolerance = 1e-10;
 

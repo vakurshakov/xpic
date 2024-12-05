@@ -51,12 +51,12 @@ PetscErrorCode SyncBinaryFile::write_floats(PetscInt size, const PetscReal* data
   SYNC_GUARD;
   PetscFunctionBeginHot;
 #if defined(PETSC_USE_REAL_SINGLE)
-  file_.write(reinterpret_cast<char*>(&data), sizeof(float) * size);
+  file_.write(reinterpret_cast<char*>(&data), static_cast<std::streamsize>(sizeof(float) * size));
 #else
   std::vector<float> buf(size);
   for (PetscInt i = 0; i < size; ++i)
     buf[i] = static_cast<float>(data[i]);
-  file_.write(reinterpret_cast<char*>(buf.data()), sizeof(float) * buf.size());
+  file_.write(reinterpret_cast<char*>(buf.data()), static_cast<std::streamsize>(sizeof(float) * buf.size()));
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }

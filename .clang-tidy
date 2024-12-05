@@ -1,8 +1,9 @@
 Checks: >
   -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
   readability-identifier-naming,
 
-# bugprone-*,
 # cert-*,
 # clang-analyzer-*,
 # concurrency-*,
@@ -18,7 +19,6 @@ Checks: >
 # portability-*,
 # readability-*,
 
-# -bugprone-easily-swappable-parameters,
 # -hicpp-vararg,
 # -hicpp-avoid-c-array,
 # -misc-include-cleaner,
@@ -49,6 +49,3 @@ CheckOptions:
 
   - { key: readability-identifier-naming.MacroDefinitionCase, value: UPPER_CASE }
   - { key: readability-identifier-naming.MacroDefinitionIgnoredRegexp, value: '^(PetscCall).*' }
-
-  # - { key: readability-identifier-naming.PrivateMemberSuffix,      value: _          }
-  # - { key: readability-identifier-naming.ProtectedMemberSuffix,    value: _          }

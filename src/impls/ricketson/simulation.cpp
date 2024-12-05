@@ -27,7 +27,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMDAGetCorners(world_.da, REP3_A(&rstart), REP3_A(&rsize)));
 
   Vector3R*** B;
-  PetscCall(DMDAVecGetArrayWrite(world_.da, B_, &B));
+  PetscCall(DMDAVecGetArrayWrite(world_.da, B_, reinterpret_cast<void*>(&B)));
 
   // clang-format off
   for (PetscInt z = rstart[Z]; z < rstart[Z] + rsize[Z]; ++z) {
@@ -47,7 +47,7 @@ PetscErrorCode Simulation::initialize_implementation()
     B[z][y][x].z() = B0 * 1.0;
   }}}
   // clang-format on
-  PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, &B));
+  PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, reinterpret_cast<void*>(&B)));
 
 #if THERE_ARE_PARTICLES
   SortParameters parameters = {
@@ -71,7 +71,7 @@ PetscErrorCode Simulation::calculate_b_norm_gradient()
   PetscFunctionBeginUser;
 
   Vector3R*** B;
-  PetscCall(DMDAVecGetArrayRead(world_.da, B_, &B));
+  PetscCall(DMDAVecGetArrayRead(world_.da, B_, reinterpret_cast<void*>(&B)));
 
   PetscReal* B_norm;
   PetscCall(VecGetArrayWrite(B_norm_, &B_norm));
@@ -86,7 +86,7 @@ PetscErrorCode Simulation::calculate_b_norm_gradient()
     B_norm[indexing::s_g(z, y, x)] = B[z][y][x].length();
   // clang-format on
 
-  PetscCall(DMDAVecRestoreArrayRead(world_.da, B_, &B));
+  PetscCall(DMDAVecRestoreArrayRead(world_.da, B_, reinterpret_cast<void*>(&B)));
   PetscCall(VecRestoreArrayWrite(B_norm_, &B_norm));
 
   PetscCall(MatMult(norm_gradient_, B_norm_, DB_));

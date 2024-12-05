@@ -94,16 +94,16 @@ PetscErrorCode Particles::push()
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.DB_, INSERT_VALUES, local_DB));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &ctx.E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &ctx.B));
-  PetscCall(DMDAVecGetArrayRead(da, local_DB, &ctx.DB));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, reinterpret_cast<void*>(&ctx.E)));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));
+  PetscCall(DMDAVecGetArrayRead(da, local_DB, reinterpret_cast<void*>(&ctx.DB)));
 
   for (auto it = points_.begin(); it != points_.end(); ++it)
     PetscCall(push(*it));
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &ctx.E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &ctx.B));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_DB, &ctx.DB));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&ctx.E)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_DB, reinterpret_cast<void*>(&ctx.DB)));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
@@ -257,10 +257,10 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point)
  * damping).
  */
 PetscErrorCode Particles::form_picard_iteration(
-  SNES snes, Vec vx, Vec vf, void* __ctx)
+  SNES snes, Vec vx, Vec vf, void* vctx)
 {
   PetscFunctionBeginUser;
-  auto& ctx = *(Particles::Context*)__ctx;
+  auto& ctx = *reinterpret_cast<Particles::Context*>(vctx);
   const Vector3R& x_n = ctx.x_n;
   const Vector3R& v_n = ctx.v_n;
 

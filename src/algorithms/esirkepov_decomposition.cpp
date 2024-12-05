@@ -21,7 +21,7 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
   PetscFunctionBeginHot;
   static constexpr PetscInt j_geom = POW2(shape_width);
   static constexpr PetscInt j_comp = Vector3I::dim;
-  std::array<PetscReal, (j_geom * j_comp)> temp_j;
+  std::array<PetscReal, static_cast<std::size_t>(j_geom * j_comp)> temp_j;
 
   // clang-format off: @todo create macro/range-based analogue for this loop
   for (PetscInt z = 0; z < shape.size[Z]; ++z) {
@@ -31,9 +31,9 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
 
-    PetscReal p_jx = get_jx(x, y, z, temp_j.data() + j_geom * X);
-    PetscReal p_jy = get_jy(x, y, z, temp_j.data() + j_geom * Y);
-    PetscReal p_jz = get_jz(x, y, z, temp_j.data() + j_geom * Z);
+    PetscReal p_jx = get_jx(x, y, z, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * X));
+    PetscReal p_jy = get_jy(x, y, z, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * Y));
+    PetscReal p_jz = get_jz(x, y, z, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * Z));
 
 #pragma omp atomic update
       J[g_z][g_y][g_x][X] += p_jx;

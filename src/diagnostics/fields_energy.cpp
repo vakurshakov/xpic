@@ -19,8 +19,8 @@ PetscErrorCode FieldsEnergy::diagnose(timestep_t t)
   PetscFunctionBeginUser;
 
   Vector3R ***E, ***B;
-  PetscCall(DMDAVecGetArrayRead(da_, E_, &E));
-  PetscCall(DMDAVecGetArrayRead(da_, B_, &B));
+  PetscCall(DMDAVecGetArrayRead(da_, E_, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecGetArrayRead(da_, B_, reinterpret_cast<void*>(&B)));
 
   Vector3I start, end;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
@@ -44,8 +44,8 @@ PetscErrorCode FieldsEnergy::diagnose(timestep_t t)
   }}}
   // clang-format on
 
-  PetscCall(DMDAVecRestoreArrayRead(da_, E_, &E));
-  PetscCall(DMDAVecRestoreArrayRead(da_, B_, &B));
+  PetscCall(DMDAVecRestoreArrayRead(da_, E_, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecRestoreArrayRead(da_, B_, reinterpret_cast<void*>(&B)));
 
   auto write_reduced = [&](PetscReal& w) -> PetscErrorCode {
     PetscFunctionBeginUser;
