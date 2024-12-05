@@ -31,7 +31,7 @@ PetscErrorCode MPI_binary_file::open(MPI_Comm comm,
 
   std::string filename = directory_path + "/" + file_name + ".bin";
 
-  int rank;
+  PetscInt rank;
   PetscCallMPI(MPI_Comm_rank(comm_, &rank));
   if (rank == 0) {
     fs::create_directories(directory_path);

@@ -35,11 +35,11 @@ inline double random_01()
   return value;
 }
 
-inline int random_sign()
+inline PetscInt random_sign()
 {
   static std::bernoulli_distribution distribution(0.5);
 
-  int value;
+  PetscInt value;
 
 #pragma omp critical
   value = distribution(RandomGenerator::get()) ? +1 : -1;

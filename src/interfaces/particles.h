@@ -29,8 +29,8 @@ public:
   PetscErrorCode communicate();
 
 protected:
-  static constexpr int MPI_TAG_NUMBERS = 2;
-  static constexpr int MPI_TAG_POINTS = 4;
+  static constexpr PetscInt MPI_TAG_NUMBERS = 2;
+  static constexpr PetscInt MPI_TAG_POINTS = 4;
 
   PetscInt to_contiguous_index(PetscInt z, PetscInt y, PetscInt x)
   {
