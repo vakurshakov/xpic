@@ -2,7 +2,7 @@
 
 PetscReal spline_of_0th_order(PetscReal s)
 {
-  s = abs(s);
+  s = std::abs(s);
 
   if (s <= 0.5)
     return 1.0;
@@ -12,7 +12,7 @@ PetscReal spline_of_0th_order(PetscReal s)
 
 PetscReal spline_of_1st_order(PetscReal s)
 {
-  s = abs(s);
+  s = std::abs(s);
 
   if (s <= 1.0)
     return 1.0 - s;
@@ -22,7 +22,7 @@ PetscReal spline_of_1st_order(PetscReal s)
 
 PetscReal spline_of_2nd_order(PetscReal s)
 {
-  s = abs(s);
+  s = std::abs(s);
 
   if (s <= 0.5)
     return (0.75 - s * s);
@@ -34,7 +34,7 @@ PetscReal spline_of_2nd_order(PetscReal s)
 
 PetscReal spline_of_3rd_order(PetscReal s)
 {
-  s = abs(s);
+  s = std::abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
 
@@ -48,7 +48,7 @@ PetscReal spline_of_3rd_order(PetscReal s)
 
 PetscReal spline_of_4th_order(PetscReal s)
 {
-  s = abs(s);
+  s = std::abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
   PetscReal s4 = POW4(s);
@@ -65,7 +65,7 @@ PetscReal spline_of_4th_order(PetscReal s)
 
 PetscReal spline_of_5th_order(PetscReal s)
 {
-  s = abs(s);
+  s = std::abs(s);
   PetscReal s2 = POW2(s);
   PetscReal s3 = POW3(s);
   PetscReal s4 = POW4(s);
