@@ -15,9 +15,21 @@ public:
   PetscErrorCode process(Point& point, const Context& particles) const;
   PetscErrorCode process_rel(Point& point, const Context& particles) const;
 
+
+  /// @note The following is the recreation of the published
+  /// results, @see https://doi.org/10.1016/j.jcp.2022.111422
+  void process_M1A(Point& point, const Context& particles);
+  void process_M1B(Point& point, const Context& particles);
+
+  PetscReal get_omega(const Point& point, const Context& particles) const;
+  PetscReal get_theta(const Point& point, const Context& particles) const;
+
 private:
   inline void update_u(
     Point& point, bool need_gamma, const Context& particles) const;
+
+  inline Vector3R get_vb(
+    const Vector3R& v, PetscReal cos_theta, PetscReal sin_theta) const;
 
   PetscReal dt;
   const Vector3R& E_p;
