@@ -98,8 +98,8 @@ PetscErrorCode Particles::push()
   PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));
   PetscCall(DMDAVecGetArrayRead(da, local_DB, reinterpret_cast<void*>(&ctx.DB)));
 
-  for (auto it = points_.begin(); it != points_.end(); ++it)
-    PetscCall(push(*it));
+  for (auto& point : points_)
+    PetscCall(push(point));
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&ctx.E)));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));

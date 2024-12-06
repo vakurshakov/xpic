@@ -7,7 +7,8 @@
 
 #include "src/utils/utils.h"
 
-template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+template<typename T>
+  requires std::is_arithmetic_v<T>
 struct Vector3 {
   static constexpr PetscInt dim = 3;
   std::array<T, dim> data;
@@ -70,9 +71,8 @@ struct Vector3 {
     return *this;
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector3& operator/=(T scalar)
+    requires std::is_floating_point_v<T>
   {
     data[X] /= scalar;
     data[Y] /= scalar;
@@ -107,9 +107,8 @@ struct Vector3 {
     };
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector3<PetscReal> operator/(T scalar) const
+    requires std::is_floating_point_v<T>
   {
     return Vector3{
       static_cast<PetscReal>(data[X]) / scalar,
@@ -118,16 +117,14 @@ struct Vector3 {
     };
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector3<PetscReal> normalized() const
+    requires std::is_floating_point_v<T>
   {
     return operator/(length());
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   PetscReal length() const
+    requires std::is_floating_point_v<T>
   {
     return sqrt(static_cast<PetscReal>(squared()));
   }
@@ -156,16 +153,14 @@ struct Vector3 {
       std::max(std::abs(data[Y]), std::abs(data[Z])));
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector3<PetscReal> parallel_to(const Vector3& ref) const
+    requires std::is_floating_point_v<T>
   {
     return ((*this).dot(ref) * ref) / ref.squared();
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector3<PetscReal> transverse_to(const Vector3& ref) const
+    requires std::is_floating_point_v<T>
   {
     return (*this) - parallel_to(ref);
   }

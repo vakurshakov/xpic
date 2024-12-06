@@ -282,38 +282,36 @@ Moment::Moment(const Particles& particles, const getter& get)
 
 Moment Moment::from_string(const Particles& particles, const std::string& name)
 {
-  getter get = nullptr;
   if (name == "zeroth_moment")
-    get = get_zeroth;
-  else if (name == "Vx_moment")
-    get = get_vx;
-  else if (name == "Vy_moment")
-    get = get_vy;
-  else if (name == "Vz_moment")
-    get = get_vz;
-  else if (name == "Vr_moment")
-    get = get_vr;
-  else if (name == "Vphi_moment")
-    get = get_vphi;
-  else if (name == "mVxVx_moment")
-    get = get_m_vx_vx;
-  else if (name == "mVxVy_moment")
-    get = get_m_vx_vy;
-  else if (name == "mVxVz_moment")
-    get = get_m_vx_vz;
-  else if (name == "mVyVy_moment")
-    get = get_m_vy_vy;
-  else if (name == "mVyVz_moment")
-    get = get_m_vy_vz;
-  else if (name == "mVzVz_moment")
-    get = get_m_vz_vz;
-  else if (name == "mVrVr_moment")
-    get = get_m_vr_vr;
-  else if (name == "mVrVphi_moment")
-    get = get_m_vr_vphi;
-  else if (name == "mVphiVphi_moment")
-    get = get_m_vphi_vphi;
-  else
-    throw std::runtime_error("Unkown moment name!");
-  return Moment(particles, get);
+    return Moment{particles, get_zeroth};
+  if (name == "Vx_moment")
+    return Moment{particles, get_vx};
+  if (name == "Vy_moment")
+    return Moment{particles, get_vy};
+  if (name == "Vz_moment")
+    return Moment{particles, get_vz};
+  if (name == "Vr_moment")
+    return Moment{particles, get_vr};
+  if (name == "Vphi_moment")
+    return Moment{particles, get_vphi};
+  if (name == "mVxVx_moment")
+    return Moment{particles, get_m_vx_vx};
+  if (name == "mVxVy_moment")
+    return Moment{particles, get_m_vx_vy};
+  if (name == "mVxVz_moment")
+    return Moment{particles, get_m_vx_vz};
+  if (name == "mVyVy_moment")
+    return Moment{particles, get_m_vy_vy};
+  if (name == "mVyVz_moment")
+    return Moment{particles, get_m_vy_vz};
+  if (name == "mVzVz_moment")
+    return Moment{particles, get_m_vz_vz};
+  if (name == "mVrVr_moment")
+    return Moment{particles, get_m_vr_vr};
+  if (name == "mVrVphi_moment")
+    return Moment{particles, get_m_vr_vphi};
+  if (name == "mVphiVphi_moment")
+    return Moment{particles, get_m_vphi_vphi};
+
+  throw std::runtime_error("Unkown moment name!");
 }

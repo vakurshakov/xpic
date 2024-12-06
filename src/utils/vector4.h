@@ -7,7 +7,8 @@
 
 #include "src/utils/utils.h"
 
-template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>, bool> = true>
+template<typename T>
+  requires std::is_arithmetic_v<T>
 struct Vector4 {
   static constexpr PetscInt dim = 4;
   std::array<T, dim> data;
@@ -105,9 +106,8 @@ struct Vector4 {
     };
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector4<PetscReal> operator/(T scalar) const
+    requires std::is_floating_point_v<T>
   {
     return Vector4{
       static_cast<PetscReal>(data[X]) / scalar,
@@ -117,16 +117,14 @@ struct Vector4 {
     };
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector4<PetscReal> normalized() const
+    requires std::is_floating_point_v<T>
   {
     return operator/(length());
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   PetscReal length() const
+    requires std::is_floating_point_v<T>
   {
     return sqrt(static_cast<PetscReal>(squared()));
   }
@@ -150,16 +148,14 @@ struct Vector4 {
     return dot(*this);
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector4<PetscReal> parallel_to(const Vector4& ref) const
+    requires std::is_floating_point_v<T>
   {
     return ((*this).dot(ref) * ref) / ref.squared();
   }
 
-  template<typename U = T,
-    typename std::enable_if_t<std::is_floating_point_v<U>, bool> = true>
   Vector4<PetscReal> transverse_to(const Vector4& ref) const
+    requires std::is_floating_point_v<T>
   {
     return (*this) - parallel_to(ref);
   }
