@@ -4,9 +4,8 @@ external/petsc
 build/
 doc/build/
 
-log/
 results/
-__pycache__/
+**/__pycache__/**
 
 *.bin
 *.npy
@@ -14,3 +13,4 @@ __pycache__/
 *.mp4
 *.pdf
 *.zip
+*.log

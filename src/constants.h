@@ -39,12 +39,14 @@ extern PetscInt geom_nt;          // units of dt
 
 extern PetscInt diagnose_period;  // units of dt
 
-void set_world_geometry(PetscReal geom_x, PetscReal geom_y, PetscReal geom_z,
-  PetscReal geom_t, PetscReal dx, PetscReal dy, PetscReal dz, PetscReal dt,
-  PetscInt diagnose_period);
+void set_world_geometry( //
+  PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
+  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
+  PetscInt _dtp);
 
-void set_world_geometry(PetscInt geom_nx, PetscInt geom_ny, PetscInt geom_nz,
-  PetscInt geom_nt, PetscReal dx, PetscReal dy, PetscReal dz, PetscReal dt,
-  PetscInt diagnose_period);
+void set_world_geometry( //
+  PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
+  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
+  PetscInt _dtp);
 
 #endif  // SRC_CONSTANTS_H

@@ -2,6 +2,7 @@
 #define SRC_INTERFACES_COMMAND_H
 
 #include "src/pch.h"
+#include "src/utils/utils.h"
 
 namespace interfaces {
 
@@ -12,6 +13,9 @@ namespace interfaces {
  */
 class Command {
 public:
+  DEFAULT_MOVABLE(Command);
+
+  Command() = default;
   virtual ~Command() = default;
 
   /// @param timestep Outer time step, optional.
@@ -26,19 +30,22 @@ public:
    * @return True if command must be removed from the
    * list (false otherwise). By default returns false.
    */
-  virtual bool needs_to_be_removed(timestep_t timestep) const
+  virtual bool needs_to_be_removed(timestep_t /* timestep */) const
   {
     return false;
   }
 };
 
 /// @brief Used to execute command once in the simulation cycle.
-class Command_once : public Command {
+class CommandOnce : public Command {
 public:
-  virtual ~Command_once() = default;
+  DEFAULT_MOVABLE(CommandOnce);
+
+  CommandOnce() = default;
+  ~CommandOnce() override = default;
 
   /// @brief Since command is executed once, it always return true.
-  bool needs_to_be_removed(timestep_t timestep) const final
+  bool needs_to_be_removed(timestep_t /* timestep */) const final
   {
     return true;
   }

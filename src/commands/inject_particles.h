@@ -9,12 +9,12 @@
  * @brief Sets the fixed number of particles
  * into the computational domain each time step.
  */
-class Inject_particles : public interfaces::Command {
+class InjectParticles : public interfaces::Command {
 public:
   using Coordinate_generator = std::function<Vector3R()>;
   using Velocity_generator = std::function<Vector3R(const Vector3R&)>;
 
-  Inject_particles(interfaces::Particles& ionized,
+  InjectParticles(interfaces::Particles& ionized,
     interfaces::Particles& ejected, timestep_t injection_start,
     timestep_t injection_end, PetscInt per_step_particles_num,
     const Coordinate_generator& set_point_of_birth,

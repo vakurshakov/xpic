@@ -8,6 +8,8 @@ namespace ricketson {
 
 class Simulation : public interfaces::Simulation {
 public:
+  DEFAULT_MOVABLE(Simulation);
+
   Simulation() = default;
   ~Simulation() override;
 
@@ -16,7 +18,7 @@ public:
   Vec DB_;
   std::vector<Particles> particles_;
 
-  PetscErrorCode calculate_B_norm_gradient();
+  PetscErrorCode calculate_b_norm_gradient();
 
 private:
   PetscErrorCode initialize_implementation() override;

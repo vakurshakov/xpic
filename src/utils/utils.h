@@ -3,7 +3,7 @@
 
 #include "src/pch.h"
 
-enum Axis : PetscInt {
+enum Axis : std::uint8_t {
   X = 0,
   Y = 1,
   Z = 2,
@@ -16,7 +16,7 @@ namespace indexing {
 
 /// @brief Standard notation inside PETSc, it's then reused to create aliases
 constexpr PetscInt petsc_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c,
-  PetscInt size_z, PetscInt size_y, PetscInt size_x, PetscInt size_c)
+  PetscInt /* size_z */, PetscInt size_y, PetscInt size_x, PetscInt size_c)
 {
   return ((z * size_y + y) * size_x + x) * size_c + c;
 }
@@ -48,13 +48,13 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 #define REP3_X(A) A##x, A##y, A##z
 #define REP4_X(A) A##x, A##y, A##z, A##c
 
-#define REP2_A(A) A[0], A[1]
-#define REP3_A(A) A[0], A[1], A[2]
-#define REP4_A(A) A[0], A[1], A[2], A[3]
+#define REP2_A(A) (A)[0], (A)[1]
+#define REP3_A(A) (A)[0], (A)[1], (A)[2]
+#define REP4_A(A) (A)[0], (A)[1], (A)[2], (A)[3]
 
-#define REP2_AP(A) A[1], A[0]
-#define REP3_AP(A) A[2], A[1], A[0]
-#define REP4_AP(A) A[2], A[1], A[0], A[3]
+#define REP2_AP(A) (A)[1], (A)[0]
+#define REP3_AP(A) (A)[2], (A)[1], (A)[0]
+#define REP4_AP(A) (A)[2], (A)[1], (A)[0], (A)[3]
 
 #define POW2(A) ((A) * (A))
 #define POW3(A) ((A) * (A) * (A))
@@ -63,6 +63,7 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 
 #define TO_STEP(s, ds) static_cast<PetscInt>(std::round((s) / (ds)))
 
+// NOLINTBEGIN
 #define PetscCallThrow(...)                                      \
   do {                                                           \
     PetscStackUpdateLine;                                        \
@@ -76,6 +77,18 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
   }                                                              \
   while (0)
 
+#define DEFAULT_COPYABLE(Class)                   \
+  Class(const Class& other) = default;            \
+  Class& operator=(const Class& other) = default; \
+  Class(Class&& other) = delete;                  \
+  Class& operator=(Class&& other) = delete;
+
+#define DEFAULT_MOVABLE(Class)                   \
+  Class(const Class& other) = delete;            \
+  Class& operator=(const Class& other) = delete; \
+  Class(Class&& other) = default;                \
+  Class& operator=(Class&& other) = default;
+// NOLINTEND
 
 #if LOGGING
   #define LOG_FLUSH()   std::cout.flush()

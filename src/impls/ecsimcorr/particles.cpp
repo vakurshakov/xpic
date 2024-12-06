@@ -8,7 +8,7 @@
 
 namespace ecsimcorr {
 
-Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
+Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
@@ -42,9 +42,9 @@ PetscErrorCode Particles::first_push()
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currI, &currI));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -55,7 +55,7 @@ PetscErrorCode Particles::first_push()
     shape.setup(point.r, shape_radius1, shape_func1);
 
     Vector3R B_p;
-    Simple_interpolation interpolation(shape);
+    SimpleInterpolation interpolation(shape);
     interpolation.process({}, {{B_p, B}});
 
     decompose_identity_current(shape, point, B_p);
@@ -64,9 +64,9 @@ PetscErrorCode Particles::first_push()
     decompose_esirkepov_current(shape, point);
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, &currI));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
   PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, simulation_.currI));
   PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, simulation_.currJe));
@@ -88,9 +88,9 @@ PetscErrorCode Particles::second_push()
   PetscCall(DMGlobalToLocal(da, simulation_.En, INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -99,20 +99,21 @@ PetscErrorCode Particles::second_push()
     Shape shape;
     shape.setup(point.r, shape_radius1, shape_func1);
 
-    Vector3R E_p, B_p;
-    Simple_interpolation interpolation(shape);
+    Vector3R E_p;
+    Vector3R B_p;
+    SimpleInterpolation interpolation(shape);
     interpolation.process({{E_p, E}}, {{B_p, B}});
 
-    Boris_push push((0.5 * dt), E_p, B_p);
+    BorisPush push((0.5 * dt), E_p, B_p);
     push.process(point, *this);
 
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
     decompose_esirkepov_current(shape, point);
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
   PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, simulation_.currJe));
 
@@ -147,10 +148,12 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
   const PetscReal alpha =
     charge(point) * density(point) / (particles_number(point) * (3.0 * dt));
 
-  Esirkepov_decomposition decomposition(shape, alpha);
+  EsirkepovDecomposition decomposition(shape, alpha);
   PetscCallVoid(decomposition.process(currJe));
 }
 
+
+// NOLINTBEGIN(readability-function-cognitive-complexity)
 
 /// @note Also decomposes `Simulation::matL`
 void Particles::decompose_identity_current(
@@ -167,7 +170,7 @@ void Particles::decompose_identity_current(
 
   Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
 
-  Simple_decomposition decomposition(shape, I_p);
+  SimpleDecomposition decomposition(shape, I_p);
   PetscCallVoid(decomposition.process(currI));
 
 
@@ -177,8 +180,9 @@ void Particles::decompose_identity_current(
   const PetscInt m = shape.size.elements_product();
   const PetscInt n = m;
 
-  std::vector<MatStencil> idxm(m), idxn(n);
-  std::vector<PetscReal> values(m * n * POW2(3), 0);
+  std::vector<MatStencil> idxm(m);
+  std::vector<MatStencil> idxn(n);
+  std::vector<PetscReal> values(static_cast<std::size_t>(m * n * POW2(3)), 0);
 
   constexpr PetscReal shape_tolerance = 1e-10;
 
@@ -245,5 +249,7 @@ void Particles::decompose_identity_current(
   }
   PetscFunctionReturnVoid();
 }
+
+// NOLINTEND(readability-function-cognitive-complexity)
 
 }  // namespace ecsimcorr

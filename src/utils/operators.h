@@ -9,9 +9,14 @@
 
 /// @brief Utility class to create constant operators on a `DMDA` grid.
 class Operator {
+public:
+  DEFAULT_MOVABLE(Operator);
+
+  Operator() = default;
+  virtual ~Operator() = default;
+
 protected:
   Operator(DM da, PetscInt mdof = 3, PetscInt ndof = 3);
-  virtual ~Operator() = default;
 
   PetscInt m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
   PetscInt n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
@@ -34,17 +39,17 @@ public:
  * difference approximation. Yee stencil is used, so each operator can be
  * represented with both positive/negative offsets.
  */
-class Finite_difference_operator : public Operator {
+class FiniteDifferenceOperator : public Operator {
 public:
   PetscErrorCode create_positive(Mat* mat);
   PetscErrorCode create_negative(Mat* mat);
 
 protected:
   /// @brief Can not be created explicitly as it is abstract operator.
-  Finite_difference_operator(
+  FiniteDifferenceOperator(
     DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v);
 
-  enum class Yee_shift {
+  enum class Yee_shift : std::uint8_t {
     Positive,
     Negative,
   };
@@ -59,14 +64,15 @@ protected:
 
   /// @brief Almost identical to `MatSetValuesStencil()`,
   /// but can use different dof for rows and columns.
-  PetscErrorCode mat_set_values_stencil(Mat, PetscInt, const MatStencil[],
-    PetscInt, const MatStencil[], const PetscScalar[], InsertMode) const;
+  PetscErrorCode mat_set_values_stencil(Mat mat, PetscInt m,
+    const MatStencil idxm[], PetscInt n, const MatStencil idxn[],
+    const PetscScalar v[], InsertMode addv) const;
 
   const std::vector<PetscReal> values_;
 };
 
 
-class Rotor final : public Finite_difference_operator {
+class Rotor final : public FiniteDifferenceOperator {
 public:
   Rotor(DM da);
 
@@ -76,11 +82,14 @@ private:
 };
 
 
-class Non_rectangular_operator : public Finite_difference_operator {
+class NonRectangularOperator : public FiniteDifferenceOperator {
+public:
+  DEFAULT_MOVABLE(NonRectangularOperator);
+  ~NonRectangularOperator() override;
+
 protected:
-  Non_rectangular_operator(
+  NonRectangularOperator(
     DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v);
-  ~Non_rectangular_operator() override;
 
   PetscErrorCode create_matrix(Mat* mat) override;
 
@@ -93,7 +102,7 @@ protected:
 };
 
 
-class Divergence final : public Non_rectangular_operator {
+class Divergence final : public NonRectangularOperator {
 public:
   Divergence(DM da);
 
@@ -104,7 +113,7 @@ protected:
 };
 
 
-class Gradient final : public Non_rectangular_operator {
+class Gradient final : public NonRectangularOperator {
 public:
   Gradient(DM da);
 

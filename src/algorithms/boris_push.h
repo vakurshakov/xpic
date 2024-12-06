@@ -4,10 +4,10 @@
 #include "src/interfaces/particles.h"
 #include "src/interfaces/point.h"
 
-class Boris_push {
+class BorisPush {
 public:
-  Boris_push() = delete;
-  Boris_push(PetscReal dt, const Vector3R& E_p, const Vector3R& B_p);
+  BorisPush() = delete;
+  BorisPush(PetscReal dt, const Vector3R& E_p, const Vector3R& B_p);
 
   /// @brief Pusher context is the particles storage to get parameters from.
   using Context = interfaces::Particles;

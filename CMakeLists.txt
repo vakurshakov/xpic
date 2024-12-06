@@ -6,6 +6,9 @@ set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
+# enables clang-tidy in the `build` directory
+set(CMAKE_EXPORT_COMPILE_COMMANDS true)
+
 
 project(xpic VERSION 0.1 LANGUAGES CXX)
 
@@ -20,7 +23,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "-fpic -fopenmp -pthread")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter -Wno-unused-variable -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-unused-variable -Wno-missing-field-initializers")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
 
 set(constants

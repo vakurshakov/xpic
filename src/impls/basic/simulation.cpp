@@ -22,7 +22,7 @@ PetscErrorCode Simulation::initialize_implementation()
 
 #if THERE_ARE_PARTICLES
   /// @todo Particles parametrization is needed!
-  Sort_parameters parameters = {
+  SortParameters parameters = {
     .Np = 1,
     .n = +1.0,
     .q = -1.0,
@@ -40,7 +40,7 @@ PetscErrorCode Simulation::initialize_implementation()
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
+PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 {
   PetscFunctionBeginUser;
 

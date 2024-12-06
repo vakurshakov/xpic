@@ -5,12 +5,12 @@
 
 /**
  * @brief Simple (dump) density decomposition using shifted and non-shifted shapes.
- * There is no additional memory-cost of temporary storage like in `Esirkepov_decomposition`.
+ * There is no additional memory-cost of temporary storage like in `EsirkepovDecomposition`.
  */
-class Simple_decomposition {
+class SimpleDecomposition {
 public:
-  Simple_decomposition() = delete;
-  Simple_decomposition(const Shape& shape, const Vector3R& J_p);
+  SimpleDecomposition() = delete;
+  SimpleDecomposition(const Shape& shape, const Vector3R& J_p);
 
   /// @brief Decomposition context is a reference to outer global current.
   using Context = Vector3R***;

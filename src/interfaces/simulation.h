@@ -10,6 +10,8 @@ namespace interfaces {
 
 class Simulation {
 public:
+  DEFAULT_MOVABLE(Simulation);
+
   Simulation() = default;
   virtual ~Simulation() = default;
 
@@ -25,7 +27,7 @@ protected:
   virtual PetscErrorCode timestep_implementation(timestep_t timestep) = 0;
   PetscErrorCode diagnose(timestep_t timestep) const;
 
-  timestep_t start_ = 0u;
+  timestep_t start_ = 0;
 
   std::list<Command_up> step_presets_;
   std::vector<Diagnostic_up> diagnostics_;

@@ -4,33 +4,37 @@
 #include "src/utils/vector3.h"
 
 
-namespace fs = std::filesystem;
-
 namespace basic {
 
-Fields_energy::Fields_energy(const std::string& out_dir, DM da, Vec E, Vec B)
+FieldsEnergy::FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B)
   : interfaces::Diagnostic(out_dir), da_(da), E_(E), B_(B)
 {
-  file_ = Sync_binary_file(out_dir_, "fields_energy");
+  file_ = SyncBinaryFile(out_dir_, "fields_energy");
 }
 
-PetscErrorCode Fields_energy::diagnose(timestep_t t)
+PetscErrorCode FieldsEnergy::diagnose(timestep_t t)
 {
   PetscFunctionBeginUser;
 
-  Vector3R ***E, ***B;
-  PetscCall(DMDAVecGetArrayRead(da_, E_, &E));
-  PetscCall(DMDAVecGetArrayRead(da_, B_, &B));
+  Vector3R*** E;
+  Vector3R*** B;
+  PetscCall(DMDAVecGetArrayRead(da_, E_, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecGetArrayRead(da_, B_, reinterpret_cast<void*>(&B)));
 
-  Vector3I start, end;
+  Vector3I start;
+  Vector3I end;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
   end += start;
 
-  PetscReal WEx = 0.0, WEy = 0.0, WEz = 0.0;
-  PetscReal WBx = 0.0, WBy = 0.0, WBz = 0.0;
+  PetscReal WEx = 0.0;
+  PetscReal WEy = 0.0;
+  PetscReal WEz = 0.0;
+  PetscReal WBx = 0.0;
+  PetscReal WBy = 0.0;
+  PetscReal WBz = 0.0;
 
-  // clang-format off
 #pragma omp parallel for simd reduction(+ : WEx, WEy, WEz, WBx, WBy, WBz)
+  // clang-format off
   for (PetscInt z = start.z(); z < end.z(); ++z) {
   for (PetscInt y = start.y(); y < end.y(); ++y) {
   for (PetscInt x = start.x(); x < end.x(); ++x) {
@@ -44,8 +48,8 @@ PetscErrorCode Fields_energy::diagnose(timestep_t t)
   }}}
   // clang-format on
 
-  PetscCall(DMDAVecRestoreArrayRead(da_, E_, &E));
-  PetscCall(DMDAVecRestoreArrayRead(da_, B_, &B));
+  PetscCall(DMDAVecRestoreArrayRead(da_, E_, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecRestoreArrayRead(da_, B_, reinterpret_cast<void*>(&B)));
 
   auto write_reduced = [&](PetscReal& w) -> PetscErrorCode {
     PetscFunctionBeginUser;

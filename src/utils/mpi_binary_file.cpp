@@ -2,13 +2,13 @@
 
 namespace fs = std::filesystem;
 
-MPI_binary_file::MPI_binary_file(MPI_Comm comm,
-  const std::string& directory_path, const std::string& file_name)
+MPI_BinaryFile::MPI_BinaryFile(MPI_Comm comm, const std::string& directory_path,
+  const std::string& file_name)
 {
   PetscCallVoid(open(comm, directory_path, file_name));
 }
 
-MPI_binary_file::~MPI_binary_file()
+MPI_BinaryFile::~MPI_BinaryFile()
 {
   if (memview_ != MPI_DATATYPE_NULL)
     MPI_Type_free(&memview_);
@@ -23,7 +23,7 @@ MPI_binary_file::~MPI_binary_file()
     MPI_Comm_free(&comm_);
 }
 
-PetscErrorCode MPI_binary_file::open(MPI_Comm comm,
+PetscErrorCode MPI_BinaryFile::open(MPI_Comm comm,
   const std::string& directory_path, const std::string& file_name)
 {
   PetscFunctionBeginHot;
@@ -31,7 +31,7 @@ PetscErrorCode MPI_binary_file::open(MPI_Comm comm,
 
   std::string filename = directory_path + "/" + file_name + ".bin";
 
-  int rank;
+  PetscInt rank;
   PetscCallMPI(MPI_Comm_rank(comm_, &rank));
   if (rank == 0) {
     fs::create_directories(directory_path);
@@ -44,14 +44,14 @@ PetscErrorCode MPI_binary_file::open(MPI_Comm comm,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MPI_binary_file::flush()
+PetscErrorCode MPI_BinaryFile::flush()
 {
   PetscFunctionBeginHot;
   PetscCallMPI(MPI_File_sync(file_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MPI_binary_file::close()
+PetscErrorCode MPI_BinaryFile::close()
 {
   PetscFunctionBeginHot;
   PetscCallMPI(MPI_File_close(&file_));
@@ -65,7 +65,9 @@ PetscErrorCode create_subarray(PetscInt ndim, const PetscInt sizes[],
   PetscMPIInt d;
   PetscCall(PetscMPIIntCast(ndim, &d));
 
-  std::vector<PetscMPIInt> sz(d), st(d), sb(d);
+  std::vector<PetscMPIInt> sz(d);
+  std::vector<PetscMPIInt> st(d);
+  std::vector<PetscMPIInt> sb(d);
   for (PetscMPIInt i = 0; i < d; ++i) {
     PetscCall(PetscMPIIntCast(sizes[i], &sz[i]));
     PetscCall(PetscMPIIntCast(starts[i], &st[i]));
@@ -76,7 +78,7 @@ PetscErrorCode create_subarray(PetscInt ndim, const PetscInt sizes[],
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MPI_binary_file::set_memview_subarray(PetscInt ndim,
+PetscErrorCode MPI_BinaryFile::set_memview_subarray(PetscInt ndim,
   const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[])
 {
   PetscFunctionBeginUser;
@@ -84,7 +86,7 @@ PetscErrorCode MPI_binary_file::set_memview_subarray(PetscInt ndim,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MPI_binary_file::set_fileview_subarray(PetscInt ndim,
+PetscErrorCode MPI_BinaryFile::set_fileview_subarray(PetscInt ndim,
   const PetscInt sizes[], const PetscInt subsizes[], const PetscInt starts[])
 {
   PetscFunctionBeginUser;
@@ -92,7 +94,7 @@ PetscErrorCode MPI_binary_file::set_fileview_subarray(PetscInt ndim,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MPI_binary_file::write_floats(PetscInt size, const PetscReal* data)
+PetscErrorCode MPI_BinaryFile::write_floats(PetscInt size, const PetscReal* data)
 {
   PetscFunctionBeginHot;
 #if defined(PETSC_USE_REAL_SINGLE)

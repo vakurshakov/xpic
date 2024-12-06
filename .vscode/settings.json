@@ -55,6 +55,7 @@
         "threadprivate",
         "timestep",
         "uniqueptr",
-        "VECSEQ"
+        "VECSEQ",
+        "vphi"
     ]
 }

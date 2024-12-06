@@ -10,18 +10,19 @@ constexpr PetscInt j_p(PetscInt x1, PetscInt x2)
 }  // namespace indexing
 
 
-Esirkepov_decomposition::Esirkepov_decomposition(
-  const Shape& shape, PetscReal alpha)
+EsirkepovDecomposition::EsirkepovDecomposition(const Shape& shape, PetscReal alpha)
   : shape(shape), alpha(alpha)
 {
 }
 
-PetscErrorCode Esirkepov_decomposition::process(Context& J) const
+PetscErrorCode EsirkepovDecomposition::process(Context& J) const
 {
   PetscFunctionBeginHot;
   static constexpr PetscInt j_geom = POW2(shape_width);
   static constexpr PetscInt j_comp = Vector3I::dim;
-  std::array<PetscReal, (j_geom * j_comp)> temp_j;
+  static constexpr std::size_t j_size = static_cast<std::size_t>(j_geom) * j_comp;
+
+  std::array<PetscReal, j_size> temp_j;
 
   // clang-format off: @todo create macro/range-based analogue for this loop
   for (PetscInt z = 0; z < shape.size[Z]; ++z) {
@@ -31,9 +32,9 @@ PetscErrorCode Esirkepov_decomposition::process(Context& J) const
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
 
-    PetscReal p_jx = get_Jx(x, y, z, temp_j.data() + j_geom * X);
-    PetscReal p_jy = get_Jy(x, y, z, temp_j.data() + j_geom * Y);
-    PetscReal p_jz = get_Jz(x, y, z, temp_j.data() + j_geom * Z);
+    PetscReal p_jx = get_jx(z, y, x, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * X));
+    PetscReal p_jy = get_jy(z, y, x, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * Y));
+    PetscReal p_jz = get_jz(z, y, x, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * Z));
 
 #pragma omp atomic update
       J[g_z][g_y][g_x][X] += p_jx;
@@ -49,8 +50,8 @@ PetscErrorCode Esirkepov_decomposition::process(Context& J) const
 }
 
 
-PetscReal Esirkepov_decomposition::get_Jx(
-  PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) const
+PetscReal EsirkepovDecomposition::get_jx(
+  PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jx) const
 {
   PetscFunctionBeginHot;
   PetscReal qx = alpha * dx;
@@ -61,12 +62,12 @@ PetscReal Esirkepov_decomposition::get_Jx(
     (shape(i, New, Y) * (2.0 * shape(i, New, Z) + shape(i, Old, Z)) +
       shape(i, Old, Y) * (2.0 * shape(i, Old, Z) + shape(i, New, Z)));
 
-  temp_jx[j] = ((x > 0) * temp_jx[j]) + wx_p;
-  PetscFunctionReturn(temp_jx[i]);
+  temp_jx[j] = (static_cast<PetscReal>(x > 0) * temp_jx[j]) + wx_p;
+  PetscFunctionReturn(temp_jx[j]);
 }
 
-PetscReal Esirkepov_decomposition::get_Jy(
-  PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jy) const
+PetscReal EsirkepovDecomposition::get_jy(
+  PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jy) const
 {
   PetscFunctionBeginHot;
   PetscReal qy = alpha * dy;
@@ -77,12 +78,12 @@ PetscReal Esirkepov_decomposition::get_Jy(
     (shape(i, New, X) * (2.0 * shape(i, New, Z) + shape(i, Old, Z)) +
       shape(i, Old, X) * (2.0 * shape(i, Old, Z) + shape(i, New, Z)));
 
-  temp_jy[j] = ((y > 0) * temp_jy[j]) + wy_p;
+  temp_jy[j] = (static_cast<PetscReal>(y > 0) * temp_jy[j]) + wy_p;
   PetscFunctionReturn(temp_jy[j]);
 }
 
-PetscReal Esirkepov_decomposition::get_Jz(
-  PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jz) const
+PetscReal EsirkepovDecomposition::get_jz(
+  PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jz) const
 {
   PetscFunctionBeginHot;
   PetscReal qz = alpha * dz;
@@ -93,6 +94,6 @@ PetscReal Esirkepov_decomposition::get_Jz(
     (shape(i, New, Y) * (2.0 * shape(i, New, X) + shape(i, Old, X)) +
       shape(i, Old, Y) * (2.0 * shape(i, Old, X) + shape(i, New, X)));
 
-  temp_jz[j] = ((z > 0) * temp_jz[j]) + wz_p;
+  temp_jz[j] = (static_cast<PetscReal>(z > 0) * temp_jz[j]) + wz_p;
   PetscFunctionReturn(temp_jz[j]);
 }

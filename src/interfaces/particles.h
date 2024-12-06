@@ -10,14 +10,16 @@ namespace interfaces {
 
 class Particles {
 public:
-  Particles(const World& world, const Sort_parameters& parameters);
+  DEFAULT_MOVABLE(Particles);
+
+  Particles(const World& world, const SortParameters& parameters);
   virtual ~Particles() = default;
 
   const World& world_;
 
   PetscErrorCode add_particle(const Point& point);
 
-  const Sort_parameters& parameters() const;
+  const SortParameters& parameters() const;
   const std::vector<Point>& points() const;
 
   PetscInt particles_number(const Point& point) const;
@@ -29,24 +31,10 @@ public:
   PetscErrorCode communicate();
 
 protected:
-  static constexpr int MPI_TAG_NUMBERS = 2;
-  static constexpr int MPI_TAG_POINTS = 4;
+  static constexpr PetscInt MPI_TAG_NUMBERS = 2;
+  static constexpr PetscInt MPI_TAG_POINTS = 4;
 
-  PetscInt to_contiguous_index(PetscInt z, PetscInt y, PetscInt x)
-  {
-    constexpr PetscInt dim = 3;
-    return indexing::petsc_index(z, y, x, 0, dim, dim, dim, 1);
-  }
-
-  void from_contiguous_index(PetscInt index, PetscInt& z, PetscInt& y, PetscInt& x)
-  {
-    constexpr PetscInt dim = 3;
-    x = (index) % dim;
-    y = (index / dim) % dim;
-    z = (index / dim) / dim;
-  }
-
-  Sort_parameters parameters_;
+  SortParameters parameters_;
   std::vector<Point> points_;
 };
 

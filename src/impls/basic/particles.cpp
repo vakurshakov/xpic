@@ -7,7 +7,7 @@
 
 namespace basic {
 
-Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
+Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
@@ -37,9 +37,9 @@ PetscErrorCode Particles::push()
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
   PetscCall(VecSet(local_J, 0.0));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecGetArrayWrite(da, local_J, &J));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayWrite(da, local_J, reinterpret_cast<void*>(&J)));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -48,7 +48,8 @@ PetscErrorCode Particles::push()
     Shape shape;
     shape.setup(point.r);
 
-    Vector3R E_p, B_p;
+    Vector3R E_p;
+    Vector3R B_p;
     interpolate(shape, E_p, B_p);
 
     push(E_p, B_p, point);
@@ -57,9 +58,9 @@ PetscErrorCode Particles::push()
     decompose(shape, point);
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_J, reinterpret_cast<void*>(&J)));
 
   PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J_));
 
@@ -71,14 +72,14 @@ PetscErrorCode Particles::push()
 
 void Particles::interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const
 {
-  Simple_interpolation interpolation(shape);
+  SimpleInterpolation interpolation(shape);
   interpolation.process({{E_p, E}}, {{B_p, B}});
 }
 
 
 void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const
 {
-  Boris_push push(dt, E_p, B_p);
+  BorisPush push(dt, E_p, B_p);
   push.process_rel(point, *this);
 }
 
@@ -88,7 +89,7 @@ void Particles::decompose(const Shape& shape, const Point& point)
   const PetscReal alpha =
     charge(point) * density(point) / (particles_number(point) * (6.0 * dt));
 
-  Esirkepov_decomposition decomposition(shape, alpha);
+  EsirkepovDecomposition decomposition(shape, alpha);
   decomposition.process(J);
 }
 

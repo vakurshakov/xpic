@@ -78,9 +78,9 @@ Simulation_up build_simulation()
 
   if (simulation_str == "basic")
     return std::make_unique<basic::Simulation>();
-  else if (simulation_str == "ricketson")
+  if (simulation_str == "ricketson")
     return std::make_unique<ricketson::Simulation>();
-  else if (simulation_str == "ecsimcorr")
+  if (simulation_str == "ecsimcorr")
     return std::make_unique<ecsimcorr::Simulation>();
 
   throw std::runtime_error("Unkown simulation is used: " + simulation_str);

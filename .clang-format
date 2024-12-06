@@ -123,7 +123,7 @@ IndentCaseBlocks: false
 IndentCaseLabels: true
 IndentExternBlock: AfterExternBlock
 IndentPPDirectives: BeforeHash
-IndentRequiresClause: false
+IndentRequiresClause: true
 IndentWidth: 2
 IndentWrappedFunctionNames: false
 InsertBraces: false
@@ -164,7 +164,7 @@ ReflowComments: true
 RemoveBracesLLVM: true
 RemoveParentheses: MultipleParentheses
 RemoveSemicolon: true
-RequiresClausePosition: WithPreceding
+RequiresClausePosition: OwnLine
 RequiresExpressionIndentation: OuterScope
 SeparateDefinitionBlocks: Leave
 ShortNamespaceLines: 10

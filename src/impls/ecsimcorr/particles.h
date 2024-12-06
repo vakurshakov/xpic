@@ -11,7 +11,9 @@ class Simulation;
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const Sort_parameters& parameters);
+  DEFAULT_MOVABLE(Particles);
+
+  Particles(Simulation& simulation, const SortParameters& parameters);
   ~Particles() override;
 
   PetscErrorCode clear_sources();
@@ -20,11 +22,11 @@ public:
   PetscErrorCode final_update();
 
 private:
-  static constexpr int OMP_CHUNK_SIZE = 16;
+  static constexpr PetscInt OMP_CHUNK_SIZE = 16;
 
 #if (PARTICLES_FORM_FACTOR == 2)
-  static constexpr auto& shape_func1 = __1st_order_spline;
-  static constexpr auto& shape_func2 = __2nd_order_spline;
+  static constexpr auto& shape_func1 = spline_of_1st_order;
+  static constexpr auto& shape_func2 = spline_of_2nd_order;
   static constexpr PetscReal shape_radius1 = 1.0;
   static constexpr PetscReal shape_radius2 = 1.5;
 #endif

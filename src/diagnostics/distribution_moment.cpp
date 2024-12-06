@@ -9,7 +9,7 @@
 using Particles = interfaces::Particles;
 
 
-std::unique_ptr<Distribution_moment> Distribution_moment::create(
+std::unique_ptr<DistributionMoment> DistributionMoment::create(
   const std::string& out_dir, const Particles& particles, const Moment& moment,
   const Region& region)
 {
@@ -19,22 +19,22 @@ std::unique_ptr<Distribution_moment> Distribution_moment::create(
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
-  auto* diagnostic = new Distribution_moment(out_dir, particles, moment, newcomm);
+  auto* diagnostic = new DistributionMoment(out_dir, particles, moment, newcomm);
   PetscCallThrow(diagnostic->set_data_views(region));
-  PetscFunctionReturn(std::unique_ptr<Distribution_moment>(diagnostic));
+  PetscFunctionReturn(std::unique_ptr<DistributionMoment>(diagnostic));
 }
 
 
-Distribution_moment::Distribution_moment(const std::string& out_dir,
+DistributionMoment::DistributionMoment(const std::string& out_dir,
   const Particles& particles, const Moment& moment, MPI_Comm newcomm)
-  : Field_view(out_dir, particles.world_.da, nullptr, newcomm),
+  : FieldView(out_dir, particles.world_.da, nullptr, newcomm),
     particles_(particles),
     moment_(moment)
 {
 }
 
 
-Distribution_moment::~Distribution_moment()
+DistributionMoment::~DistributionMoment()
 {
   PetscFunctionBeginUser;
   PetscCallVoid(DMDestroy(&da_));
@@ -44,14 +44,14 @@ Distribution_moment::~Distribution_moment()
 }
 
 
-PetscErrorCode Distribution_moment::set_data_views(const Region& region)
+PetscErrorCode DistributionMoment::set_data_views(const Region& region)
 {
   PetscFunctionBeginUser;
   PetscCall(set_da(region));
   PetscCall(DMCreateLocalVector(da_, &local_));
   PetscCall(DMCreateGlobalVector(da_, &field_));
 
-  PetscCall(Field_view::set_data_views(region));
+  PetscCall(FieldView::set_data_views(region));
 
   // Later we'll use `Node` structure that uses shifted coordinates
   region_.start -= static_cast<PetscInt>(std::ceil(shape_radius));
@@ -59,19 +59,19 @@ PetscErrorCode Distribution_moment::set_data_views(const Region& region)
 }
 
 
-PetscErrorCode Distribution_moment::set_da(const Region& region)
+PetscErrorCode DistributionMoment::set_da(const Region& region)
 {
   PetscFunctionBeginUser;
   Vector3I g_start = vector_cast(region.start);
   Vector3I g_size = vector_cast(region.size);
   Vector3I g_end = g_start + g_size;
 
-  PetscInt dim, s;
+  PetscInt s;
   DMDAStencilType st;
   PetscInt size[3];
   PetscInt proc[3];
   DMBoundaryType bound[3];
-  PetscCall(DMDAGetInfo(da_, &dim, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
+  PetscCall(DMDAGetInfo(da_, nullptr, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
 
   const PetscInt* ownership[3];
   PetscCall(DMDAGetOwnershipRanges(da_, REP3_A(&ownership)));
@@ -81,7 +81,10 @@ PetscErrorCode Distribution_moment::set_da(const Region& region)
   std::vector<PetscInt> l_ownership[3];
 
   // Collecting number of processes and ownership ranges using global DMDA
-  for (PetscInt i = 0; i < dim; ++i) {
+  for (PetscInt i = 0; i < 3; ++i) {
+    l_proc[i] = 0;
+    l_bound[i] = DM_BOUNDARY_NONE;
+
     PetscInt start = 0;
     PetscInt end = ownership[i][0];
 
@@ -106,12 +109,12 @@ PetscErrorCode Distribution_moment::set_da(const Region& region)
 }
 
 
-PetscErrorCode Distribution_moment::diagnose(timestep_t t)
+PetscErrorCode DistributionMoment::diagnose(timestep_t t)
 {
   PetscFunctionBeginUser;
   if (t % diagnose_period == 0) {
     PetscCall(collect());
-    PetscCall(Field_view::diagnose(t));
+    PetscCall(FieldView::diagnose(t));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -125,7 +128,7 @@ PetscErrorCode Distribution_moment::diagnose(timestep_t t)
  * collecting velocity distribution on (Vx, Vy, Vz) coordinates, the equivalent
  * of `MPI_Allreduce()` operation is needed.
  */
-PetscErrorCode Distribution_moment::collect()
+PetscErrorCode DistributionMoment::collect()
 {
   PetscFunctionBeginUser;
 
@@ -133,7 +136,7 @@ PetscErrorCode Distribution_moment::collect()
   PetscCall(VecSet(field_, 0.0));
 
   PetscReal*** arr;
-  PetscCall(DMDAVecGetArrayWrite(da_, local_, &arr));
+  PetscCall(DMDAVecGetArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
 
 #pragma omp parallel for
   for (const Point& point : particles_.points()) {
@@ -164,69 +167,70 @@ PetscErrorCode Distribution_moment::collect()
     }}}
     // clang-format on
   }
-  PetscCall(DMDAVecRestoreArrayWrite(da_, local_, &arr));
+  PetscCall(DMDAVecRestoreArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
   PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, field_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-inline PetscReal get_zeroth(const Particles&, const Point&)
+inline PetscReal get_zeroth(
+  const Particles& /* particles */, const Point& /* point */)
 {
   return 1.0;
 }
 
-inline PetscReal get_Vx(const Particles& particles, const Point& point)
+inline PetscReal get_vx(const Particles& particles, const Point& point)
 {
   return particles.velocity(point).x();
 }
 
-inline PetscReal get_Vy(const Particles& particles, const Point& point)
+inline PetscReal get_vy(const Particles& particles, const Point& point)
 {
   return particles.velocity(point).y();
 }
 
-inline PetscReal get_Vz(const Particles& particles, const Point& point)
+inline PetscReal get_vz(const Particles& particles, const Point& point)
 {
   return particles.velocity(point).z();
 }
 
-inline PetscReal get_mVxVx(const Particles& particles, const Point& point)
+inline PetscReal get_m_vx_vx(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vx(particles, point) *
-    get_Vx(particles, point);
+  return particles.mass(point) * get_vx(particles, point) *
+    get_vx(particles, point);
 }
 
-inline PetscReal get_mVxVy(const Particles& particles, const Point& point)
+inline PetscReal get_m_vx_vy(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vx(particles, point) *
-    get_Vy(particles, point);
+  return particles.mass(point) * get_vx(particles, point) *
+    get_vy(particles, point);
 }
 
-inline PetscReal get_mVxVz(const Particles& particles, const Point& point)
+inline PetscReal get_m_vx_vz(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vx(particles, point) *
-    get_Vz(particles, point);
+  return particles.mass(point) * get_vx(particles, point) *
+    get_vz(particles, point);
 }
 
-inline PetscReal get_mVyVy(const Particles& particles, const Point& point)
+inline PetscReal get_m_vy_vy(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vy(particles, point) *
-    get_Vy(particles, point);
+  return particles.mass(point) * get_vy(particles, point) *
+    get_vy(particles, point);
 }
 
-inline PetscReal get_mVyVz(const Particles& particles, const Point& point)
+inline PetscReal get_m_vy_vz(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vy(particles, point) *
-    get_Vz(particles, point);
+  return particles.mass(point) * get_vy(particles, point) *
+    get_vz(particles, point);
 }
 
-inline PetscReal get_mVzVz(const Particles& particles, const Point& point)
+inline PetscReal get_m_vz_vz(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vz(particles, point) *
-    get_Vz(particles, point);
+  return particles.mass(point) * get_vz(particles, point) *
+    get_vz(particles, point);
 }
 
-inline PetscReal get_Vr(const Particles& particles, const Point& point)
+inline PetscReal get_vr(const Particles& particles, const Point& point)
 {
   PetscReal x = point.x() - 0.5 * geom_x;
   PetscReal y = point.y() - 0.5 * geom_y;
@@ -236,10 +240,10 @@ inline PetscReal get_Vr(const Particles& particles, const Point& point)
   if (std::isinf(1.0 / r))
     return 0.0;
 
-  return (+x * get_Vx(particles, point) + y * get_Vy(particles, point)) / r;
+  return (+x * get_vx(particles, point) + y * get_vy(particles, point)) / r;
 }
 
-inline PetscReal get_Vphi(const Particles& particles, const Point& point)
+inline PetscReal get_vphi(const Particles& particles, const Point& point)
 {
   PetscReal x = point.x() - 0.5 * geom_x;
   PetscReal y = point.y() - 0.5 * geom_y;
@@ -249,25 +253,25 @@ inline PetscReal get_Vphi(const Particles& particles, const Point& point)
   if (std::isinf(1.0 / r))
     return 0.0;
 
-  return (-y * get_Vx(particles, point) + x * get_Vy(particles, point)) / r;
+  return (-y * get_vx(particles, point) + x * get_vy(particles, point)) / r;
 }
 
-inline PetscReal get_mVrVr(const Particles& particles, const Point& point)
+inline PetscReal get_m_vr_vr(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vr(particles, point) *
-    get_Vr(particles, point);
+  return particles.mass(point) * get_vr(particles, point) *
+    get_vr(particles, point);
 }
 
-inline PetscReal get_mVrVphi(const Particles& particles, const Point& point)
+inline PetscReal get_m_vr_vphi(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vr(particles, point) *
-    get_Vphi(particles, point);
+  return particles.mass(point) * get_vr(particles, point) *
+    get_vphi(particles, point);
 }
 
-inline PetscReal get_mVphiVphi(const Particles& particles, const Point& point)
+inline PetscReal get_m_vphi_vphi(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_Vphi(particles, point) *
-    get_Vphi(particles, point);
+  return particles.mass(point) * get_vphi(particles, point) *
+    get_vphi(particles, point);
 }
 
 
@@ -278,38 +282,36 @@ Moment::Moment(const Particles& particles, const getter& get)
 
 Moment Moment::from_string(const Particles& particles, const std::string& name)
 {
-  getter get = nullptr;
   if (name == "zeroth_moment")
-    get = get_zeroth;
-  else if (name == "Vx_moment")
-    get = get_Vx;
-  else if (name == "Vy_moment")
-    get = get_Vy;
-  else if (name == "Vz_moment")
-    get = get_Vz;
-  else if (name == "Vr_moment")
-    get = get_Vr;
-  else if (name == "Vphi_moment")
-    get = get_Vphi;
-  else if (name == "mVxVx_moment")
-    get = get_mVxVx;
-  else if (name == "mVxVy_moment")
-    get = get_mVxVy;
-  else if (name == "mVxVz_moment")
-    get = get_mVxVz;
-  else if (name == "mVyVy_moment")
-    get = get_mVyVy;
-  else if (name == "mVyVz_moment")
-    get = get_mVyVz;
-  else if (name == "mVzVz_moment")
-    get = get_mVzVz;
-  else if (name == "mVrVr_moment")
-    get = get_mVrVr;
-  else if (name == "mVrVphi_moment")
-    get = get_mVrVphi;
-  else if (name == "mVphiVphi_moment")
-    get = get_mVphiVphi;
-  else
-    throw std::runtime_error("Unkown moment name!");
-  return Moment(particles, get);
+    return Moment{particles, get_zeroth};
+  if (name == "Vx_moment")
+    return Moment{particles, get_vx};
+  if (name == "Vy_moment")
+    return Moment{particles, get_vy};
+  if (name == "Vz_moment")
+    return Moment{particles, get_vz};
+  if (name == "Vr_moment")
+    return Moment{particles, get_vr};
+  if (name == "Vphi_moment")
+    return Moment{particles, get_vphi};
+  if (name == "mVxVx_moment")
+    return Moment{particles, get_m_vx_vx};
+  if (name == "mVxVy_moment")
+    return Moment{particles, get_m_vx_vy};
+  if (name == "mVxVz_moment")
+    return Moment{particles, get_m_vx_vz};
+  if (name == "mVyVy_moment")
+    return Moment{particles, get_m_vy_vy};
+  if (name == "mVyVz_moment")
+    return Moment{particles, get_m_vy_vz};
+  if (name == "mVzVz_moment")
+    return Moment{particles, get_m_vz_vz};
+  if (name == "mVrVr_moment")
+    return Moment{particles, get_m_vr_vr};
+  if (name == "mVrVphi_moment")
+    return Moment{particles, get_m_vr_vphi};
+  if (name == "mVphiVphi_moment")
+    return Moment{particles, get_m_vphi_vphi};
+
+  throw std::runtime_error("Unkown moment name!");
 }

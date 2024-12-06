@@ -1,11 +1,11 @@
 #include "simple_interpolation.h"
 
-Simple_interpolation::Simple_interpolation(const Shape& shape)
+SimpleInterpolation::SimpleInterpolation(const Shape& shape)
   : shape(shape)
 {
 }
 
-PetscErrorCode Simple_interpolation::process(
+PetscErrorCode SimpleInterpolation::process(
   const Context& e_fields, const Context& b_fields) const
 {
   PetscFunctionBeginHot;

@@ -5,22 +5,22 @@
 
 #include <random>
 
-class Random_generator {
+class RandomGenerator {
 public:
-  static inline std::mt19937& get()
+  static std::mt19937& get()
   {
-    static Random_generator single_instance;
+    static RandomGenerator single_instance;
     return single_instance.gen;
   }
 
 private:
+  DEFAULT_MOVABLE(RandomGenerator);
+
+  RandomGenerator() = default;
+  ~RandomGenerator() = default;
+
   std::random_device rd;
   std::mt19937 gen = std::mt19937(rd());
-
-  Random_generator() = default;
-
-  Random_generator(const Random_generator&) = delete;
-  Random_generator& operator=(const Random_generator&) = delete;
 };
 
 inline double random_01()
@@ -30,19 +30,19 @@ inline double random_01()
   double value;
 
 #pragma omp critical
-  value = distribution(Random_generator::get());
+  value = distribution(RandomGenerator::get());
 
   return value;
 }
 
-inline int random_sign()
+inline PetscInt random_sign()
 {
   static std::bernoulli_distribution distribution(0.5);
 
-  int value;
+  PetscInt value;
 
 #pragma omp critical
-  value = distribution(Random_generator::get()) ? +1 : -1;
+  value = distribution(RandomGenerator::get()) ? +1 : -1;
 
   return value;
 }

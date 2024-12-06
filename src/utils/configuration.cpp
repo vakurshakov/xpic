@@ -69,7 +69,7 @@ void Configuration::init(const std::string& config_path)
 /* static */ void Configuration::save(
   const std::string& from, const std::string& to, fs::copy_options options)
 {
-  int rank;
+  PetscInt rank;
   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
   if (rank != 0)
     return;

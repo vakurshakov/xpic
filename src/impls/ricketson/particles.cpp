@@ -30,19 +30,19 @@ static constexpr PetscReal gamma = 0.1;
 static constexpr PetscReal t_res = 10;
 
 
-Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
+Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
   particle_iterations_log =
-    Sync_binary_file(CONFIG().out_dir, "particle_iterations");
+    SyncBinaryFile(CONFIG().out_dir, "particle_iterations");
 
   /// @todo It'd be more reusable to place particle mover into separate class
 
   // Nonlinear solver should be created for each process.
   PetscCallVoid(SNESCreate(PETSC_COMM_SELF, &snes_));
   PetscCallVoid(SNESSetType(snes_, SNESNRICHARDSON));
-  PetscCallVoid(SNESSetFunction(snes_, nullptr, Particles::form_Picard_iteration, &ctx));
+  PetscCallVoid(SNESSetFunction(snes_, nullptr, Particles::form_picard_iteration, &ctx));
   PetscCallVoid(SNESSetTolerances(snes_, atol, rtol, stol, maxit, maxf));
 
   PetscCallVoid(VecCreate(PETSC_COMM_SELF, &solution_));
@@ -60,7 +60,7 @@ Particles::Particles(Simulation& simulation, const Sort_parameters& parameters)
 }
 
 
-Particles::Particles(Particles&& other)
+Particles::Particles(Particles&& other) noexcept
   : interfaces::Particles(other.world_, other.parameters_),
     simulation_(other.simulation_)
 {
@@ -94,16 +94,16 @@ PetscErrorCode Particles::push()
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.DB_, INSERT_VALUES, local_DB));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &ctx.E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &ctx.B));
-  PetscCall(DMDAVecGetArrayRead(da, local_DB, &ctx.DB));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, reinterpret_cast<void*>(&ctx.E)));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));
+  PetscCall(DMDAVecGetArrayRead(da, local_DB, reinterpret_cast<void*>(&ctx.DB)));
 
-  for (auto it = points_.begin(); it != points_.end(); ++it)
-    PetscCall(push(*it));
+  for (auto& point : points_)
+    PetscCall(push(point));
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &ctx.E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &ctx.B));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_DB, &ctx.DB));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&ctx.E)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_DB, reinterpret_cast<void*>(&ctx.DB)));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
@@ -151,7 +151,8 @@ PetscErrorCode Particles::push(Point& point)
     point.pz() = arr[5];
     PetscCall(VecRestoreArray(solution_, &arr));
 
-    PetscInt iterations, evals;
+    PetscInt iterations;
+    PetscInt evals;
     PetscCall(SNESGetIterationNumber(snes_, &iterations));
     PetscCall(SNESGetNumberFunctionEvals(snes_, &evals));
     LOG("Iterations number: {}, Function evaluations: {}", iterations, evals);
@@ -164,7 +165,12 @@ PetscErrorCode Particles::push(Point& point)
       PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
       const PetscInt size = 9;
       const PetscReal data[size] = {
-        (PetscReal)i, Omega_dt, mu, REP3_A(point.r), REP3_A(point.p)};
+        static_cast<PetscReal>(i),
+        Omega_dt,
+        mu,
+        REP3_A(point.r),
+        REP3_A(point.p),
+      };
 
       PetscCall(particle_iterations_log.write_floats(size, data));
       PetscFunctionReturn(PETSC_SUCCESS);
@@ -176,7 +182,6 @@ PetscErrorCode Particles::push(Point& point)
   // Resetting to their inital values in case of no convergence.
   point.r = ctx.x_n;
   point.p = ctx.v_n;
-  PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -189,7 +194,7 @@ PetscErrorCode Particles::Context::update(
 
   shape.setup(x_h);
 
-  Simple_interpolation interpolation(shape);
+  SimpleInterpolation interpolation(shape);
   PetscCall(interpolation.process({{E_p, E}}, {{B_p, B}, {DB_p, DB}}));
 
   DB_pp = DB_p.parallel_to(B_p);
@@ -206,7 +211,7 @@ PetscErrorCode Particles::Context::update(
 }
 
 
-PetscErrorCode Particles::adaptive_time_stepping(const Point& point)
+PetscErrorCode Particles::adaptive_time_stepping(const Point& /* point */)
 {
   PetscFunctionBeginUser;
   PetscReal B_norm = ctx.B_p.length();
@@ -256,18 +261,18 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& point)
  * F(x^{k}), where lambda -- damping coefficient, lambda = +1.0 by default (no
  * damping).
  */
-PetscErrorCode Particles::form_Picard_iteration(
-  SNES snes, Vec vx, Vec vf, void* __ctx)
+PetscErrorCode Particles::form_picard_iteration(
+  SNES /* snes */, Vec vx, Vec vf, void* vctx)
 {
   PetscFunctionBeginUser;
-  auto& ctx = *(Particles::Context*)__ctx;
+  auto& ctx = *reinterpret_cast<Particles::Context*>(vctx);
   const Vector3R& x_n = ctx.x_n;
   const Vector3R& v_n = ctx.v_n;
 
   const PetscReal* x;
   PetscCall(VecGetArrayRead(vx, &x));
-  Vector3R x_nn = {x[0], x[1], x[2]};
-  Vector3R v_nn = {x[3], x[4], x[5]};
+  Vector3R x_nn{x[0], x[1], x[2]};
+  Vector3R v_nn{x[3], x[4], x[5]};
   PetscCall(VecRestoreArrayRead(vx, &x));
 
   PetscCall(ctx.update(x_nn, v_nn));

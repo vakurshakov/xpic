@@ -6,11 +6,11 @@
 
 namespace basic {
 
-class Fields_energy_builder : public Diagnostic_builder {
+class FieldsEnergyBuilder : public DiagnosticBuilder {
 public:
-  Fields_energy_builder(
+  FieldsEnergyBuilder(
     const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
-    : Diagnostic_builder(simulation, diagnostics)
+    : DiagnosticBuilder(simulation, diagnostics)
   {
   }
 
@@ -18,7 +18,7 @@ public:
   {
     PetscFunctionBeginUser;
     diagnostics_.emplace_back(
-      std::make_unique<Fields_energy>(CONFIG().out_dir + "/",
+      std::make_unique<FieldsEnergy>(CONFIG().out_dir + "/",
         simulation_.world_.da, simulation_.E_, simulation_.B_));
     PetscFunctionReturn(PETSC_SUCCESS);
   }

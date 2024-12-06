@@ -7,18 +7,18 @@
 template<typename T, typename V>
 Vector4<T> vector_cast(const Vector3<V>& vector)
 {
-  return {
-    (T)vector[X],
-    (T)vector[Y],
-    (T)vector[Z],
-    (T)0,
+  return Vector4{
+    static_cast<T>(vector[X]),
+    static_cast<T>(vector[Y]),
+    static_cast<T>(vector[Z]),
+    static_cast<T>(0),
   };
 }
 
 template<typename T>
 Vector4<T> vector_cast(const Vector3<T>& vector)
 {
-  return {
+  return Vector4{
     vector[X],
     vector[Y],
     vector[Z],
@@ -29,17 +29,17 @@ Vector4<T> vector_cast(const Vector3<T>& vector)
 template<typename T, typename V>
 Vector3<T> vector_cast(const Vector4<V>& vector)
 {
-  return {
-    (T)vector[X],
-    (T)vector[Y],
-    (T)vector[Z],
+  return Vector3{
+    static_cast<T>(vector[X]),
+    static_cast<T>(vector[Y]),
+    static_cast<T>(vector[Z]),
   };
 }
 
 template<typename T>
 Vector3<T> vector_cast(const Vector4<T>& vector)
 {
-  return {
+  return Vector3{
     vector[X],
     vector[Y],
     vector[Z],
@@ -49,21 +49,21 @@ Vector3<T> vector_cast(const Vector4<T>& vector)
 template<typename T, typename V>
 Vector4<T> vector_cast(const Vector4<V>& vector)
 {
-  return {
-    (T)vector[X],
-    (T)vector[Y],
-    (T)vector[Z],
-    (T)vector[C],
+  return Vector4{
+    static_cast<T>(vector[X]),
+    static_cast<T>(vector[Y]),
+    static_cast<T>(vector[Z]),
+    static_cast<T>(vector[C]),
   };
 }
 
 template<typename T, typename V>
 Vector3<T> vector_cast(const Vector3<V>& vector)
 {
-  return {
-    (T)vector[X],
-    (T)vector[Y],
-    (T)vector[Z],
+  return Vector3{
+    static_cast<T>(vector[X]),
+    static_cast<T>(vector[Y]),
+    static_cast<T>(vector[Z]),
   };
 }
 

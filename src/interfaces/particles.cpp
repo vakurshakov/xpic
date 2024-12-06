@@ -2,7 +2,38 @@
 
 namespace interfaces {
 
-Particles::Particles(const World& world, const Sort_parameters& parameters)
+namespace {
+
+constexpr PetscInt dim = 3;
+
+PetscInt to_contiguous_index(PetscInt z, PetscInt y, PetscInt x)
+{
+  return indexing::petsc_index(z, y, x, 0, dim, dim, dim, 1);
+}
+
+PetscInt get_index(const Vector3R& r, Axis axis, const World& world)
+{
+  if (r[axis] < world.start[axis])
+    return 0;
+  if (r[axis] < world.end[axis])
+    return 1;
+  return 2;
+}
+
+void correct_coordinates(Point& point, const World& world)
+{
+  if (world.bounds[X] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, X);
+  if (world.bounds[Y] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, Y);
+  if (world.bounds[Z] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, Z);
+}
+
+}  // namespace
+
+
+Particles::Particles(const World& world, const SortParameters& parameters)
   : world_(world), parameters_(parameters)
 {
 }
@@ -22,39 +53,24 @@ PetscErrorCode Particles::communicate()
   std::vector<Point> outgoing[neighbors_num];
   std::vector<Point> incoming[neighbors_num];
 
-  // clang-format off
-  auto set_index = [&](const Vector3R& r, Vector3I& index, Axis axis) {
-    index[axis] = (r[axis] < world_.start[axis]) ? 0 : (r[axis] < world_.end[axis]) ? 1 : 2;
-  };
-  // clang-format on
-
-  auto correct_coordinates = [&](Point& point) {
-    if (world_.bounds[X] == DM_BOUNDARY_PERIODIC)
-      g_bound_periodic(point, X);
-    if (world_.bounds[Y] == DM_BOUNDARY_PERIODIC)
-      g_bound_periodic(point, Y);
-    if (world_.bounds[Z] == DM_BOUNDARY_PERIODIC)
-      g_bound_periodic(point, Z);
-  };
-
   PetscInt center_index = to_contiguous_index(1, 1, 1);
 
   auto end = points_.end();
   for (auto it = points_.begin(); it != end; ++it) {
     const Vector3R& r = it->r;
-    Vector3I v_index;
-    set_index(r, v_index, X);
-    set_index(r, v_index, Y);
-    set_index(r, v_index, Z);
 
-    PetscInt index = to_contiguous_index(v_index[Z], v_index[Y], v_index[X]);
+    PetscInt index = to_contiguous_index( //
+      get_index(r, Z, world_),            //
+      get_index(r, Y, world_),            //
+      get_index(r, X, world_));
 
     // Particle didn't cross local boundaries
     if (index == center_index)
       continue;
 
-    correct_coordinates(*it);
-    outgoing[index].emplace_back(std::move(*it));
+    correct_coordinates(*it, world_);
+
+    outgoing[index].emplace_back(*it);
     std::swap(*it, *(end - 1));
     --it;
     --end;
@@ -106,7 +122,7 @@ PetscErrorCode Particles::communicate()
 }
 
 
-const Sort_parameters& Particles::parameters() const
+const SortParameters& Particles::parameters() const
 {
   return parameters_;
 }
@@ -116,22 +132,22 @@ const std::vector<Point>& Particles::points() const
   return points_;
 }
 
-PetscInt Particles::particles_number(const Point& point) const
+PetscInt Particles::particles_number(const Point& /* point */) const
 {
   return parameters_.Np;
 }
 
-PetscReal Particles::density(const Point& point) const
+PetscReal Particles::density(const Point& /* point */) const
 {
   return parameters_.n;
 }
 
-PetscReal Particles::charge(const Point& point) const
+PetscReal Particles::charge(const Point& /* point */) const
 {
   return parameters_.q;
 }
 
-PetscReal Particles::mass(const Point& point) const
+PetscReal Particles::mass(const Point& /* point */) const
 {
   return parameters_.m;
 }

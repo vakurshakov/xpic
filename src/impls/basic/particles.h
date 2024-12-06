@@ -11,13 +11,15 @@ class Simulation;
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const Sort_parameters& parameters);
+  DEFAULT_MOVABLE(Particles);
+
+  Particles(Simulation& simulation, const SortParameters& parameters);
   ~Particles() override;
 
   PetscErrorCode push();
 
 private:
-  static constexpr int OMP_CHUNK_SIZE = 16;
+  static constexpr PetscInt OMP_CHUNK_SIZE = 16;
 
   void interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const;
   void push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const;

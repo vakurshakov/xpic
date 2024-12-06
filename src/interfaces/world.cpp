@@ -6,16 +6,16 @@
 
 void convert(Vector3R& vector, const Vector3I& other)
 {
-  vector.x() = (PetscReal)other.x() * dx;
-  vector.y() = (PetscReal)other.y() * dy;
-  vector.z() = (PetscReal)other.z() * dz;
+  vector.x() = static_cast<PetscReal>(other.x()) * dx;
+  vector.y() = static_cast<PetscReal>(other.y()) * dy;
+  vector.z() = static_cast<PetscReal>(other.z()) * dz;
 }
 
 PetscErrorCode World::initialize()
 {
   PetscFunctionBegin;
   const PetscInt dof = Vector3R::dim;
-  const PetscInt s = static_cast<PetscInt>(std::ceil(shape_radius));
+  const auto s = static_cast<PetscInt>(std::ceil(shape_radius));
 
   Configuration::get_boundaries_type(REP3_A(bounds));
   Configuration::get_processors(REP3_A(procs));

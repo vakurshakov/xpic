@@ -23,11 +23,12 @@ PetscErrorCode Simulation::initialize_implementation()
   const PetscReal radius = 3;
   const PetscReal distance = 15;
 
-  PetscInt rstart[3], rsize[3];
+  PetscInt rstart[3];
+  PetscInt rsize[3];
   PetscCall(DMDAGetCorners(world_.da, REP3_A(&rstart), REP3_A(&rsize)));
 
   Vector3R*** B;
-  PetscCall(DMDAVecGetArrayWrite(world_.da, B_, &B));
+  PetscCall(DMDAVecGetArrayWrite(world_.da, B_, reinterpret_cast<void*>(&B)));
 
   // clang-format off
   for (PetscInt z = rstart[Z]; z < rstart[Z] + rsize[Z]; ++z) {
@@ -47,10 +48,10 @@ PetscErrorCode Simulation::initialize_implementation()
     B[z][y][x].z() = B0 * 1.0;
   }}}
   // clang-format on
-  PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, &B));
+  PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, reinterpret_cast<void*>(&B)));
 
 #if THERE_ARE_PARTICLES
-  Sort_parameters parameters = {
+  SortParameters parameters = {
     .Np = 1, .n = +1.0, .q = +1.0, .m = +1.0, .sort_name = "positron"};
   auto& sort = particles_.emplace_back(*this, parameters);
 
@@ -66,17 +67,18 @@ PetscErrorCode Simulation::initialize_implementation()
 }
 
 
-PetscErrorCode Simulation::calculate_B_norm_gradient()
+PetscErrorCode Simulation::calculate_b_norm_gradient()
 {
   PetscFunctionBeginUser;
 
   Vector3R*** B;
-  PetscCall(DMDAVecGetArrayRead(world_.da, B_, &B));
+  PetscCall(DMDAVecGetArrayRead(world_.da, B_, reinterpret_cast<void*>(&B)));
 
   PetscReal* B_norm;
   PetscCall(VecGetArrayWrite(B_norm_, &B_norm));
 
-  PetscInt start[3], size[3];
+  PetscInt start[3];
+  PetscInt size[3];
   PetscCall(DMDAGetCorners(world_.da, REP3_A(&start), REP3_A(&size)));
 
   // clang-format off
@@ -86,7 +88,7 @@ PetscErrorCode Simulation::calculate_B_norm_gradient()
     B_norm[indexing::s_g(z, y, x)] = B[z][y][x].length();
   // clang-format on
 
-  PetscCall(DMDAVecRestoreArrayRead(world_.da, B_, &B));
+  PetscCall(DMDAVecRestoreArrayRead(world_.da, B_, reinterpret_cast<void*>(&B)));
   PetscCall(VecRestoreArrayWrite(B_norm_, &B_norm));
 
   PetscCall(MatMult(norm_gradient_, B_norm_, DB_));
@@ -100,7 +102,8 @@ PetscErrorCode Simulation::setup_norm_gradient()
   DM da = world_.da;
   PetscCall(DMCreateGlobalVector(da, &DB_));
 
-  PetscInt start[3], size[3];
+  PetscInt start[3];
+  PetscInt size[3];
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
   VecType vtype;
@@ -121,11 +124,11 @@ PetscErrorCode Simulation::setup_norm_gradient()
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
+PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 {
   PetscFunctionBeginUser;
 
-  PetscCall(calculate_B_norm_gradient());
+  PetscCall(calculate_b_norm_gradient());
 
   for (auto& sort : particles_)
     PetscCall(sort.push());
