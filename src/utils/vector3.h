@@ -187,6 +187,14 @@ struct Vector3 {
       +(data[X] * other[Y] - data[Y] * other[X]),
     };
   }
+
+  friend std::ostream& operator<<(std::ostream& out, const Vector3& vector)
+  {
+    out << std::to_string(vector[X]) << " ";
+    out << std::to_string(vector[Y]) << " ";
+    out << std::to_string(vector[Z]) << " ";
+    return out;
+  }
 };
 
 using Vector3R = Vector3<PetscReal>;

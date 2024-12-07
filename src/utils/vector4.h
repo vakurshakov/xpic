@@ -175,6 +175,15 @@ struct Vector4 {
   const T& z() const { return data[Z]; }
   const T& c() const { return data[C]; }
   // clang-format on
+
+  friend std::ostream& operator<<(std::ostream& out, const Vector4& vector)
+  {
+    out << std::to_string(vector[X]) << " ";
+    out << std::to_string(vector[Y]) << " ";
+    out << std::to_string(vector[Z]) << " ";
+    out << std::to_string(vector[C]) << " ";
+    return out;
+  }
 };
 
 using Vector4R = Vector4<PetscReal>;
