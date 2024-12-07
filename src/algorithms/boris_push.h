@@ -15,11 +15,14 @@ public:
   PetscErrorCode process(Point& point, const Context& particles) const;
   PetscErrorCode process_rel(Point& point, const Context& particles) const;
 
-
   /// @note The following is the recreation of the published
   /// results, @see https://doi.org/10.1016/j.jcp.2022.111422
   void process_M1A(Point& point, const Context& particles);
   void process_M1B(Point& point, const Context& particles);
+  void process_B1A(Point& point, const Context& particles);
+  void process_B1B(Point& point, const Context& particles);
+  void process_C1A(Point& point, const Context& particles);
+  void process_C1B(Point& point, const Context& particles);
 
   PetscReal get_omega(const Point& point, const Context& particles) const;
   PetscReal get_theta(const Point& point, const Context& particles) const;
@@ -28,8 +31,17 @@ private:
   inline void update_u(
     Point& point, bool need_gamma, const Context& particles) const;
 
-  inline Vector3R get_vb(
-    const Vector3R& v, PetscReal cos_theta, PetscReal sin_theta) const;
+  void impl_M1A(Point& point, PetscReal sin_theta, PetscReal cos_theta);
+  void impl_M1B(Point& point, PetscReal sin_theta, PetscReal cos_theta);
+
+  std::pair<REP2(PetscReal)> get_theta_b(
+    const Point& point, const Context& particles) const;
+
+  std::pair<REP2(PetscReal)> get_theta_c(
+    const Point& point, const Context& particles) const;
+
+  Vector3R get_vb(
+    const Vector3R& v, PetscReal sin_theta, PetscReal cos_theta) const;
 
   PetscReal dt;
   const Vector3R& E_p;

@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.29)
 # @todo check ctest
 # @todo replace with google-tests environment
 set(tests
+  chin_gyration
   gyration
   drift_crossed_fields
 )

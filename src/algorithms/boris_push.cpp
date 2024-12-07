@@ -39,20 +39,69 @@ void BorisPush::update_u(
 }
 
 
+void BorisPush::impl_M1A(Point& point, PetscReal sin_theta, PetscReal cos_theta)
+{
+  point.p = get_vb(point.p, sin_theta, cos_theta);
+  point.r += point.p * dt;
+}
+
+void BorisPush::impl_M1B(Point& point, PetscReal sin_theta, PetscReal cos_theta)
+{
+  point.r += point.p * dt;
+  point.p = get_vb(point.p, sin_theta, cos_theta);
+}
+
 void BorisPush::process_M1A(Point& point, const Context& particles)
 {
   PetscReal theta = get_theta(point, particles);
-  point.p = get_vb(point.p, std::cos(theta), std::sin(theta));
-  point.r += point.p * dt;
+  impl_M1A(point, std::sin(theta), std::cos(theta));
 }
 
 void BorisPush::process_M1B(Point& point, const Context& particles)
 {
   PetscReal theta = get_theta(point, particles);
-  point.r += point.p * dt;
-  point.p = get_vb(point.p, std::cos(theta), std::sin(theta));
+  impl_M1B(point, std::sin(theta), std::cos(theta));
 }
 
+std::pair<REP2(PetscReal)> BorisPush::get_theta_b(
+  const Point& point, const Context& particles) const
+{
+  PetscReal theta = get_theta(point, particles);
+  PetscReal d = (1.0 + 0.25 * POW2(theta));
+  return std::make_pair(theta / d, (1.0 - 0.25 * POW2(theta)) / d);
+}
+
+void BorisPush::process_B1A(Point& point, const Context& particles)
+{
+  auto [s, c] = get_theta_b(point, particles);
+  impl_M1A(point, s, c);
+}
+
+void BorisPush::process_B1B(Point& point, const Context& particles)
+{
+  auto [s, c] = get_theta_b(point, particles);
+  impl_M1B(point, s, c);
+}
+
+std::pair<REP2(PetscReal)> BorisPush::get_theta_c(
+  const Point& point, const Context& particles) const
+{
+  PetscReal theta = get_theta(point, particles);
+  return std::make_pair(
+    theta * std::sqrt(1.0 - 0.25 * POW2(theta)), (1 - 0.5 * POW2(theta)));
+}
+
+void BorisPush::process_C1A(Point& point, const Context& particles)
+{
+  auto [s, c] = get_theta_c(point, particles);
+  impl_M1A(point, s, c);
+}
+
+void BorisPush::process_C1B(Point& point, const Context& particles)
+{
+  auto [s, c] = get_theta_c(point, particles);
+  impl_M1B(point, s, c);
+}
 
 inline PetscReal BorisPush::get_omega(
   const Point& point, const Context& particles) const
@@ -67,7 +116,7 @@ inline PetscReal BorisPush::get_theta(
 }
 
 inline Vector3R BorisPush::get_vb(
-  const Vector3R& v, PetscReal cos_theta, PetscReal sin_theta) const
+  const Vector3R& v, PetscReal sin_theta, PetscReal cos_theta) const
 {
   Vector3R b = B_p.normalized();
   Vector3R v_p = v.parallel_to(b);
