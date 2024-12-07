@@ -9,7 +9,7 @@ namespace basic {
 FieldsEnergy::FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B)
   : interfaces::Diagnostic(out_dir), da_(da), E_(E), B_(B)
 {
-  file_ = SyncBinaryFile(out_dir_, "fields_energy");
+  file_ = SyncBinaryFile(out_dir_ + "/fields_energy.bin");
 }
 
 PetscErrorCode FieldsEnergy::diagnose(timestep_t t)

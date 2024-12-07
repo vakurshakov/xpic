@@ -1,34 +1,18 @@
 #ifndef SRC_UTILS_SYNC_BINARY_FILE
 #define SRC_UTILS_SYNC_BINARY_FILE
 
-#include "src/pch.h"
-#include "src/utils/utils.h"
+#include "src/utils/sync_file.h"
 
-/**
- * @note In most cases it should be used for scalar variables diagnostics.
- * @todo Should be inherited from MPI_binary_file to reuse it's logic.
- */
-class SyncBinaryFile {
+class SyncBinaryFile : public SyncFile {
 public:
-  /// @warning std::ofstream is not copyable.
-  DEFAULT_MOVABLE(SyncBinaryFile);
+  SyncBinaryFile();
+  SyncBinaryFile(const std::string& filename);
 
-  SyncBinaryFile() = default;
-  ~SyncBinaryFile() = default;
+  PetscErrorCode write(PetscReal data);
+  PetscErrorCode write(PetscInt size, const PetscReal* data);
 
-  /// @brief Creates directories in its `directory_path` and opens a new binary file.
-  SyncBinaryFile(const std::string& directory_path, const std::string& file_name);
-
-  /// @brief Creates directories in its `directory_path` and opens a new binary file.
-  PetscErrorCode open(
-    const std::string& directory_path, const std::string& file_name);
-  PetscErrorCode flush();
-  PetscErrorCode close();
-
+  PetscErrorCode write_float(PetscReal data);
   PetscErrorCode write_floats(PetscInt size, const PetscReal* data);
-
-private:
-  std::ofstream file_;
 };
 
 #endif  // SRC_UTILS_SYNC_BINARY_FILE
