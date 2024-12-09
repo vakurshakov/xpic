@@ -19,6 +19,7 @@ public:
   /// results, @see https://doi.org/10.1016/j.jcp.2022.111422
   void process_M1A(Point& point, const Context& particles);
   void process_M1B(Point& point, const Context& particles);
+  void process_MLF(Point& point, const Context& particles);
   void process_B1A(Point& point, const Context& particles);
   void process_B1B(Point& point, const Context& particles);
   void process_C1A(Point& point, const Context& particles);

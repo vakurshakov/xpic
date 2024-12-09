@@ -8,7 +8,7 @@ constexpr Vector3R B0(0.0, 0.0, 2.0);
 constexpr Vector3R v0(0.0, 1.0, 0.0);
 constexpr Vector3R r0(0.5, 0.0, 0.0);
 
-#define CHIN_SCHEME_ID M1A
+#define CHIN_SCHEME_ID MLF
 #define CHIN_SCHEME_OUTPUT "./tests/chin_gyration_" STR(CHIN_SCHEME_ID) ".txt"
 #define CHIN_SCHEME_PROCESS(PUSH) CAT(PUSH.process_, CHIN_SCHEME_ID)
 
@@ -35,6 +35,10 @@ int main()
   output() << "[1/wpe] [c/wpe] [c/wpe] [c/wpe] \n";
 
   BorisPush push(dt, E0, B0);
+
+  if (std::string(STR(CHIN_SCHEME_ID)) == "MLF") {
+    point.r -=  (dt / 2.0) * point.p;
+  }
 
   /// @note This `omega` is not a cyclotron frequency, but Chin's version of it.
   PetscReal omega = push.get_omega(point, particles);

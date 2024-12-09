@@ -63,6 +63,12 @@ void BorisPush::process_M1B(Point& point, const Context& particles)
   impl_M1B(point, std::sin(theta), std::cos(theta));
 }
 
+/// @note But first, particles coordinates should be shifted to -(dt / 2.0) * v!
+void BorisPush::process_MLF(Point& point, const Context& particles)
+{
+  process_M1B(point, particles);
+}
+
 std::pair<REP2(PetscReal)> BorisPush::get_theta_b(
   const Point& point, const Context& particles) const
 {
