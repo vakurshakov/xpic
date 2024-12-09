@@ -5,20 +5,19 @@ import matplotlib.pyplot as plt
 
 plt.rcParams.update({"text.usetex": True, "axes.formatter.use_mathtext": True})
 
-from configuration import config
+# from configuration import config
 
-def draw_evolution(data, name):
+def plot_evolution(data):
     plt.plot(np.arange(len(data)), data)
-    plt.title(name)
-    plt.show()
 
-def draw_parametric(x_data, y_data, name):
-    plt.plot(x_data, y_data)
-    plt.title(name)
-    plt.show()
+def plot_parametric(x_data, y_data, **kwargs):
+    if ["emphasis" in kwargs]:
+        plt.scatter(x_data, y_data, **kwargs["emphasis"])
+        kwargs.pop("emphasis") # To avoid collision with `plt.plot()` named arguments
 
-if __name__ == "__main__":
-    filename = f"../{config['Out_dir']}/particle_iterations.bin"
+    plt.plot(x_data, y_data, **kwargs)
+
+def read_binary(filename, count=-1):
     dtype = np.dtype([
         ("i",  np.float32),
         ("dt", np.float32),
@@ -30,8 +29,33 @@ if __name__ == "__main__":
         ("py", np.float32),
         ("pz", np.float32),
     ])
-    count = 2811
-    data = np.fromfile(filename, dtype=dtype, count=count)
+    return np.fromfile(filename, dtype=dtype, count=count)
 
-    draw_evolution(data["x"], "$v_{\|}^0 = 0.3 v_{crit}$")
-    # draw_parametric(data["x"], data["z"], "$v_{\|}^0 = 0.3 v_{crit}$")
+def read_text(filename):
+    with open(filename) as f:
+        names = f.readline()
+        dimensions = f.readline()
+        print(names, dimensions)  # dimensions are _only_ to check
+
+        arrays = [[] for n in names.split()]
+
+        for l in f.readlines():
+            for i, d in enumerate(l.split()):
+                arrays[i].append(float(d))
+
+        return dict(zip(names.split(), arrays))
+
+
+plt.title("Gyro orbits")
+
+m_args = {"c": "red", "emphasis": {"c": "red", "marker": "s"}}
+
+data = read_text("./tests/chin_gyration_M1A.txt")
+plot_parametric(data["x"], data["y"], **m_args)
+
+data = read_text("./tests/chin_gyration_M1B.txt")
+plot_parametric(data["x"], data["y"], **m_args)
+
+plt.xlim((-1.25, +1.25))
+plt.ylim((-1.25, +1.25))
+plt.show()

@@ -8,6 +8,7 @@ results/
 **/__pycache__/**
 
 *.bin
+*.txt
 *.npy
 *.png
 *.mp4
