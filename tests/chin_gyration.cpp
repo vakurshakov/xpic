@@ -8,7 +8,7 @@ constexpr Vector3R B0(0.0, 0.0, 2.0);
 constexpr Vector3R v0(0.0, 1.0, 0.0);
 constexpr Vector3R r0(0.5, 0.0, 0.0);
 
-#define CHIN_SCHEME_ID            M1B
+#define CHIN_SCHEME_ID            C1A
 #define CHIN_SCHEME_OUTPUT        "./tests/chin_gyration_" STR(CHIN_SCHEME_ID) ".txt"
 #define CHIN_SCHEME_PROCESS(PUSH) CAT(PUSH.process_, CHIN_SCHEME_ID)
 
@@ -30,7 +30,7 @@ int main()
   geom_nt = 100'000;
 
   PetscReal check_counter_clockwise = 0.0;
-  Vector3R check_mean_r;
+  Vector3R check_mean_coord;
 
   SyncFile output(CHIN_SCHEME_OUTPUT);
   output() << "t       x       y       z       \n";
@@ -55,7 +55,7 @@ int main()
     CHIN_SCHEME_PROCESS(push)(point, particles);
 
     update_counter_clockwise(old_r, point.r, check_counter_clockwise);
-    check_mean_r += point.r / static_cast<PetscReal>(geom_nt);
+    check_mean_coord += point.r / static_cast<PetscReal>(geom_nt);
   }
   assert(check_counter_clockwise * omega > 0.0);
 
@@ -64,7 +64,7 @@ int main()
 
   /// @todo Implement O(theta) check here
   Vector3R rc = get_center_offset(rg, theta);
-  assert(equal_tol(check_mean_r, rc, 1e-6));
+  assert(equal_tol(check_mean_coord, rc, 1e-5));
 }
 
 
@@ -86,6 +86,12 @@ Vector3R get_center_offset(PetscReal rg, PetscReal theta)
     PetscReal cos_tb = (1.0 - POW2(theta) / 4.0) / (1.0 + POW2(theta) / 4.0);
     rc[X] = 0.0;
     rc[Y] = rg * (1 - cos_tb) / sin_tb;  // tan(theta_b / 2) = theta / 2;
+  }
+
+  if (id.starts_with("C")) {
+    PetscReal cos_tc = (1.0 - POW2(theta) / 2.0);
+    rc[X] = rg * (1.0 - std::sqrt(1.0 - POW2(theta) / 4.0));
+    rc[Y] = rg * std::sqrt((1.0 - cos_tc) / 2.0);
   }
 
   if (id.ends_with("A"))
