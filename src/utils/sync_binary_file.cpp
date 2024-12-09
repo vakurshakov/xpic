@@ -23,8 +23,10 @@ PetscErrorCode SyncBinaryFile::write(PetscInt size, const PetscReal* data)
   if (!is_synchronized())
     return PETSC_SUCCESS;
 
+  PetscFunctionBeginHot;
   file_.write(reinterpret_cast<char*>(&data),
     static_cast<std::streamsize>(sizeof(PetscReal) * size));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode SyncBinaryFile::write_float(PetscReal data)
