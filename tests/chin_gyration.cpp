@@ -8,10 +8,11 @@ constexpr Vector3R B0(0.0, 0.0, 2.0);
 constexpr Vector3R v0(0.0, 1.0, 0.0);
 constexpr Vector3R r0(0.5, 0.0, 0.0);
 
-#define CHIN_SCHEME_ID            C1A
+#define CHIN_SCHEME_ID            B1A
 #define CHIN_SCHEME_OUTPUT        "./tests/chin_gyration_" STR(CHIN_SCHEME_ID) ".txt"
 #define CHIN_SCHEME_PROCESS(PUSH) CAT(PUSH.process_, CHIN_SCHEME_ID)
 
+PetscReal get_effective_larmor(PetscReal rg, PetscReal theta);
 Vector3R get_center_offset(PetscReal rg, PetscReal theta);
 
 int main()
@@ -30,6 +31,7 @@ int main()
   geom_nt = 100'000;
 
   PetscReal check_counter_clockwise = 0.0;
+  PetscReal check_mean_radius = 0.0;
   Vector3R check_mean_coord;
 
   SyncFile output(CHIN_SCHEME_OUTPUT);
@@ -48,6 +50,11 @@ int main()
   /// @note Since magnetic field is constant, `theta` and `omega` is constant too.
   PetscReal theta = push.get_theta(point, particles);
 
+  PetscReal rg = point.p.length() / omega;
+
+  PetscReal Rg = get_effective_larmor(rg, theta);
+  Vector3R rc = get_center_offset(rg, theta);
+
   for (PetscInt t = 0; t < geom_nt; ++t) {
     const Vector3R old_r = point.r;
 
@@ -55,30 +62,44 @@ int main()
     CHIN_SCHEME_PROCESS(push)(point, particles);
 
     update_counter_clockwise(old_r, point.r, check_counter_clockwise);
+    check_mean_radius += (point.r - rc).length() / static_cast<PetscReal>(geom_nt);
     check_mean_coord += point.r / static_cast<PetscReal>(geom_nt);
   }
   assert(check_counter_clockwise * omega > 0.0);
 
-  PetscReal rg = point.p.length() / omega;
-  assert(equal_tol(rg, r0.length(), 1e-10));
+  /// @note Checking that magnetic field doesn't do any work on particle.
+  PetscReal new_rg = point.p.length() / omega;
+  assert(equal_tol(new_rg, rg, 1e-10));
 
   /// @todo Implement O(theta) check here
-  Vector3R rc = get_center_offset(rg, theta);
+  assert(equal_tol(check_mean_radius, Rg, 1e-5));
   assert(equal_tol(check_mean_coord, rc, 1e-5));
+}
+
+
+PetscReal get_effective_larmor(PetscReal rg, PetscReal theta)
+{
+  auto id = std::string(STR(CHIN_SCHEME_ID));
+
+  if (id.starts_with("M"))
+    return rg * (theta / 2.0) / std::sin(theta / 2.0);
+  if (id.starts_with("B"))
+    return rg * std::sqrt(1.0 + POW2(theta) / 4.0);
+  return rg;
 }
 
 
 Vector3R get_center_offset(PetscReal rg, PetscReal theta)
 {
   auto id = std::string(STR(CHIN_SCHEME_ID));
-
-  /// @note If `id == "MLF"`, then `rc[Y]` left unchanged (and is equal to 0).
   Vector3R rc;
 
-  if (id.starts_with("M")) {
-    PetscReal Rg = rg * (theta / 2.0) / std::sin(theta / 2.0);
+  if (id.starts_with("M")) { PetscReal Rg = rg * (theta / 2.0) / std::sin(theta / 2.0);
     rc[X] = rg - Rg * std::cos(theta / 2.0);
-    rc[Y] = rg * theta / 2.0;
+
+    /// @note If `id == "MLF"`, then `rc[Y]` left unchanged (and is equal to 0).
+    if (id.starts_with("M1"))
+      rc[Y] = rg * theta / 2.0;
   }
 
   if (id.starts_with("B")) {
