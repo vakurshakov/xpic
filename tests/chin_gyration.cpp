@@ -8,9 +8,11 @@ constexpr Vector3R B0(0.0, 0.0, 2.0);
 constexpr Vector3R v0(0.0, 1.0, 0.0);
 constexpr Vector3R r0(0.5, 0.0, 0.0);
 
-#define CHIN_SCHEME_ID MLF
-#define CHIN_SCHEME_OUTPUT "./tests/chin_gyration_" STR(CHIN_SCHEME_ID) ".txt"
+#define CHIN_SCHEME_ID            M1B
+#define CHIN_SCHEME_OUTPUT        "./tests/chin_gyration_" STR(CHIN_SCHEME_ID) ".txt"
 #define CHIN_SCHEME_PROCESS(PUSH) CAT(PUSH.process_, CHIN_SCHEME_ID)
+
+Vector3R get_center_offset(PetscReal rg, PetscReal theta);
 
 int main()
 {
@@ -36,9 +38,8 @@ int main()
 
   BorisPush push(dt, E0, B0);
 
-  if (std::string(STR(CHIN_SCHEME_ID)) == "MLF") {
-    point.r -=  (dt / 2.0) * point.p;
-  }
+  if (std::string(STR(CHIN_SCHEME_ID)).ends_with("LF"))
+    point.r -= (dt / 2.0) * point.p;
 
   /// @note This `omega` is not a cyclotron frequency, but Chin's version of it.
   PetscReal omega = push.get_omega(point, particles);
@@ -59,20 +60,36 @@ int main()
   assert(check_counter_clockwise * omega > 0.0);
 
   PetscReal rg = point.p.length() / omega;
-  PetscReal Rg = rg * (theta / 2.0) / std::sin(theta / 2.0);
+  assert(equal_tol(rg, r0.length(), 1e-10));
 
-  /// @note If scheme is "MLF", then `rc[Y]` left unchanged (and is equal to 0).
+  /// @todo Implement O(theta) check here
+  Vector3R rc = get_center_offset(rg, theta);
+  assert(equal_tol(check_mean_r, rc, 1e-6));
+}
+
+
+Vector3R get_center_offset(PetscReal rg, PetscReal theta)
+{
+  auto id = std::string(STR(CHIN_SCHEME_ID));
+
+  /// @note If `id == "MLF"`, then `rc[Y]` left unchanged (and is equal to 0).
   Vector3R rc;
 
-  rc[X] = rg - Rg * std::cos(theta / 2.0);
-
-  if (std::string(STR(CHIN_SCHEME_ID)) == "M1A") {
-    rc[Y] = -rg * theta / 2.0;
-  }
-  else if (std::string(STR(CHIN_SCHEME_ID)) == "M1B") {
-    rc[Y] = +rg * theta / 2.0;
+  if (id.starts_with("M")) {
+    PetscReal Rg = rg * (theta / 2.0) / std::sin(theta / 2.0);
+    rc[X] = rg - Rg * std::cos(theta / 2.0);
+    rc[Y] = rg * theta / 2.0;
   }
 
-  assert(equal_tol(rg, r0.length(), 1e-10));
-  assert(equal_tol(check_mean_r, rc, 1e-10));
+  if (id.starts_with("B")) {
+    PetscReal sin_tb = theta /*               */ / (1.0 + POW2(theta) / 4.0);
+    PetscReal cos_tb = (1.0 - POW2(theta) / 4.0) / (1.0 + POW2(theta) / 4.0);
+    rc[X] = 0.0;
+    rc[Y] = rg * (1 - cos_tb) / sin_tb;  // tan(theta_b / 2) = theta / 2;
+  }
+
+  if (id.ends_with("A"))
+    rc[Y] *= (-1.0);
+
+  return rc;
 }

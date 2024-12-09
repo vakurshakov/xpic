@@ -35,7 +35,7 @@ def read_text(filename):
     with open(filename) as f:
         names = f.readline()
         dimensions = f.readline()
-        print(names, dimensions)  # dimensions are _only_ to check
+        # print(names, dimensions)  # `dimensions` are _only_ to double check
 
         arrays = [[] for n in names.split()]
 
@@ -46,9 +46,7 @@ def read_text(filename):
         return dict(zip(names.split(), arrays))
 
 
-plt.title("Gyro orbits")
-
-m_args = {"c": "red", "emphasis": {"c": "red", "marker": "s"}}
+m_args = {"c": "red", "lw": 1, "emphasis": {"c": "red", "marker": "o", "s": 5}}
 
 data = read_text("./tests/chin_gyration_M1A.txt")
 plot_parametric(data["x"], data["y"], **m_args)
@@ -56,6 +54,18 @@ plot_parametric(data["x"], data["y"], **m_args)
 data = read_text("./tests/chin_gyration_M1B.txt")
 plot_parametric(data["x"], data["y"], **m_args)
 
+
+b_args = {"c": "blue", "lw": 1, "emphasis": {"c": "blue", "marker": "s", "s": 5}}
+
+data = read_text("./tests/chin_gyration_B1A.txt")
+plot_parametric(data["x"], data["y"], **b_args)
+
+data = read_text("./tests/chin_gyration_B1B.txt")
+plot_parametric(data["x"], data["y"], **b_args)
+
+
+plt.title("Gyro orbits")
+plt.grid(c="grey", alpha=0.6)
 plt.xlim((-1.25, +1.25))
 plt.ylim((-1.25, +1.25))
 plt.show()
