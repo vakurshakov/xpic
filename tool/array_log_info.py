@@ -46,23 +46,35 @@ def read_text(filename):
         return dict(zip(names.split(), arrays))
 
 
+tmax = 1_000
+
 m_args = {"c": "red", "lw": 1, "emphasis": {"c": "red", "marker": "o", "s": 5}}
 
-data = read_text("./tests/chin_gyration_M1A.txt")
-plot_parametric(data["x"], data["y"], **m_args)
-
-data = read_text("./tests/chin_gyration_M1B.txt")
-plot_parametric(data["x"], data["y"], **m_args)
+# data = read_text("./tests/chin_gyration_M1A.txt")
+# plot_parametric(data["x"][:tmax], data["y"][:tmax], **m_args)
+# data = read_text("./tests/chin_gyration_M1B.txt")
+# plot_parametric(data["x"][:tmax], data["y"][:tmax], **m_args)
+data = read_text("./tests/chin_gyration_MLF.txt")
+plot_parametric(data["x"][:tmax], data["y"][:tmax], **m_args)
 
 
 b_args = {"c": "blue", "lw": 1, "emphasis": {"c": "blue", "marker": "s", "s": 5}}
 
-data = read_text("./tests/chin_gyration_B1A.txt")
-plot_parametric(data["x"], data["y"], **b_args)
+# data = read_text("./tests/chin_gyration_B1A.txt")
+# plot_parametric(data["x"][:tmax], data["y"][:tmax], **b_args)
+# data = read_text("./tests/chin_gyration_B1B.txt")
+# plot_parametric(data["x"][:tmax], data["y"][:tmax], **b_args)
+data = read_text("./tests/chin_gyration_BLF.txt")
+plt.scatter(data["x"][:tmax], data["y"][:tmax], **b_args["emphasis"])
 
-data = read_text("./tests/chin_gyration_B1B.txt")
-plot_parametric(data["x"], data["y"], **b_args)
+c_args = {"c": "green", "lw": 1, "emphasis": {"c": "green", "marker": "d", "s": 5}}
 
+# data = read_text("./tests/chin_gyration_C1A.txt")
+# plot_parametric(data["x"][:tmax], data["y"][:tmax], **c_args)
+# data = read_text("./tests/chin_gyration_C1B.txt")
+# plot_parametric(data["x"][:tmax], data["y"][:tmax], **c_args)
+data = read_text("./tests/chin_gyration_CLF.txt")
+plt.scatter(data["x"][:tmax], data["y"][:tmax], **c_args["emphasis"])
 
 plt.title("Gyro orbits")
 plt.grid(c="grey", alpha=0.6)

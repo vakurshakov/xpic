@@ -8,7 +8,7 @@ constexpr Vector3R B0(0.0, 0.0, 2.0);
 constexpr Vector3R v0(0.0, 1.0, 0.0);
 constexpr Vector3R r0(0.5, 0.0, 0.0);
 
-#define CHIN_SCHEME_ID            B1A
+#define CHIN_SCHEME_ID            BLF
 #define CHIN_SCHEME_OUTPUT        "./tests/chin_gyration_" STR(CHIN_SCHEME_ID) ".txt"
 #define CHIN_SCHEME_PROCESS(PUSH) CAT(PUSH.process_, CHIN_SCHEME_ID)
 
@@ -96,10 +96,7 @@ Vector3R get_center_offset(PetscReal rg, PetscReal theta)
 
   if (id.starts_with("M")) { PetscReal Rg = rg * (theta / 2.0) / std::sin(theta / 2.0);
     rc[X] = rg - Rg * std::cos(theta / 2.0);
-
-    /// @note If `id == "MLF"`, then `rc[Y]` left unchanged (and is equal to 0).
-    if (id.starts_with("M1"))
-      rc[Y] = rg * theta / 2.0;
+    rc[Y] = rg * theta / 2.0;
   }
 
   if (id.starts_with("B")) {
@@ -117,6 +114,8 @@ Vector3R get_center_offset(PetscReal rg, PetscReal theta)
 
   if (id.ends_with("A"))
     rc[Y] *= (-1.0);
+  else if (id.ends_with("LF"))
+    rc[Y] = 0.0;
 
   return rc;
 }

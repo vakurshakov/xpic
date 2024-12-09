@@ -22,8 +22,10 @@ public:
   void process_MLF(Point& point, const Context& particles);
   void process_B1A(Point& point, const Context& particles);
   void process_B1B(Point& point, const Context& particles);
+  void process_BLF(Point& point, const Context& particles);
   void process_C1A(Point& point, const Context& particles);
   void process_C1B(Point& point, const Context& particles);
+  void process_CLF(Point& point, const Context& particles);
 
   PetscReal get_omega(const Point& point, const Context& particles) const;
   PetscReal get_theta(const Point& point, const Context& particles) const;

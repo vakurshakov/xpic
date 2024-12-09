@@ -69,6 +69,7 @@ void BorisPush::process_MLF(Point& point, const Context& particles)
   process_M1B(point, particles);
 }
 
+
 std::pair<REP2(PetscReal)> BorisPush::get_theta_b(
   const Point& point, const Context& particles) const
 {
@@ -89,6 +90,13 @@ void BorisPush::process_B1B(Point& point, const Context& particles)
   impl_M1B(point, s, c);
 }
 
+/// @note But first, particles coordinates should be shifted to -(dt / 2.0) * v!
+void BorisPush::process_BLF(Point& point, const Context& particles)
+{
+  process_B1B(point, particles);
+}
+
+
 std::pair<REP2(PetscReal)> BorisPush::get_theta_c(
   const Point& point, const Context& particles) const
 {
@@ -108,6 +116,13 @@ void BorisPush::process_C1B(Point& point, const Context& particles)
   auto [s, c] = get_theta_c(point, particles);
   impl_M1B(point, s, c);
 }
+
+/// @note But first, particles coordinates should be shifted to -(dt / 2.0) * v!
+void BorisPush::process_CLF(Point& point, const Context& particles)
+{
+  process_C1B(point, particles);
+}
+
 
 inline PetscReal BorisPush::get_omega(
   const Point& point, const Context& particles) const
