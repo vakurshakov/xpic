@@ -27,8 +27,7 @@ public:
   PetscReal get_theta(const Point& point, const Context& particles) const;
 
 private:
-  void update_u(
-    Point& point, bool need_gamma, const Context& particles) const;
+  void update_u(Point& point, bool need_gamma, const Context& particles) const;
 
   std::pair<REP2(PetscReal)> get_theta_b(
     const Point& point, const Context& particles) const;

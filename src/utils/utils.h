@@ -63,10 +63,10 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 
 #define TO_STEP(s, ds) static_cast<PetscInt>(std::round((s) / (ds)))
 
-#define STR_IMPL(x) #x
-#define STR(x) STR_IMPL(x)
+#define STR_IMPL(x)    #x
+#define CAT_IMPL(a, b) a##b
 
-#define CAT_IMPL(a, b) a ## b
+#define STR(x)    STR_IMPL(x)
 #define CAT(a, b) CAT_IMPL(a, b)
 
 
