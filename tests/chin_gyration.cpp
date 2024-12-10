@@ -1,9 +1,11 @@
 #include "chin_common.h"
 
+// clang-format off
 #define CHIN_SCHEME_ID      BLF
 #define CHIN_SCHEME_ID_STR  STR(CHIN_SCHEME_ID)
-#define CHIN_SCHEME_OUTPUT  "./tests/chin_linear_b_" CHIN_SCHEME_ID_STR ".txt"
+#define CHIN_SCHEME_OUTPUT  "./tests/chin_output/chin_linear_b_" CHIN_SCHEME_ID_STR ".txt"
 #define CHIN_SCHEME_PROCESS CAT(process_, CHIN_SCHEME_ID)
+// clang-format on
 
 constexpr Vector3R B0(0.0, 0.0, 2.0);
 constexpr Vector3R r0(0.5, 0.0, 0.0);

@@ -62,11 +62,13 @@ vd = -0.001266
 ts = np.arange(0, tmax) * dt
 zd = ts * vd
 
-data = read_text("./tests/chin_curvilinear_b_B1A.txt")
+prefix = "./tests/chin_output/chin_curvilinear_b"
+
+data = read_text(f"{prefix}_B1A.txt")
 plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="green") #, **g_args["emphasis"]) # data["y"][:tmax],
-data = read_text("./tests/chin_curvilinear_b_B1B.txt")
+data = read_text(f"{prefix}_B1B.txt")
 plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="red") #, **r_args["emphasis"]) # data["y"][:tmax],
-data = read_text("./tests/chin_curvilinear_b_BLF.txt")
+data = read_text(f"{prefix}_BLF.txt")
 plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="purple") #, **p_args["emphasis"]) # data["y"][:tmax],
 
 

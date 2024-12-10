@@ -1,9 +1,11 @@
 #include "chin_common.h"
 
+// clang-format off
 #define CHIN_SCHEME_ID      BLF
 #define CHIN_SCHEME_ID_STR  STR(CHIN_SCHEME_ID)
-#define CHIN_SCHEME_OUTPUT  "./tests/chin_linear_b_" CHIN_SCHEME_ID_STR ".txt"
+#define CHIN_SCHEME_OUTPUT  "./tests/chin_output/chin_linear_b_" CHIN_SCHEME_ID_STR ".txt"
 #define CHIN_SCHEME_PROCESS CAT(process_, CHIN_SCHEME_ID)
+// clang-format on
 
 constexpr Vector3R r0(0, 0, 0);
 constexpr Vector3R v0(0, 0, 2);
@@ -24,7 +26,7 @@ int main()
   Particles_up particles = prepare_electron(point);
 
   dt = 0.5;
-  geom_nt = 2'500;
+  geom_nt = 2500;
 
   SyncFile output(CHIN_SCHEME_OUTPUT);
   output() << "t       x       y       z       \n";
