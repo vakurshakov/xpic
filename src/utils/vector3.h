@@ -15,9 +15,9 @@ struct Vector3 {
 
   constexpr Vector3()
     : data{
-        static_cast<T>(0), //
-        static_cast<T>(0), //
-        static_cast<T>(0)  //
+        static_cast<T>(0),
+        static_cast<T>(0),
+        static_cast<T>(0),
       }
   {
   }

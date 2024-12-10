@@ -15,10 +15,10 @@ struct Vector4 {
 
   constexpr Vector4()
     : data{
-        static_cast<T>(0), //
-        static_cast<T>(0), //
-        static_cast<T>(0), //
-        static_cast<T>(0)  //
+        static_cast<T>(0),
+        static_cast<T>(0),
+        static_cast<T>(0),
+        static_cast<T>(0),
       }
   {
   }
