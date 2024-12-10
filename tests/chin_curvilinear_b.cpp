@@ -1,15 +1,17 @@
 #include "chin_common.h"
 
-#define CHIN_SCHEME_ID      BLF
-#define CHIN_SCHEME_ID_STR  STR(CHIN_SCHEME_ID)
-#define CHIN_SCHEME_OUTPUT  "./tests/chin_linear_b_" CHIN_SCHEME_ID_STR ".txt"
+// clang-format off
+#define CHIN_SCHEME_ID     B1B
+#define CHIN_SCHEME_ID_STR STR(CHIN_SCHEME_ID)
+#define CHIN_SCHEME_OUTPUT "./tests/chin_curvilinear_b_" CHIN_SCHEME_ID_STR ".txt"
 #define CHIN_SCHEME_PROCESS CAT(process_, CHIN_SCHEME_ID)
+// clang-format on
 
-constexpr Vector3R r0(0, 0, 0);
-constexpr Vector3R v0(0, 0, 2);
+constexpr Vector3R r0(0, 10, 0);
+constexpr Vector3R v0(0.16, 1, 0);
 
-constexpr PetscReal B_uniform = 100;
-constexpr PetscReal B_gradient = 25;
+constexpr PetscReal B_coeff = 800;
+constexpr Vector3R B_center(10, 10, 0);
 
 Vector3R get_magnetic_field(const Vector3R& r);
 
@@ -23,27 +25,51 @@ int main()
   Point point{r0, v0};
   Particles_up particles = prepare_electron(point);
 
-  dt = 0.5;
-  geom_nt = 2'500;
+  dt = 0.16;
+  geom_nt = 1'000;
+
+  Vector3R check_mean_v;
 
   SyncFile output(CHIN_SCHEME_OUTPUT);
   output() << "t       x       y       z       \n";
   output() << "[1/wpe] [c/wpe] [c/wpe] [c/wpe] \n";
 
+  BorisPush push;
+
   if (std::string(CHIN_SCHEME_ID_STR).ends_with("LF"))
     point.r -= (dt / 2.0) * point.p;
-
-  BorisPush push;
 
   for (PetscInt t = 0; t < geom_nt; ++t) {
     output() << t * dt << " " << point.r << "\n";
     CHIN_SCHEME_PROCESS(push, point, *particles);
+
+    check_mean_v += point.p / static_cast<PetscReal>(geom_nt);
   }
+
+  Vector3R B_p{0, -B_coeff / r0.length(), 0};
+  Vector3R B_grad{B_coeff / r0.squared(), 0, 0};
+
+  /// @note v_{\grad(B)} = mv_{\perp}^2 / (2qB) * [B x \grad(B)] / B^2;
+  Vector3R v_drift = particles->mass(point) * POW2(v0.x()) /
+    (2.0 * particles->charge(point) * B_p.length()) * B_p.cross(B_grad) /
+    B_p.squared();
+
+  assert(check_mean_v.dot(v_drift) > 0.0);
 }
 
 Vector3R get_magnetic_field(const Vector3R& r)
 {
-  return {(B_uniform - B_gradient * r.y()), 0, 0};
+  Vector3R cr = r - B_center;
+  PetscReal rr = cr.length();
+  PetscReal ra = std::atan2(cr.y(), cr.x());
+
+  PetscReal B_theta = B_coeff / rr;
+
+  return Vector3R{
+    -std::sin(ra) * B_theta,
+    +std::cos(ra) * B_theta,
+    0.0,
+  };
 }
 
 void process_B1A(BorisPush& push, Point& point, interfaces::Particles& particles)

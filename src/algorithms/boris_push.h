@@ -6,7 +6,7 @@
 
 class BorisPush {
 public:
-  BorisPush() = delete;
+  BorisPush() = default;
   BorisPush(PetscReal dt, const Vector3R& E_p, const Vector3R& B_p);
 
   /// @brief Pusher context is the particles storage to get parameters from.

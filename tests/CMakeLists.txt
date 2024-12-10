@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.29)
 set(tests
   chin_gyration
   chin_linear_b
+  chin_curvilinear_b
   gyration
   drift_crossed_fields
 )
