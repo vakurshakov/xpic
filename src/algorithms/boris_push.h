@@ -17,23 +17,22 @@ public:
 
   /// @note The following is the recreation of the published
   /// results, @see https://doi.org/10.1016/j.jcp.2022.111422
-  void update_state(PetscReal dt, const Vector3R& E_p, const Vector3R& B_p);
-  void update_r(Point& point, const Context& particles);
-  void update_vM(Point& point, const Context& particles);
-  void update_vB(Point& point, const Context& particles);
-  void update_vC(Point& point, const Context& particles);
+  void update_fields(const Vector3R& E_p, const Vector3R& B_p);
+  void update_r(PetscReal dt, Point& point, const Context& particles);
+  void update_vM(PetscReal dt, Point& point, const Context& particles);
+  void update_vB(PetscReal dt, Point& point, const Context& particles);
+  void update_vC(PetscReal dt, Point& point, const Context& particles);
 
   PetscReal get_omega(const Point& point, const Context& particles) const;
-  PetscReal get_theta(const Point& point, const Context& particles) const;
 
 private:
   void update_u(Point& point, bool need_gamma, const Context& particles) const;
 
   std::pair<REP2(PetscReal)> get_theta_b(
-    const Point& point, const Context& particles) const;
+    PetscReal dt, const Point& point, const Context& particles) const;
 
   std::pair<REP2(PetscReal)> get_theta_c(
-    const Point& point, const Context& particles) const;
+    PetscReal dt, const Point& point, const Context& particles) const;
 
   void update_v_impl(Vector3R& v, PetscReal sin_theta, PetscReal cos_theta) const;
 

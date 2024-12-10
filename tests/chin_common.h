@@ -6,23 +6,25 @@
 using InterpolationResult = std::pair<REP2(Vector3R)>;
 using Interpolator = InterpolationResult (&)(const Vector3R& r);
 
+// First-order magnetic field integrators
+
 void process_M1A(BorisPush& push, Point& point,
   interfaces::Particles& particles, const Interpolator& interpolate)
 {
   auto [E_p, B_p] = interpolate(point.r);
-  push.update_state(dt, E_p, B_p);
-  push.update_vM(point, particles);
-  push.update_r(point, particles);
+  push.update_fields(E_p, B_p);
+  push.update_vM(dt, point, particles);
+  push.update_r(dt, point, particles);
 }
 
 void process_M1B(BorisPush& push, Point& point,
   interfaces::Particles& particles, const Interpolator& interpolate)
 {
-  push.update_r(point, particles);
+  push.update_r(dt, point, particles);
 
   auto [E_p, B_p] = interpolate(point.r);
-  push.update_state(dt, E_p, B_p);
-  push.update_vM(point, particles);
+  push.update_fields(E_p, B_p);
+  push.update_vM(dt, point, particles);
 }
 
 void process_MLF(BorisPush& push, Point& point,
@@ -35,19 +37,19 @@ void process_B1A(BorisPush& push, Point& point,
   interfaces::Particles& particles, const Interpolator& interpolate)
 {
   auto [E_p, B_p] = interpolate(point.r);
-  push.update_state(dt, E_p, B_p);
-  push.update_vB(point, particles);
-  push.update_r(point, particles);
+  push.update_fields(E_p, B_p);
+  push.update_vB(dt, point, particles);
+  push.update_r(dt, point, particles);
 }
 
 void process_B1B(BorisPush& push, Point& point,
   interfaces::Particles& particles, const Interpolator& interpolate)
 {
-  push.update_r(point, particles);
+  push.update_r(dt, point, particles);
 
   auto [E_p, B_p] = interpolate(point.r);
-  push.update_state(dt, E_p, B_p);
-  push.update_vB(point, particles);
+  push.update_fields(E_p, B_p);
+  push.update_vB(dt, point, particles);
 }
 
 void process_BLF(BorisPush& push, Point& point,
@@ -60,19 +62,19 @@ void process_C1A(BorisPush& push, Point& point,
   interfaces::Particles& particles, const Interpolator& interpolate)
 {
   auto [E_p, B_p] = interpolate(point.r);
-  push.update_state(dt, E_p, B_p);
-  push.update_vC(point, particles);
-  push.update_r(point, particles);
+  push.update_fields(E_p, B_p);
+  push.update_vC(dt, point, particles);
+  push.update_r(dt, point, particles);
 }
 
 void process_C1B(BorisPush& push, Point& point,
   interfaces::Particles& particles, const Interpolator& interpolate)
 {
-  push.update_r(point, particles);
+  push.update_r(dt, point, particles);
 
   auto [E_p, B_p] = interpolate(point.r);
-  push.update_state(dt, E_p, B_p);
-  push.update_vC(point, particles);
+  push.update_fields(E_p, B_p);
+  push.update_vC(dt, point, particles);
 }
 
 void process_CLF(BorisPush& push, Point& point,
@@ -81,6 +83,72 @@ void process_CLF(BorisPush& push, Point& point,
   process_C1B(push, point, particles, interpolate);
 }
 
+
+// Second-order magnetic field integrators
+
+void process_M2A(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  // v_B(r_0, v_0, dt / 2) -> v_{1/2}
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vM((dt / 2.0), point, particles);
+
+  // r_0 + dt * v_{1/2} -> r_1
+  push.update_r(dt, point, particles);
+
+  // v_B(r_1, v_{1/2}, dt / 2) -> v_1
+  std::tie(E_p, B_p) = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vM((dt / 2.0), point, particles);
+}
+
+void process_M2B(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  // r_0 + (dt / 2) * v_0 -> r_{1/2}
+  push.update_r((dt / 2.0), point, particles);
+
+  // v_B(r_{1/2}, v_0, dt) -> v_1
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vM(dt, point, particles);
+
+  // r_{1/2} + (dt / 2) * v_1 -> r_1
+  push.update_r((dt / 2.0), point, particles);
+}
+
+void process_C2A(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  // v_B(r_0, v_0, dt / 2) -> v_{1/2}
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vC((dt / 2.0), point, particles);
+
+  // r_0 + dt * v_{1/2} -> r_1
+  push.update_r(dt, point, particles);
+
+  // v_B(r_1, v_{1/2}, dt / 2) -> v_1
+  std::tie(E_p, B_p) = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vC((dt / 2.0), point, particles);
+}
+
+void process_B2B(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  // r_0 + (dt / 2) * v_0 -> r_{1/2}
+  push.update_r((dt / 2.0), point, particles);
+
+  // v_B(r_{1/2}, v_0, dt) -> v_1
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vB(dt, point, particles);
+
+  // r_{1/2} + (dt / 2) * v_1 -> r_1
+  push.update_r((dt / 2.0), point, particles);
+}
 
 Particles_up prepare_electron(const Point& point)
 {

@@ -38,34 +38,33 @@ void BorisPush::update_u(
   u = 2.0 * (t + t.cross(b) + b * t.dot(b)) / (1.0 + b.squared()) - u;
 }
 
-void BorisPush::update_state(
-  PetscReal dt, const Vector3R& E_p, const Vector3R& B_p)
+void BorisPush::update_fields(const Vector3R& E_p, const Vector3R& B_p)
 {
-  this->dt = dt;
   this->E_p = E_p;
   this->B_p = B_p;
 }
 
-void BorisPush::update_r(Point& point, const Context& /* particles */)
+void BorisPush::update_r(
+  PetscReal dt, Point& point, const Context& /* particles */)
 {
   point.r += point.p * dt;
 }
 
-void BorisPush::update_vM(Point& point, const Context& particles)
+void BorisPush::update_vM(PetscReal dt, Point& point, const Context& particles)
 {
-  PetscReal theta = get_theta(point, particles);
+  PetscReal theta = get_omega(point, particles) * dt;
   update_v_impl(point.p, std::sin(theta), std::cos(theta));
 }
 
-void BorisPush::update_vB(Point& point, const Context& particles)
+void BorisPush::update_vB(PetscReal dt, Point& point, const Context& particles)
 {
-  auto [sin, cos] = get_theta_b(point, particles);
+  auto [sin, cos] = get_theta_b(dt, point, particles);
   update_v_impl(point.p, sin, cos);
 }
 
-void BorisPush::update_vC(Point& point, const Context& particles)
+void BorisPush::update_vC(PetscReal dt, Point& point, const Context& particles)
 {
-  auto [sin, cos] = get_theta_c(point, particles);
+  auto [sin, cos] = get_theta_c(dt, point, particles);
   update_v_impl(point.p, sin, cos);
 }
 
@@ -76,24 +75,18 @@ inline PetscReal BorisPush::get_omega(
   return (-1.0) * particles.charge(point) * B_p.length() / particles.mass(point);
 }
 
-inline PetscReal BorisPush::get_theta(
-  const Point& point, const Context& particles) const
-{
-  return get_omega(point, particles) * dt;
-}
-
 std::pair<REP2(PetscReal)> BorisPush::get_theta_b(
-  const Point& point, const Context& particles) const
+  PetscReal dt, const Point& point, const Context& particles) const
 {
-  PetscReal theta = get_theta(point, particles);
+  PetscReal theta = get_omega(point, particles) * dt;
   PetscReal d = (1.0 + 0.25 * POW2(theta));
   return std::make_pair(theta / d, (1.0 - 0.25 * POW2(theta)) / d);
 }
 
 std::pair<REP2(PetscReal)> BorisPush::get_theta_c(
-  const Point& point, const Context& particles) const
+  PetscReal dt, const Point& point, const Context& particles) const
 {
-  PetscReal theta = get_theta(point, particles);
+  PetscReal theta = get_omega(point, particles) * dt;
   return std::make_pair(
     theta * std::sqrt(1.0 - 0.25 * POW2(theta)), (1 - 0.5 * POW2(theta)));
 }

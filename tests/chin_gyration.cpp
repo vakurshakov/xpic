@@ -35,12 +35,9 @@ int main()
     point.r -= (dt / 2.0) * point.p;
 
   /// @note This `omega` is not a cyclotron frequency, but Chin's version of it.
-  PetscReal omega = push.get_omega(point, *particles);
-  assert(omega == 2.0);
-
   /// @note Since magnetic field is constant, `theta` and `omega` is constant too.
-  PetscReal theta = push.get_theta(point, *particles);
-
+  PetscReal omega = push.get_omega(point, *particles);
+  PetscReal theta = omega * dt;
   PetscReal rg = point.p.length() / omega;
 
   PetscReal Rg = get_effective_larmor(CHIN_SCHEME_ID_STR, rg, theta);
