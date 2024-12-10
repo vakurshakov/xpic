@@ -46,38 +46,30 @@ def read_text(filename):
         return dict(zip(names.split(), arrays))
 
 
-tmax = 1_000
+def get_args(c, m):
+    return {"c": c, "lw": 1, "emphasis": {"c": c, "marker": m, "s": 5, "alpha": 0.8}}
 
-m_args = {"c": "red", "lw": 1, "emphasis": {"c": "red", "marker": "o", "s": 5}}
+r_args = get_args("red", "o")
+b_args = get_args("blue", "s")
+g_args = get_args("green", "d")
+p_args = get_args("purple", "<")
 
-# data = read_text("./tests/chin_gyration_M1A.txt")
-# plot_parametric(data["x"][:tmax], data["y"][:tmax], **m_args)
-# data = read_text("./tests/chin_gyration_M1B.txt")
-# plot_parametric(data["x"][:tmax], data["y"][:tmax], **m_args)
-data = read_text("./tests/chin_gyration_MLF.txt")
-plot_parametric(data["x"][:tmax], data["y"][:tmax], **m_args)
+tmax = 2000
 
+zd = np.zeros_like(tmax) # np.arange(0, tmax) * 0.004941 * 0.5
 
-b_args = {"c": "blue", "lw": 1, "emphasis": {"c": "blue", "marker": "s", "s": 5}}
+data = read_text("./tests/chin_linear_b_B1A.txt")
+plt.scatter(data["y"][:tmax], data["z"][:tmax] - zd, **g_args["emphasis"])
+data = read_text("./tests/chin_linear_b_B1B.txt")
+plt.scatter(data["y"][:tmax], data["z"][:tmax] - zd, **r_args["emphasis"])
+data = read_text("./tests/chin_linear_b_BLF.txt")
+plt.scatter(data["y"][:tmax], data["z"][:tmax] - zd, **p_args["emphasis"])
 
-# data = read_text("./tests/chin_gyration_B1A.txt")
-# plot_parametric(data["x"][:tmax], data["y"][:tmax], **b_args)
-# data = read_text("./tests/chin_gyration_B1B.txt")
-# plot_parametric(data["x"][:tmax], data["y"][:tmax], **b_args)
-data = read_text("./tests/chin_gyration_BLF.txt")
-plt.scatter(data["x"][:tmax], data["y"][:tmax], **b_args["emphasis"])
-
-c_args = {"c": "green", "lw": 1, "emphasis": {"c": "green", "marker": "d", "s": 5}}
-
-# data = read_text("./tests/chin_gyration_C1A.txt")
-# plot_parametric(data["x"][:tmax], data["y"][:tmax], **c_args)
-# data = read_text("./tests/chin_gyration_C1B.txt")
-# plot_parametric(data["x"][:tmax], data["y"][:tmax], **c_args)
-data = read_text("./tests/chin_gyration_CLF.txt")
-plt.scatter(data["x"][:tmax], data["y"][:tmax], **c_args["emphasis"])
 
 plt.title("Gyro orbits")
 plt.grid(c="grey", alpha=0.6)
-plt.xlim((-1.25, +1.25))
-plt.ylim((-1.25, +1.25))
+# plt.xlim((-1.25, +1.25))
+# plt.ylim((-1.25, +1.25))
+plt.xlim((-3.5, +3.5))
+plt.ylim((-1.5, +6.5))
 plt.show()
