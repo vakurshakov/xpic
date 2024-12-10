@@ -6,8 +6,8 @@
 #define CHIN_SCHEME_PROCESS(PUSH) CAT(PUSH.process_, CHIN_SCHEME_ID)
 
 constexpr Vector3R B0(0.0, 0.0, 2.0);
-constexpr Vector3R v0(0.0, 1.0, 0.0);
 constexpr Vector3R r0(0.5, 0.0, 0.0);
+constexpr Vector3R v0(0.0, 1.0, 0.0);
 
 int main()
 {
@@ -27,7 +27,7 @@ int main()
 
   BorisPush push(dt, Vector3R{}, B0);
 
-  if (std::string(STR(CHIN_SCHEME_ID)).ends_with("LF"))
+  if (std::string(CHIN_SCHEME_ID_STR).ends_with("LF"))
     point.r -= (dt / 2.0) * point.p;
 
   /// @note This `omega` is not a cyclotron frequency, but Chin's version of it.
