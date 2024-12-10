@@ -40,4 +40,6 @@ protected:
 
 }  // namespace interfaces
 
+using Particles_up = std::unique_ptr<interfaces::Particles>;
+
 #endif  // SRC_INTERFACES_PARTICLES_H
