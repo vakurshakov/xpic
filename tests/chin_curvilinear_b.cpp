@@ -50,7 +50,8 @@ int main()
   Vector3R B_grad{B_coeff / r0.squared(), 0, 0};
 
   /// @note v_{\grad(B)} = mv_{\perp}^2 / (2qB) * [B x \grad(B)] / B^2;
-  Vector3R v_drift = particles->mass(point) * POW2(v0.x()) /
+  Vector3R v_drift = particles->mass(point) *
+    (POW2(v0.x()) + 2.0 * POW2(v0.y())) /
     (2.0 * particles->charge(point) * B_p.length()) * B_p.cross(B_grad) /
     B_p.squared();
 

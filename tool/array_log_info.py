@@ -7,8 +7,8 @@ plt.rcParams.update({"text.usetex": True, "axes.formatter.use_mathtext": True})
 
 # from configuration import config
 
-def plot_evolution(data):
-    plt.plot(np.arange(len(data)), data)
+def plot_evolution(t, data):
+    plt.plot(t, data)
 
 def plot_parametric(x_data, y_data, **kwargs):
     if ["emphasis" in kwargs]:
@@ -54,22 +54,26 @@ b_args = get_args("blue", "s")
 g_args = get_args("green", "d")
 p_args = get_args("purple", "<")
 
-tmax = 2000
+tmax = 1000
+dt = 0.16
 
-zd = np.zeros_like(tmax) # np.arange(0, tmax) * 0.004941 * 0.5
+vd = -0.001266
 
-data = read_text("./tests/chin_linear_b_B1A.txt")
-plt.scatter(data["y"][:tmax], data["z"][:tmax] - zd, **g_args["emphasis"])
-data = read_text("./tests/chin_linear_b_B1B.txt")
-plt.scatter(data["y"][:tmax], data["z"][:tmax] - zd, **r_args["emphasis"])
-data = read_text("./tests/chin_linear_b_BLF.txt")
-plt.scatter(data["y"][:tmax], data["z"][:tmax] - zd, **p_args["emphasis"])
+ts = np.arange(0, tmax) * dt
+zd = ts * vd
+
+data = read_text("./tests/chin_curvilinear_b_B1A.txt")
+plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="green") #, **g_args["emphasis"]) # data["y"][:tmax],
+data = read_text("./tests/chin_curvilinear_b_B1B.txt")
+plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="red") #, **r_args["emphasis"]) # data["y"][:tmax],
+data = read_text("./tests/chin_curvilinear_b_BLF.txt")
+plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="purple") #, **p_args["emphasis"]) # data["y"][:tmax],
 
 
 plt.title("Gyro orbits")
 plt.grid(c="grey", alpha=0.6)
-# plt.xlim((-1.25, +1.25))
-# plt.ylim((-1.25, +1.25))
-plt.xlim((-3.5, +3.5))
-plt.ylim((-1.5, +6.5))
+# plt.xlim((10-15, 10+15))
+# plt.ylim((-1, +0.5))
+plt.xlim((0, 10))
+plt.ylim((-0.015, +0.020))
 plt.show()
