@@ -71,8 +71,9 @@ int main()
   PetscReal new_rg = point.p.length() / omega;
   assert(equal_tol(new_rg, rg, 1e-10));
 
+  assert(equal_tol(check_mean_radius, Rg, 1e-10));
+
   /// @todo Implement O(theta) check here
-  assert(equal_tol(check_mean_radius, Rg, 1e-5));
   assert(equal_tol(check_mean_coord, rc, 1e-5));
 }
 
