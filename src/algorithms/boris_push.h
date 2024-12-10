@@ -17,25 +17,18 @@ public:
 
   /// @note The following is the recreation of the published
   /// results, @see https://doi.org/10.1016/j.jcp.2022.111422
-  void process_M1A(Point& point, const Context& particles);
-  void process_M1B(Point& point, const Context& particles);
-  void process_MLF(Point& point, const Context& particles);
-  void process_B1A(Point& point, const Context& particles);
-  void process_B1B(Point& point, const Context& particles);
-  void process_BLF(Point& point, const Context& particles);
-  void process_C1A(Point& point, const Context& particles);
-  void process_C1B(Point& point, const Context& particles);
-  void process_CLF(Point& point, const Context& particles);
+  void update_state(PetscReal dt, const Vector3R& E_p, const Vector3R& B_p);
+  void update_r(Point& point, const Context& particles);
+  void update_vM(Point& point, const Context& particles);
+  void update_vB(Point& point, const Context& particles);
+  void update_vC(Point& point, const Context& particles);
 
   PetscReal get_omega(const Point& point, const Context& particles) const;
   PetscReal get_theta(const Point& point, const Context& particles) const;
 
 private:
-  inline void update_u(
+  void update_u(
     Point& point, bool need_gamma, const Context& particles) const;
-
-  void impl_M1A(Point& point, PetscReal sin_theta, PetscReal cos_theta);
-  void impl_M1B(Point& point, PetscReal sin_theta, PetscReal cos_theta);
 
   std::pair<REP2(PetscReal)> get_theta_b(
     const Point& point, const Context& particles) const;
@@ -43,12 +36,11 @@ private:
   std::pair<REP2(PetscReal)> get_theta_c(
     const Point& point, const Context& particles) const;
 
-  Vector3R get_vb(
-    const Vector3R& v, PetscReal sin_theta, PetscReal cos_theta) const;
+  void update_v_impl(Vector3R& v, PetscReal sin_theta, PetscReal cos_theta) const;
 
   PetscReal dt;
-  const Vector3R& E_p;
-  const Vector3R& B_p;
+  Vector3R E_p;
+  Vector3R B_p;
 };
 
 #endif  // SRC_ALGORITHMS_BORIS_PUSH_H
