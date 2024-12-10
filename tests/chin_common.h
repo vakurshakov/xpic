@@ -3,6 +3,84 @@
 #include "src/utils/sync_file.h"
 #include "tests/common.h"
 
+using InterpolationResult = std::pair<REP2(Vector3R)>;
+using Interpolator = InterpolationResult (&)(const Vector3R& r);
+
+void process_M1A(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_state(dt, E_p, B_p);
+  push.update_vM(point, particles);
+  push.update_r(point, particles);
+}
+
+void process_M1B(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  push.update_r(point, particles);
+
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_state(dt, E_p, B_p);
+  push.update_vM(point, particles);
+}
+
+void process_MLF(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  process_M1B(push, point, particles, interpolate);
+}
+
+void process_B1A(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_state(dt, E_p, B_p);
+  push.update_vB(point, particles);
+  push.update_r(point, particles);
+}
+
+void process_B1B(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  push.update_r(point, particles);
+
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_state(dt, E_p, B_p);
+  push.update_vB(point, particles);
+}
+
+void process_BLF(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  process_B1B(push, point, particles, interpolate);
+}
+
+void process_C1A(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_state(dt, E_p, B_p);
+  push.update_vC(point, particles);
+  push.update_r(point, particles);
+}
+
+void process_C1B(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  push.update_r(point, particles);
+
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_state(dt, E_p, B_p);
+  push.update_vC(point, particles);
+}
+
+void process_CLF(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  process_C1B(push, point, particles, interpolate);
+}
+
 
 Particles_up prepare_electron(const Point& point)
 {

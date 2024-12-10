@@ -11,16 +11,7 @@ constexpr Vector3R B0(0.0, 0.0, 2.0);
 constexpr Vector3R r0(0.5, 0.0, 0.0);
 constexpr Vector3R v0(0.0, 1.0, 0.0);
 
-/// @todo To avoid the need to explicitly update state between the substeps, interpolation is needed.
-void process_M1A(BorisPush& push, Point& point, interfaces::Particles& particles);
-void process_M1B(BorisPush& push, Point& point, interfaces::Particles& particles);
-void process_MLF(BorisPush& push, Point& point, interfaces::Particles& particles);
-void process_B1A(BorisPush& push, Point& point, interfaces::Particles& particles);
-void process_B1B(BorisPush& push, Point& point, interfaces::Particles& particles);
-void process_BLF(BorisPush& push, Point& point, interfaces::Particles& particles);
-void process_C1A(BorisPush& push, Point& point, interfaces::Particles& particles);
-void process_C1B(BorisPush& push, Point& point, interfaces::Particles& particles);
-void process_CLF(BorisPush& push, Point& point, interfaces::Particles& particles);
+InterpolationResult get_magnetic_field(const Vector3R& r);
 
 int main()
 {
@@ -59,7 +50,7 @@ int main()
     const Vector3R old_r = point.r;
 
     output() << t * dt << " " << point.r << "\n";
-    CHIN_SCHEME_PROCESS(push, point, *particles);
+    CHIN_SCHEME_PROCESS(push, point, *particles, get_magnetic_field);
 
     update_counter_clockwise(old_r, point.r, check_counter_clockwise);
     check_mean_radius +=
@@ -77,60 +68,7 @@ int main()
   assert(equal_tol(check_mean_coord, rc, 1e-5));
 }
 
-
-void process_M1A(BorisPush& push, Point& point, interfaces::Particles& particles)
+InterpolationResult get_magnetic_field(const Vector3R& /* r */)
 {
-  push.update_state(dt, Vector3R{}, B0);
-  push.update_vM(point, particles);
-  push.update_r(point, particles);
-}
-
-void process_M1B(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  push.update_r(point, particles);
-  push.update_state(dt, Vector3R{}, B0);
-  push.update_vM(point, particles);
-}
-
-void process_MLF(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  process_M1B(push, point, particles);
-}
-
-void process_B1A(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  push.update_state(dt, Vector3R{}, B0);
-  push.update_vB(point, particles);
-  push.update_r(point, particles);
-}
-
-void process_B1B(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  push.update_r(point, particles);
-  push.update_state(dt, Vector3R{}, B0);
-  push.update_vB(point, particles);
-}
-
-void process_BLF(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  process_B1B(push, point, particles);
-}
-
-void process_C1A(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  push.update_state(dt, Vector3R{}, B0);
-  push.update_vC(point, particles);
-  push.update_r(point, particles);
-}
-
-void process_C1B(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  push.update_r(point, particles);
-  push.update_state(dt, Vector3R{}, B0);
-  push.update_vC(point, particles);
-}
-
-void process_CLF(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  process_C1B(push, point, particles);
+  return std::make_pair(Vector3R{}, B0);
 }
