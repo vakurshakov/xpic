@@ -4,7 +4,7 @@
 #include "tests/common.h"
 
 using InterpolationResult = std::pair<REP2(Vector3R)>;
-using Interpolator = InterpolationResult (&)(const Vector3R& r);
+using Interpolator = std::function<InterpolationResult(const Vector3R& r)>;
 
 // First-order magnetic field integrators
 
