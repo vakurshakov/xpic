@@ -47,38 +47,39 @@ def read_text(filename):
 
 
 def get_args(c, m):
-    return {"c": c, "lw": 1, "emphasis": {"c": c, "marker": m, "s": 5, "alpha": 0.8}}
+    return {"c": c, "lw": 1, "emphasis": {"c": c, "marker": m, "s": 1, "alpha": 0.8}}
 
 r_args = get_args("red", "o")
 b_args = get_args("blue", "s")
 g_args = get_args("green", "d")
 p_args = get_args("purple", "<")
 
-tmax = 5
+tmax = 500
 
-# dt = 0.16
-# ts = np.arange(0, tmax) * dt
-# vd = -0.001266
+dt = 0.1975
+ts = np.arange(0, tmax) * dt
+v0x = 0.1
+vd = 0.004
 # zd = ts * vd
 
-prefix = "./tests/chin_output/chin_gyration"
+prefix = "./tests/chin_output/chin_crossed_fields"
 
-data = read_text(f"{prefix}_M2A.txt")
-plot_parametric(data["x"][:tmax], data["y"][:tmax], **r_args)
-data = read_text(f"{prefix}_M2B.txt")
-plot_parametric(data["x"][:tmax], data["y"][:tmax], **p_args)
-data = read_text(f"{prefix}_B2B.txt")
-plot_parametric(data["x"][:tmax], data["y"][:tmax], **b_args)
-data = read_text(f"{prefix}_C2A.txt")
-plot_parametric(data["x"][:tmax], data["y"][:tmax], **g_args)
+data = read_text(f"{prefix}_EB1A.txt")
+plt.scatter(data["y"][:tmax] - (vd * ts), data["z"][:tmax], **g_args["emphasis"])
+data = read_text(f"{prefix}_EB1B.txt")
+plt.scatter(data["y"][:tmax] - (vd * ts), data["z"][:tmax], **r_args["emphasis"])
+data = read_text(f"{prefix}_EBLF.txt")
+plt.scatter(data["y"][:tmax] - (vd * ts), data["z"][:tmax], **p_args["emphasis"])
+data = read_text(f"{prefix}_EB2B.txt")
+plt.scatter(data["y"][:tmax] - (vd * ts), data["z"][:tmax], **b_args["emphasis"])
 
-phi = np.linspace(0, 2 * np.pi)
-rg = 0.5
-plot_parametric(rg * np.cos(phi), rg * np.sin(phi), c="black", lw=1, alpha=0.8)
+# plot_parametric(v0x * ts, ts * vd, c="black", lw=1, alpha=0.8)
 
 
 plt.title("Gyro orbits")
 plt.grid(c="grey", alpha=0.6)
-plt.xlim((-0.65, 0.65))
-plt.ylim((-0.65, 0.65))
+# plt.xlim((-1, 11))
+# plt.ylim((-0.1, 0.5))
+plt.xlim((-0.1, 0.1))
+plt.ylim((-0.1, 0.1))
 plt.show()
