@@ -11,7 +11,7 @@ def plot_evolution(t, data):
     plt.plot(t, data)
 
 def plot_parametric(x_data, y_data, **kwargs):
-    if ["emphasis" in kwargs]:
+    if "emphasis" in kwargs:
         plt.scatter(x_data, y_data, **kwargs["emphasis"])
         kwargs.pop("emphasis") # To avoid collision with `plt.plot()` named arguments
 
@@ -54,28 +54,31 @@ b_args = get_args("blue", "s")
 g_args = get_args("green", "d")
 p_args = get_args("purple", "<")
 
-tmax = 1000
-dt = 0.16
+tmax = 5
 
-vd = -0.001266
+# dt = 0.16
+# ts = np.arange(0, tmax) * dt
+# vd = -0.001266
+# zd = ts * vd
 
-ts = np.arange(0, tmax) * dt
-zd = ts * vd
+prefix = "./tests/chin_output/chin_gyration"
 
-prefix = "./tests/chin_output/chin_curvilinear_b"
+data = read_text(f"{prefix}_M2A.txt")
+plot_parametric(data["x"][:tmax], data["y"][:tmax], **r_args)
+data = read_text(f"{prefix}_M2B.txt")
+plot_parametric(data["x"][:tmax], data["y"][:tmax], **p_args)
+data = read_text(f"{prefix}_B2B.txt")
+plot_parametric(data["x"][:tmax], data["y"][:tmax], **b_args)
+data = read_text(f"{prefix}_C2A.txt")
+plot_parametric(data["x"][:tmax], data["y"][:tmax], **g_args)
 
-data = read_text(f"{prefix}_B1A.txt")
-plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="green") #, **g_args["emphasis"]) # data["y"][:tmax],
-data = read_text(f"{prefix}_B1B.txt")
-plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="red") #, **r_args["emphasis"]) # data["y"][:tmax],
-data = read_text(f"{prefix}_BLF.txt")
-plt.plot(ts, data["z"][:tmax] - zd, alpha=0.8, c="purple") #, **p_args["emphasis"]) # data["y"][:tmax],
+phi = np.linspace(0, 2 * np.pi)
+rg = 0.5
+plot_parametric(rg * np.cos(phi), rg * np.sin(phi), c="black", lw=1, alpha=0.8)
 
 
 plt.title("Gyro orbits")
 plt.grid(c="grey", alpha=0.6)
-# plt.xlim((10-15, 10+15))
-# plt.ylim((-1, +0.5))
-plt.xlim((0, 10))
-plt.ylim((-0.015, +0.020))
+plt.xlim((-0.65, 0.65))
+plt.ylim((-0.65, 0.65))
 plt.show()
