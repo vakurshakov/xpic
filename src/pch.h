@@ -14,6 +14,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <numbers>
 #include <string>
 #include <string_view>
 #include <tuple>

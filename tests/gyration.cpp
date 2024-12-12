@@ -49,12 +49,12 @@ int main()
       BorisPush push(dt, E0, B0);
       push.process(point, particles);
 
-      update_clockwise(old_r, point.r, check_counter_clockwise);
+      update_counter_clockwise(old_r, point.r, check_counter_clockwise);
       check_mean_radius += point.r.length() / static_cast<PetscReal>(geom_nt);
     }
     assert(check_counter_clockwise * Omega < 0.0);
 
-    PetscReal effective_radius = rho * std::sqrt(1 + POW2(Omega * dt) / 4.0);
-    assert(std::abs(check_mean_radius - effective_radius) < 1e-1);
+    PetscReal effective_rho = rho * std::sqrt(1 + POW2(Omega * dt) / 4.0);
+    assert(std::abs(check_mean_radius / effective_rho - 1.0) < 8e-2 * POW2(Omega * dt));
   }
 }

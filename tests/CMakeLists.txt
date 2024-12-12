@@ -3,6 +3,12 @@ cmake_minimum_required(VERSION 3.29)
 # @todo check ctest
 # @todo replace with google-tests environment
 set(tests
+  chin_uniform_b
+  chin_linear_b
+  chin_curvilinear_b
+  chin_crossed_fields
+  chin_polarization
+  chin_crossed_gradient
   gyration
   drift_crossed_fields
 )

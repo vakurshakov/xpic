@@ -35,7 +35,7 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 {
   PetscFunctionBeginUser;
   particle_iterations_log =
-    SyncBinaryFile(CONFIG().out_dir, "particle_iterations");
+    SyncBinaryFile(CONFIG().out_dir + "/particle_iterations.bin");
 
   /// @todo It'd be more reusable to place particle mover into separate class
 

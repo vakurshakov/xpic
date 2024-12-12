@@ -1,62 +1,55 @@
 #include "sync_binary_file.h"
 
-namespace fs = std::filesystem;
-
-SyncBinaryFile::SyncBinaryFile(
-  const std::string& directory_path, const std::string& file_name)
+SyncBinaryFile::SyncBinaryFile()
 {
-  PetscCallVoid(open(directory_path, file_name));
+  mode_ |= std::ios::binary;
 }
 
-#define SYNC_GUARD                                     \
-  PetscMPIInt rank;                                    \
-  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank)); \
-  if (rank != 0)                                       \
-  return PETSC_SUCCESS
-
-PetscErrorCode SyncBinaryFile::open(
-  const std::string& directory_path, const std::string& file_name)
+SyncBinaryFile::SyncBinaryFile(const std::string& filename)
+  : SyncBinaryFile()
 {
-  SYNC_GUARD;
+  PetscCallVoid(SyncFile::open(filename));
+}
+
+PetscErrorCode SyncBinaryFile::write(PetscReal data)
+{
   PetscFunctionBeginHot;
-  PetscCall(close());
-  fs::create_directories(directory_path);
-  file_.open(directory_path + "/" + file_name + ".bin",
-    std::ios::out | std::ios::trunc | std::ios::binary);
+  PetscCall(write(1, &data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode SyncBinaryFile::flush()
+PetscErrorCode SyncBinaryFile::write(PetscInt size, const PetscReal* data)
 {
-  SYNC_GUARD;
+  if (!is_synchronized())
+    return PETSC_SUCCESS;
+
   PetscFunctionBeginHot;
-  file_.flush();
+  file_.write(reinterpret_cast<char*>(&data),
+    static_cast<std::streamsize>(sizeof(PetscReal) * size));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode SyncBinaryFile::close()
+PetscErrorCode SyncBinaryFile::write_float(PetscReal data)
 {
-  SYNC_GUARD;
   PetscFunctionBeginHot;
-  if (file_.is_open()) {
-    file_.flush();
-    file_.close();
-  }
+  PetscCall(write_floats(1, &data));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 PetscErrorCode SyncBinaryFile::write_floats(PetscInt size, const PetscReal* data)
 {
-  SYNC_GUARD;
+  if (!is_synchronized())
+    return PETSC_SUCCESS;
+
   PetscFunctionBeginHot;
 #if defined(PETSC_USE_REAL_SINGLE)
-  file_.write(reinterpret_cast<char*>(&data),
-    static_cast<std::streamsize>(sizeof(float) * size));
+  PetscCall(write(size, data));
 #else
   std::vector<float> buf(size);
+
   for (PetscInt i = 0; i < size; ++i)
     buf[i] = static_cast<float>(data[i]);
+
   file_.write(reinterpret_cast<char*>(buf.data()),
     static_cast<std::streamsize>(sizeof(float) * buf.size()));
 #endif

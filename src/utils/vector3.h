@@ -15,9 +15,9 @@ struct Vector3 {
 
   constexpr Vector3()
     : data{
-        static_cast<T>(0), //
-        static_cast<T>(0), //
-        static_cast<T>(0)  //
+        static_cast<T>(0),
+        static_cast<T>(0),
+        static_cast<T>(0),
       }
   {
   }
@@ -186,6 +186,14 @@ struct Vector3 {
       -(data[X] * other[Z] - data[Z] * other[X]),
       +(data[X] * other[Y] - data[Y] * other[X]),
     };
+  }
+
+  friend std::ostream& operator<<(std::ostream& out, const Vector3& vector)
+  {
+    out << std::to_string(vector[X]) << " ";
+    out << std::to_string(vector[Y]) << " ";
+    out << std::to_string(vector[Z]) << " ";
+    return out;
   }
 };
 
