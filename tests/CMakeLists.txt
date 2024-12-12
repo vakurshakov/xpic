@@ -6,6 +6,7 @@ set(tests
   chin_uniform_b
   chin_linear_b
   chin_curvilinear_b
+  chin_crossed_fields
   gyration
   drift_crossed_fields
 )

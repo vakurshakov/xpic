@@ -29,14 +29,14 @@ int main()
   output() << "t       x       y       z       \n";
   output() << "[1/wpe] [c/wpe] [c/wpe] [c/wpe] \n";
 
-  BorisPush push(dt, Vector3R{}, B0);
+  BorisPush push;
 
   if (std::string(CHIN_SCHEME_ID_STR).ends_with("LF"))
     point.r -= (dt / 2.0) * point.p;
 
   /// @note This `omega` is not a cyclotron frequency, but Chin's version of it.
   /// @note Since magnetic field is constant, `theta` and `omega` is constant too.
-  PetscReal omega = push.get_omega(point, *particles);
+  PetscReal omega = B0.length();
   PetscReal theta = omega * dt;
   PetscReal rg = point.p.length() / omega;
 

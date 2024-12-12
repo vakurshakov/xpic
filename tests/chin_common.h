@@ -150,6 +150,49 @@ void process_B2B(BorisPush& push, Point& point,
   push.update_r((dt / 2.0), point, particles);
 }
 
+// Electro-magnetic field intergrators
+
+void process_EB1A(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vEB(dt, point, particles);
+  push.update_r(dt, point, particles);
+}
+
+void process_EB1B(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  push.update_r(dt, point, particles);
+
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vEB(dt, point, particles);
+}
+
+void process_EBLF(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  process_EB1B(push, point, particles, interpolate);
+}
+
+void process_EB2B(BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  // r_0 + (dt / 2) * v_0 -> r_{1/2}
+  push.update_r((dt / 2.0), point, particles);
+
+  // v_B(r_{1/2}, v_0, dt) -> v_1
+  auto [E_p, B_p] = interpolate(point.r);
+  push.update_fields(E_p, B_p);
+  push.update_vEB(dt, point, particles);
+
+  // r_{1/2} + (dt / 2) * v_1 -> r_1
+  push.update_r((dt / 2.0), point, particles);
+}
+
+
 Particles_up prepare_electron(const Point& point)
 {
   World world;
@@ -166,7 +209,7 @@ Particles_up prepare_electron(const Point& point)
 PetscReal get_effective_larmor(std::string_view id, PetscReal rg, PetscReal theta)
 {
   if (id.starts_with("M") && id != "M2B")
-      return rg * (theta / 2.0) / std::sin(theta / 2.0);
+    return rg * (theta / 2.0) / std::sin(theta / 2.0);
   if (id.starts_with("B") && id != "B2B")
     return rg * std::sqrt(1.0 + POW2(theta) / 4.0);
   if (id == "M2B")

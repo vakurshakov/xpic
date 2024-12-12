@@ -19,15 +19,21 @@ public:
   /// results, @see https://doi.org/10.1016/j.jcp.2022.111422
   void update_fields(const Vector3R& E_p, const Vector3R& B_p);
   void update_r(PetscReal dt, Point& point, const Context& particles);
+
+  /// @note Magnetic field integrators
   void update_vM(PetscReal dt, Point& point, const Context& particles);
   void update_vB(PetscReal dt, Point& point, const Context& particles);
   void update_vC1(PetscReal dt, Point& point, const Context& particles);
   void update_vC2(PetscReal dt, Point& point, const Context& particles);
 
-  PetscReal get_omega(const Point& point, const Context& particles) const;
+  /// @note Electro-magnetic field integrator. It substitutes
+  /// Boris angle `theta_b` into the velocity update _directly_.
+  void update_vEB(PetscReal dt, Point& point, const Context& particles);
 
 private:
   void update_u(Point& point, bool need_gamma, const Context& particles) const;
+
+  PetscReal get_omega(const Point& point, const Context& particles) const;
 
   std::pair<REP2(PetscReal)> get_theta_b(
     PetscReal dt, const Point& point, const Context& particles) const;
