@@ -59,40 +59,24 @@ tmax = 150
 dt = 0.5
 ts = np.arange(0, tmax) * dt
 
-prefix = "./tests/chin_output/chin_polarization"
+prefix = "./tests/chin_output/chin_crossed_gradient"
 
-l = "a"
-if l == "a":
-    data = read_text(f"{prefix}_EB1A.txt")
-    plt.scatter(data["y"][:tmax], data["z"][:tmax], **g_args["emphasis"])
-    data = read_text(f"{prefix}_EB1B.txt")
-    plt.scatter(data["y"][:tmax], data["z"][:tmax], **r_args["emphasis"])
-    data = read_text(f"{prefix}_EBLF.txt")
-    plt.scatter(data["y"][:tmax], data["z"][:tmax], **p_args["emphasis"])
-    data = read_text(f"{prefix}_EB2B.txt")
+data = read_text(f"{prefix}_EB1A.txt")
+plt.scatter(data["x"][:tmax], data["y"][:tmax], **g_args["emphasis"])
+data = read_text(f"{prefix}_EB1B.txt")
+plt.scatter(data["x"][:tmax], data["y"][:tmax], **r_args["emphasis"])
+data = read_text(f"{prefix}_EBLF.txt")
+plt.scatter(data["x"][:tmax], data["y"][:tmax], **p_args["emphasis"])
 
-    b_args.pop("emphasis")
-    plot_parametric(data["y"][:tmax], data["z"][:tmax], **b_args)
-    plt.xlim((-0.1, 0.1))
-    plt.ylim((-5, 60))
+r_args.pop("emphasis")
+data = read_text(f"{prefix}_EB2B_0.01pi.txt")
+plot_parametric(data["x"][:1000], data["y"][:1000], **r_args)
 
-elif l == "b":
-    data = read_text(f"{prefix}_EB1A.txt")
-    plt.plot(ts, data["z"][:tmax] - (0.01 * ts * ts), lw=1, c="g") #, **g_args["emphasis"])
-    data = read_text(f"{prefix}_EB1B.txt")
-    plt.plot(ts, data["z"][:tmax] - (-0.01 * ts + 0.01 * ts * ts), lw=1, c="r") #, **r_args["emphasis"])
-    data = read_text(f"{prefix}_EBLF.txt")
-    plt.plot(ts, data["z"][:tmax] - (-0.01 * ts + 0.01 * ts * ts), lw=1, c="purple") #, **p_args["emphasis"])
-    data = read_text(f"{prefix}_EB2B.txt")
-    plt.plot(ts, data["z"][:tmax] - (-0.005 * ts + 0.01 * ts * ts), lw=1, c="b") #, **b_args)
+data = read_text(f"{prefix}_EB2B.txt")
+plt.scatter(data["x"][:tmax], data["y"][:tmax], **b_args["emphasis"])
 
-    rg = 0.001
-    plt.plot([ts[0], ts[-1]], [-rg, -rg], lw=1, c="black", alpha=0.8)
-    plt.plot([ts[0], ts[-1]], [+rg, +rg], lw=1, c="black", alpha=0.8)
-    Rg = 0.052467
-    plt.plot([ts[0], ts[-1]], [-Rg, -Rg], lw=1, c="black", alpha=0.8)
-    plt.plot([ts[0], ts[-1]], [+Rg, +Rg], lw=1, c="black", alpha=0.8)
-    plt.xlim((0, 50))
+plt.xlim((-1.5, +1.5))
+plt.ylim((-1.5, +1.5))
 
 plt.title("Gyro orbits")
 plt.grid(c="grey", alpha=0.6)
