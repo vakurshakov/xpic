@@ -21,7 +21,8 @@ public:
   void update_r(PetscReal dt, Point& point, const Context& particles);
   void update_vM(PetscReal dt, Point& point, const Context& particles);
   void update_vB(PetscReal dt, Point& point, const Context& particles);
-  void update_vC(PetscReal dt, Point& point, const Context& particles);
+  void update_vC1(PetscReal dt, Point& point, const Context& particles);
+  void update_vC2(PetscReal dt, Point& point, const Context& particles);
 
   PetscReal get_omega(const Point& point, const Context& particles) const;
 
@@ -31,7 +32,10 @@ private:
   std::pair<REP2(PetscReal)> get_theta_b(
     PetscReal dt, const Point& point, const Context& particles) const;
 
-  std::pair<REP2(PetscReal)> get_theta_c(
+  std::pair<REP2(PetscReal)> get_theta_c1(
+    PetscReal dt, const Point& point, const Context& particles) const;
+
+  std::pair<REP2(PetscReal)> get_theta_c2(
     PetscReal dt, const Point& point, const Context& particles) const;
 
   void update_v_impl(Vector3R& v, PetscReal sin_theta, PetscReal cos_theta) const;

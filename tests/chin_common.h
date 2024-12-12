@@ -63,7 +63,7 @@ void process_C1A(BorisPush& push, Point& point,
 {
   auto [E_p, B_p] = interpolate(point.r);
   push.update_fields(E_p, B_p);
-  push.update_vC(dt, point, particles);
+  push.update_vC1(dt, point, particles);
   push.update_r(dt, point, particles);
 }
 
@@ -74,7 +74,7 @@ void process_C1B(BorisPush& push, Point& point,
 
   auto [E_p, B_p] = interpolate(point.r);
   push.update_fields(E_p, B_p);
-  push.update_vC(dt, point, particles);
+  push.update_vC1(dt, point, particles);
 }
 
 void process_CLF(BorisPush& push, Point& point,
@@ -124,7 +124,7 @@ void process_C2A(BorisPush& push, Point& point,
   // v_B(r_0, v_0, dt / 2) -> v_{1/2}
   auto [E_p, B_p] = interpolate(point.r);
   push.update_fields(E_p, B_p);
-  push.update_vC((dt / 2.0), point, particles);
+  push.update_vC2((dt / 2.0), point, particles);
 
   // r_0 + dt * v_{1/2} -> r_1
   push.update_r(dt, point, particles);
@@ -132,7 +132,7 @@ void process_C2A(BorisPush& push, Point& point,
   // v_B(r_1, v_{1/2}, dt / 2) -> v_1
   std::tie(E_p, B_p) = interpolate(point.r);
   push.update_fields(E_p, B_p);
-  push.update_vC((dt / 2.0), point, particles);
+  push.update_vC2((dt / 2.0), point, particles);
 }
 
 void process_B2B(BorisPush& push, Point& point,
@@ -165,10 +165,12 @@ Particles_up prepare_electron(const Point& point)
 
 PetscReal get_effective_larmor(std::string_view id, PetscReal rg, PetscReal theta)
 {
-  if (id.starts_with("M"))
-    return rg * (theta / 2.0) / std::sin(theta / 2.0);
-  if (id.starts_with("B"))
+  if (id.starts_with("M") && id != "M2B")
+      return rg * (theta / 2.0) / std::sin(theta / 2.0);
+  if (id.starts_with("B") && id != "B2B")
     return rg * std::sqrt(1.0 + POW2(theta) / 4.0);
+  if (id == "M2B")
+    return rg * (theta / 2.0) / std::tan(theta / 2.0);
   return rg;
 }
 
@@ -178,12 +180,22 @@ Vector3R get_center_offset(std::string_view id, PetscReal rg, PetscReal theta)
   Vector3R rc;
 
   if (id.starts_with("M")) {
-    PetscReal Rg = rg * (theta / 2.0) / std::sin(theta / 2.0);
-    rc[X] = rg - Rg * std::cos(theta / 2.0);
-    rc[Y] = rg * theta / 2.0;
+    PetscReal Rg = get_effective_larmor(id, rg, theta);
+
+    if (id.starts_with("M1") || id == "MLF") {
+      rc[X] = rg - Rg * std::cos(theta / 2.0);
+      rc[Y] = rg * theta / 2.0;
+    }
+    else if (id.starts_with("M2")) {
+      rc[X] = rg - Rg;
+      return rc;
+    }
   }
 
   if (id.starts_with("B")) {
+    if (id == "B2B")
+      return rc;
+
     PetscReal sin_tb = theta /*               */ / (1.0 + POW2(theta) / 4.0);
     PetscReal cos_tb = (1.0 - POW2(theta) / 4.0) / (1.0 + POW2(theta) / 4.0);
     rc[X] = 0.0;
@@ -191,6 +203,9 @@ Vector3R get_center_offset(std::string_view id, PetscReal rg, PetscReal theta)
   }
 
   if (id.starts_with("C")) {
+    if (id == "C2A")
+      return rc;
+
     PetscReal cos_tc = (1.0 - POW2(theta) / 2.0);
     rc[X] = rg * (1.0 - std::sqrt(1.0 - POW2(theta) / 4.0));
     rc[Y] = rg * std::sqrt((1.0 - cos_tc) / 2.0);

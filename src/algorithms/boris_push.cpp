@@ -62,9 +62,17 @@ void BorisPush::update_vB(PetscReal dt, Point& point, const Context& particles)
   update_v_impl(point.p, sin, cos);
 }
 
-void BorisPush::update_vC(PetscReal dt, Point& point, const Context& particles)
+void BorisPush::update_vC1(PetscReal dt, Point& point, const Context& particles)
 {
-  auto [sin, cos] = get_theta_c(dt, point, particles);
+  auto [sin, cos] = get_theta_c1(dt, point, particles);
+  update_v_impl(point.p, sin, cos);
+}
+
+/// @note Separate update is needed because we use different formulas for `theta_c`.
+/// This difference arised since we pass `dt/2` into the velocity update, M2B scheme uses the `dt` instead.
+void BorisPush::update_vC2(PetscReal dt, Point& point, const Context& particles)
+{
+  auto [sin, cos] = get_theta_c2(dt, point, particles);
   update_v_impl(point.p, sin, cos);
 }
 
@@ -83,12 +91,19 @@ std::pair<REP2(PetscReal)> BorisPush::get_theta_b(
   return std::make_pair(theta / d, (1.0 - 0.25 * POW2(theta)) / d);
 }
 
-std::pair<REP2(PetscReal)> BorisPush::get_theta_c(
+std::pair<REP2(PetscReal)> BorisPush::get_theta_c1(
   PetscReal dt, const Point& point, const Context& particles) const
 {
   PetscReal theta = get_omega(point, particles) * dt;
   return std::make_pair(
     theta * std::sqrt(1.0 - 0.25 * POW2(theta)), (1 - 0.5 * POW2(theta)));
+}
+
+std::pair<REP2(PetscReal)> BorisPush::get_theta_c2(
+  PetscReal dt, const Point& point, const Context& particles) const
+{
+  PetscReal theta = get_omega(point, particles) * dt;
+  return std::make_pair(theta, std::sqrt(1.0 - POW2(theta)));
 }
 
 void BorisPush::update_v_impl(
