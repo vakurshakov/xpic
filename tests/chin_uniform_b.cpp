@@ -3,7 +3,7 @@
 // clang-format off
 #define CHIN_SCHEME_ID      C2A
 #define CHIN_SCHEME_ID_STR  STR(CHIN_SCHEME_ID)
-#define CHIN_SCHEME_OUTPUT  "./tests/chin_output/chin_gyration_" CHIN_SCHEME_ID_STR ".txt"
+#define CHIN_SCHEME_OUTPUT  "./tests/chin_output/chin_uniform_b_" CHIN_SCHEME_ID_STR ".txt"
 #define CHIN_SCHEME_PROCESS CAT(process_, CHIN_SCHEME_ID)
 // clang-format on
 
