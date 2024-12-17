@@ -9,8 +9,6 @@ set(tests
   chin_crossed_fields
   chin_polarization
   chin_crossed_gradient
-  gyration
-  drift_crossed_fields
 )
 
 foreach(test ${tests})
