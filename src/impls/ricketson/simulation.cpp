@@ -50,9 +50,13 @@ PetscErrorCode Simulation::initialize_implementation()
   // clang-format on
   PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, reinterpret_cast<void*>(&B)));
 
-#if THERE_ARE_PARTICLES
   SortParameters parameters = {
-    .Np = 1, .n = +1.0, .q = +1.0, .m = +1.0, .sort_name = "positron"};
+    .Np = 1,
+    .n = +1.0,
+    .q = +1.0,
+    .m = +1.0,
+    .sort_name = "positron",
+  };
   auto& sort = particles_.emplace_back(*this, parameters);
 
   const PetscReal v_crit = sqrt(9.8342 - 1);
@@ -62,7 +66,6 @@ PetscErrorCode Simulation::initialize_implementation()
   Vector3R v = {1, 0, factor * v_crit};
 
   sort.add_particle(Point{r, v});
-#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

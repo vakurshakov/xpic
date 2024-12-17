@@ -102,10 +102,6 @@ PetscErrorCode build_diagnostics(
 {
   PetscFunctionBeginUser;
 
-#if !THERE_ARE_FIELDS && !THERE_ARE_PARTICLES
-  PetscFunctionReturn(PETSC_SUCCESS);
-#endif
-
   LOG("Building diagnostics");
   const Configuration& config = CONFIG();
   const Configuration::json_t& descriptions = config.json.at("Diagnostics");
@@ -113,7 +109,6 @@ PetscErrorCode build_diagnostics(
   Diagnostic_builder_up builder = nullptr;
 
   for (const auto& [diag_name, diag_info] : descriptions.items()) {
-#if THERE_ARE_FIELDS
     if (diag_name == "fields_energy") {
       LOG("Adding fields energy diagnostic");
       builder = std::make_unique<FieldsEnergyBuilder>(simulation, result);
@@ -124,41 +119,24 @@ PetscErrorCode build_diagnostics(
       builder = std::make_unique<FieldViewBuilder>(simulation, result);
       PetscCall(builder->build(diag_info));
     }
-#endif
-
-#if THERE_ARE_PARTICLES
-  #if THERE_ARE_FIELDS
-    else
-  #endif
-      // clang-format off
-      if (diag_name == "density" ||
-          diag_name == "Vx_moment" ||
-          diag_name == "Vy_moment" ||
-          diag_name == "Vz_moment" ||
-          diag_name == "mVxVx_moment" ||
-          diag_name == "mVxVy_moment" ||
-          diag_name == "mVxVz_moment" ||
-          diag_name == "mVyVy_moment" ||
-          diag_name == "mVyVz_moment" ||
-          diag_name == "mVzVz_moment" ||
-          diag_name == "Vr_moment" ||
-          diag_name == "Vphi_moment" ||
-          diag_name == "mVrVr_moment" ||
-          diag_name == "mVrVphi_moment" ||
-          diag_name == "mVphiVphi_moment") {
+    else if (diag_name == "density" || diag_name == "Vx_moment" ||
+      diag_name == "Vy_moment" || diag_name == "Vz_moment" ||
+      diag_name == "mVxVx_moment" || diag_name == "mVxVy_moment" ||
+      diag_name == "mVxVz_moment" || diag_name == "mVyVy_moment" ||
+      diag_name == "mVyVz_moment" || diag_name == "mVzVz_moment" ||
+      diag_name == "Vr_moment" || diag_name == "Vphi_moment" ||
+      diag_name == "mVrVr_moment" || diag_name == "mVrVphi_moment" ||
+      diag_name == "mVphiVphi_moment") {
       LOG("Adding {} diagnostics(s)", diag_name);
-      std::string moment_name = (diag_name == "density") ? "zeroth_moment" : diag_name;
-      builder = std::make_unique<DistributionMomentBuilder>(simulation, result, moment_name, "(x_y_z)");
+      std::string moment_name = (diag_name == "density") ? "zeroth_moment"
+                                                         : diag_name;
+      builder = std::make_unique<DistributionMomentBuilder>(
+        simulation, result, moment_name, "(x_y_z)");
       PetscCall(builder->build(diag_info));
     }
-      // clang-format on
-#endif
-#if THERE_ARE_FIELDS || THERE_ARE_PARTICLES
-      else
-#endif
-      {
-        throw std::runtime_error("Unknown diagnostic name: " + diag_name);
-      }
+    else {
+      throw std::runtime_error("Unknown diagnostic name: " + diag_name);
+    }
   }
 
   /// @todo Check uniqueness of result directories

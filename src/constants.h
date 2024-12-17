@@ -1,8 +1,6 @@
 #ifndef SRC_CONSTANTS_H
 #define SRC_CONSTANTS_H
 
-#define THERE_ARE_FIELDS      true
-#define THERE_ARE_PARTICLES   true
 #define PARTICLES_FORM_FACTOR 2
 
 #define LOGGING true
