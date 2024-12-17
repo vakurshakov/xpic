@@ -35,15 +35,13 @@ public:
   /**
    * @brief Stores the configuration json file.
    * Overwrites the existing one, if present.
-   * @param to Location relative to `out_dir` where json file would be stored.
    */
-  static void save(const std::string& to = "");
+  static void save();
 
   /**
    * @brief Stores the entire `src/` directory.
-   * @param to Location of resulting src directory relative to `out_dir`.
    */
-  static void save_sources(const std::string& to = "");
+  static void save_sources();
 
   /// @brief Getter of boundaries type, reads the config at
   /// Geometry.da_boundary_{x, y, z}.
@@ -57,8 +55,8 @@ public:
 private:
   std::string config_path_;
 
-  static void save(const std::string& from, const std::string& to,
-    std::filesystem::copy_options options);
+  static void save(
+    const std::string& from, std::filesystem::copy_options options);
 
   Configuration() = default;
   static Configuration config;

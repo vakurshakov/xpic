@@ -2,8 +2,6 @@
 
 #include "src/utils/utils.h"
 
-namespace fs = std::filesystem;
-
 Configuration Configuration::config;
 
 const Configuration& Configuration::get()
@@ -53,21 +51,22 @@ void Configuration::init(const std::string& config_path)
 }
 
 
-/* static */ void Configuration::save(const std::string& to)
+/* static */ void Configuration::save()
 {
-  save(config.config_path_, to, fs::copy_options::overwrite_existing);
+  save(config.config_path_, std::filesystem::copy_options::overwrite_existing);
 }
 
 
-/* static */ void Configuration::save_sources(const std::string& to)
+/* static */ void Configuration::save_sources()
 {
-  save("src/", to,
-    fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+  save("src/",
+    std::filesystem::copy_options::overwrite_existing |
+      std::filesystem::copy_options::recursive);
 }
 
 
 /* static */ void Configuration::save(
-  const std::string& from, const std::string& to, fs::copy_options options)
+  const std::string& from, std::filesystem::copy_options options)
 {
   PetscInt rank;
   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
@@ -75,10 +74,10 @@ void Configuration::init(const std::string& config_path)
     return;
 
   try {
-    fs::create_directories(config.out_dir + "/" + to + "/");
-    fs::copy(from, config.out_dir + "/" + to + "/", options);
+    std::filesystem::create_directories(config.out_dir + "/");
+    std::filesystem::copy(from, config.out_dir + "/", options);
   }
-  catch (const fs::filesystem_error& ex) {
+  catch (const std::filesystem::filesystem_error& ex) {
     std::stringstream ss;
 
     ss << "what():  " << ex.what() << '\n'
