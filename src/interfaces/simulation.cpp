@@ -44,20 +44,26 @@ PetscErrorCode Simulation::calculate()
     LOG_FLUSH();
     LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
 
-    for (const Command_up& command : step_presets_)
-      PetscCall(command->execute(t));
-
+    PetscCall(execute(t));
     PetscCall(timestep_implementation(t));
     PetscCall(diagnose(t));
-
-    step_presets_.remove_if([t](const Command_up& command) {
-      return command->needs_to_be_removed(t);
-    });
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::diagnose(timestep_t timestep) const
+PetscErrorCode Simulation::execute(timestep_t timestep)
+{
+  PetscFunctionBeginUser;
+  for (const Command_up& command : step_presets_)
+    PetscCall(command->execute(timestep));
+
+  step_presets_.remove_if([timestep](const Command_up& command) {
+    return command->needs_to_be_removed(timestep);
+  });
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::diagnose(timestep_t timestep)
 {
   PetscFunctionBeginUser;
   for (const Diagnostic_up& diagnostic : diagnostics_)
@@ -66,6 +72,7 @@ PetscErrorCode Simulation::diagnose(timestep_t timestep) const
 }
 
 }  // namespace interfaces
+
 
 Simulation_up build_simulation()
 {

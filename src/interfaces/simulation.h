@@ -17,7 +17,7 @@ public:
 
   World world_;
 
-  virtual PetscErrorCode initialize();
+  PetscErrorCode initialize();
   PetscErrorCode calculate();
 
 protected:
@@ -25,7 +25,8 @@ protected:
   virtual PetscErrorCode log_information() const;
 
   virtual PetscErrorCode timestep_implementation(timestep_t timestep) = 0;
-  PetscErrorCode diagnose(timestep_t timestep) const;
+  PetscErrorCode execute(timestep_t timestep);
+  PetscErrorCode diagnose(timestep_t timestep);
 
   timestep_t start_ = 0;
 
