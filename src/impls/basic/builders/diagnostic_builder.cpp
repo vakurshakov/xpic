@@ -66,7 +66,7 @@ Vector3R DiagnosticBuilder::parse_vector(
     }
 
     Vector3R result;
-    for (int i = 0; i < 3; ++i)
+    for (PetscInt i = 0; i < 3; ++i)
       arr[i].get_to(result[i]);
     return result;
   }

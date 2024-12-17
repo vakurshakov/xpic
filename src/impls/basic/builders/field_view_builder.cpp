@@ -68,7 +68,7 @@ PetscErrorCode FieldViewBuilder::parse_field_info(
     Vector3R start = parse_vector(json, "start");
     Vector3R size = parse_vector(json, "size");
 
-    for (int i = 0; i < 3; ++i) {
+    for (PetscInt i = 0; i < 3; ++i) {
       desc.region.start[i] = TO_STEP(start[i], Dx[i]);
       desc.region.size[i] = TO_STEP(size[i], Dx[i]);
     }
