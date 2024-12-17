@@ -1,5 +1,6 @@
 #include "simulation.h"
 
+#include "src/commands/builders/command_builder.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
@@ -12,6 +13,14 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_vectors());
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
+
+  PetscCall(build_commands(*this, "StepPresets", step_presets_));
+
+  std::list<Command_up> presets;
+  PetscCall(build_commands(*this, "Presets", presets));
+
+  for (const Command_up& command : presets)
+    PetscCall(command->execute(0));
 
   SortParameters parameters{
     .Np = 1,
@@ -37,6 +46,13 @@ PetscErrorCode Simulation::init_vectors()
   PetscCall(DMCreateGlobalVector(da, &currJ));
   PetscCall(DMCreateGlobalVector(da, &currJe));
 
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(E),  "E^n"));
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(En), "E^{n+1/2}"));
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(B),  "B^n"));
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(B0), "B^0"));
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(currI), "I"));
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(currI), "J_{ecsim}"));
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(currI), "J_{esirkepov}"));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -46,6 +62,7 @@ PetscErrorCode Simulation::init_matrices()
   DM da = world_.da;
   PetscCall(DMCreateMatrix(da, &matL));
   PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(matL), "Lapenta matrix"));
 
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rotE));
@@ -58,6 +75,7 @@ PetscErrorCode Simulation::init_matrices()
   PetscCall(MatProductNumeric(matM));  // matM = rotB(rotE())
   PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
   PetscCall(MatShift(matM, 2.0));  // matM = 2 * I + matM
+  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(matM), "Utility matrix"));
 
   PetscCall(MatScale(rotE, -dt));
   PetscCall(MatScale(rotB, +dt));

@@ -3,10 +3,8 @@
 #include "src/utils/configuration.h"
 #include "src/utils/vector_utils.h"
 
-namespace basic {
-
 FieldViewBuilder::FieldViewBuilder(
-  const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
+  const interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
   : DiagnosticBuilder(simulation, diagnostics)
 {
 }
@@ -36,7 +34,7 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& diag_info)
       CONFIG().out_dir + "/" + desc.field_name + desc.component_name + "/";
 
     if (auto&& diag = FieldView::create(res_dir, simulation_.world_.da,
-          get_field(desc.field_name), desc.region)) {
+          get_global_vector(desc.field_name), desc.region)) {
       diagnostics_.emplace_back(std::move(diag));
     }
   }
@@ -82,5 +80,3 @@ PetscErrorCode FieldViewBuilder::parse_field_info(
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-}  // namespace basic

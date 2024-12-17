@@ -4,12 +4,10 @@
 #include "src/diagnostics/field_view.h"
 #include "src/impls/basic/builders/diagnostic_builder.h"
 
-namespace basic {
-
 class FieldViewBuilder : public DiagnosticBuilder {
 public:
-  FieldViewBuilder(
-    const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
+  FieldViewBuilder(const interfaces::Simulation& simulation,
+    std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& diag_info) override;
 
@@ -42,7 +40,5 @@ private:
   PetscErrorCode parse_field_info(
     const Configuration::json_t& json, FieldDescription& desc);
 };
-
-}  // namespace basic
 
 #endif  // SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H

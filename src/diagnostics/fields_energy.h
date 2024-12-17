@@ -8,9 +8,6 @@
 #include "src/interfaces/diagnostic.h"
 #include "src/utils/sync_binary_file.h"
 
-/// @todo Remove namespace here
-namespace basic {
-
 class FieldsEnergy : public interfaces::Diagnostic {
 public:
   FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B);
@@ -24,7 +21,5 @@ private:
   Vec E_;
   Vec B_;
 };
-
-}  // namespace basic
 
 #endif  // SRC_DIAGNOSTICS_FIELDS_ENERGY_H

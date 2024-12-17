@@ -3,10 +3,8 @@
 #include "src/utils/utils.h"
 #include "src/utils/vector_utils.h"
 
-namespace basic {
-
 DistributionMomentBuilder::DistributionMomentBuilder(
-  const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics,
+  const interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics,
   const std::string& moment_name, const std::string& proj_name)
   : DiagnosticBuilder(simulation, diagnostics),
     moment_name(moment_name),
@@ -37,7 +35,7 @@ PetscErrorCode DistributionMomentBuilder::build(
     std::string res_dir = CONFIG().out_dir + "/" + desc.particles_name + "/" +
       moment_name + "_of_" + proj_name;
 
-    const Particles& particles = get_sort(desc.particles_name);
+    const basic::Particles& particles = get_sort(desc.particles_name);
 
     auto&& moment = Moment::from_string(particles, moment_name);
 
@@ -77,5 +75,3 @@ PetscErrorCode DistributionMomentBuilder::parse_moment_info(
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-}  // namespace basic

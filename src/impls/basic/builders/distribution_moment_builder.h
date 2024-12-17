@@ -4,11 +4,9 @@
 #include "src/diagnostics/distribution_moment.h"
 #include "src/impls/basic/builders/diagnostic_builder.h"
 
-namespace basic {
-
 class DistributionMomentBuilder : public DiagnosticBuilder {
 public:
-  DistributionMomentBuilder(const Simulation& simulation,
+  DistributionMomentBuilder(const interfaces::Simulation& simulation,
     std::vector<Diagnostic_up>& diagnostics, const std::string& moment_name,
     const std::string& proj_name);
 
@@ -52,7 +50,5 @@ private:
   PetscErrorCode parse_moment_info(
     const Configuration::json_t& json, MomentDescription& desc);
 };
-
-}  // namespace basic
 
 #endif  // SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H

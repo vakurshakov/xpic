@@ -20,5 +20,20 @@
     "da_processors_z": -1
   },
 
+  "Presets": [
+    {
+      "command": "SetupMagneticField",
+      "field": "B^0",
+      "value": [ 0.0, 0.0, 0.1 ]
+    }
+  ],
+
+  "StepPresets": [
+    {
+      "command": "InjectParticles",
+      "sorts": ""
+    }
+  ],
+
   "Diagnostics": {}
 }

@@ -4,12 +4,10 @@
 #include "src/diagnostics/fields_energy.h"
 #include "src/impls/basic/builders/diagnostic_builder.h"
 
-namespace basic {
-
 class FieldsEnergyBuilder : public DiagnosticBuilder {
 public:
-  FieldsEnergyBuilder(
-    const Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
+  FieldsEnergyBuilder(const interfaces::Simulation& simulation,
+    std::vector<Diagnostic_up>& diagnostics)
     : DiagnosticBuilder(simulation, diagnostics)
   {
   }
@@ -19,7 +17,7 @@ public:
     PetscFunctionBeginUser;
     diagnostics_.emplace_back(
       std::make_unique<FieldsEnergy>(CONFIG().out_dir + "/",
-        simulation_.world_.da, simulation_.E_, simulation_.B_));
+        simulation_.world_.da, get_global_vector("E"), get_global_vector("B")));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
@@ -31,7 +29,5 @@ private:
            "no addition description is needed.";
   }
 };
-
-}  // namespace basic
 
 #endif  // SRC_BASIC_BUILDERS_FIELDS_ENERGY_BUILDER_H

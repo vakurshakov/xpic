@@ -36,6 +36,7 @@ set(interfaces
   src/interfaces/sort_parameters.cpp
   src/interfaces/particles.cpp
   src/interfaces/world.cpp
+  src/interfaces/builder.cpp
 )
 
 set(algorithms
@@ -54,6 +55,8 @@ set(diagnostics
 set(commands
   src/commands/inject_particles.cpp
   src/commands/setup_magnetic_field.cpp
+  src/commands/builders/command_builder.cpp
+  src/commands/builders/setup_magnetic_field_builder.cpp
 )
 
 set(utils

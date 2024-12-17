@@ -4,8 +4,6 @@
 #include "src/utils/vector3.h"
 
 
-namespace basic {
-
 FieldsEnergy::FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B)
   : interfaces::Diagnostic(out_dir),
     file_(SyncBinaryFile(out_dir_ + "/fields_energy.bin")),
@@ -81,5 +79,3 @@ PetscErrorCode FieldsEnergy::diagnose(timestep_t t)
     file_.flush();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-}  // namespace basic
