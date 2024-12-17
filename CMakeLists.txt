@@ -53,6 +53,7 @@ set(diagnostics
 
 set(commands
   src/commands/inject_particles.cpp
+  src/commands/setup_magnetic_field.cpp
 )
 
 set(utils
