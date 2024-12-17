@@ -1,13 +1,13 @@
 {
-  "Out_dir": "results/basic/",
+  "OutDirectory": "results/ecsimcorr/",
 
-  "Simulation": "basic",
+  "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "size_x": 1.0,  "dx": 0.05,   "__units.x": "c/w_pe",
-    "size_y": 1.0,  "dy": 0.05,   "__units.y": "c/w_pe",
-    "size_z": 1.0,  "dz": 0.05,   "__units.z": "c/w_pe",
-    "size_t": 3.0,  "dt": 0.025,  "__units.t": "1/w_pe",
+    "size_x": 6,  "dx": 1.0,  "__units.x": "c/w_pe",
+    "size_y": 6,  "dy": 1.0,  "__units.y": "c/w_pe",
+    "size_z": 6,  "dz": 1.0,  "__units.z": "c/w_pe",
+    "size_t": 6,  "dt": 0.5,  "__units.t": "1/w_pe",
 
     "diagnose_period": 0.025,  "__units.dp": "1/w_pe",
 
