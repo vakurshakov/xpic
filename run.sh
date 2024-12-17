@@ -16,4 +16,4 @@ if [[ $# == 0 ]]; then
   usage
 fi
 
-mpiexec -np $MPI_NUM_PROC ./build/xpic $1
+mpiexec -np $MPI_NUM_PROC ./build/xpic.out $1

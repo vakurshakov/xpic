@@ -48,13 +48,15 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 #define REP3_X(A) A##x, A##y, A##z
 #define REP4_X(A) A##x, A##y, A##z, A##c
 
-#define REP2_A(A) (A)[0], (A)[1]
-#define REP3_A(A) (A)[0], (A)[1], (A)[2]
-#define REP4_A(A) (A)[0], (A)[1], (A)[2], (A)[3]
+// NOLINTBEGIN(bugprone-macro-parentheses)
+#define REP2_A(A) A[0], A[1]
+#define REP3_A(A) A[0], A[1], A[2]
+#define REP4_A(A) A[0], A[1], A[2], A[3]
 
-#define REP2_AP(A) (A)[1], (A)[0]
-#define REP3_AP(A) (A)[2], (A)[1], (A)[0]
-#define REP4_AP(A) (A)[2], (A)[1], (A)[0], (A)[3]
+#define REP2_AP(A) A[1], A[0]
+#define REP3_AP(A) A[2], A[1], A[0]
+#define REP4_AP(A) A[2], A[1], A[0], A[3]
+// NOLINTEND
 
 #define POW2(A) ((A) * (A))
 #define POW3(A) ((A) * (A) * (A))
