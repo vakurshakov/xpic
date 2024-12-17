@@ -37,9 +37,6 @@ PetscErrorCode Simulation::init_vectors()
   PetscCall(DMCreateGlobalVector(da, &currJ));
   PetscCall(DMCreateGlobalVector(da, &currJe));
 
-  /// @todo Should be created on scalar dmda!
-  // PetscCall(DMCreateGlobalVector(da, &charge_density_old));
-  // PetscCall(DMCreateGlobalVector(da, &charge_density));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -49,9 +46,6 @@ PetscErrorCode Simulation::init_matrices()
   DM da = world_.da;
   PetscCall(DMCreateMatrix(da, &matL));
   PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
-
-  Divergence divergence(da);
-  PetscCall(divergence.create_positive(&divE));
 
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rotE));
@@ -207,7 +201,6 @@ Simulation::~Simulation()
   PetscCallVoid(MatDestroy(&matM));
   PetscCallVoid(MatDestroy(&rotE));
   PetscCallVoid(MatDestroy(&rotB));
-  PetscCallVoid(MatDestroy(&divE));
 
   PetscCallVoid(KSPDestroy(&predict));
   PetscCallVoid(KSPDestroy(&correct));

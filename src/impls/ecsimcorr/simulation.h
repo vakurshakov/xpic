@@ -61,7 +61,6 @@ private:
 
   Mat rotE;
   Mat rotB;
-  Mat divE;
 
   KSP predict;
   KSP correct;
