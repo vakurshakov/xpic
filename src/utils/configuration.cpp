@@ -17,7 +17,7 @@ void Configuration::init(const std::string& config_path)
   config.json = json_t::parse(file);
 
   const json_t& json = config.json;
-  json.at("OutDirectory").get_to(config.out_dir);
+  json.at("OutputDirectory").get_to(config.out_dir);
 
   const json_t& geometry = json.at("Geometry");
   geometry.at("dx").get_to(dx);
