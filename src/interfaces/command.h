@@ -36,21 +36,6 @@ public:
   }
 };
 
-/// @brief Used to execute command once in the simulation cycle.
-class CommandOnce : public Command {
-public:
-  DEFAULT_MOVABLE(CommandOnce);
-
-  CommandOnce() = default;
-  ~CommandOnce() override = default;
-
-  /// @brief Since command is executed once, it always return true.
-  bool needs_to_be_removed(timestep_t /* timestep */) const final
-  {
-    return true;
-  }
-};
-
 }  // namespace interfaces
 
 using Command_up = std::unique_ptr<interfaces::Command>;
