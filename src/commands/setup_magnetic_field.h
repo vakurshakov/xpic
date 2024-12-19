@@ -8,14 +8,22 @@
 
 class SetupMagneticField : public interfaces::Command {
 public:
-  SetupMagneticField(DM da, Vec storage, const Vector3R& value);
+  SetupMagneticField(Vec storage, const Vector3R& value);
 
   PetscErrorCode execute(timestep_t t) override;
 
 private:
-  DM da_;
   Vec storage_;
-  Vector3R value_;
+
+  using Setter = std::function<PetscErrorCode(Vec /* storage */)>;
+  Setter setup_;
+
+  class UniformField {
+  public:
+    UniformField(const Vector3R& value);
+    PetscErrorCode operator()(Vec storage);
+    Vector3R value_;
+  };
 };
 
 #endif // SRC_COMMANDS_SETUP_MAGNETIC_FIELD_H
