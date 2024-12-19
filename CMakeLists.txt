@@ -67,6 +67,7 @@ set(utils
   src/utils/region_operations.cpp
   src/utils/operators.cpp
   src/utils/shape.cpp
+  src/utils/particles_load.cpp
 )
 
 set(impls_basic
