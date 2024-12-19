@@ -37,15 +37,16 @@ Vector3R CoordinateInCircle::operator()()
 
 
 CoordinateInCylinder::CoordinateInCylinder(
-  PetscReal radius, PetscReal width, const Vector3R& center)
-  : gen_(radius, center), width_(width)
+  PetscReal radius, PetscReal height, const Vector3R& center)
+  : gen_(radius, center), height_(height)
 {
 }
 
 Vector3R CoordinateInCylinder::operator()()
 {
   Vector3R coordinate = gen_();
-  return coordinate + Vector3R{0.0, 0.0, -0.5 * width_ * random_01()};
+  coordinate[Z] += height_ * (random_01() - 0.5);
+  return coordinate;
 }
 
 

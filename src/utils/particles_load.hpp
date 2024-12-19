@@ -23,18 +23,20 @@ public:
   Vector3R operator()();
 
 private:
+  friend class CoordinateInCylinder;
+
   PetscReal radius_;
   Vector3R center_;
 };
 
 class CoordinateInCylinder {
 public:
-  CoordinateInCylinder(PetscReal radius, PetscReal width, const Vector3R& center);
+  CoordinateInCylinder(PetscReal radius, PetscReal height, const Vector3R& center);
   Vector3R operator()();
 
 private:
   CoordinateInCircle gen_;
-  PetscReal width_;
+  PetscReal height_;
 };
 
 
