@@ -4,8 +4,9 @@
 #include "src/utils/vector_utils.h"
 
 DistributionMomentBuilder::DistributionMomentBuilder(
-  const interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics,
-  const std::string& moment_name, const std::string& proj_name)
+  const interfaces::Simulation& simulation,
+  std::vector<Diagnostic_up>& diagnostics, const std::string& moment_name,
+  const std::string& proj_name)
   : DiagnosticBuilder(simulation, diagnostics),
     moment_name(moment_name),
     proj_name(proj_name)
