@@ -52,7 +52,7 @@
   "Presets": [
     {
       "command": "SetupMagneticField",
-      "field": "B^0",
+      "storage": "B^0",
       "value": [ 0.0, 0.0, 0.1 ]
     }
   ],
@@ -60,7 +60,25 @@
   "StepPresets": [
     {
       "command": "InjectParticles",
-      "sorts": ""
+      "ionized": "ions",
+      "ejected": "electrons",
+      "injection_start": 0,
+      "injection_end": "geom_nt",
+      "per_step_particles_num": 2000,
+      "set_point_of_birth": {
+        "name": "CoordinateInCylinder",
+        "radius": 30,
+        "height": 1,
+        "center": [ 50, 50, 0.5 ]
+      },
+      "load_momentum_i": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      },
+      "load_momentum_e": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      }
     }
   ],
 
