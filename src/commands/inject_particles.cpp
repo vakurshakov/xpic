@@ -26,10 +26,10 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
 {
   PetscFunctionBeginUser;
   const PetscInt Npi = ionized_.parameters().Np;
-  const double mi = ionized_.parameters().m;
+  const PetscReal mi = ionized_.parameters().m;
 
   const PetscInt Npe = ejected_.parameters().Np;
-  const double me = ejected_.parameters().m;
+  const PetscReal me = ejected_.parameters().m;
 
   if (t < injection_start_)
     PetscFunctionReturn(PETSC_SUCCESS);

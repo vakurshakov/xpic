@@ -5,10 +5,7 @@
 #include "src/interfaces/command.h"
 #include "src/interfaces/particles.h"
 
-/**
- * @brief Sets the fixed number of particles
- * into the computational domain each time step.
- */
+
 class SetupMagneticField : public interfaces::Command {
 public:
   SetupMagneticField(DM da, Vec storage, const Vector3R& value);

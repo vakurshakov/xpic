@@ -23,11 +23,11 @@ private:
   std::mt19937 gen = std::mt19937(rd());
 };
 
-inline double random_01()
+inline PetscReal random_01()
 {
   static std::uniform_real_distribution distribution(0.0, 1.0);
 
-  double value;
+  PetscReal value;
 
 #pragma omp critical
   value = distribution(RandomGenerator::get());

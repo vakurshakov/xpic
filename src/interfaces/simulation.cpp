@@ -20,7 +20,7 @@ PetscErrorCode Simulation::initialize()
 PetscErrorCode Simulation::log_information() const
 {
   PetscFunctionBeginUser;
-  static const double n0 = sqrt(1e13);
+  static const PetscReal n0 = sqrt(1e13);
   LOG("Note: Dimensionless units are used.");
   LOG("For reference, using density 1e13 cm^(-3):");
   LOG("  frequency,   w_pe = {} [1/sec]", 5.64e+4 * n0);
