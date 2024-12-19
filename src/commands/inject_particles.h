@@ -11,15 +11,20 @@
  */
 class InjectParticles : public interfaces::Command {
 public:
-  using Coordinate_generator = std::function<Vector3R()>;
-  using Velocity_generator = std::function<Vector3R(const Vector3R&)>;
+  using CoordinateGenerator = std::function<Vector3R()>;
 
-  InjectParticles(interfaces::Particles& ionized,
-    interfaces::Particles& ejected, timestep_t injection_start,
-    timestep_t injection_end, PetscInt per_step_particles_num,
-    const Coordinate_generator& set_point_of_birth,
-    const Velocity_generator& load_momentum_i,
-    const Velocity_generator& load_momentum_e);
+  using VelocityGenerator =
+    std::function<Vector3R(const Vector3R& /* reference */)>;
+
+  InjectParticles( //
+    interfaces::Particles& ionized,                //
+    interfaces::Particles& ejected,                //
+    timestep_t injection_start,                    //
+    timestep_t injection_end,                      //
+    PetscInt per_step_particles_num,               //
+    const CoordinateGenerator& set_point_of_birth, //
+    const VelocityGenerator& load_momentum_i,      //
+    const VelocityGenerator& load_momentum_e);
 
   /**
    * @brief Loads the number of particles (per_step_particles_num)
@@ -44,9 +49,9 @@ private:
   timestep_t injection_end_;
   PetscInt per_step_particles_num_;
 
-  Coordinate_generator generate_coordinate_;
-  Velocity_generator generate_vi_;
-  Velocity_generator generate_ve_;
+  CoordinateGenerator generate_coordinate_;
+  VelocityGenerator generate_vi_;
+  VelocityGenerator generate_ve_;
 };
 
 #endif // SRC_COMMANDS_INJECT_PARTICLES_H

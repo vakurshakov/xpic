@@ -59,11 +59,12 @@ PetscReal temperature_momentum(PetscReal temperature, PetscReal mass);
 
 class MaxwellianMomentum {
 public:
-  MaxwellianMomentum(const SortParameters& params);
+  MaxwellianMomentum(const SortParameters& params, bool tov = false);
   Vector3R operator()(const Vector3R& coordinate);
 
 private:
   SortParameters params_;
+  bool tov_;
 };
 
 

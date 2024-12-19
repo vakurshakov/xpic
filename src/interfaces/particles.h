@@ -17,6 +17,7 @@ public:
 
   const World& world_;
 
+  void reserve(PetscInt number_of_particles);
   PetscErrorCode add_particle(const Point& point);
 
   const SortParameters& parameters() const;

@@ -1,7 +1,9 @@
 #include "simulation.h"
 
-#include "src/commands/builders/command_builder.h"
+#include "src/commands/inject_particles.h"
+#include "src/commands/setup_magnetic_field.h"
 #include "src/utils/operators.h"
+#include "src/utils/particles_load.hpp"
 #include "src/utils/utils.h"
 
 
@@ -14,23 +16,53 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
 
-  PetscCall(build_commands(*this, "StepPresets", step_presets_));
+  static constexpr Vector3R uniform_magnetic_field{0, 0, 0.2};
+  SetupMagneticField setup(B, uniform_magnetic_field);
+  setup.execute(0);
 
-  std::list<Command_up> presets;
-  PetscCall(build_commands(*this, "Presets", presets));
+  static constexpr PetscInt particles_per_cell{2000};
 
-  for (const Command_up& command : presets)
-    PetscCall(command->execute(0));
+  particles_.emplace_back(std::make_unique<Particles>(*this,
+    SortParameters{
+      .Np = particles_per_cell,
+      .n = +1.0,
+      .q = +1.0,
+      .m = 100.0,
+      .Tx = 10.0,
+      .Ty = 10.0,
+      .Tz = 10.0,
+      .sort_name = "ions",
+    }));
 
-  SortParameters parameters{
-    .Np = 1,
-    .n = +1.0,
-    .q = -1.0,
-    .m = +1.0,
-    .sort_name = "electrons",
-  };
-  auto& sort = particles_.emplace_back(*this, parameters);
-  sort.add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 4}, {0.0, 0.0, 0.5}});
+  particles_.emplace_back(std::make_unique<Particles>(*this,
+    SortParameters{
+      .Np = particles_per_cell,
+      .n = +1.0,
+      .q = -1.0,
+      .m = +1.0,
+      .Tx = 1.0,
+      .Ty = 1.0,
+      .Tz = 1.0,
+      .sort_name = "electrons",
+    }));
+
+  static const PetscReal radius{30 * dx};
+  static const PetscReal height{geom_z};
+  static const Vector3R center{0.5 * geom_x, 0.5 * geom_y, 0.5 * geom_z};
+  static const PetscInt per_step_particles_num =
+    (std::numbers::pi * POW2(radius) * height) / POW3(dx);
+
+  Particles* ions = particles_[0].get();
+  Particles* electrons = particles_[1].get();
+
+  step_presets_.emplace_back(std::make_unique<InjectParticles>( //
+    *ions,                                                      //
+    *electrons,                                                 //
+    start_, geom_nt,                                            //
+    per_step_particles_num,                                     //
+    CoordinateInCylinder(radius, height, center),               //
+    MaxwellianMomentum(ions->parameters(), true),               //
+    MaxwellianMomentum(electrons->parameters(), true)));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -61,8 +93,10 @@ PetscErrorCode Simulation::init_matrices()
   PetscFunctionBeginUser;
   DM da = world_.da;
   PetscCall(DMCreateMatrix(da, &matL));
-  PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
+  PetscCall(MatSetOption(matL, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
   PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(matL), "Lapenta matrix"));
+
+  PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
 
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rotE));
@@ -114,18 +148,18 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   PetscCall(clear_sources());
 
   for (auto& sort : particles_)
-    PetscCall(sort.first_push());
+    PetscCall(sort->first_push());
 
   PetscCall(predict_fields());
 
   for (auto& sort : particles_)
-    PetscCall(sort.second_push());
+    PetscCall(sort->second_push());
 
   PetscCall(correct_fields());
 
   for (auto& sort : particles_) {
-    PetscCall(sort.final_update());
-    PetscCall(sort.communicate());
+    PetscCall(sort->final_update());
+    PetscCall(sort->communicate());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -141,7 +175,7 @@ PetscErrorCode Simulation::clear_sources()
   PetscCall(MatZeroEntries(matL));
 
   for (auto& sort : particles_)
-    PetscCall(sort.clear_sources());
+    PetscCall(sort->clear_sources());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -82,14 +82,14 @@ PetscReal temperature_momentum(PetscReal temperature, PetscReal mass)
 }
 
 
-MaxwellianMomentum::MaxwellianMomentum(const SortParameters& params)
-  : params_(params)
+MaxwellianMomentum::MaxwellianMomentum(const SortParameters& params, bool tov)
+  : params_(params), tov_(tov)
 {
 }
 
 Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
 {
-  return Vector3R{
+  Vector3R result{
     params_.px +
       std::sin(2.0 * std::numbers::pi * random_01()) *
         temperature_momentum(params_.Tx, params_.m),
@@ -102,6 +102,10 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
       std::sin(2.0 * std::numbers::pi * random_01()) *
         temperature_momentum(params_.Tz, params_.m),
   };
+
+  if (tov_)
+    result /= sqrt(params_.m * params_.m + result.squared());
+  return result;
 }
 
 

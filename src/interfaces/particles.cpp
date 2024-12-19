@@ -38,6 +38,11 @@ Particles::Particles(const World& world, const SortParameters& parameters)
 {
 }
 
+void Particles::reserve(PetscInt number_of_particles)
+{
+  points_.reserve(number_of_particles);
+}
+
 PetscErrorCode Particles::add_particle(const Point& point)
 {
   PetscFunctionBeginUser;

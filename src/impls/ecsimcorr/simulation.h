@@ -38,7 +38,8 @@ public:
 
   PetscReal w1, w2;
 
-  std::vector<Particles> particles_;
+  /// @note Use of stack-allocated `Particles` breaks internal pointers.
+  std::vector<std::unique_ptr<Particles>> particles_;
 
 private:
   PetscErrorCode initialize_implementation() override;
@@ -52,9 +53,6 @@ private:
   PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
   PetscErrorCode advance_fields(KSP ksp, Vec rhs);
-
-  // Vec charge_density_old;
-  // Vec charge_density;
 
   Mat matA;
   Mat matM;

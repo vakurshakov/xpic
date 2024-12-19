@@ -4,8 +4,8 @@
   "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "x": 50,
-    "y": 50,
+    "x": 100,
+    "y": 100,
     "z": 1,
     "t": 10000,
     "[x]": "units of dx",
@@ -29,6 +29,25 @@
     "da_processors_y": -1,
     "da_processors_z": -1
   },
+
+  "Particles": [
+    {
+      "sort_name": "electrons",
+      "Np": 2000,
+      "n":  1.0,
+      "q": -1.0,
+      "m":  1.0,
+      "T":  1.0
+    },
+    {
+      "sort_name": "ions",
+      "Np": 2000,
+      "n": 1.0,
+      "q": 1.0,
+      "m": 100.0,
+      "T": 10.0
+    }
+  ],
 
   "Presets": [
     {
