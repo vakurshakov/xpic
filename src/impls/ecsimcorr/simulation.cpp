@@ -1,6 +1,7 @@
 #include "simulation.h"
 
 #include "src/commands/inject_particles.h"
+#include "src/commands/remove_particles.h"
 #include "src/commands/setup_magnetic_field.h"
 #include "src/utils/operators.h"
 #include "src/utils/particles_load.hpp"
@@ -46,14 +47,22 @@ PetscErrorCode Simulation::initialize_implementation()
       .sort_name = "electrons",
     }));
 
-  static const PetscReal radius{30 * dx};
-  static const PetscReal height{geom_z};
+  static const PetscReal outer_radius{0.5 * geom_x - 4 * dx};
   static const Vector3R center{0.5 * geom_x, 0.5 * geom_y, 0.5 * geom_z};
-  static const PetscInt per_step_particles_num =
-    (std::numbers::pi * POW2(radius) * height) / POW3(dx);
 
   Particles* ions = particles_[0].get();
   Particles* electrons = particles_[1].get();
+
+  step_presets_.emplace_back(std::make_unique<RemoveParticles>(
+    *ions, CircleGeometry(center, outer_radius)));
+
+  step_presets_.emplace_back(std::make_unique<RemoveParticles>(
+    *electrons, CircleGeometry(center, outer_radius)));
+
+  static const PetscReal radius{30 * dx};
+  static const PetscReal height{geom_z};
+  static const PetscInt per_step_particles_num =
+    (std::numbers::pi * POW2(radius) * height) / POW3(dx);
 
   step_presets_.emplace_back(std::make_unique<InjectParticles>( //
     *ions,                                                      //

@@ -21,12 +21,15 @@ public:
   PetscErrorCode add_particle(const Point& point);
 
   const SortParameters& parameters() const;
+
+  std::vector<Point>& points();
   const std::vector<Point>& points() const;
 
-  PetscInt particles_number(const Point& point) const;
-  PetscReal density(const Point& point) const;
-  PetscReal charge(const Point& point) const;
   PetscReal mass(const Point& point) const;
+  PetscReal charge(const Point& point) const;
+  PetscReal density(const Point& point) const;
+  PetscInt particles_number(const Point& point) const;
+
   Vector3R velocity(const Point& point) const;
 
   PetscErrorCode communicate();

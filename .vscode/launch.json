@@ -17,6 +17,7 @@
                 "-version",
                 "-options_view",
                 "-options_left",
+                "-omp_view",
                 "-fp_trap",
                 "-info",  // [filename]
                 // "-log_view",  // [:filename]

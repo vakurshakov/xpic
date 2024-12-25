@@ -1,4 +1,6 @@
 {
+    "editor.indentSize": 2,
+
     "files.associations": {
         ".clang-format": "yaml",
         ".clang-tidy": "yaml",
@@ -22,12 +24,15 @@
         "idxm",
         "idxn",
         "IMPLS",
+        "Irecv",
         "jdxm",
         "jdxn",
+        "Lapenta",
         "ltog",
         "MATPRODUCT",
         "maxf",
         "maxit",
+        "Maxwellian",
         "mdim",
         "mdof",
         "memview",
@@ -57,5 +62,6 @@
         "uniqueptr",
         "VECSEQ",
         "vphi"
-    ]
+    ],
+    "cSpell.enabled": true,
 }

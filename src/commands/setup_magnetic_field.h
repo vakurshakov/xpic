@@ -1,9 +1,11 @@
 #ifndef SRC_COMMANDS_SETUP_MAGNETIC_FIELD_H
 #define SRC_COMMANDS_SETUP_MAGNETIC_FIELD_H
 
+#include <petscvec.h>
+
 #include "src/pch.h"
 #include "src/interfaces/command.h"
-#include "src/interfaces/particles.h"
+#include "src/utils/vector3.h"
 
 
 class SetupMagneticField : public interfaces::Command {

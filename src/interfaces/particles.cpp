@@ -11,6 +11,15 @@ PetscInt to_contiguous_index(PetscInt z, PetscInt y, PetscInt x)
   return indexing::petsc_index(z, y, x, 0, dim, dim, dim, 1);
 }
 
+// Vector3I from_contiguous_index(PetscInt index)
+// {
+//   return Vector3I{
+//     (index) % dim,
+//     (index / dim) % dim,
+//     (index / dim) / dim,
+//   };
+// }
+
 PetscInt get_index(const Vector3R& r, Axis axis, const World& world)
 {
   if (r[axis] < world.start[axis])
@@ -97,31 +106,37 @@ PetscErrorCode Particles::communicate()
   for (PetscInt s = 0; s < neighbors_num; ++s) {
     if (s == center_index)
       continue;
+
     PetscInt r = (neighbors_num - 1) - s;
     PetscCallMPI(MPI_Isend(&o_num[s], sizeof(size_t), MPI_BYTE, world_.neighbors[s], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
     PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, world_.neighbors[r], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
-  PetscCheck(o_num[center_index] == 0, PETSC_COMM_WORLD, PETSC_ERR_MPI, "Particles should not be passed to itself process, %ld particles was passed", o_num[center_index]);
-  PetscCheck(i_num[center_index] == 0, PETSC_COMM_WORLD, PETSC_ERR_MPI, "Particles should not be passed to itself process, %ld particles was passed", i_num[center_index]);
 
   req = 0;
   for (PetscInt s = 0; s < neighbors_num; ++s) {
     if (s == center_index)
       continue;
+
     PetscInt r = (neighbors_num - 1) - s;
     incoming[r].resize(i_num[r]);
     PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, world_.neighbors[s], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
     PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, world_.neighbors[r], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
+
+    if (o_num[s] > 0)
+      LOG("Sending {} particles to rank {}", o_num[s], world_.neighbors[s]);
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
   for (PetscInt i = 0; i < neighbors_num; ++i) {
-    if (i == center_index)
+    if (i == center_index || i_num[i] == 0)
       continue;
+
     points_.insert(points_.end(),                    //
       std::make_move_iterator(incoming[i].begin()),  //
       std::make_move_iterator(incoming[i].end()));
+
+    LOG("Receiving {} particles from rank {}", i_num[i], world_.neighbors[i]);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -130,6 +145,12 @@ PetscErrorCode Particles::communicate()
 const SortParameters& Particles::parameters() const
 {
   return parameters_;
+}
+
+
+std::vector<Point>& Particles::points()
+{
+  return points_;
 }
 
 const std::vector<Point>& Particles::points() const

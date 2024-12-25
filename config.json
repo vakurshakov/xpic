@@ -6,7 +6,7 @@
   "Geometry": {
     "x": 100,
     "y": 100,
-    "z": 1,
+    "z": 2,
     "t": 10000,
     "[x]": "units of dx",
     "[y]": "units of dy",
@@ -21,8 +21,8 @@
     "diagnose_period": 4,
     "[dp]": "units of dt",
 
-    "da_boundary_x": "DM_BOUNDARY_PERIODIC",
-    "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_x": "DM_BOUNDARY_GHOSTED",
+    "da_boundary_y": "DM_BOUNDARY_GHOSTED",
     "da_boundary_z": "DM_BOUNDARY_PERIODIC",
 
     "da_processors_x": -1,
@@ -32,20 +32,20 @@
 
   "Particles": [
     {
-      "sort_name": "electrons",
-      "Np": 2000,
-      "n":  1.0,
-      "q": -1.0,
-      "m":  1.0,
-      "T":  1.0
-    },
-    {
       "sort_name": "ions",
       "Np": 2000,
       "n": 1.0,
       "q": 1.0,
       "m": 100.0,
       "T": 10.0
+    },
+    {
+      "sort_name": "electrons",
+      "Np": 2000,
+      "n":  1.0,
+      "q": -1.0,
+      "m":  1.0,
+      "T":  1.0
     }
   ],
 
@@ -58,6 +58,24 @@
   ],
 
   "StepPresets": [
+    {
+      "command": "RemoveParticles",
+      "particles": "ions",
+      "geometry": {
+        "name": "CircleGeometry",
+        "radius": 48,
+        "center": [ 50, 50, 0.5 ]
+      }
+    },
+    {
+      "command": "RemoveParticles",
+      "particles": "electrons",
+      "geometry": {
+        "name": "CircleGeometry",
+        "radius": 48,
+        "center": [ 50, 50, 0.5 ]
+      }
+    },
     {
       "command": "InjectParticles",
       "ionized": "ions",
