@@ -33,10 +33,13 @@ public:
   Vector3R velocity(const Point& point) const;
 
   PetscErrorCode communicate();
+  PetscErrorCode correct_coordinates();
 
 protected:
   static constexpr PetscInt MPI_TAG_NUMBERS = 2;
   static constexpr PetscInt MPI_TAG_POINTS = 4;
+
+  void correct_coordinates(Point& point);
 
   SortParameters parameters_;
   std::vector<Point> points_;

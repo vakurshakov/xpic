@@ -29,16 +29,6 @@ PetscInt get_index(const Vector3R& r, Axis axis, const World& world)
   return 2;
 }
 
-void correct_coordinates(Point& point, const World& world)
-{
-  if (world.bounds[X] == DM_BOUNDARY_PERIODIC)
-    g_bound_periodic(point, X);
-  if (world.bounds[Y] == DM_BOUNDARY_PERIODIC)
-    g_bound_periodic(point, Y);
-  if (world.bounds[Z] == DM_BOUNDARY_PERIODIC)
-    g_bound_periodic(point, Z);
-}
-
 }  // namespace
 
 
@@ -82,7 +72,7 @@ PetscErrorCode Particles::communicate()
     if (index == center_index)
       continue;
 
-    correct_coordinates(*it, world_);
+    correct_coordinates(*it);
 
     outgoing[index].emplace_back(*it);
     std::swap(*it, *(end - 1));
@@ -183,6 +173,26 @@ Vector3R Particles::velocity(const Point& point) const
   const Vector3R& p = point.p;
   PetscReal m = mass(point);
   return p / sqrt(m * m + p.squared());
+}
+
+
+PetscErrorCode Particles::correct_coordinates()
+{
+  PetscFunctionBeginUser;
+  for (auto& point : points_) {
+    correct_coordinates(point);
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+void Particles::correct_coordinates(Point& point)
+{
+  if (world_.bounds[X] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, X);
+  if (world_.bounds[Y] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, Y);
+  if (world_.bounds[Z] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, Z);
 }
 
 }  // namespace interfaces

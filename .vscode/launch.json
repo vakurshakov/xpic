@@ -19,7 +19,7 @@
                 "-options_left",
                 "-omp_view",
                 "-fp_trap",
-                "-info",  // [filename]
+                "-info", // [filename]
                 // "-log_view",  // [:filename]
                 // "-log_trace",  // [filename]
                 // "-start_in_debugger",
@@ -31,7 +31,12 @@
                 // "-malloc_dump",
             ],
             "cwd": "${workspaceFolder}/",
-            "environment": [],
+            "environment": [
+                {
+                    "name": "OMP_NUM_THREADS",
+                    "value": "1"
+                }
+            ],
             "externalConsole": false,
             "MIMode": "gdb",
             "setupCommands": [
@@ -41,7 +46,13 @@
                 }
             ],
             "preLaunchTask": "${defaultBuildTask}",
-            "miDebuggerPath": "/usr/bin/gdb"
+            "miDebuggerPath": "/usr/bin/gdb",
+            "sourceFileMap": {
+                "/home/kurshakov/code/xpic": {
+                    "editorPath": "/home/kurshakov/code/xpic",
+                    "useForBreakpoints": true
+                }
+            }
         },
         {
             "name": "tests",
@@ -60,7 +71,13 @@
                 }
             ],
             "preLaunchTask": "${defaultBuildTask}",
-            "miDebuggerPath": "/usr/bin/gdb"
+            "miDebuggerPath": "/usr/bin/gdb",
+            "sourceFileMap": {
+                "/home/kurshakov/code/xpic": {
+                    "editorPath": "/home/kurshakov/code/xpic",
+                    "useForBreakpoints": true
+                }
+            }
         }
     ]
 }

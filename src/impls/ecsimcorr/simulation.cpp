@@ -168,7 +168,10 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 
   for (auto& sort : particles_) {
     PetscCall(sort->final_update());
-    PetscCall(sort->communicate());
+    PetscCall(sort->correct_coordinates());
+
+    /// @todo Testing petsc as a computational server first
+    /// PetscCall(sort->communicate());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
