@@ -154,17 +154,41 @@ PetscErrorCode Simulation::init_ksp_solvers()
 PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 {
   PetscFunctionBeginUser;
+  PetscLogStage stagenum = -1;
+  PetscLogStageRegister("Clear sources", &stagenum);
+  PetscLogStagePush(stagenum);
+
   PetscCall(clear_sources());
+
+  PetscLogStagePop();
+  PetscLogStageRegister("First particles push", &stagenum);
+  PetscLogStagePush(stagenum);
 
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
 
+  PetscLogStagePop();
+  PetscLogStageRegister("Predict electric field", &stagenum);
+  PetscLogStagePush(stagenum);
+
   PetscCall(predict_fields());
+
+  PetscLogStagePop();
+  PetscLogStageRegister("Second particles push", &stagenum);
+  PetscLogStagePush(stagenum);
 
   for (auto& sort : particles_)
     PetscCall(sort->second_push());
 
+  PetscLogStagePop();
+  PetscLogStageRegister("Correct electric and magnetic fields", &stagenum);
+  PetscLogStagePush(stagenum);
+
   PetscCall(correct_fields());
+
+  PetscLogStagePop();
+  PetscLogStageRegister("Final particles update", &stagenum);
+  PetscLogStagePush(stagenum);
 
   for (auto& sort : particles_) {
     PetscCall(sort->final_update());
@@ -173,6 +197,8 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
     /// @todo Testing petsc as a computational server first
     /// PetscCall(sort->communicate());
   }
+
+  PetscLogStagePop();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

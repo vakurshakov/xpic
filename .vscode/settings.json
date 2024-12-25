@@ -61,7 +61,8 @@
         "timestep",
         "uniqueptr",
         "VECSEQ",
-        "vphi"
+        "vphi",
+        "xpic"
     ],
     "cSpell.enabled": true,
 }

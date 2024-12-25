@@ -46,6 +46,12 @@ PetscErrorCode Particles::first_push()
   PetscCall(DMDAVecGetArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
   PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
+  PetscLogEvent event;
+  PetscClassId classid;
+  PetscClassIdRegister("ecsimcorr::Particles", &classid);
+  PetscLogEventRegister(__func__, classid, &event);
+  PetscLogEventBegin(event, 0, 0, 0, 0);
+
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
     const Vector3R old_r = point.r;
@@ -63,6 +69,8 @@ PetscErrorCode Particles::first_push()
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
     decompose_esirkepov_current(shape, point);
   }
+
+  PetscLogEventEnd(event, 0, 0, 0, 0);
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
   PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
@@ -92,6 +100,12 @@ PetscErrorCode Particles::second_push()
   PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
   PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
+  PetscLogEvent event;
+  PetscClassId classid;
+  PetscClassIdRegister("ecsimcorr::Particles", &classid);
+  PetscLogEventRegister(__func__, classid, &event);
+  PetscLogEventBegin(event, 0, 0, 0, 0);
+
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
     const Vector3R old_r = point.r;
@@ -111,6 +125,8 @@ PetscErrorCode Particles::second_push()
     decompose_esirkepov_current(shape, point);
   }
 
+  PetscLogEventEnd(event, 0, 0, 0, 0);
+
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
   PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
@@ -126,6 +142,12 @@ PetscErrorCode Particles::second_push()
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
+  PetscLogEvent event;
+  PetscClassId classid;
+  PetscClassIdRegister("ecsimcorr::Particles", &classid);
+  PetscLogEventRegister(__func__, classid, &event);
+  PetscLogEventBegin(event, 0, 0, 0, 0);
+
   PetscReal w1 = simulation_.w1;
   PetscReal w2 = simulation_.w2;
   PetscReal wp = 0.0;
@@ -139,6 +161,7 @@ PetscErrorCode Particles::final_update()
   for (auto& point : points_)
     point.p *= 1.0 + dt * (w2 - w1) / wp;
 
+  PetscLogEventEnd(event, 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
