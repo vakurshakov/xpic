@@ -7,8 +7,7 @@
 class DistributionMomentBuilder : public DiagnosticBuilder {
 public:
   DistributionMomentBuilder(const interfaces::Simulation& simulation,
-    std::vector<Diagnostic_up>& diagnostics, const std::string& moment_name,
-    const std::string& proj_name);
+    std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& info) override;
 
@@ -34,21 +33,6 @@ private:
       "  - density, Vx_moment, mVxVy_moment, etc. collect moments onto (x, y, z) coordinates in units of c/w_pe.\n";
     // clang-format on
   }
-
-  std::string moment_name;
-  std::string proj_name;
-
-  struct MomentDescription {
-    std::string particles_name;
-    FieldView::Region region;
-    MPI_Comm comm;
-  };
-
-  using Moments_description = std::vector<MomentDescription>;
-  Moments_description moments_desc_;
-
-  PetscErrorCode parse_moment_info(
-    const Configuration::json_t& json, MomentDescription& desc);
 };
 
 #endif  // SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H

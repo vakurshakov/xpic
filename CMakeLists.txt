@@ -52,8 +52,8 @@ set(diagnostics
   src/diagnostics/distribution_moment.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
+  src/diagnostics/builders/distribution_moment_builder.cpp
   # src/diagnostics/builders/fields_energy_builder.cpp
-  # src/diagnostics/builders/distribution_moment_builder.cpp
 )
 
 set(commands

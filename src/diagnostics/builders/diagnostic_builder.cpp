@@ -50,11 +50,10 @@ PetscErrorCode build_diagnostics(
       PetscCall(build_diagnostic<FieldViewBuilder>(info, simulation, result));
     }
     else if (name == "DistributionMoment") {
-      // PetscCall(build_diagnostic<DistributionMomentBuilder>(info, simulation, result));
-      continue;
+      PetscCall(build_diagnostic<DistributionMomentBuilder>(info, simulation, result));
     }
     else {
-      throw std::runtime_error("Unknown diagnostic name: " + name);
+      throw std::runtime_error("Unknown diagnostic name " + name);
     }
   }
 

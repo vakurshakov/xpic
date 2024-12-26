@@ -1,85 +1,91 @@
 #include "distribution_moment_builder.h"
 
+#include <set>
+
 #include "src/utils/utils.h"
 #include "src/utils/vector_utils.h"
 
 DistributionMomentBuilder::DistributionMomentBuilder(
   const interfaces::Simulation& simulation,
-  std::vector<Diagnostic_up>& diagnostics, const std::string& moment_name,
-  const std::string& proj_name)
-  : DiagnosticBuilder(simulation, diagnostics),
-    moment_name(moment_name),
-    proj_name(proj_name)
+  std::vector<Diagnostic_up>& diagnostics)
+  : DiagnosticBuilder(simulation, diagnostics)
 {
 }
 
-
-PetscErrorCode DistributionMomentBuilder::build(
-  const Configuration::json_t& info)
+PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
-// name == "density" || name == "Vx_moment" || name == "Vy_moment" ||
-//       name == "Vz_moment" || name == "Vr_moment" || name == "Vphi_moment" ||
-//       name == "mVxVx_moment" || name == "mVxVy_moment" ||
-//       name == "mVxVz_moment" || name == "mVyVy_moment" ||
-//       name == "mVyVz_moment" || name == "mVzVz_moment" ||
-//       name == "mVrVr_moment" || name == "mVrVphi_moment" ||
-//       name == "mVphiVphi_moment"
 
-  auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
-    PetscFunctionBeginHot;
-    MomentDescription desc;
-    PetscCall(parse_moment_info(info, desc));
-    moments_desc_.emplace_back(std::move(desc));
-    PetscFunctionReturn(PETSC_SUCCESS);
+  FieldView::Region region;
+  region.dim = 3;
+  region.dof = 1;
+
+  std::string particles;
+  std::string moment;
+
+  std::set<std::string_view> available_moments{
+    "Density",
+    "Vx",
+    "Vy",
+    "Vz",
+    "Vr",
+    "Vphi",
+    "mVxVx",
+    "mVxVy",
+    "mVxVz",
+    "mVyVy",
+    "mVyVz",
+    "mVzVz",
+    "mVrVr",
+    "mVrVphi",
+    "mVrVz",
+    "mVphiVphi",
+    "mVphiVz",
   };
-
-  /// @todo Vectorisation of parameters
-  PetscCall(parse_info(info));
-
-  for (const MomentDescription& desc : moments_desc_) {
-    LOG("Add {}_of_{} diagnostic for {}", moment_name, proj_name, desc.particles_name);
-
-    std::string res_dir = CONFIG().out_dir + "/" + desc.particles_name + "/" +
-      moment_name + "_of_" + proj_name;
-
-    const basic::Particles& particles = get_sort(desc.particles_name);
-
-    auto&& moment = Moment::from_string(particles, moment_name);
-
-    if (auto&& diag =
-          DistributionMoment::create(res_dir, particles, moment, desc.region)) {
-      diagnostics_.emplace_back(std::move(diag));
-    }
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode DistributionMomentBuilder::parse_moment_info(
-  const Configuration::json_t& json, MomentDescription& desc)
-{
-  PetscFunctionBeginUser;
-  desc.region.dim = 3;
-  desc.region.dof = 1;
 
   std::string message;
   try {
-    json.at("sort").get_to(desc.particles_name);
+    info.at("particles").get_to(particles);
+    info.at("moment").get_to(moment);
 
-    Vector3R start = parse_vector(json, "start");
-    Vector3R size = parse_vector(json, "size");
+    if (!available_moments.contains(moment))
+      throw std::runtime_error(
+        "Unknown moment name " + moment + " for particles " + particles);
+
+    Vector3R start{0, 0, 0};
+    Vector3R size{geom_x, geom_y, geom_z};
+
+    if (info.contains("start"))
+      start = parse_vector(info, "start");
+
+    if (info.contains("size"))
+      size = parse_vector(info, "size");
 
     for (PetscInt i = 0; i < 3; ++i) {
-      desc.region.start[i] = TO_STEP(start[i], Dx[i]);
-      desc.region.size[i] = TO_STEP(size[i], Dx[i]);
+      region.start[i] = TO_STEP(start[i], Dx[i]);
+      region.size[i] = TO_STEP(size[i], Dx[i]);
     }
 
-    PetscCall(check_region(vector_cast(desc.region.start), vector_cast(desc.region.size), desc.particles_name + " " + moment_name));
+    check_region(vector_cast(region.start), vector_cast(region.size),
+      particles + " " + moment);
   }
   catch (const std::exception& e) {
     message = e.what();
     message += usage_message();
     throw std::runtime_error(message);
   }
+
+  LOG("{} diagnostic is added for {}", moment, particles);
+
+  std::string res_dir = CONFIG().out_dir + "/" + particles + "/" + moment;
+
+  auto&& diagnostic = DistributionMoment::create(res_dir,
+    simulation_.get_named_particles(particles), moment_from_string(moment),
+    region);
+
+  if (!diagnostic)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
+  diagnostics_.emplace_back(std::move(diagnostic));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

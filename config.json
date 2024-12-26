@@ -108,6 +108,56 @@
     {
       "diagnostic": "FieldView",
       "field": "B^n"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "ions",
+      "moment": "Density"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "ions",
+      "moment": "Vr"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "ions",
+      "moment": "Vphi"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "ions",
+      "moment": "Vz"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "ions",
+      "moment": "mVrVr"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "electrons",
+      "moment": "Density"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "electrons",
+      "moment": "Vr"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "electrons",
+      "moment": "Vphi"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "electrons",
+      "moment": "Vz"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "electrons",
+      "moment": "mVrVr"
     }
   ]
 }

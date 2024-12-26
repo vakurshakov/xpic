@@ -4,26 +4,12 @@
 #include "src/interfaces/particles.h"
 #include "src/diagnostics/field_view.h"
 
-
-/**
- * @brief An utility structure to store the pointer to distribution moment
- * getter. Getter is chosen depending on the name in the constructor.
- */
-struct Moment {
-  const interfaces::Particles& particles_;
-
-  using getter = PetscReal (*)(const interfaces::Particles&, const Point&);
-  getter get = nullptr;
-
-  Moment(const interfaces::Particles& particles, const getter& get);
-  static Moment from_string(
-    const interfaces::Particles& particles, const std::string& name);
-};
-
+// clang-format off
+using Moment = PetscReal (*)(const interfaces::Particles&, const Point&);
+Moment moment_from_string(const std::string& name);
 
 /// @note The list of available moment getters
-// clang-format off
-inline PetscReal get_zeroth(const interfaces::Particles& particles, const Point& point);
+inline PetscReal get_density(const interfaces::Particles& particles, const Point& point);
 inline PetscReal get_vx(const interfaces::Particles& particles, const Point& point);
 inline PetscReal get_vy(const interfaces::Particles& particles, const Point& point);
 inline PetscReal get_vz(const interfaces::Particles& particles, const Point& point);
@@ -37,12 +23,15 @@ inline PetscReal get_m_vy_vz(const interfaces::Particles& particles, const Point
 inline PetscReal get_m_vz_vz(const interfaces::Particles& particles, const Point& point);
 inline PetscReal get_m_vr_vr(const interfaces::Particles& particles, const Point& point);
 inline PetscReal get_m_vr_vphi(const interfaces::Particles& particles, const Point& point);
+inline PetscReal get_m_vr_vz(const interfaces::Particles& particles, const Point& point);
 inline PetscReal get_m_vphi_vphi(const interfaces::Particles& particles, const Point& point);
+inline PetscReal get_m_vphi_vz(const interfaces::Particles& particles, const Point& point);
 // clang-format on
 
 
 /**
  * @brief Diagnostic of particles _coordinate_ distribution moment
+ * @todo Collect more possible diagnostics (components) at once as for FieldView (?)
  */
 class DistributionMoment : public FieldView {
 public:

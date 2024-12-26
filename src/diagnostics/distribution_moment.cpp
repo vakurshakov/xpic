@@ -149,7 +149,7 @@ PetscErrorCode DistributionMoment::collect()
           p_g, vector_cast(region_.start), vector_cast(region_.size)))
       continue;
 
-    PetscReal n = particles_.density(point) / particles_.particles_number(point);
+    PetscReal np = particles_.density(point) / particles_.particles_number(point);
 
     // clang-format off
     for (PetscInt z = 0; z < shape_width; ++z) {
@@ -160,7 +160,7 @@ PetscErrorCode DistributionMoment::collect()
       PetscInt g_z = p_g[Z] + z;
 
 #pragma omp atomic update
-      arr[g_z][g_y][g_x] += moment_.get(particles_, point) * n *
+      arr[g_z][g_y][g_x] += moment_(particles_, point) * np *
         shape_function(p_r[X] - g_x) *
         shape_function(p_r[Y] - g_y) *
         shape_function(p_r[Z] - g_z);
@@ -173,8 +173,8 @@ PetscErrorCode DistributionMoment::collect()
 }
 
 
-inline PetscReal get_zeroth(
-  const Particles& /* particles */, const Point& /* point */)
+// clang-format off
+inline PetscReal get_density(const Particles& /* particles */, const Point& /* point */)
 {
   return 1.0;
 }
@@ -196,38 +196,32 @@ inline PetscReal get_vz(const Particles& particles, const Point& point)
 
 inline PetscReal get_m_vx_vx(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vx(particles, point) *
-    get_vx(particles, point);
+  return particles.mass(point) * get_vx(particles, point) * get_vx(particles, point);
 }
 
 inline PetscReal get_m_vx_vy(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vx(particles, point) *
-    get_vy(particles, point);
+  return particles.mass(point) * get_vx(particles, point) * get_vy(particles, point);
 }
 
 inline PetscReal get_m_vx_vz(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vx(particles, point) *
-    get_vz(particles, point);
+  return particles.mass(point) * get_vx(particles, point) * get_vz(particles, point);
 }
 
 inline PetscReal get_m_vy_vy(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vy(particles, point) *
-    get_vy(particles, point);
+  return particles.mass(point) * get_vy(particles, point) * get_vy(particles, point);
 }
 
 inline PetscReal get_m_vy_vz(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vy(particles, point) *
-    get_vz(particles, point);
+  return particles.mass(point) * get_vy(particles, point) * get_vz(particles, point);
 }
 
 inline PetscReal get_m_vz_vz(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vz(particles, point) *
-    get_vz(particles, point);
+  return particles.mass(point) * get_vz(particles, point) * get_vz(particles, point);
 }
 
 inline PetscReal get_vr(const Particles& particles, const Point& point)
@@ -258,60 +252,67 @@ inline PetscReal get_vphi(const Particles& particles, const Point& point)
 
 inline PetscReal get_m_vr_vr(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vr(particles, point) *
-    get_vr(particles, point);
+  return particles.mass(point) * get_vr(particles, point) * get_vr(particles, point);
 }
 
 inline PetscReal get_m_vr_vphi(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vr(particles, point) *
-    get_vphi(particles, point);
+  return particles.mass(point) * get_vr(particles, point) * get_vphi(particles, point);
+}
+
+inline PetscReal get_m_vr_vz(const Particles& particles, const Point& point)
+{
+  return particles.mass(point) * get_vr(particles, point) * get_vz(particles, point);
 }
 
 inline PetscReal get_m_vphi_vphi(const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vphi(particles, point) *
-    get_vphi(particles, point);
+  return particles.mass(point) * get_vphi(particles, point) * get_vphi(particles, point);
 }
 
-
-Moment::Moment(const Particles& particles, const getter& get)
-  : particles_(particles), get(get)
+inline PetscReal get_m_vphi_vz(const Particles& particles, const Point& point)
 {
+  return particles.mass(point) * get_vphi(particles, point) * get_vz(particles, point);
 }
+// clang-format on
 
-Moment Moment::from_string(const Particles& particles, const std::string& name)
+
+Moment moment_from_string(const std::string& name)
 {
-  if (name == "zeroth_moment")
-    return Moment{particles, get_zeroth};
-  if (name == "Vx_moment")
-    return Moment{particles, get_vx};
-  if (name == "Vy_moment")
-    return Moment{particles, get_vy};
-  if (name == "Vz_moment")
-    return Moment{particles, get_vz};
-  if (name == "Vr_moment")
-    return Moment{particles, get_vr};
-  if (name == "Vphi_moment")
-    return Moment{particles, get_vphi};
-  if (name == "mVxVx_moment")
-    return Moment{particles, get_m_vx_vx};
-  if (name == "mVxVy_moment")
-    return Moment{particles, get_m_vx_vy};
-  if (name == "mVxVz_moment")
-    return Moment{particles, get_m_vx_vz};
-  if (name == "mVyVy_moment")
-    return Moment{particles, get_m_vy_vy};
-  if (name == "mVyVz_moment")
-    return Moment{particles, get_m_vy_vz};
-  if (name == "mVzVz_moment")
-    return Moment{particles, get_m_vz_vz};
-  if (name == "mVrVr_moment")
-    return Moment{particles, get_m_vr_vr};
-  if (name == "mVrVphi_moment")
-    return Moment{particles, get_m_vr_vphi};
-  if (name == "mVphiVphi_moment")
-    return Moment{particles, get_m_vphi_vphi};
+  if (name == "Density")
+    return get_density;
+  if (name == "Vx")
+    return get_vx;
+  if (name == "Vy")
+    return get_vy;
+  if (name == "Vz")
+    return get_vz;
+  if (name == "Vr")
+    return get_vr;
+  if (name == "Vphi")
+    return get_vphi;
+  if (name == "mVxVx")
+    return get_m_vx_vx;
+  if (name == "mVxVy")
+    return get_m_vx_vy;
+  if (name == "mVxVz")
+    return get_m_vx_vz;
+  if (name == "mVyVy")
+    return get_m_vy_vy;
+  if (name == "mVyVz")
+    return get_m_vy_vz;
+  if (name == "mVzVz")
+    return get_m_vz_vz;
+  if (name == "mVrVr")
+    return get_m_vr_vr;
+  if (name == "mVrVphi")
+    return get_m_vr_vphi;
+  if (name == "mVrVz")
+    return get_m_vr_vz;
+  if (name == "mVphiVphi")
+    return get_m_vphi_vphi;
+  if (name == "mVphiVz")
+    return get_m_vphi_vz;
 
-  throw std::runtime_error("Unkown moment name!");
+  throw std::runtime_error("Unkown moment name " + std::string(name));
 }
