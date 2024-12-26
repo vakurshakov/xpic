@@ -2,10 +2,12 @@
 
 #include "src/utils/configuration.h"
 
-CircleGeometry::CircleGeometry(const Vector3R& center, PetscReal radius)
-  : center(center), radius(radius)
-{
-}
+class RemoveParticles::RemoveFromCircle {
+public:
+  RemoveFromCircle(const CircleGeometry& geom);
+  bool operator()(const Point& point);
+  CircleGeometry geom_;
+};
 
 
 RemoveParticles::RemoveParticles(

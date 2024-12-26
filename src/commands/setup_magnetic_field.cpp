@@ -2,6 +2,14 @@
 
 #include "src/utils/configuration.h"
 
+class SetupMagneticField::UniformField {
+public:
+  UniformField(const Vector3R& value);
+  PetscErrorCode operator()(Vec storage);
+  Vector3R value_;
+};
+
+
 SetupMagneticField::SetupMagneticField(Vec storage, const Vector3R& value)
   : storage_(storage), setup_(UniformField(value))
 {
