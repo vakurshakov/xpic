@@ -31,10 +31,6 @@ private:
       "                         c/w_pe units. Optional, \"Geometry\"\n"
       "                         settings will be used if empty.\n"
       "}";
-      // "i.e. mVxVy, mVxVz, ...\n"
-      // "\n"
-    // "  - density, Vx_moment, mVxVy_moment, etc. collect moments onto (x, y, "
-    // "z) coordinates in units of c/w_pe.\n";
     return help;
   }
 };
