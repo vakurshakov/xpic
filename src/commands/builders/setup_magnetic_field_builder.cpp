@@ -26,8 +26,8 @@ PetscErrorCode SetupMagneticFieldBuilder::build(const Configuration::json_t& jso
     throw std::runtime_error(message);
   }
 
-  auto&& diag =
-    std::make_unique<SetupMagneticField>(get_global_vector(field), value);
+  auto&& diag = std::make_unique<SetupMagneticField>(
+    simulation_.get_named_vector(field), value);
 
   commands_.emplace_back(std::move(diag));
 

@@ -140,6 +140,23 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 }
 
 
+Vec Simulation::get_named_vector(std::string_view name) const
+{
+  if (name == "E")
+    return E_;
+  if (name == "B")
+    return B_;
+  if (name == "DB")
+    return DB_;
+  throw std::runtime_error("Unknown vector name " + std::string(name));
+}
+
+const Particles& Simulation::get_named_particles(std::string_view name) const
+{
+  return interfaces::Simulation::get_named_particles(name, particles_);
+}
+
+
 Simulation::~Simulation()
 {
   PetscFunctionBeginUser;

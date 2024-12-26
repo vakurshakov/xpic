@@ -7,7 +7,6 @@
 #include "src/interfaces/command.h"
 #include "src/utils/vector3.h"
 
-
 class SetupMagneticField : public interfaces::Command {
 public:
   SetupMagneticField(Vec storage, const Vector3R& value);

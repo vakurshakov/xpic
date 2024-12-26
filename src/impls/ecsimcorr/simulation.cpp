@@ -3,6 +3,7 @@
 #include "src/commands/inject_particles.h"
 #include "src/commands/remove_particles.h"
 #include "src/commands/setup_magnetic_field.h"
+#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/utils/operators.h"
 #include "src/utils/particles_load.hpp"
 #include "src/utils/utils.h"
@@ -72,6 +73,8 @@ PetscErrorCode Simulation::initialize_implementation()
     CoordinateInCylinder(radius, height, center),               //
     MaxwellianMomentum(ions->parameters(), true),               //
     MaxwellianMomentum(electrons->parameters(), true)));
+
+  PetscCall(build_diagnostics(*this, diagnostics_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -86,14 +89,6 @@ PetscErrorCode Simulation::init_vectors()
   PetscCall(DMCreateGlobalVector(da, &currI));
   PetscCall(DMCreateGlobalVector(da, &currJ));
   PetscCall(DMCreateGlobalVector(da, &currJe));
-
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(E),  "E^n"));
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(En), "E^{n+1/2}"));
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(B),  "B^n"));
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(B0), "B^0"));
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(currI), "I"));
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(currI), "J_{ecsim}"));
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(currI), "J_{esirkepov}"));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -103,8 +98,6 @@ PetscErrorCode Simulation::init_matrices()
   DM da = world_.da;
   PetscCall(DMCreateMatrix(da, &matL));
   PetscCall(MatSetOption(matL, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(matL), "Lapenta matrix"));
-
   PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
 
   Rotor rotor(da);
@@ -118,7 +111,6 @@ PetscErrorCode Simulation::init_matrices()
   PetscCall(MatProductNumeric(matM));  // matM = rotB(rotE())
   PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
   PetscCall(MatShift(matM, 2.0));  // matM = 2 * I + matM
-  PetscCall(PetscObjectSetName(reinterpret_cast<PetscObject>(matM), "Utility matrix"));
 
   PetscCall(MatScale(rotE, -dt));
   PetscCall(MatScale(rotB, +dt));
@@ -269,6 +261,38 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec rhs)
   // Convergence analysis
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+Vec Simulation::get_named_vector(std::string_view name) const
+{
+  if (name == "E^n")
+    return E;
+  if (name == "E^{n+1/2}")
+    return En;
+  if (name == "B^n")
+    return B;
+  if (name == "B^0")
+    return B0;
+  if (name == "I")
+    return currI;
+  if (name == "J_{ecsim}")
+    return currI;
+  if (name == "J_{esirkepov}")
+    return currI;
+  throw std::runtime_error("Unknown vector name " + std::string(name));
+}
+
+const Particles& Simulation::get_named_particles(std::string_view name) const
+{
+  auto it = std::find_if(particles_.begin(), particles_.end(),  //
+    [&](const auto& sort) {
+      return sort->parameters().sort_name == name;
+    });
+
+  if (it == particles_.end())
+    throw std::runtime_error("No particles with name " + std::string(name));
+  return **it;
 }
 
 

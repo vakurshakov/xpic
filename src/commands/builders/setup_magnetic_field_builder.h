@@ -3,7 +3,6 @@
 
 #include "src/commands/builders/command_builder.h"
 
-
 class SetupMagneticFieldBuilder : public CommandBuilder {
 public:
   SetupMagneticFieldBuilder(

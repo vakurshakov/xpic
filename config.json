@@ -100,5 +100,14 @@
     }
   ],
 
-  "Diagnostics": {}
+  "Diagnostics": [
+    {
+      "diagnostic": "FieldView",
+      "field": "E^n"
+    },
+    {
+      "diagnostic": "FieldView",
+      "field": "B^n"
+    }
+  ]
 }

@@ -1,8 +1,8 @@
-#ifndef SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
-#define SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
+#ifndef SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
+#define SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
 
+#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/diagnostics/distribution_moment.h"
-#include "src/impls/basic/builders/diagnostic_builder.h"
 
 class DistributionMomentBuilder : public DiagnosticBuilder {
 public:
@@ -10,7 +10,7 @@ public:
     std::vector<Diagnostic_up>& diagnostics, const std::string& moment_name,
     const std::string& proj_name);
 
-  PetscErrorCode build(const Configuration::json_t& diag_info) override;
+  PetscErrorCode build(const Configuration::json_t& info) override;
 
 private:
   std::string_view usage_message() const override
@@ -51,4 +51,4 @@ private:
     const Configuration::json_t& json, MomentDescription& desc);
 };
 
-#endif  // SRC_BASIC_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
+#endif  // SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H

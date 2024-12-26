@@ -20,9 +20,7 @@ int main(int argc, char** argv)
     Configuration::init(argv[1]);
     Configuration::save();
 
-    const Configuration& config = CONFIG();
     Simulation_up simulation = build_simulation();
-
     PetscCall(simulation->initialize());
     PetscCall(simulation->calculate());
   }

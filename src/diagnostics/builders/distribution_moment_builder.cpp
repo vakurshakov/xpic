@@ -15,9 +15,16 @@ DistributionMomentBuilder::DistributionMomentBuilder(
 
 
 PetscErrorCode DistributionMomentBuilder::build(
-  const Configuration::json_t& diag_info)
+  const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
+// name == "density" || name == "Vx_moment" || name == "Vy_moment" ||
+//       name == "Vz_moment" || name == "Vr_moment" || name == "Vphi_moment" ||
+//       name == "mVxVx_moment" || name == "mVxVy_moment" ||
+//       name == "mVxVz_moment" || name == "mVyVy_moment" ||
+//       name == "mVyVz_moment" || name == "mVzVz_moment" ||
+//       name == "mVrVr_moment" || name == "mVrVphi_moment" ||
+//       name == "mVphiVphi_moment"
 
   auto parse_info = [&](const Configuration::json_t& info) -> PetscErrorCode {
     PetscFunctionBeginHot;
@@ -28,7 +35,7 @@ PetscErrorCode DistributionMomentBuilder::build(
   };
 
   /// @todo Vectorisation of parameters
-  PetscCall(parse_info(diag_info));
+  PetscCall(parse_info(info));
 
   for (const MomentDescription& desc : moments_desc_) {
     LOG("Add {}_of_{} diagnostic for {}", moment_name, proj_name, desc.particles_name);

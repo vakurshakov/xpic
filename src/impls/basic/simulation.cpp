@@ -1,6 +1,6 @@
 #include "simulation.h"
 
-#include "src/impls/basic/builders/diagnostic_builder.h"
+#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
@@ -54,6 +54,22 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   PetscCall(VecAXPY(E_, -1, J_));              // E (n+1) = E'(n+1) - J
 
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+Vec Simulation::get_named_vector(std::string_view name) const
+{
+  if (name == "E")
+    return E_;
+  if (name == "B")
+    return B_;
+  if (name == "J")
+    return J_;
+  throw std::runtime_error("Unknown vector name " + std::string(name));
+}
+
+const Particles& Simulation::get_named_particles(std::string_view name) const
+{
+  return interfaces::Simulation::get_named_particles(name, particles_);
 }
 
 

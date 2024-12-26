@@ -23,7 +23,7 @@ endif()
 
 set(CMAKE_CXX_FLAGS "-fpic -fopenmp -pthread")
 
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-unused-variable -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
 
 set(constants
@@ -50,6 +50,10 @@ set(diagnostics
   src/diagnostics/field_view.cpp
   src/diagnostics/fields_energy.cpp
   src/diagnostics/distribution_moment.cpp
+  src/diagnostics/builders/diagnostic_builder.cpp
+  src/diagnostics/builders/field_view_builder.cpp
+  # src/diagnostics/builders/fields_energy_builder.cpp
+  # src/diagnostics/builders/distribution_moment_builder.cpp
 )
 
 set(commands
@@ -74,8 +78,6 @@ set(utils
 set(impls_basic
   src/impls/basic/simulation.cpp
   src/impls/basic/particles.cpp
-  src/impls/basic/builders/diagnostic_builder.cpp
-  src/impls/basic/builders/field_view_builder.cpp
 )
 
 set(impls_ecsimcorr
@@ -84,7 +86,6 @@ set(impls_ecsimcorr
 )
 
 set(impls_ricketson
-  src/impls/basic/builders/distribution_moment_builder.cpp
   src/impls/ricketson/simulation.cpp
   src/impls/ricketson/particles.cpp
 )

@@ -4,6 +4,7 @@
 #include "src/pch.h"
 #include "src/interfaces/command.h"
 #include "src/interfaces/diagnostic.h"
+#include "src/interfaces/particles.h"
 #include "src/interfaces/world.h"
 
 namespace interfaces {
@@ -20,6 +21,9 @@ public:
   PetscErrorCode initialize();
   PetscErrorCode calculate();
 
+  virtual Vec get_named_vector(std::string_view name) const = 0;
+  virtual const Particles& get_named_particles(std::string_view name) const = 0;
+
 protected:
   virtual PetscErrorCode initialize_implementation() = 0;
   virtual PetscErrorCode log_information() const;
@@ -32,6 +36,21 @@ protected:
 
   std::list<Command_up> step_presets_;
   std::vector<Diagnostic_up> diagnostics_;
+
+
+  template<class ParticlesContainer>
+  static auto&& get_named_particles(
+    std::string_view name, const ParticlesContainer& storage)
+  {
+    auto it = std::find_if(storage.begin(), storage.end(),  //
+      [&](const auto& sort) {
+        return sort.parameters().sort_name == name;
+      });
+
+    if (it == storage.end())
+      throw std::runtime_error("No particles with name " + std::string(name));
+    return *it;
+  }
 };
 
 }  // namespace interfaces
