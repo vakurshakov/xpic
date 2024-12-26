@@ -15,11 +15,11 @@ private:
   std::string_view usage_message() const override
   {
     std::string_view help =
-      "\n Structure of the DistributionMoment diagnostics description:\n"
+      "\nStructure of the DistributionMoment diagnostics description:\n"
       "{\n"
       "  \"diagnostic\": \"DistributionMoment\" -- Name of the diagnostic.\n"
       "  \"particles\": \"electrons\", -- Name from `Particles` settings.\n"
-      "  \"moment\": \"Density\", -- Name of the moment getter, available "
+      "  \"moment\": \"Density\", -- Name of the moment getter, available\n"
       "                           getters are: Density, Vx, Vy, Vz, Vr, Vphi\n"
       "                           mVxVx, mVxVy, mVxVz, mVyVy, mVyVz, mVzVz\n"
       "                           mVrVr, mVrVphi, mVrVz, mVphiVphi, mVphiVz.\n"
