@@ -3,7 +3,7 @@
 #include "src/utils/configuration.h"
 #include "src/utils/random_generator.h"
 
-InjectParticles::InjectParticles( //
+InjectParticles::InjectParticles(                //
   interfaces::Particles& ionized,                //
   interfaces::Particles& ejected,                //
   timestep_t injection_start,                    //
@@ -37,22 +37,34 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
   const PetscInt Npe = ejected_.parameters().Np;
   const PetscReal me = ejected_.parameters().m;
 
-  PetscReal loaded_energy_i = 0;
-  PetscReal loaded_energy_e = 0;
+  energy_i_ = 0.0;
+  energy_e_ = 0.0;
 
   for (PetscInt p = 0; p < per_step_particles_num_; ++p) {
     Vector3R shared_coordinate = generate_coordinate_();
     Vector3R vi = generate_vi_(shared_coordinate);
     Vector3R ve = generate_ve_(shared_coordinate);
 
-    loaded_energy_i += 0.5 * (mi * vi.squared()) * (dx * dy * dz) / Npi;
-    loaded_energy_e += 0.5 * (me * ve.squared()) * (dx * dy * dz) / Npe;
+    /// @todo different formula should be used for relativity case
+    energy_i_ += 0.5 * (mi * vi.squared()) * (dx * dy * dz) / Npi;
+    energy_e_ += 0.5 * (me * ve.squared()) * (dx * dy * dz) / Npe;
 
     ionized_.add_particle(Point(shared_coordinate, vi));
     ejected_.add_particle(Point(shared_coordinate, ve));
   }
 
-  LOG("Energy of \"{}\" (ionized) added in {} step: {}", ionized_.parameters().sort_name, t, loaded_energy_i);
-  LOG("Energy of \"{}\" (ejected) added in {} step: {}", ejected_.parameters().sort_name, t, loaded_energy_e);
+  LOG("Energy of \"{}\" (ionized) added in {} step: {}", ionized_.parameters().sort_name, t, energy_i_);
+  LOG("Energy of \"{}\" (ejected) added in {} step: {}", ejected_.parameters().sort_name, t, energy_e_);
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+PetscReal InjectParticles::get_ionized_energy() const
+{
+  return energy_i_;
+}
+
+PetscReal InjectParticles::get_ejected_energy() const
+{
+  return energy_e_;
 }

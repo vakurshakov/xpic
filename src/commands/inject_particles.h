@@ -40,6 +40,9 @@ public:
     return t >= injection_end_;
   }
 
+  PetscReal get_ionized_energy() const;
+  PetscReal get_ejected_energy() const;
+
 private:
   using Particles = interfaces::Particles;
   Particles& ionized_;
@@ -52,6 +55,9 @@ private:
   CoordinateGenerator generate_coordinate_;
   VelocityGenerator generate_vi_;
   VelocityGenerator generate_ve_;
+
+  PetscReal energy_i_;
+  PetscReal energy_e_;
 };
 
 #endif // SRC_COMMANDS_INJECT_PARTICLES_H
