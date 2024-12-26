@@ -2,7 +2,6 @@
 
 #include "src/diagnostics/builders/distribution_moment_builder.h"
 #include "src/diagnostics/builders/field_view_builder.h"
-#include "src/diagnostics/builders/fields_energy_builder.h"
 #include "src/utils/region_operations.h"
 
 namespace {

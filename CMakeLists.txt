@@ -48,7 +48,7 @@ set(algorithms
 
 set(diagnostics
   src/diagnostics/field_view.cpp
-  src/diagnostics/fields_energy.cpp
+  # src/diagnostics/fields_energy.cpp
   src/diagnostics/distribution_moment.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
