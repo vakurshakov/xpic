@@ -14,24 +14,28 @@ public:
 private:
   std::string_view usage_message() const override
   {
-    // clang-format off
-    return "\n"
-      "Usage: The structure of the distribution_moment diagnostics description\n"
-      "\"moment_name\": -- Name of the collected distribution moment, listed after description.\n"
+    std::string_view help =
+      "\n Structure of the DistributionMoment diagnostics description:\n"
       "{\n"
-      "  \"sort\": \"electrons\", -- Particles sort name, must match names from particles section.\n"
-      "  \"start\": [ox, oy, oz], -- Starting point of a diagnostic in _global_ coordinates.\n"
-      "  \"size\":  [sx, sy, sz], -- Sizes of a diagnosed region along each coordinate in _global_ coordinates.\n"
-      "}\n"
-      "\n"
-      "Available distribution moment names are:\n"
-      "  - density (zeroth_moment for x, y, z);\n"
-      "  - Vx_moment and moments of Vy, Vz, Vr, Vphi;\n"
-      "  - mVxVx_moment and right-first combinations with Vy, Vz, Vr, Vphi, i.e. mVxVy, mVxVz, ...\n"
-      "\n"
-      "The region, described by \"start\", \"size\" and \"dp\", should use units coherent with distribution moment:\n"
-      "  - density, Vx_moment, mVxVy_moment, etc. collect moments onto (x, y, z) coordinates in units of c/w_pe.\n";
-    // clang-format on
+      "  \"diagnostic\": \"DistributionMoment\" -- Name of the diagnostic.\n"
+      "  \"particles\": \"electrons\", -- Name from `Particles` settings.\n"
+      "  \"moment\": \"Density\", -- Name of the moment getter, available "
+      "                           getters are: Density, Vx, Vy, Vz, Vr, Vphi\n"
+      "                           mVxVx, mVxVy, mVxVz, mVyVy, mVyVz, mVzVz\n"
+      "                           mVrVr, mVrVphi, mVrVz, mVphiVphi, mVphiVz.\n"
+      "  \"start\": [ox, oy, oz], -- Starting point of a diagnosed region, in\n"
+      "                           global coordinates of c/w_pe units.\n"
+      "                           Optional, zeros will be used if empty.\n"
+      "  \"size\": [sx, sy, sz] -- Sizes of a diagnosed region along each\n"
+      "                         direction, in global coordinates of\n"
+      "                         c/w_pe units. Optional, \"Geometry\"\n"
+      "                         settings will be used if empty.\n"
+      "}";
+      // "i.e. mVxVy, mVxVz, ...\n"
+      // "\n"
+    // "  - density, Vx_moment, mVxVy_moment, etc. collect moments onto (x, y, "
+    // "z) coordinates in units of c/w_pe.\n";
+    return help;
   }
 };
 

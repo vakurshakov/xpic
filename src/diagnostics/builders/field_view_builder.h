@@ -15,7 +15,7 @@ private:
   std::string_view usage_message() const override
   {
     std::string_view help =
-      "\n The structure of the FieldView diagnostic description: \n"
+      "\n Structure of the FieldView diagnostic description:\n"
       "{\n"
       "  \"diagnostic\": \"FieldView\", -- Name of the diagnostic, constant."
       "  \"field\": \"E\", -- Field name set by `PetscObjectSetName()`.\n"
