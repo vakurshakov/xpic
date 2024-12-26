@@ -4,22 +4,22 @@
   "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "x": 100,
-    "y": 100,
-    "z": 2,
+    "x": 250,
+    "y": 250,
+    "z": 1,
     "t": 10000,
-    "[x]": "units of dx",
-    "[y]": "units of dy",
-    "[z]": "units of dz",
-    "[t]": "units of dt",
+    "[x]": "c/w_pe",
+    "[y]": "c/w_pe",
+    "[z]": "c/w_pe",
+    "[t]": "1/w_pe",
 
     "dx": 0.5,
     "dy": 0.5,
     "dz": 0.5,
     "dt": 1.5,
 
-    "diagnose_period": 4,
-    "[dp]": "units of dt",
+    "diagnose_period": 6,
+    "[dp]": "1/w_pe",
 
     "da_boundary_x": "DM_BOUNDARY_GHOSTED",
     "da_boundary_y": "DM_BOUNDARY_GHOSTED",
@@ -52,8 +52,8 @@
   "Presets": [
     {
       "command": "SetupMagneticField",
-      "storage": "B^0",
-      "value": [ 0.0, 0.0, 0.1 ]
+      "field": "B^0",
+      "value": [ 0.0, 0.0, 0.2 ]
     }
   ],
 
@@ -63,8 +63,8 @@
       "particles": "ions",
       "geometry": {
         "name": "CircleGeometry",
-        "radius": 48,
-        "center": [ 50, 50, 0.5 ]
+        "radius": 123,
+        "center": [ 125, 125, 0.5 ]
       }
     },
     {
@@ -72,8 +72,8 @@
       "particles": "electrons",
       "geometry": {
         "name": "CircleGeometry",
-        "radius": 48,
-        "center": [ 50, 50, 0.5 ]
+        "radius": 123,
+        "center": [ 125, 125, 0.5 ]
       }
     },
     {
@@ -85,9 +85,9 @@
       "per_step_particles_num": 2000,
       "set_point_of_birth": {
         "name": "CoordinateInCylinder",
-        "radius": 30,
+        "radius": 15,
         "height": 1,
-        "center": [ 50, 50, 0.5 ]
+        "center": [ 125, 125, 0.5 ]
       },
       "load_momentum_i": {
         "name": "MaxwellianMomentum",

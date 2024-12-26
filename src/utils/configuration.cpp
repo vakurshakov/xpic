@@ -28,24 +28,26 @@ void Configuration::init(const std::string& config_path)
   Dx[1] = dy;
   Dx[2] = dz;
 
-  /// @todo Read with dimension?
-  geometry.at("x").get_to(geom_nx);
-  geometry.at("y").get_to(geom_ny);
-  geometry.at("z").get_to(geom_nz);
-  geometry.at("t").get_to(geom_nt);
-  Geom_n[0] = geom_nx;
-  Geom_n[1] = geom_ny;
-  Geom_n[2] = geom_nz;
-
-  geom_x = geom_nx * dx;
-  geom_y = geom_ny * dy;
-  geom_z = geom_nz * dz;
-  geom_t = geom_nt * dt;
+  /// @todo Probably it would be better to use cells everywhere
+  geometry.at("x").get_to(geom_x);
+  geometry.at("y").get_to(geom_y);
+  geometry.at("z").get_to(geom_z);
+  geometry.at("t").get_to(geom_t);
   Geom[0] = geom_x;
   Geom[1] = geom_y;
   Geom[2] = geom_z;
 
-  geometry.at("diagnose_period").get_to(diagnose_period);
+  geom_nx = TO_STEP(geom_x, dx);
+  geom_ny = TO_STEP(geom_y, dy);
+  geom_nz = TO_STEP(geom_z, dz);
+  geom_nt = TO_STEP(geom_t, dt);
+  Geom_n[0] = geom_nx;
+  Geom_n[1] = geom_ny;
+  Geom_n[2] = geom_nz;
+
+  PetscReal diagnose_period_wp;
+  geometry.at("diagnose_period").get_to(diagnose_period_wp);
+  diagnose_period = TO_STEP(diagnose_period_wp, dt);
 }
 
 
