@@ -51,6 +51,7 @@ private:
   PetscErrorCode init_vectors();
   PetscErrorCode init_matrices();
   PetscErrorCode init_ksp_solvers();
+  PetscErrorCode init_log_stages();
 
   PetscErrorCode clear_sources();
   PetscErrorCode predict_fields();
@@ -65,6 +66,8 @@ private:
 
   KSP predict;
   KSP correct;
+
+  PetscLogStage stagenums[6];
 };
 
 }  // namespace ecsimcorr

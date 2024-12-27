@@ -75,6 +75,7 @@ PetscErrorCode Simulation::initialize_implementation()
     MaxwellianMomentum(electrons->parameters(), true)));
 
   PetscCall(build_diagnostics(*this, diagnostics_));
+  PetscCall(init_log_stages());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -142,45 +143,50 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode Simulation::init_log_stages()
+{
+  PetscFunctionBeginUser;
+  PetscLogStageRegister("Clear sources", &stagenums[0]);
+  PetscLogStageRegister("First particles push", &stagenums[1]);
+  PetscLogStageRegister("Predict electric field", &stagenums[2]);
+  PetscLogStageRegister("Second particles push", &stagenums[3]);
+  PetscLogStageRegister("Correct electric and magnetic fields", &stagenums[4]);
+  PetscLogStageRegister("Final particles update", &stagenums[5]);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 {
   PetscFunctionBeginUser;
-  PetscLogStage stagenum = -1;
-  PetscLogStageRegister("Clear sources", &stagenum);
-  PetscLogStagePush(stagenum);
+  PetscLogStagePush(stagenums[0]);
 
   PetscCall(clear_sources());
 
   PetscLogStagePop();
-  PetscLogStageRegister("First particles push", &stagenum);
-  PetscLogStagePush(stagenum);
+  PetscLogStagePush(stagenums[1]);
 
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
 
   PetscLogStagePop();
-  PetscLogStageRegister("Predict electric field", &stagenum);
-  PetscLogStagePush(stagenum);
+  PetscLogStagePush(stagenums[2]);
 
   PetscCall(predict_fields());
 
   PetscLogStagePop();
-  PetscLogStageRegister("Second particles push", &stagenum);
-  PetscLogStagePush(stagenum);
+  PetscLogStagePush(stagenums[3]);
 
   for (auto& sort : particles_)
     PetscCall(sort->second_push());
 
   PetscLogStagePop();
-  PetscLogStageRegister("Correct electric and magnetic fields", &stagenum);
-  PetscLogStagePush(stagenum);
+  PetscLogStagePush(stagenums[4]);
 
   PetscCall(correct_fields());
 
   PetscLogStagePop();
-  PetscLogStageRegister("Final particles update", &stagenum);
-  PetscLogStagePush(stagenum);
+  PetscLogStagePush(stagenums[5]);
 
   for (auto& sort : particles_) {
     PetscCall(sort->final_update());

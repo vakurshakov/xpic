@@ -15,6 +15,11 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   DM da = world_.da;
   PetscCallVoid(DMCreateLocalVector(da, &local_currI));
   PetscCallVoid(DMCreateLocalVector(da, &local_currJe));
+
+  PetscClassIdRegister("ecsimcorr::Particles", &classid);
+  PetscLogEventRegister("first_push", classid, &events[0]);
+  PetscLogEventRegister("second_push", classid, &events[1]);
+  PetscLogEventRegister("final_update", classid, &events[2]);
   PetscFunctionReturnVoid();
 }
 
@@ -46,11 +51,7 @@ PetscErrorCode Particles::first_push()
   PetscCall(DMDAVecGetArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
   PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
-  PetscLogEvent event;
-  PetscClassId classid;
-  PetscClassIdRegister("ecsimcorr::Particles", &classid);
-  PetscLogEventRegister(__func__, classid, &event);
-  PetscLogEventBegin(event, 0, 0, 0, 0);
+  PetscLogEventBegin(events[0], 0, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -70,7 +71,7 @@ PetscErrorCode Particles::first_push()
     decompose_esirkepov_current(shape, point);
   }
 
-  PetscLogEventEnd(event, 0, 0, 0, 0);
+  PetscLogEventEnd(events[0], 0, 0, 0, 0);
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
   PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
@@ -100,11 +101,7 @@ PetscErrorCode Particles::second_push()
   PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
   PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
 
-  PetscLogEvent event;
-  PetscClassId classid;
-  PetscClassIdRegister("ecsimcorr::Particles", &classid);
-  PetscLogEventRegister(__func__, classid, &event);
-  PetscLogEventBegin(event, 0, 0, 0, 0);
+  PetscLogEventBegin(events[1], 0, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -125,7 +122,7 @@ PetscErrorCode Particles::second_push()
     decompose_esirkepov_current(shape, point);
   }
 
-  PetscLogEventEnd(event, 0, 0, 0, 0);
+  PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
@@ -142,11 +139,7 @@ PetscErrorCode Particles::second_push()
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
-  PetscLogEvent event;
-  PetscClassId classid;
-  PetscClassIdRegister("ecsimcorr::Particles", &classid);
-  PetscLogEventRegister(__func__, classid, &event);
-  PetscLogEventBegin(event, 0, 0, 0, 0);
+  PetscLogEventBegin(events[2], 0, 0, 0, 0);
 
   PetscReal w1 = simulation_.w1;
   PetscReal w2 = simulation_.w2;
@@ -161,7 +154,7 @@ PetscErrorCode Particles::final_update()
   for (auto& point : points_)
     point.p *= 1.0 + dt * (w2 - w1) / wp;
 
-  PetscLogEventEnd(event, 0, 0, 0, 0);
+  PetscLogEventEnd(events[2], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

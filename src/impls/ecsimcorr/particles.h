@@ -45,6 +45,9 @@ private:
   Vector3R*** B;
   Vector3R*** currI;
   Vector3R*** currJe;
+
+  PetscClassId classid;
+  PetscLogEvent events[3];
 };
 
 }  // namespace ecsimcorr
