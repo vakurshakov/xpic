@@ -31,14 +31,14 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
   if (t < injection_start_)
     PetscFunctionReturn(PETSC_SUCCESS);
 
+  energy_i_ = 0.0;
+  energy_e_ = 0.0;
+
   const PetscInt Npi = ionized_.parameters().Np;
   const PetscReal mi = ionized_.parameters().m;
 
   const PetscInt Npe = ejected_.parameters().Np;
   const PetscReal me = ejected_.parameters().m;
-
-  energy_i_ = 0.0;
-  energy_e_ = 0.0;
 
   for (PetscInt p = 0; p < per_step_particles_num_; ++p) {
     Vector3R shared_coordinate = generate_coordinate_();
@@ -53,8 +53,9 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
     ejected_.add_particle(Point(shared_coordinate, ve));
   }
 
-  LOG("Energy of \"{}\" (ionized) added in {} step: {}", ionized_.parameters().sort_name, t, energy_i_);
-  LOG("Energy of \"{}\" (ejected) added in {} step: {}", ejected_.parameters().sort_name, t, energy_e_);
+  constexpr auto message = "Particles are added into \"{}\"; particles added: {}, energy added: {}";
+  LOG(message, ionized_.parameters().sort_name, per_step_particles_num_, energy_i_);
+  LOG(message, ejected_.parameters().sort_name, per_step_particles_num_, energy_e_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

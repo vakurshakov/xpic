@@ -39,9 +39,10 @@ PetscErrorCode FieldsDamping::execute(timestep_t /* t */)
       damp_(z, y, x, f, damped_energy_);
     }}}
     // clang-format on
-
     PetscCall(DMDAVecRestoreArrayWrite(da_, storage, reinterpret_cast<void*>(&f)));
   }
+
+  LOG("Fields are damped, additional energy runoff is {}", damped_energy_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -75,8 +76,10 @@ void FieldsDamping::DampForCircle::operator()(
   PetscReal damping = 0.0;
 
   if (delta < delta0) {
-    damping = 1.0 - coefficient_ * (delta / width - 1.0) * (delta / width - 1.0);
+    damping = 1.0 - coefficient_ * POW2(delta / width - 1.0);
   }
 
-  f[z][y][x] *= damping;
+  Vector3R& ff = f[z][y][x];
+  energy += 0.5 * ff.squared() * (dx * dy * dz) * (1.0 - POW2(damping));
+  ff *= damping;
 }

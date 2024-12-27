@@ -13,11 +13,14 @@ public:
 
   PetscErrorCode execute(timestep_t t) override;
 
+  PetscReal get_removed_energy() const;
+
 private:
   interfaces::Particles& particles_;
 
-  using Remove = std::function<PetscErrorCode(const Point& /* point */)>;
-  Remove remove_;
+  using Tester = std::function<bool(const Point& /* point */)>;
+  Tester should_remove_;
+  PetscReal removed_energy_;
 
   class RemoveFromCircle;
 };
