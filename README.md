@@ -17,11 +17,10 @@ Change the directory to `./external/petsc/` and configure the library. The follo
 ```sh
 ./configure PETSC_ARCH=linux-mpi-debug  \
   --with-fc=0                           \
-  --with-cc=/usr/bin/mpicc              \
-  --with-cxx=/usr/bin/mpicxx            \
-  --with-mpiexec=/usr/bin/mpiexec       \
+  --with-mpi-dir=/opt/mpich/            \
   --with-threadsafety=1                 \
   --with-openmp=1                       \
+  ---with-openmp-kernels=true           \
   --download-f2cblaslapack
 make PETSC_ARCH=linux-mpi-debug all
 make PETSC_ARCH=linux-mpi-debug check
@@ -29,11 +28,10 @@ make PETSC_ARCH=linux-mpi-debug check
 ```sh
 ./configure PETSC_ARCH=linux-mpi-opt             \
   --with-fc=0                                    \
-  --with-cc=/usr/bin/mpicc                       \
-  --with-cxx=/usr/bin/mpicxx                     \
-  --with-mpiexec=/usr/bin/mpiexec                \
+  --with-mpi-dir=/opt/mpich/                     \
   --with-threadsafety=1                          \
   --with-openmp=1                                \
+  ---with-openmp-kernels=true                    \
   --download-f2cblaslapack                       \
   --with-debugging=0                             \
   COPTFLAGS='-O3 -march=native -mtune=native'    \
@@ -42,7 +40,7 @@ make PETSC_ARCH=linux-mpi-opt all
 make PETSC_ARCH=linux-mpi-opt check
 ```
 
-If configure cannot automatically download the package, you can use a pre-downloaded one. Once the tarfile is downloaded, the path to this file can be specified to configure and it will proceed to install this package and then configure PETSc with this package.
+If configure cannot automatically download the package, you can use a pre-downloaded one. Once the tarfile is downloaded, the path to this file can be specified to configure and it will proceed to install this package and then configure PETSc with this package. For example, one can download `f2cblaslapack` package locally and pass the configuration option `--download-f2cblaslapack=/path/to/local/f2cblaslapack-X.Y.Z.q.tar.gz`
 
 #### 3. Compiling and running `xpic`
 
