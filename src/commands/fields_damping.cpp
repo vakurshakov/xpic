@@ -42,7 +42,7 @@ PetscErrorCode FieldsDamping::execute(timestep_t /* t */)
     PetscCall(DMDAVecRestoreArrayWrite(da_, storage, reinterpret_cast<void*>(&f)));
   }
 
-  LOG("Fields are damped, additional energy runoff is {}", damped_energy_);
+  LOG("  Fields are damped, additional energy runoff is {}", damped_energy_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -61,9 +61,9 @@ FieldsDamping::DampForCircle::DampForCircle(
 void FieldsDamping::DampForCircle::operator()(
   PetscInt z, PetscInt y, PetscInt x, Vector3R*** f, PetscReal& energy)
 {
-  x -= geom_.center[X];
-  y -= geom_.center[Y];
-  PetscReal r2 = (POW2(x * dx) + POW2(y * dy));
+  PetscInt cx = x * dx - geom_.center[X];
+  PetscInt cy = y * dy - geom_.center[Y];
+  PetscReal r2 = (POW2(cx) + POW2(cy));
 
   if (r2 < POW2(geom_.radius))
     return;

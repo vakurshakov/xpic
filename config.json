@@ -59,6 +59,15 @@
 
   "StepPresets": [
     {
+      "command": "FieldsDamping",
+      "fields": [ "E^n", "B^n" ],
+      "geometry": {
+        "name": "CircleGeometry",
+        "radius": 123,
+        "center": [ 125, 125, 0.5 ]
+      }
+    },
+    {
       "command": "RemoveParticles",
       "particles": "ions",
       "geometry": {

@@ -19,8 +19,9 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_ksp_solvers());
 
   static constexpr Vector3R uniform_magnetic_field{0, 0, 0.2};
-  SetupMagneticField setup(B, uniform_magnetic_field);
-  setup.execute(0);
+  SetupMagneticField setup(B0, uniform_magnetic_field);
+  PetscCall(setup.execute(0));
+  PetscCall(VecAXPY(B, +1.0, B0));
 
   static constexpr PetscInt particles_per_cell{2000};
 
@@ -48,17 +49,22 @@ PetscErrorCode Simulation::initialize_implementation()
       .sort_name = "electrons",
     }));
 
+  static const PetscReal damping_coefficient{0.8};
   static const PetscReal outer_radius{0.5 * geom_x - 4 * dx};
   static const Vector3R center{0.5 * geom_x, 0.5 * geom_y, 0.5 * geom_z};
+  CircleGeometry geometry(center, outer_radius);
+
+  damping = std::make_unique<FieldsDamping>(
+    world_.da, std::vector{E, B}, geometry, damping_coefficient);
 
   Particles* ions = particles_[0].get();
   Particles* electrons = particles_[1].get();
 
-  step_presets_.emplace_back(std::make_unique<RemoveParticles>(
-    *ions, CircleGeometry(center, outer_radius)));
+  step_presets_.emplace_back( //
+    std::make_unique<RemoveParticles>(*ions, geometry));
 
-  step_presets_.emplace_back(std::make_unique<RemoveParticles>(
-    *electrons, CircleGeometry(center, outer_radius)));
+  step_presets_.emplace_back( //
+    std::make_unique<RemoveParticles>(*electrons, geometry));
 
   static const PetscReal radius{30 * dx};
   static const PetscReal height{geom_z};
@@ -156,9 +162,15 @@ PetscErrorCode Simulation::init_log_stages()
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
+PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
 {
   PetscFunctionBeginUser;
+
+  /// @note We damp only the magnetic field perturbation
+  PetscCall(VecAXPY(B, -1.0, B0));
+  damping->execute(timestep);
+  PetscCall(VecAXPY(B, +1.0, B0));
+
   PetscLogStagePush(stagenums[0]);
 
   PetscCall(clear_sources());
@@ -242,6 +254,18 @@ PetscErrorCode Simulation::correct_fields()
   PetscCall(MatMultAdd(matL, En, currJ, currJ));  // currJ = currJ + matL * E'^{n+1/2}
 
   PetscCall(VecDot(currJ, En, &w1));  // w1 = (currJ, E'^{n+1/2})
+  LOG("  Work of the predicted field ((ECSIM cur.) * E'): {}", w1);
+
+  DM da = world_.da;
+
+  Vec diff;
+  PetscReal norm;
+  PetscCall(DMGetGlobalVector(da, &diff));
+  PetscCall(VecWAXPY(diff, -1, currJ, currJe));
+  PetscCall(VecNorm(diff, NORM_2, &norm));
+  PetscCall(DMRestoreGlobalVector(da, &diff));
+  LOG("  Norm of the difference in ECSIM and Esirkepov currents: {}", norm);
+
   PetscCall(VecCopy(currJe, currJ));  // currJ = currJe
 
   // Solving Maxwell's equation to find correct
@@ -249,8 +273,16 @@ PetscErrorCode Simulation::correct_fields()
   PetscCall(advance_fields(correct, currJe));
 
   PetscCall(VecDot(currJ, En, &w2));  // w2 = (currJ, E^{n+1/2})
+  LOG("  Work of the corrected field ((Esirkepov cur.) * E): {}", w2);
 
-  PetscCall(VecAXPBY(E, -1.0, 2.0, En));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
+  Vec newE;
+  PetscCall(DMGetGlobalVector(da, &newE));
+  PetscCall(VecAXPBYPCZ(newE, 2, -1, 1, En, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
+  PetscCall(VecNorm(newE, NORM_2, &norm));
+  PetscCall(VecSwap(newE, E));
+  PetscCall(DMRestoreGlobalVector(da, &newE));
+  LOG("  Norm of the difference in predicted and corrected fields: {}", norm);
+
   PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -312,9 +344,6 @@ Simulation::~Simulation()
   PetscCallVoid(VecDestroy(&currI));
   PetscCallVoid(VecDestroy(&currJ));
   PetscCallVoid(VecDestroy(&currJe));
-
-  // PetscCallVoid(VecDestroy(&charge_density_old));
-  // PetscCallVoid(VecDestroy(&charge_density));
 
   PetscCallVoid(MatDestroy(&matL));
   PetscCallVoid(MatDestroy(&matA));

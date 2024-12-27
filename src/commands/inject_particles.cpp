@@ -53,7 +53,7 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
     ejected_.add_particle(Point(shared_coordinate, ve));
   }
 
-  constexpr auto message = "Particles are added into \"{}\"; particles added: {}, energy added: {}";
+  constexpr auto message = "  Particles are added into \"{}\"; particles added: {}, energy added: {}";
   LOG(message, ionized_.parameters().sort_name, per_step_particles_num_, energy_i_);
   LOG(message, ejected_.parameters().sort_name, per_step_particles_num_, energy_e_);
   PetscFunctionReturn(PETSC_SUCCESS);
