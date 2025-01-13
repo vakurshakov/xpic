@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(MPI_CXX_COMPILER "/opt/mpich/bin/mpicxx")
+set(MPI_CXX_COMPILER "mpicxx")
 set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 
 set(CMAKE_CXX_STANDARD 20)
