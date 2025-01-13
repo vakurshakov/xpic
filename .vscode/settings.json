@@ -4,9 +4,6 @@
     "files.associations": {
         ".clang-format": "yaml",
         ".clang-tidy": "yaml",
-        "array": "cpp",
-        "*.tcc": "cpp",
-        "vector": "cpp"
     },
 
     "cSpell.words": [
