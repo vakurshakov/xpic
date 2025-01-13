@@ -4,10 +4,14 @@
     "files.associations": {
         ".clang-format": "yaml",
         ".clang-tidy": "yaml",
+        "array": "cpp",
+        "*.tcc": "cpp",
+        "vector": "cpp"
     },
 
     "cSpell.words": [
         "AXPBY",
+        "AXPBYPCZ",
         "AXPY",
         "AYPX",
         "bugprone",
@@ -48,6 +52,7 @@
         "petscerror",
         "petscsys",
         "petscsystypes",
+        "recvbuf",
         "ricketson",
         "rtol",
         "sdim",
@@ -62,6 +67,7 @@
         "uniqueptr",
         "VECSEQ",
         "vphi",
+        "WAXPY",
         "xpic"
     ],
     "cSpell.enabled": true,

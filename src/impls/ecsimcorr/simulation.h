@@ -5,6 +5,8 @@
 
 #include "src/interfaces/simulation.h"
 #include "src/commands/fields_damping.h"
+#include "src/diagnostics/fields_energy.h"
+#include "src/diagnostics/particles_energy.h"
 #include "src/impls/ecsimcorr/particles.h"
 
 namespace ecsimcorr {
@@ -58,8 +60,11 @@ private:
   PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
   PetscErrorCode advance_fields(KSP ksp, Vec rhs);
+  PetscErrorCode afterprocessing(timestep_t timestep);
 
   std::unique_ptr<FieldsDamping> damping;
+  std::unique_ptr<FieldsEnergy> fields_energy;
+  std::unique_ptr<ParticlesEnergy> particles_energy;
 
   Mat matA;
   Mat matM;

@@ -42,7 +42,7 @@ PetscErrorCode FieldsDamping::execute(timestep_t /* t */)
     PetscCall(DMDAVecRestoreArrayWrite(da_, storage, reinterpret_cast<void*>(&f)));
   }
 
-  LOG("  Fields are damped, additional energy runoff is {}", damped_energy_);
+  LOG("  Fields are damped, additional energy runoff: {}", damped_energy_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

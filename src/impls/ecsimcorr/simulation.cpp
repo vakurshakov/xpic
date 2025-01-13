@@ -57,8 +57,13 @@ PetscErrorCode Simulation::initialize_implementation()
   damping = std::make_unique<FieldsDamping>(
     world_.da, std::vector{E, B}, geometry, damping_coefficient);
 
+  fields_energy = std::make_unique<FieldsEnergy>(world_.da, E, B);
+
   Particles* ions = particles_[0].get();
   Particles* electrons = particles_[1].get();
+
+  particles_energy = std::make_unique<ParticlesEnergy>(
+    ParticlesEnergy::ParticlesPointersVector{ions, electrons});
 
   step_presets_.emplace_back( //
     std::make_unique<RemoveParticles>(*ions, geometry));
@@ -165,12 +170,6 @@ PetscErrorCode Simulation::init_log_stages()
 PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
 {
   PetscFunctionBeginUser;
-
-  /// @note We damp only the magnetic field perturbation
-  PetscCall(VecAXPY(B, -1.0, B0));
-  damping->execute(timestep);
-  PetscCall(VecAXPY(B, +1.0, B0));
-
   PetscLogStagePush(stagenums[0]);
 
   PetscCall(clear_sources());
@@ -209,6 +208,8 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
   }
 
   PetscLogStagePop();
+
+  PetscCall(afterprocessing(timestep));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -298,6 +299,30 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec rhs)
 
   // Convergence analysis
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::afterprocessing(timestep_t timestep)
+{
+  PetscFunctionBeginUser;
+  /// @note We only check for the magnetic field perturbation
+  PetscCall(VecAXPY(B, -1.0, B0));
+  PetscReal prev_we = fields_energy->get_electric_energy();
+  PetscReal prev_wb = fields_energy->get_magnetic_energy();
+  fields_energy->calculate_energies();
+  PetscReal new_we = fields_energy->get_electric_energy();
+  PetscReal new_wb = fields_energy->get_magnetic_energy();
+
+  LOG("  Fields perturbation energy difference, in electric field: {}, in magnetic field: {}", (new_we - prev_we), (new_wb - prev_wb));
+  damping->execute(timestep);
+  PetscCall(VecAXPY(B, +1.0, B0));
+
+  std::vector<PetscReal> prev_energies = particles_energy->get_energies();
+  particles_energy->calculate_energies();
+  std::vector<PetscReal> new_energies = particles_energy->get_energies();
+
+  for (std::size_t i = 0; i < new_energies.size(); ++i)
+    LOG("  Energy difference in \"{}\": {}", particles_[i]->parameters().sort_name, new_energies[i] - prev_energies[i]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -134,6 +134,11 @@ struct Vector3 {
     return data[X] * data[Y] * data[Z];
   }
 
+  T elements_sum() const
+  {
+    return data[X] + data[Y] + data[Z];
+  }
+
   T dot(const Vector3& other) const
   {
     return                  //

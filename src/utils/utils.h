@@ -90,13 +90,13 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
   Class(const Class& other) = default;            \
   Class& operator=(const Class& other) = default; \
   Class(Class&& other) = delete;                  \
-  Class& operator=(Class&& other) = delete;
+  Class& operator=(Class&& other) = delete
 
 #define DEFAULT_MOVABLE(Class)                   \
   Class(const Class& other) = delete;            \
   Class& operator=(const Class& other) = delete; \
   Class(Class&& other) = default;                \
-  Class& operator=(Class&& other) = default;
+  Class& operator=(Class&& other) = default
 // NOLINTEND
 
 #if LOGGING

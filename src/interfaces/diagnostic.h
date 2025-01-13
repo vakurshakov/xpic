@@ -10,12 +10,14 @@ class Diagnostic {
 public:
   DEFAULT_MOVABLE(Diagnostic);
 
-  virtual ~Diagnostic() = default;
+  Diagnostic() = default;
 
   Diagnostic(const std::string& out_dir)
     : out_dir_(out_dir)
   {
   }
+
+  virtual ~Diagnostic() = default;
 
   virtual PetscErrorCode diagnose(timestep_t t) = 0;
 
