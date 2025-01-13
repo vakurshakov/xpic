@@ -1,7 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(MPI_CXX_COMPILER "mpicxx")
+set(MPI_DIR $ENV{MPI_DIR})
+set(JSON_DIR $ENV{JSON_DIR})
+set(PETSC_DIR $ENV{PETSC_DIR})
+
+set(MPI_CXX_COMPILER "${MPI_DIR}/bin/mpicxx")
 set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+
+if(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
+  set(PETSC_ARCH linux-mpi-opt)
+else()
+  set(PETSC_ARCH linux-mpi-debug)
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
@@ -9,17 +19,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 # enables clang-tidy in the `build` directory
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
-
 project(xpic VERSION 0.1 LANGUAGES CXX)
-
-set(JSON_DIR "external/json")
-set(PETSC_DIR "external/petsc")
-
-if(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
-  set(PETSC_ARCH linux-mpi-opt)
-else()
-  set(PETSC_ARCH linux-mpi-debug)
-endif()
 
 set(CMAKE_CXX_FLAGS "-fpic -fopenmp -pthread")
 
@@ -114,6 +114,7 @@ target_precompile_headers(
 target_include_directories(
   ${PROJECT_NAME}
   PUBLIC .
+  PUBLIC ${MPI_DIR}/include
   PUBLIC ${JSON_DIR}/include
   PUBLIC ${PETSC_DIR}/include
   PUBLIC ${PETSC_DIR}/${PETSC_ARCH}/include
@@ -121,6 +122,7 @@ target_include_directories(
 
 target_link_directories(
   ${PROJECT_NAME}
+  PUBLIC ${MPI_DIR}/lib
   PUBLIC ${PETSC_DIR}/${PETSC_ARCH}/lib
 )
 
