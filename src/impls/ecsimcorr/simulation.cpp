@@ -145,7 +145,7 @@ PetscErrorCode Simulation::init_log_stages()
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
+PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 {
   PetscFunctionBeginUser;
   PetscLogStagePush(stagenums[0]);
@@ -172,13 +172,13 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
   PetscLogStagePop();
   PetscLogStagePush(stagenums[4]);
 
-  PetscCall(correct_fields());
+  // PetscCall(correct_fields());
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[5]);
 
   for (auto& sort : particles_) {
-    PetscCall(sort->final_update());
+    // PetscCall(sort->final_update());
     PetscCall(sort->correct_coordinates());
 
     /// @todo Testing petsc as a computational server first
@@ -186,8 +186,6 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t timestep)
   }
 
   PetscLogStagePop();
-
-  PetscCall(afterprocessing(timestep));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -225,7 +223,6 @@ PetscErrorCode Simulation::predict_fields()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @todo Do we use successive solve here? Check if we need to separate ksp in this case
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
@@ -233,8 +230,7 @@ PetscErrorCode Simulation::correct_fields()
   PetscCall(MatMultAdd(matL, En, currJ, currJ));  // currJ = currJ + matL * E'^{n+1/2}
 
   PetscCall(VecDot(currJ, En, &w1));  // w1 = (currJ, E'^{n+1/2})
-  LOG("  Work of the predicted field ((ECSIM cur.) * E'): {}", w1);
-
+  LOG("  Work of the predicted field ((ECSIM cur.) * E_pred): {}", w1);
   DM da = world_.da;
 
   Vec diff;
@@ -252,7 +248,7 @@ PetscErrorCode Simulation::correct_fields()
   PetscCall(advance_fields(correct, currJe));
 
   PetscCall(VecDot(currJ, En, &w2));  // w2 = (currJ, E^{n+1/2})
-  LOG("  Work of the corrected field ((Esirkepov cur.) * E): {}", w2);
+  LOG("  Work of the corrected field ((Esirkepov cur.) * E_corr): {}", w2);
 
   Vec newE;
   PetscCall(DMGetGlobalVector(da, &newE));
@@ -279,31 +275,6 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec rhs)
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-PetscErrorCode Simulation::afterprocessing(timestep_t timestep)
-{
-  PetscFunctionBeginUser;
-  /// @note We only check for the magnetic field perturbation
-  PetscCall(VecAXPY(B, -1.0, B0));
-  PetscReal prev_we = fields_energy->get_electric_energy();
-  PetscReal prev_wb = fields_energy->get_magnetic_energy();
-  fields_energy->calculate_energies();
-  PetscReal new_we = fields_energy->get_electric_energy();
-  PetscReal new_wb = fields_energy->get_magnetic_energy();
-
-  LOG("  Fields perturbation energy difference, in electric field: {}, in magnetic field: {}", (new_we - prev_we), (new_wb - prev_wb));
-  damping->execute(timestep);
-  PetscCall(VecAXPY(B, +1.0, B0));
-
-  std::vector<PetscReal> prev_energies = particles_energy->get_energies();
-  particles_energy->calculate_energies();
-  std::vector<PetscReal> new_energies = particles_energy->get_energies();
-
-  for (std::size_t i = 0; i < new_energies.size(); ++i)
-    LOG("  Energy difference in \"{}\": {}", particles_[i]->parameters().sort_name, new_energies[i] - prev_energies[i]);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 
 Vec Simulation::get_named_vector(std::string_view name) const
 {

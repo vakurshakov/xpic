@@ -60,11 +60,8 @@ private:
   PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
   PetscErrorCode advance_fields(KSP ksp, Vec rhs);
-  PetscErrorCode afterprocessing(timestep_t timestep);
 
   std::unique_ptr<FieldsDamping> damping;
-  std::unique_ptr<FieldsEnergy> fields_energy;
-  std::unique_ptr<ParticlesEnergy> particles_energy;
 
   Mat matA;
   Mat matM;
@@ -76,6 +73,8 @@ private:
   KSP correct;
 
   PetscLogStage stagenums[6];
+
+  friend class EnergyDiagnostic;
 };
 
 }  // namespace ecsimcorr

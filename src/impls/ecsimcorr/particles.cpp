@@ -105,7 +105,7 @@ PetscErrorCode Particles::second_push()
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    const Vector3R old_r = point.r;
+    // const Vector3R old_r = point.r;
 
     Shape shape;
     shape.setup(point.r, shape_radius1, shape_func1);
@@ -118,8 +118,8 @@ PetscErrorCode Particles::second_push()
     BorisPush push((0.5 * dt), E_p, B_p);
     push.process(point, *this);
 
-    shape.setup(old_r, point.r, shape_radius2, shape_func2);
-    decompose_esirkepov_current(shape, point);
+    // shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    // decompose_esirkepov_current(shape, point);
   }
 
   PetscLogEventEnd(events[1], 0, 0, 0, 0);

@@ -86,6 +86,7 @@ set(impls_basic
 set(impls_ecsimcorr
   src/impls/ecsimcorr/simulation.cpp
   src/impls/ecsimcorr/particles.cpp
+  src/impls/ecsimcorr/energy.cpp
 )
 
 set(impls_ricketson
