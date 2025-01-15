@@ -13,6 +13,7 @@ public:
 
   PetscErrorCode execute(timestep_t t) override;
 
+  std::string get_particles_name() const;
   PetscReal get_removed_energy() const;
 
 private:
@@ -20,7 +21,7 @@ private:
 
   using Tester = std::function<bool(const Point& /* point */)>;
   Tester should_remove_;
-  PetscReal removed_energy_;
+  PetscReal removed_energy_ = 0.0;
 
   class RemoveFromCircle;
 };

@@ -27,13 +27,13 @@ InjectParticles::InjectParticles(                //
 
 PetscErrorCode InjectParticles::execute(timestep_t t)
 {
-  PetscFunctionBeginUser;
-  if (t < injection_start_)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
   energy_i_ = 0.0;
   energy_e_ = 0.0;
 
+  if (t < injection_start_ || t >= injection_end_)
+    return PETSC_SUCCESS;
+
+  PetscFunctionBeginUser;
   const PetscInt Npi = ionized_.parameters().Np;
   const PetscReal mi = ionized_.parameters().m;
 
@@ -59,6 +59,15 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+std::string InjectParticles::get_ionized_name() const
+{
+  return ionized_.parameters().sort_name;
+}
+
+std::string InjectParticles::get_ejected_name() const
+{
+  return ejected_.parameters().sort_name;
+}
 
 PetscReal InjectParticles::get_ionized_energy() const
 {

@@ -28,7 +28,7 @@ PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
   auto it =
     std::remove_if(storage.begin(), storage.end(), [&](const Point& point) {
       if (should_remove_(point)) {
-        removed_energy_ += 0.5 * (m * point.p.squared()) / Np * (dx * dy * dz);
+        removed_energy_ += 0.5 * (m * point.p.squared()) * (dx * dy * dz) / Np;
         return true;
       }
       return false;
@@ -40,6 +40,11 @@ PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
     storage.erase(it, storage.end());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+std::string RemoveParticles::get_particles_name() const
+{
+  return particles_.parameters().sort_name;
 }
 
 PetscReal RemoveParticles::get_removed_energy() const

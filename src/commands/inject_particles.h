@@ -40,6 +40,8 @@ public:
     return t >= injection_end_;
   }
 
+  std::string get_ionized_name() const;
+  std::string get_ejected_name() const;
   PetscReal get_ionized_energy() const;
   PetscReal get_ejected_energy() const;
 
@@ -56,8 +58,8 @@ private:
   VelocityGenerator generate_vi_;
   VelocityGenerator generate_ve_;
 
-  PetscReal energy_i_;
-  PetscReal energy_e_;
+  PetscReal energy_i_ = 0.0;
+  PetscReal energy_e_ = 0.0;
 };
 
 #endif // SRC_COMMANDS_INJECT_PARTICLES_H
