@@ -33,7 +33,6 @@
   "Particles": [
     {
       "sort_name": "ions",
-      "Np": 2,
       "n": 1.0,
       "q": 1.0,
       "m": 100.0,
@@ -41,7 +40,6 @@
     },
     {
       "sort_name": "electrons",
-      "Np": 2,
       "n":  1.0,
       "q": -1.0,
       "m":  1.0,

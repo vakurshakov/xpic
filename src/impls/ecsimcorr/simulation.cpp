@@ -4,8 +4,10 @@
 #include "src/commands/remove_particles.h"
 #include "src/commands/setup_magnetic_field.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
+#include "src/impls/ecsimcorr/energy.h"
 #include "src/utils/operators.h"
 #include "src/utils/particles_load.hpp"
+#include "src/utils/random_generator.h"
 #include "src/utils/utils.h"
 
 
@@ -18,13 +20,15 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
 
+  constexpr PetscInt Np = 1;
+
   auto build_particles = [&]() {
     const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
 
     for (auto&& info : particles_info) {
       SortParameters parameters;
       info.at("sort_name").get_to(parameters.sort_name);
-      info.at("Np").get_to(parameters.Np);
+      parameters.Np = Np;
       info.at("n").get_to(parameters.n);
       info.at("q").get_to(parameters.q);
       info.at("m").get_to(parameters.m);
@@ -36,6 +40,26 @@ PetscErrorCode Simulation::initialize_implementation()
   };
 
   build_particles();
+
+
+  for (PetscInt z = 0; z < geom_nz; ++z) {
+    for (PetscInt y = 0; y < geom_ny; ++y) {
+      for (PetscInt x = 0; x < geom_nx; ++x) {
+        for (PetscInt n = 0; n < Np; ++n) {
+          Vector3R r{
+            (PetscReal)x + random_01() * dx,
+            (PetscReal)y + random_01() * dy,
+            (PetscReal)z + random_01() * dz,
+          };
+
+          for (auto&& sort : particles_) {
+            MaxwellianMomentum momentum(sort->parameters(), true);
+            sort->add_particle(Point(r, momentum(r)));
+          }
+        }
+      }
+    }
+  }
 
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyDiagnostic>(*this));
