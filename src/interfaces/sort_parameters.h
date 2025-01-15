@@ -5,6 +5,7 @@
 #include "src/utils/utils.h"
 
 struct SortParameters {
+  std::string sort_name;
   PetscInt Np;         // [dimensionless], Number of particles in a cell.
   PetscReal n;         // [n0], Reference density of the particles.
   PetscReal q;         // [e],  Reference charge of the particles.
@@ -15,7 +16,6 @@ struct SortParameters {
   PetscReal Tx = 0.0;  // [keV], Temperature in x direction.
   PetscReal Ty = 0.0;  // [keV], Temperature in y direction.
   PetscReal Tz = 0.0;  // [keV], Temperature in z direction.
-  std::string sort_name;
 };
 
 

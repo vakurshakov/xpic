@@ -51,11 +51,11 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, reinterpret_cast<void*>(&B)));
 
   SortParameters parameters = {
+    .sort_name = "positron",
     .Np = 1,
     .n = +1.0,
     .q = +1.0,
     .m = +1.0,
-    .sort_name = "positron",
   };
   auto& sort = particles_.emplace_back(*this, parameters);
 

@@ -18,74 +18,28 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
 
-  static constexpr Vector3R uniform_magnetic_field{0, 0, 0.2};
-  SetupMagneticField setup(B0, uniform_magnetic_field);
-  PetscCall(setup.execute(0));
-  PetscCall(VecAXPY(B, +1.0, B0));
+  auto build_particles = [&]() {
+    const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
 
-  static constexpr PetscInt particles_per_cell{2000};
+    for (auto&& info : particles_info) {
+      SortParameters parameters;
+      info.at("sort_name").get_to(parameters.sort_name);
+      info.at("Np").get_to(parameters.Np);
+      info.at("n").get_to(parameters.n);
+      info.at("q").get_to(parameters.q);
+      info.at("m").get_to(parameters.m);
+      info.at("T").get_to(parameters.Tx);
+      info.at("T").get_to(parameters.Ty);
+      info.at("T").get_to(parameters.Tz);
+      particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
+    }
+  };
 
-  particles_.emplace_back(std::make_unique<Particles>(*this,
-    SortParameters{
-      .Np = particles_per_cell,
-      .n = +1.0,
-      .q = +1.0,
-      .m = 100.0,
-      .Tx = 10.0,
-      .Ty = 10.0,
-      .Tz = 10.0,
-      .sort_name = "ions",
-    }));
-
-  particles_.emplace_back(std::make_unique<Particles>(*this,
-    SortParameters{
-      .Np = particles_per_cell,
-      .n = +1.0,
-      .q = -1.0,
-      .m = +1.0,
-      .Tx = 1.0,
-      .Ty = 1.0,
-      .Tz = 1.0,
-      .sort_name = "electrons",
-    }));
-
-  static const PetscReal damping_coefficient{0.8};
-  static const PetscReal outer_radius{0.5 * geom_x - 4 * dx};
-  static const Vector3R center{0.5 * geom_x, 0.5 * geom_y, 0.5 * geom_z};
-  CircleGeometry geometry(center, outer_radius);
-
-  damping = std::make_unique<FieldsDamping>(
-    world_.da, std::vector{E, B}, geometry, damping_coefficient);
-
-  fields_energy = std::make_unique<FieldsEnergy>(world_.da, E, B);
-
-  Particles* ions = particles_[0].get();
-  Particles* electrons = particles_[1].get();
-
-  particles_energy = std::make_unique<ParticlesEnergy>(
-    ParticlesEnergy::ParticlesPointersVector{ions, electrons});
-
-  step_presets_.emplace_back( //
-    std::make_unique<RemoveParticles>(*ions, geometry));
-
-  step_presets_.emplace_back( //
-    std::make_unique<RemoveParticles>(*electrons, geometry));
-
-  static const PetscReal radius{30 * dx};
-  static const PetscReal height{geom_z};
-  static const PetscInt per_step_particles_num =
-    (std::numbers::pi * POW2(radius) * height) / POW3(dx);
-
-  step_presets_.emplace_back(std::make_unique<InjectParticles>( //
-    *ions,                                                      //
-    *electrons,                                                 //
-    start_, geom_nt,                                            //
-    per_step_particles_num,                                     //
-    CoordinateInCylinder(radius, height, center),               //
-    MaxwellianMomentum(ions->parameters(), true),               //
-    MaxwellianMomentum(electrons->parameters(), true)));
+  build_particles();
 
   PetscCall(build_diagnostics(*this, diagnostics_));
+  diagnostics_.emplace_back(std::make_unique<EnergyDiagnostic>(*this));
+
   PetscCall(init_log_stages());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
