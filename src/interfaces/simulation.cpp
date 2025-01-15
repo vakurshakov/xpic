@@ -13,7 +13,10 @@ PetscErrorCode Simulation::initialize()
   PetscCall(world_.initialize());
   PetscCall(initialize_implementation());
   PetscCall(log_information());
-  PetscCall(diagnose(start_));
+
+  for (const Diagnostic_up& diagnostic : diagnostics_)
+    PetscCall(diagnostic->diagnose(0));
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -44,30 +47,14 @@ PetscErrorCode Simulation::calculate()
     LOG_FLUSH();
     LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
 
-    PetscCall(execute(t));
+    for (const Command_up& command : step_presets_)
+      PetscCall(command->execute(t));
+
     PetscCall(timestep_implementation(t));
-    PetscCall(diagnose(t));
+
+    for (const Diagnostic_up& diagnostic : diagnostics_)
+      PetscCall(diagnostic->diagnose(t));
   }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::execute(timestep_t timestep)
-{
-  PetscFunctionBeginUser;
-  for (const Command_up& command : step_presets_)
-    PetscCall(command->execute(timestep));
-
-  step_presets_.remove_if([timestep](const Command_up& command) {
-    return command->needs_to_be_removed(timestep);
-  });
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::diagnose(timestep_t timestep)
-{
-  PetscFunctionBeginUser;
-  for (const Diagnostic_up& diagnostic : diagnostics_)
-    PetscCall(diagnostic->diagnose(timestep));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

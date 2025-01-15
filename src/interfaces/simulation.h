@@ -29,8 +29,6 @@ protected:
   virtual PetscErrorCode log_information() const;
 
   virtual PetscErrorCode timestep_implementation(timestep_t timestep) = 0;
-  PetscErrorCode execute(timestep_t timestep);
-  PetscErrorCode diagnose(timestep_t timestep);
 
   timestep_t start_ = 0;
 
