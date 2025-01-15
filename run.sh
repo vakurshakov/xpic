@@ -2,7 +2,7 @@
 
 usage() { echo "Usage: $0 <config.json>" 1>&2; exit 1; }
 
-export MPI_EXEC="/opt/mpich/bin/mpiexec"
+export MPI_DIR="/opt/mpich"
 export MPI_NUM_PROC=1
 
 export OMP_PLACES=cores
@@ -17,4 +17,4 @@ if [[ $# == 0 ]]; then
   usage
 fi
 
-$MPI_EXEC -np $MPI_NUM_PROC ./build/xpic.out $@
+$MPI_DIR/bin/mpiexec -np $MPI_NUM_PROC ./build/xpic.out $@
