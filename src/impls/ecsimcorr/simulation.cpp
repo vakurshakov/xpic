@@ -20,7 +20,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
 
-  constexpr PetscInt Np = 1;
+  constexpr PetscInt Np = 10;
 
   auto build_particles = [&]() {
     const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
@@ -42,24 +42,24 @@ PetscErrorCode Simulation::initialize_implementation()
   build_particles();
 
 
+  // clang-format off
   for (PetscInt z = 0; z < geom_nz; ++z) {
-    for (PetscInt y = 0; y < geom_ny; ++y) {
-      for (PetscInt x = 0; x < geom_nx; ++x) {
-        for (PetscInt n = 0; n < Np; ++n) {
-          Vector3R r{
-            (PetscReal)x + random_01() * dx,
-            (PetscReal)y + random_01() * dy,
-            (PetscReal)z + random_01() * dz,
-          };
+  for (PetscInt y = 0; y < geom_ny; ++y) {
+  for (PetscInt x = 0; x < geom_nx; ++x) {
+    for (PetscInt n = 0; n < Np; ++n) {
+      Vector3R r{
+        ((PetscReal)x + random_01()) * dx,
+        ((PetscReal)y + random_01()) * dy,
+        ((PetscReal)z + random_01()) * dz,
+      };
 
-          for (auto&& sort : particles_) {
-            MaxwellianMomentum momentum(sort->parameters(), true);
-            sort->add_particle(Point(r, momentum(r)));
-          }
-        }
+      for (auto&& sort : particles_) {
+        MaxwellianMomentum velocity(sort->parameters(), true);
+        sort->add_particle(Point(r, velocity(r)));
       }
     }
-  }
+  }}}
+  // clang-format off
 
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyDiagnostic>(*this));
@@ -220,6 +220,36 @@ PetscErrorCode Simulation::predict_fields()
 
   // Solving the Maxwell's equations to find prediction of E'^{n+1/2}
   PetscCall(advance_fields(predict, currI));
+
+  /// TO BE REMOVED
+  PetscCall(MatScale(matL, 0.5 * dt));
+  PetscCall(MatMultAdd(matL, En, currJ, currJ));
+
+  PetscCall(VecDot(currJ, En, &w1));
+  LOG("  Work of the predicted field ((ECSIM cur.) * E^(n+1/2)): {}", w1);
+
+  DM da = world_.da;
+
+  Vec newE, diff;
+  PetscCall(DMGetGlobalVector(da, &newE));
+  PetscCall(DMGetGlobalVector(da, &diff));
+  PetscCall(VecSet(newE, 0.0));
+  PetscCall(VecSet(diff, 0.0));
+
+  PetscCall(VecAXPBYPCZ(newE, 2, -1, 1, En, E));
+  PetscCall(VecWAXPY(diff, -1, newE, E));
+
+  PetscReal norm;
+  PetscCall(VecNorm(diff, NORM_2, &norm));
+  LOG("  Norm of the difference in predicted and corrected fields: {}", norm);
+
+  PetscCall(VecSwap(newE, E));
+  PetscCall(DMRestoreGlobalVector(da, &newE));
+  PetscCall(DMRestoreGlobalVector(da, &diff));
+
+  PetscCall(MatMultAdd(rotE, En, B, B));
+  ///
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -55,8 +55,10 @@ PetscErrorCode Particles::first_push()
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    const Vector3R old_r = point.r;
-    point.r += point.p * (0.5 * dt);
+    // const Vector3R old_r = point.r;
+
+    BorisPush push;
+    push.update_r(dt, point, *this);
 
     Shape shape;
     shape.setup(point.r, shape_radius1, shape_func1);
@@ -67,8 +69,8 @@ PetscErrorCode Particles::first_push()
 
     decompose_identity_current(shape, point, B_p);
 
-    shape.setup(old_r, point.r, shape_radius2, shape_func2);
-    decompose_esirkepov_current(shape, point);
+    // shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    // decompose_esirkepov_current(shape, point);
   }
 
   PetscLogEventEnd(events[0], 0, 0, 0, 0);
@@ -115,8 +117,10 @@ PetscErrorCode Particles::second_push()
     SimpleInterpolation interpolation(shape);
     interpolation.process({{E_p, E}}, {{B_p, B}});
 
-    BorisPush push((0.5 * dt), E_p, B_p);
-    push.process(point, *this);
+    BorisPush push;
+    push.update_fields(E_p, B_p);
+    push.update_vEB(dt, point, *this);
+    // push.update_r(dt, point, *this);
 
     // shape.setup(old_r, point.r, shape_radius2, shape_func2);
     // decompose_esirkepov_current(shape, point);
@@ -179,9 +183,8 @@ void Particles::decompose_identity_current(
   const Vector3R& v = point.p;
 
   Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
-  PetscReal alpha2 = b.squared();
 
-  PetscReal betaI = charge(point) / (particles_number(point) * (1.0 + alpha2));
+  PetscReal betaI = density(point) * charge(point) / (particles_number(point) * (1.0 + b.squared()));
   PetscReal betaL = charge(point) / mass(point) * betaI;
 
   Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
