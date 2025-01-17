@@ -78,18 +78,13 @@ void BorisPush::update_vC2(PetscReal dt, Point& point, const Context& particles)
 
 void BorisPush::update_vEB(PetscReal dt, Point& point, const Context& particles)
 {
-  PetscReal theta = get_omega(point, particles) * dt;
-  PetscReal denominator = (1.0 + 0.25 * POW2(theta));
-
-  Vector3R a = particles.charge(point) * E_p / particles.mass(point);
-  Vector3R b = B_p.normalized();
+  PetscReal alpha = dt * particles.charge(point) / particles.mass(point);
+  Vector3R a = +alpha * E_p;
+  Vector3R b = -alpha * B_p;
 
   Vector3R& v = point.p;
-
-  v += dt * a +
-    (theta * b.cross(v + (0.5 * dt * a)) +
-      0.5 * POW2(theta) * b.cross(b.cross(v + (0.5 * dt * a)))) /
-      denominator;
+  Vector3R w = v + 0.5 * a;
+  v += a + (b.cross(w) + 0.5 * b.cross(b.cross(w))) / (1.0 + 0.25 * b.squared());
 }
 
 
