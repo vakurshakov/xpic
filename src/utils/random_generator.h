@@ -19,8 +19,11 @@ private:
   RandomGenerator() = default;
   ~RandomGenerator() = default;
 
-  std::random_device rd;
-  std::mt19937 gen = std::mt19937(rd());
+#if RANDOM_SEED
+  std::mt19937 gen{std::random_device()()};
+#else
+  std::mt19937 gen;
+#endif
 };
 
 inline PetscReal random_01()
@@ -31,18 +34,6 @@ inline PetscReal random_01()
 
 #pragma omp critical
   value = distribution(RandomGenerator::get());
-
-  return value;
-}
-
-inline PetscInt random_sign()
-{
-  static std::bernoulli_distribution distribution(0.5);
-
-  PetscInt value;
-
-#pragma omp critical
-  value = distribution(RandomGenerator::get()) ? +1 : -1;
 
   return value;
 }

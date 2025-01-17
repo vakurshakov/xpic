@@ -2,8 +2,8 @@
 #define SRC_CONSTANTS_H
 
 #define PARTICLES_FORM_FACTOR 2
-
-#define LOGGING true
+#define RANDOM_SEED           false
+#define LOGGING               true
 
 #include <petscsystypes.h>
 using timestep_t = PetscInt;
