@@ -1,5 +1,7 @@
 #include "src/impls/ecsimcorr/energy.h"
 
+#include <iomanip>
+
 #include "src/commands/fields_damping.h"
 #include "src/commands/inject_particles.h"
 #include "src/commands/remove_particles.h"
@@ -33,14 +35,18 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
   if (t == 0)
     PetscCall(write_header());
 
+  auto output = [&](PetscReal x) {
+    file_() << std::setw(14) << x;
+  };
+
   PetscCall(VecAXPY(B, -1.0, B0));
   PetscReal prev_we = fields_energy->get_electric_energy();
   PetscReal prev_wb = fields_energy->get_magnetic_energy();
   fields_energy->calculate_energies();
   PetscReal dE = fields_energy->get_electric_energy() - prev_we;
   PetscReal dB = fields_energy->get_magnetic_energy() - prev_wb;
-  file_() << dE << "\t";
-  file_() << dB << "\t";
+  output(dE);
+  output(dB);
   PetscCall(VecAXPY(B, +1.0, B0));
 
   std::vector<PetscReal> prev_energies = particles_energy->get_energies();
@@ -50,25 +56,25 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
   PetscReal dK = 0.0;
   for (std::size_t i = 0; i < new_energies.size(); ++i) {
     dK += new_energies[i] - prev_energies[i];
-    file_() << new_energies[i] - prev_energies[i] << "\t";
+    output(new_energies[i] - prev_energies[i]);
   }
 
   if (simulation.damping)
-    file_() << simulation.damping->get_damped_energy() << "\t";
+    output(simulation.damping->get_damped_energy());
 
   for (const auto& command : simulation.step_presets_) {
     if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
-      file_() << injection->get_ionized_energy() << "\t";
-      file_() << injection->get_ejected_energy() << "\t";
+      output(injection->get_ionized_energy());
+      output(injection->get_ejected_energy());
     }
     if (auto&& remove = dynamic_cast<RemoveParticles*>(command.get()))
-      file_() << remove->get_removed_energy() << "\t";
+      output(remove->get_removed_energy());
   }
 
   PetscReal dtJE = dt * simulation.w1;
-  file_() << (dE + dB) - dK << "\t";
-  file_() << (dE + dB) - dtJE << "\t";
-  file_() << dK - dtJE << "\t";
+  output((dE + dB) - dK);
+  output((dE + dB) - dtJE);
+  output(dK - dtJE);
 
   file_() << "\n";
 
