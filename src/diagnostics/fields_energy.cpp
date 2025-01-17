@@ -63,7 +63,7 @@ PetscErrorCode FieldsEnergy::calculate_energies()
     }}}
     // clang-format on
 
-    result = 0.5 * Vector3R{fx, fy, fz} * (dx * dy * dz);
+    result = 0.5 * Vector3R{fx, fy, fz};
     PetscCall(DMDAVecRestoreArrayRead(da_, f_, reinterpret_cast<void*>(&f)));
     PetscFunctionReturn(PETSC_SUCCESS);
   };

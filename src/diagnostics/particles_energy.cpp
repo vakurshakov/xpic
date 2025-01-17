@@ -54,7 +54,7 @@ PetscErrorCode ParticlesEnergy::calculate_energies()
       wz += POW2(point.pz());
     }
 
-    result = 0.5 * m * Vector3R{wx, wy, wz} * (dx * dy * dz) / Np;
+    result = 0.5 * m * Vector3R{wx, wy, wz} / Np;
   };
 
   PetscFunctionBeginUser;
