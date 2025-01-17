@@ -7,7 +7,9 @@ class FieldsEnergyBuilder : public DiagnosticBuilder {
 public:
   FieldsEnergyBuilder(const interfaces::Simulation& simulation,
     std::vector<Diagnostic_up>& diagnostics)
-    : DiagnosticBuilder(simulation, diagnostics) {}
+    : DiagnosticBuilder(simulation, diagnostics)
+  {
+  }
 
 
   PetscErrorCode build(const Configuration::json_t& /* info */) override

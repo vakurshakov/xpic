@@ -179,9 +179,8 @@ Vector3R Particles::velocity(const Point& point) const
 PetscErrorCode Particles::correct_coordinates()
 {
   PetscFunctionBeginUser;
-  for (auto& point : points_) {
+  for (auto& point : points_)
     correct_coordinates(point);
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

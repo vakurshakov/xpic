@@ -39,7 +39,7 @@ PetscErrorCode ParticlesEnergy::diagnose(timestep_t t)
 
 PetscErrorCode ParticlesEnergy::calculate_energies()
 {
-  auto calculate_energy = [&](const interfaces::Particles* particles, Vector3R& result) {
+  auto calculate = [&](const interfaces::Particles* particles, Vector3R& result) {
     const PetscInt Np = particles->parameters().Np;
     const PetscReal m = particles->parameters().m;
 
@@ -60,7 +60,7 @@ PetscErrorCode ParticlesEnergy::calculate_energies()
   PetscFunctionBeginUser;
   for (std::size_t i = 0; i < particles_.size(); ++i) {
     energies_[i] = 0.0;
-    calculate_energy(particles_[i], energies_[i]);
+    calculate(particles_[i], energies_[i]);
   }
 
   std::vector<PetscReal> sendbuf(3 * energies_.size());

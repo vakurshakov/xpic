@@ -12,11 +12,11 @@ PetscErrorCode SimpleDecomposition::process(Context& J) const
   for (PetscInt z = 0; z < shape.size[Z]; ++z) {
   for (PetscInt y = 0; y < shape.size[Y]; ++y) {
   for (PetscInt x = 0; x < shape.size[X]; ++x) {
-    PetscInt i = shape.s_p(z, y, x);
     PetscInt g_x = shape.start[X] + x;
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
 
+    PetscInt i = shape.s_p(z, y, x);
     Vector3R J_shape = shape.electric(i);
 
 #pragma omp atomic update

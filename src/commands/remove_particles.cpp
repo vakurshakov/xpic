@@ -35,7 +35,8 @@ PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
     });
 
   if (it != storage.end()) {
-    constexpr auto message = "  Particles are removed from \"{}\"; removed particles: {}, removed energy: {}";
+    constexpr auto message =
+      "  Particles are removed from \"{}\"; particles: {}, energy: {}";
     LOG(message, particles_.parameters().sort_name, storage.end() - it, removed_energy_);
     storage.erase(it, storage.end());
   }

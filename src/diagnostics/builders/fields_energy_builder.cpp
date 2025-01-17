@@ -1,8 +1,9 @@
 #ifndef SRC_DIAGNOSTICS_BUILDERS_FIELDS_ENERGY_BUILDER_H
 #define SRC_DIAGNOSTICS_BUILDERS_FIELDS_ENERGY_BUILDER_H
 
-#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/diagnostics/fields_energy.h"
+
+#include "src/diagnostics/builders/diagnostic_builder.h"
 
 class FieldsEnergyBuilder : public DiagnosticBuilder {
 public:

@@ -184,7 +184,9 @@ void Particles::decompose_identity_current(
 
   Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
 
-  PetscReal betaI = density(point) * charge(point) / (particles_number(point) * (1.0 + b.squared()));
+  PetscReal betaI = density(point) * charge(point) /
+    (particles_number(point) * (1.0 + b.squared()));
+
   PetscReal betaL = charge(point) / mass(point) * betaI;
 
   Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
