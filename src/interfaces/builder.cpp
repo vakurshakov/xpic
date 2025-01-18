@@ -6,7 +6,7 @@
 namespace interfaces {
 
 Builder::Builder(const Simulation& simulation)
-  : simulation_(simulation)
+  : simulation_(const_cast<Simulation&>(simulation))
 {
 }
 

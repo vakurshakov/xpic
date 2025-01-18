@@ -28,7 +28,7 @@ protected:
   void check_region(
     const Vector3I& start, const Vector3I& size, const std::string& name) const;
 
-  const Simulation& simulation_;
+  Simulation& simulation_;
 };
 
 }  // namespace interfaces
