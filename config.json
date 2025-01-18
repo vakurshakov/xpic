@@ -1,11 +1,11 @@
 {
-  "OutputDirectory": "results/energy-test/periodic-square",
+  "OutputDirectory": "results/energy-test/ecsim-periodic-square",
 
   "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "x": 10,
-    "y": 10,
+    "x": 5,
+    "y": 5,
     "z": 0.5,
     "t": 10,
     "[x]": "c/w_pe",
@@ -33,6 +33,7 @@
   "Particles": [
     {
       "sort_name": "ions",
+      "Np": 1000,
       "n": 1.0,
       "q": 1.0,
       "m": 100.0,
@@ -40,6 +41,7 @@
     },
     {
       "sort_name": "electrons",
+      "Np": 1000,
       "n":  1.0,
       "q": -1.0,
       "m":  1.0,
@@ -48,6 +50,24 @@
   ],
 
   "Presets": [
+    {
+      "command": "InjectParticles",
+      "ionized": "ions",
+      "ejected": "electrons",
+      "set_point_of_birth": {
+        "name": "CoordinateInBox",
+        "min": 0.0,
+        "max": "Geom"
+      },
+      "load_momentum_i": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      },
+      "load_momentum_e": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      }
+    }
   ],
 
   "StepPresets": [

@@ -20,46 +20,73 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
 
-  constexpr PetscInt Np = 10;
+  const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
 
-  auto build_particles = [&]() {
-    const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
+  for (auto&& info : particles_info) {
+    SortParameters parameters;
+    info.at("sort_name").get_to(parameters.sort_name);
+    info.at("Np").get_to(parameters.Np);
+    info.at("n").get_to(parameters.n);
+    info.at("q").get_to(parameters.q);
+    info.at("m").get_to(parameters.m);
+    info.at("T").get_to(parameters.Tx);
+    info.at("T").get_to(parameters.Ty);
+    info.at("T").get_to(parameters.Tz);
+    particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
+  }
 
-    for (auto&& info : particles_info) {
-      SortParameters parameters;
-      info.at("sort_name").get_to(parameters.sort_name);
-      parameters.Np = Np;
-      info.at("n").get_to(parameters.n);
-      info.at("q").get_to(parameters.q);
-      info.at("m").get_to(parameters.m);
-      info.at("T").get_to(parameters.Tx);
-      info.at("T").get_to(parameters.Ty);
-      info.at("T").get_to(parameters.Tz);
-      particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
-    }
-  };
+  std::list<Command_up> presets;
+  const Configuration::json_t& presets_info = CONFIG().json.at("Presets");
 
-  build_particles();
+  for (auto&& info : presets_info) {
+    if (info.at("command") == "InjectParticles") {
+      auto&& ionized = get_named_particles(info.at("ionized").get<std::string>());
+      auto&& ejected = get_named_particles(info.at("ejected").get<std::string>());
 
+      const PetscInt Npi = ionized.parameters().Np;
+      PetscInt per_step_particles_num = 0.0;
 
-  // clang-format off
-  for (PetscInt z = 0; z < geom_nz; ++z) {
-  for (PetscInt y = 0; y < geom_ny; ++y) {
-  for (PetscInt x = 0; x < geom_nx; ++x) {
-    for (PetscInt n = 0; n < Np; ++n) {
-      Vector3R r{
-        ((PetscReal)x + random_01()) * dx,
-        ((PetscReal)y + random_01()) * dy,
-        ((PetscReal)z + random_01()) * dz,
+      InjectParticles::CoordinateGenerator generate_coordinate;
+      const Configuration::json_t& set_point_of_birth =
+        info.at("set_point_of_birth");
+
+      if (set_point_of_birth.at("name") == "CoordinateInBox") {
+        Vector3R min{0.0};
+        Vector3R max{Geom};
+        generate_coordinate = CoordinateInBox(min, max);
+        per_step_particles_num =
+          (max - min).elements_product() / (dx * dy * dz) * Npi;
+      }
+
+      auto load_momentum = [](const Configuration::json_t& info,
+                             const Particles& particles,
+                             InjectParticles::MomentumGenerator& gen) {
+        if (info.at("name") == "MaxwellianMomentum") {
+          bool tov = false;
+
+          if (info.contains("tov"))
+            info.at("tov").get_to(tov);
+
+          gen = MaxwellianMomentum(particles.parameters(), tov);
+        }
       };
 
-      for (auto&& sort : particles_) {
-        MaxwellianMomentum velocity(sort->parameters(), true);
-        sort->add_particle(Point(r, velocity(r)));
-      }
+      InjectParticles::MomentumGenerator generate_vi;
+      const Configuration::json_t& load_momentum_i = info.at("load_momentum_i");
+      load_momentum(load_momentum_i, ionized, generate_vi);
+
+      InjectParticles::MomentumGenerator generate_ve;
+      const Configuration::json_t& load_momentum_e = info.at("load_momentum_e");
+      load_momentum(load_momentum_e, ejected, generate_ve);
+
+      presets.emplace_back(std::make_unique<InjectParticles>( //
+        ionized, ejected, 0, 1, per_step_particles_num, //
+        generate_coordinate, generate_vi, generate_ve));
     }
-  }}}
-  // clang-format off
+  }
+
+  for (auto&& preset : presets)
+    preset->execute(0);
 
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyDiagnostic>(*this));
