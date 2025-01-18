@@ -3,23 +3,23 @@
 #include "src/utils/configuration.h"
 #include "src/utils/random_generator.h"
 
-InjectParticles::InjectParticles(                //
-  interfaces::Particles& ionized,                //
-  interfaces::Particles& ejected,                //
-  timestep_t injection_start,                    //
-  timestep_t injection_end,                      //
-  PetscInt per_step_particles_num,               //
-  const CoordinateGenerator& set_point_of_birth, //
-  const VelocityGenerator& load_momentum_i,      //
-  const VelocityGenerator& load_momentum_e)
+InjectParticles::InjectParticles(                  //
+  interfaces::Particles& ionized,                  //
+  interfaces::Particles& ejected,                  //
+  timestep_t injection_start,                      //
+  timestep_t injection_end,                        //
+  PetscInt per_step_particles_num,                 //
+  const CoordinateGenerator& generate_coordinate, //
+  const MomentumGenerator& generate_vi,           //
+  const MomentumGenerator& generate_ve)
   : ionized_(ionized),
     ejected_(ejected),
     injection_start_(injection_start),
     injection_end_(injection_end),
     per_step_particles_num_(per_step_particles_num),
-    generate_coordinate_(set_point_of_birth),
-    generate_vi_(load_momentum_i),
-    generate_ve_(load_momentum_e)
+    generate_coordinate_(generate_coordinate),
+    generate_vi_(generate_vi),
+    generate_ve_(generate_ve)
 {
   ionized_.reserve(per_step_particles_num_ * (injection_end_ - injection_start_));
   ejected_.reserve(per_step_particles_num_ * (injection_end_ - injection_start_));

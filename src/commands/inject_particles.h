@@ -13,18 +13,18 @@ class InjectParticles : public interfaces::Command {
 public:
   using CoordinateGenerator = std::function<Vector3R()>;
 
-  using VelocityGenerator =
+  using MomentumGenerator =
     std::function<Vector3R(const Vector3R& /* reference */)>;
 
   InjectParticles( //
-    interfaces::Particles& ionized,                //
-    interfaces::Particles& ejected,                //
-    timestep_t injection_start,                    //
-    timestep_t injection_end,                      //
-    PetscInt per_step_particles_num,               //
-    const CoordinateGenerator& set_point_of_birth, //
-    const VelocityGenerator& load_momentum_i,      //
-    const VelocityGenerator& load_momentum_e);
+    interfaces::Particles& ionized,                 //
+    interfaces::Particles& ejected,                 //
+    timestep_t injection_start,                     //
+    timestep_t injection_end,                       //
+    PetscInt per_step_particles_num,                //
+    const CoordinateGenerator& generate_coordinate, //
+    const MomentumGenerator& generate_vi,           //
+    const MomentumGenerator& generate_ve);
 
   /**
    * @brief Loads the number of particles (per_step_particles_num)
@@ -55,8 +55,8 @@ private:
   PetscInt per_step_particles_num_;
 
   CoordinateGenerator generate_coordinate_;
-  VelocityGenerator generate_vi_;
-  VelocityGenerator generate_ve_;
+  MomentumGenerator generate_vi_;
+  MomentumGenerator generate_ve_;
 
   PetscReal energy_i_ = 0.0;
   PetscReal energy_e_ = 0.0;
