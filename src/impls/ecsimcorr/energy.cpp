@@ -72,14 +72,14 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
   }
 
   PetscReal dtJE = dt * simulation.w1;
-  output((dE + dB) - dK);
-  output((dE + dB) - dtJE);
+  output((dE + dB) + dK);
+  output((dE + dB) + dtJE);
   output(dK - dtJE);
 
   file_() << "\n";
 
-  // if (t % diagnose_period)
-  file_.flush();
+  if (t % diagnose_period == 0)
+    file_.flush();
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -104,8 +104,8 @@ PetscErrorCode EnergyDiagnostic::write_header()
       file_() << "Rm_" << remove->get_particles_name() << "\t";
   }
 
-  file_() << "Total[dE+dB-dK]\t";
-  file_() << "Total[dE+dB-dt*JE]\t";
+  file_() << "Total[dE+dB+dK]\t";
+  file_() << "Total[dE+dB+dt*JE]\t";
   file_() << "Work[dK-dt*JE]\t";
 
   file_() << "\n";
