@@ -155,8 +155,10 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   PetscLogStagePop();
   PetscLogStagePush(stagenums[1]);
 
-  for (auto& sort : particles_)
+  for (auto& sort : particles_) {
     PetscCall(sort->first_push());
+    PetscCall(sort->correct_coordinates());
+  }
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
@@ -166,8 +168,10 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   PetscLogStagePop();
   PetscLogStagePush(stagenums[3]);
 
-  for (auto& sort : particles_)
+  for (auto& sort : particles_) {
     PetscCall(sort->second_push());
+    PetscCall(sort->correct_coordinates());
+  }
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[4]);
@@ -177,13 +181,12 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   PetscLogStagePop();
   PetscLogStagePush(stagenums[5]);
 
-  for (auto& sort : particles_) {
-    // PetscCall(sort->final_update());
-    PetscCall(sort->correct_coordinates());
+  // for (auto& sort : particles_) {
+  // PetscCall(sort->final_update());
 
-    /// @todo Testing petsc as a computational server first
-    /// PetscCall(sort->communicate());
-  }
+  /// @todo Testing petsc as a computational server first
+  /// PetscCall(sort->communicate());
+  // }
 
   PetscLogStagePop();
   PetscFunctionReturn(PETSC_SUCCESS);
