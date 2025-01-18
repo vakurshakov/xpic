@@ -56,7 +56,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Vec Simulation::get_named_vector(std::string_view name) const
+Vec Simulation::get_named_vector(std::string_view name)
 {
   if (name == "E")
     return E_;
@@ -67,7 +67,7 @@ Vec Simulation::get_named_vector(std::string_view name) const
   throw std::runtime_error("Unknown vector name " + std::string(name));
 }
 
-const Particles& Simulation::get_named_particles(std::string_view name) const
+Particles& Simulation::get_named_particles(std::string_view name)
 {
   return interfaces::Simulation::get_named_particles(name, particles_);
 }

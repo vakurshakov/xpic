@@ -18,8 +18,8 @@ public:
   Vec J_;
   std::vector<Particles> particles_;
 
-  Vec get_named_vector(std::string_view name) const override;
-  const Particles& get_named_particles(std::string_view name) const override;
+  Vec get_named_vector(std::string_view name) override;
+  Particles& get_named_particles(std::string_view name) override;
 
 private:
   PetscErrorCode initialize_implementation() override;

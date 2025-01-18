@@ -306,7 +306,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec rhs)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Vec Simulation::get_named_vector(std::string_view name) const
+Vec Simulation::get_named_vector(std::string_view name)
 {
   if (name == "E^n")
     return E;
@@ -325,7 +325,7 @@ Vec Simulation::get_named_vector(std::string_view name) const
   throw std::runtime_error("Unknown vector name " + std::string(name));
 }
 
-const Particles& Simulation::get_named_particles(std::string_view name) const
+Particles& Simulation::get_named_particles(std::string_view name)
 {
   auto it = std::find_if(particles_.begin(), particles_.end(),  //
     [&](const auto& sort) {

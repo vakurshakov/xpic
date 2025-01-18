@@ -21,8 +21,8 @@ public:
   PetscErrorCode initialize();
   PetscErrorCode calculate();
 
-  virtual Vec get_named_vector(std::string_view name) const = 0;
-  virtual const Particles& get_named_particles(std::string_view name) const = 0;
+  virtual Vec get_named_vector(std::string_view name) = 0;
+  virtual Particles& get_named_particles(std::string_view name) = 0;
 
 protected:
   virtual PetscErrorCode initialize_implementation() = 0;
@@ -38,7 +38,7 @@ protected:
 
   template<class ParticlesContainer>
   static auto&& get_named_particles(
-    std::string_view name, const ParticlesContainer& storage)
+    std::string_view name, ParticlesContainer& storage)
   {
     auto it = std::find_if(storage.begin(), storage.end(),  //
       [&](const auto& sort) {
