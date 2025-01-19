@@ -19,7 +19,8 @@ public:
   ~Simulation() override;
 
   Vec E;
-  Vec En;
+  Vec Ep;
+  Vec Ec;
   Vec B;
   Vec B0;
   Vec currI;
@@ -56,8 +57,9 @@ private:
   PetscErrorCode clear_sources();
   PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
-  PetscErrorCode advance_fields(KSP ksp, Vec rhs);
   PetscErrorCode final_update();
+
+  PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
 
   std::unique_ptr<FieldsDamping> damping;
 

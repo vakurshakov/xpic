@@ -101,11 +101,6 @@ PetscErrorCode Particles::first_push()
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
-  Vec En = simulation_.En;
-  Mat matL = simulation_.matL;
-  PetscCall(MatMultAdd(matL, En, global_currI, global_currI));
-  PetscCall(VecDot(global_currI, En, &w1));
-
   Vec local_E;
   Vec local_B;
   Vector3R*** E;
@@ -114,7 +109,7 @@ PetscErrorCode Particles::second_push()
   DM da = world_.da;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
-  PetscCall(DMGlobalToLocal(da, simulation_.En, INSERT_VALUES, local_E));
+  PetscCall(DMGlobalToLocal(da, simulation_.Ep, INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
   PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
@@ -162,8 +157,9 @@ PetscErrorCode Particles::second_push()
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
-  Vec En = simulation_.En;
-  PetscCall(VecDot(global_currJe, En, &w2));
+  // PetscCall(MatMultAdd(simulation_.matL, simulation_.Ep, global_currI, global_currI));
+  PetscCall(VecDot(global_currI, simulation_.Ep, &w1));
+  PetscCall(VecDot(global_currJe, simulation_.Ec, &w2));
 
   energy = 0.0;
   PetscLogEventBegin(events[2], 0, 0, 0, 0);

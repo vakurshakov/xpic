@@ -100,7 +100,8 @@ PetscErrorCode Simulation::init_vectors()
   PetscFunctionBeginUser;
   DM da = world_.da;
   PetscCall(DMCreateGlobalVector(da, &E));
-  PetscCall(DMCreateGlobalVector(da, &En));
+  PetscCall(DMCreateGlobalVector(da, &Ep));
+  PetscCall(DMCreateGlobalVector(da, &Ec));
   PetscCall(DMCreateGlobalVector(da, &B));
   PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &currI));
@@ -232,7 +233,7 @@ PetscErrorCode Simulation::clear_sources()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// Solving Maxwell's equations to find prediction of E'^{n+1/2}
+// Solving Maxwell's equations to find predicted field `Ep` = E'^{n+1/2}
 PetscErrorCode Simulation::predict_fields()
 {
   PetscFunctionBeginUser;
@@ -243,21 +244,21 @@ PetscErrorCode Simulation::predict_fields()
   PetscCall(KSPSetOperators(predict, matA, matA));
   PetscCall(KSPSetUp(predict));
 
-  PetscCall(advance_fields(predict, currI));
+  PetscCall(advance_fields(predict, currI, Ep));
 
   PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// Solving Maxwell's equation to find correct E^{n+1/2}, satisfying continuity equation
+// Solving Maxwell's equation to find correct `Ec` = E^{n+1/2}, satisfying continuity equation
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
-  PetscCall(advance_fields(correct, currJe));
+  PetscCall(advance_fields(correct, currJe, Ec));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr)
+PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 {
   PetscFunctionBeginUser;
   Vec rhs;
@@ -267,8 +268,8 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr)
   PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * rhs)
   PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
 
-  PetscCall(KSPSolve(ksp, rhs, En));
-  PetscCall(KSPGetSolution(ksp, &En));
+  PetscCall(KSPSolve(ksp, rhs, out));
+  PetscCall(KSPGetSolution(ksp, &out));
 
   PetscCall(DMRestoreGlobalVector(world_.da, &rhs));
 
@@ -284,36 +285,38 @@ PetscErrorCode Simulation::final_update()
   PetscReal norm;
   PetscCall(DMGetGlobalVector(world_.da, &util));
 
-  PetscCall(MatMultAdd(matL, En, currI, currI));  // currI = currI + matL * E^{n+1/2}
+  PetscCall(MatMultAdd(matL, Ec, currI, currI));  // currI = currI + matL * E^{n+1/2}
   PetscCall(VecWAXPY(util, -1, currI, currJe));  // util = -currI + currJe
   PetscCall(VecNorm(util, NORM_2, &norm));
   LOG("  Norm of the difference in ECSIM and Esirkepov currents: {:.7f}", norm);
 
   PetscCall(VecSet(util, 0.0));  // util = 0.0
-  PetscCall(VecAXPBYPCZ(util, 2, -1, 1, En, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
+  PetscCall(VecAXPBYPCZ(util, 2, -1, 1, Ec, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
   PetscCall(VecNorm(util, NORM_2, &norm));
   LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
 
   PetscCall(VecSwap(util, E));
   PetscCall(DMRestoreGlobalVector(world_.da, &util));
 
-  PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
+  PetscCall(MatMultAdd(rotE, Ec, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 Vec Simulation::get_named_vector(std::string_view name)
 {
-  if (name == "E^n")
+  if (name == "E")
     return E;
-  if (name == "E^{n+1/2}")
-    return En;
-  if (name == "B^n")
+  if (name == "E_pred")
+    return Ep;
+  if (name == "E_corr")
+    return Ec;
+  if (name == "B")
     return B;
-  if (name == "B^0")
+  if (name == "B0")
     return B0;
-  if (name == "J_{ecsim}")
+  if (name == "J_ecsim")
     return currI;
-  if (name == "J_{esirkepov}")
+  if (name == "J_esirkepov")
     return currJe;
   throw std::runtime_error("Unknown vector name " + std::string(name));
 }
@@ -335,7 +338,8 @@ Simulation::~Simulation()
 {
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&E));
-  PetscCallVoid(VecDestroy(&En));
+  PetscCallVoid(VecDestroy(&Ep));
+  PetscCallVoid(VecDestroy(&Ec));
   PetscCallVoid(VecDestroy(&B));
   PetscCallVoid(VecDestroy(&B0));
   PetscCallVoid(VecDestroy(&currI));
