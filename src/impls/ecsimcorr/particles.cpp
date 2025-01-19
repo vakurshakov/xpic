@@ -15,6 +15,8 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   DM da = world_.da;
   PetscCallVoid(DMCreateLocalVector(da, &local_currI));
   PetscCallVoid(DMCreateLocalVector(da, &local_currJe));
+  PetscCallVoid(DMCreateGlobalVector(da, &global_currI));
+  PetscCallVoid(DMCreateGlobalVector(da, &global_currJe));
 
   PetscClassIdRegister("ecsimcorr::Particles", &classid);
   PetscLogEventRegister("first_push", classid, &events[0]);
@@ -28,6 +30,8 @@ Particles::~Particles()
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&local_currI));
   PetscCallVoid(VecDestroy(&local_currJe));
+  PetscCallVoid(VecDestroy(&global_currI));
+  PetscCallVoid(VecDestroy(&global_currJe));
   PetscFunctionReturnVoid();
 }
 
@@ -36,6 +40,8 @@ PetscErrorCode Particles::clear_sources()
   PetscFunctionBeginUser;
   PetscCall(VecSet(local_currI, 0.0));
   PetscCall(VecSet(local_currJe, 0.0));
+  PetscCall(VecSet(global_currI, 0.0));
+  PetscCall(VecSet(global_currJe, 0.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -43,22 +49,25 @@ PetscErrorCode Particles::clear_sources()
 PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
+  Vec local_B;
+  Vector3R*** B;
+
   DM da = world_.da;
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currI, &currI));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
 
   PetscLogEventBegin(events[0], 0, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    // const Vector3R old_r = point.r;
+    const Vector3R old_r = point.r;
 
     BorisPush push;
-    push.update_r(dt, point, *this);
+    push.update_r((0.5 * dt), point, *this);
 
     Shape shape;
     shape.setup(point.r, shape_radius1, shape_func1);
@@ -69,20 +78,19 @@ PetscErrorCode Particles::first_push()
 
     decompose_identity_current(shape, point, B_p);
 
-    // shape.setup(old_r, point.r, shape_radius2, shape_func2);
-    // decompose_esirkepov_current(shape, point);
+    shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    decompose_esirkepov_current(shape, point);
   }
 
   PetscLogEventEnd(events[0], 0, 0, 0, 0);
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, reinterpret_cast<void*>(&currI)));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
-
-  PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, simulation_.currI));
-  PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, simulation_.currJe));
-
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, &currI));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
   PetscCall(DMRestoreLocalVector(da, &local_B));
+
+  PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, global_currI));
+  PetscCall(VecAXPY(simulation_.currI, 1.0, global_currI));
 
   PetscCall(MatAssemblyBegin(simulation_.matL, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(simulation_.matL, MAT_FINAL_ASSEMBLY));
@@ -93,21 +101,31 @@ PetscErrorCode Particles::first_push()
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
+  Vec En = simulation_.En;
+  Mat matL = simulation_.matL;
+  PetscCall(MatMultAdd(matL, En, global_currI, global_currI));
+  PetscCall(VecDot(global_currI, En, &w1));
+
+  Vec local_E;
+  Vec local_B;
+  Vector3R*** E;
+  Vector3R*** B;
+
   DM da = world_.da;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.En, INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
 
   PetscLogEventBegin(events[1], 0, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
-    // const Vector3R old_r = point.r;
+    const Vector3R old_r = point.r;
 
     Shape shape;
     shape.setup(point.r, shape_radius1, shape_func1);
@@ -120,19 +138,20 @@ PetscErrorCode Particles::second_push()
     BorisPush push;
     push.update_fields(E_p, B_p);
     push.update_vEB(dt, point, *this);
-    // push.update_r(dt, point, *this);
+    push.update_r((0.5 * dt), point, *this);
 
-    // shape.setup(old_r, point.r, shape_radius2, shape_func2);
-    // decompose_esirkepov_current(shape, point);
+    shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    decompose_esirkepov_current(shape, point);
   }
 
   PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, reinterpret_cast<void*>(&currJe)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
 
-  PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, simulation_.currJe));
+  PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, global_currJe));
+  PetscCall(VecAXPY(simulation_.currJe, 1.0, global_currJe));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
@@ -143,20 +162,32 @@ PetscErrorCode Particles::second_push()
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
+  Vec En = simulation_.En;
+  PetscCall(VecDot(global_currJe, En, &w2));
+
+  energy = 0.0;
   PetscLogEventBegin(events[2], 0, 0, 0, 0);
 
-  PetscReal w1 = simulation_.w1;
-  PetscReal w2 = simulation_.w2;
-  PetscReal wp = 0.0;
-
-#pragma omp parallel for reduction(+ : wp), \
+#pragma omp parallel for reduction(+ : energy), \
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_)
-    wp += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+    energy += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+
+  PetscReal lambda2 = 1.0 + dt * (w2 - w1) / energy;
+  PetscReal lambda = std::sqrt(lambda2);
+  lambda_energy = (1.0 - lambda2) * energy;
+
+  LOG("  Velocity renormalization for \"{}\"", parameters_.sort_name);
+  LOG("    predicted field work [(ECSIM) * E_pred]: {:.7f}", w1);
+  LOG("    corrected field work [(Esirkepov) * E_corr]: {:.7f}", w2);
+  LOG("    lambda: {:.7f}, lambda^2: {:.7f}", lambda, lambda2, lambda_energy);
+  LOG("    energy pred.: {:.7f}, corr.: {:.7f}, diff: {:.7f}", energy, energy + lambda_energy, lambda_energy);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_)
-    point.p *= 1.0 + dt * (w2 - w1) / wp;
+    point.p *= lambda;
+
+  energy += lambda_energy;
 
   PetscLogEventEnd(events[2], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);

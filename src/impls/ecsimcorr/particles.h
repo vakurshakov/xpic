@@ -37,17 +37,22 @@ private:
     const Shape& shape, const Point& point, const Vector3R& B_p);
 
   Simulation& simulation_;
-  Vec local_E;
-  Vec local_B;
   Vec local_currI;
   Vec local_currJe;
-  Vector3R*** E;
-  Vector3R*** B;
+  Vec global_currI;
+  Vec global_currJe;
   Vector3R*** currI;
   Vector3R*** currJe;
 
+  PetscReal w1 = 0.0;
+  PetscReal w2 = 0.0;
+  PetscReal energy = 0.0;
+  PetscReal lambda_energy = 0.0;
+
   PetscClassId classid;
   PetscLogEvent events[3];
+
+  friend class EnergyDiagnostic;
 };
 
 }  // namespace ecsimcorr

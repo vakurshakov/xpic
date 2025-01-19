@@ -59,6 +59,9 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
     output(new_energies[i] - prev_energies[i]);
   }
 
+  for (const auto& particles : simulation.particles_)
+    output(particles->lambda_energy);
+
   if (simulation.damping)
     output(simulation.damping->get_damped_energy());
 
@@ -71,10 +74,15 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
       output(remove->get_removed_energy());
   }
 
-  PetscReal dtJE = dt * simulation.w1;
+  /// @note Esirkepov current finally created electric field, so its work should be used
+  PetscReal w2 = 0.0;
+
+  for (const auto& particles : simulation.particles_)
+    w2 += dt * particles->w2;
+
   output((dE + dB) + dK);
-  output((dE + dB) + dtJE);
-  output(dK - dtJE);
+  output((dE + dB) + w2);
+  output(dK - w2);
 
   file_() << "\n";
 
@@ -87,13 +95,16 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
 PetscErrorCode EnergyDiagnostic::write_header()
 {
   PetscFunctionBeginUser;
-  file_() << "delta(E)\tdelta(dB)\t";
+  file_() << "Delta(E)\tDelta(B)\t";
 
   for (const auto& particles : simulation.particles_)
-    file_() << "delta(K_" << particles->parameters().sort_name << ")\t";
+    file_() << "Delta(K_" << particles->parameters().sort_name << ")\t";
+
+  for (const auto& particles : simulation.particles_)
+    file_() << "Lambda(K_" << particles->parameters().sort_name << ")\t";
 
   if (simulation.damping)
-    file_() << "Damped\t";
+    file_() << "Damped(E+B)\t";
 
   for (const auto& command : simulation.step_presets_) {
     if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
@@ -104,12 +115,12 @@ PetscErrorCode EnergyDiagnostic::write_header()
       file_() << "Rm_" << remove->get_particles_name() << "\t";
   }
 
-  file_() << "Total[dE+dB+dK]\t";
-  file_() << "Total[dE+dB+dt*JE]\t";
-  file_() << "Work[dK-dt*JE]\t";
+  file_() << "Total(dE+dB+dK)\t";
+  file_() << "Total(dE+dB+dt*JE)\t";
+  file_() << "Work(dK-dt*JE)\t";
 
   file_() << "\n";
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-} // namespace ecsimcorr
+}  // namespace ecsimcorr

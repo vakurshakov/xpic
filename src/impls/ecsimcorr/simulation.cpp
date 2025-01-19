@@ -104,7 +104,6 @@ PetscErrorCode Simulation::init_vectors()
   PetscCall(DMCreateGlobalVector(da, &B));
   PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &currI));
-  PetscCall(DMCreateGlobalVector(da, &currJ));
   PetscCall(DMCreateGlobalVector(da, &currJe));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -203,17 +202,19 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   PetscLogStagePop();
   PetscLogStagePush(stagenums[4]);
 
-  // PetscCall(correct_fields());
+  PetscCall(correct_fields());
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[5]);
 
-  // for (auto& sort : particles_) {
-  // PetscCall(sort->final_update());
+  for (auto& sort : particles_) {
+    PetscCall(sort->final_update());
 
-  /// @todo Testing petsc as a computational server first
-  /// PetscCall(sort->communicate());
-  // }
+    /// @todo Testing petsc as a computational server first
+    /// PetscCall(sort->communicate());
+  }
+
+  PetscCall(final_update());
 
   PetscLogStagePop();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -222,10 +223,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  w1 = 0.0;
-  w2 = 0.0;
   PetscCall(VecSet(currI, 0.0));
-  PetscCall(VecSet(currJ, 0.0));
   PetscCall(VecSet(currJe, 0.0));
   PetscCall(MatZeroEntries(matL));
 
@@ -234,105 +232,72 @@ PetscErrorCode Simulation::clear_sources()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// Solving Maxwell's equations to find prediction of E'^{n+1/2}
 PetscErrorCode Simulation::predict_fields()
 {
   PetscFunctionBeginUser;
-  // Storing identity current `currI` before we use it
-  // as a storage for the right hand side of the `ksp`
-  PetscCall(VecCopy(currI, currJ));  // currJ = currI
-
-  // The same copying is made for `matL`
+  // Storing `matL` to reuse it for ECSIM current calculation later
   PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));  // matA = matL
   PetscCall(MatAYPX(matA, 0.5 * POW2(dt), matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt^2 / 2 * matA
 
   PetscCall(KSPSetOperators(predict, matA, matA));
   PetscCall(KSPSetUp(predict));
 
-  // Solving the Maxwell's equations to find prediction of E'^{n+1/2}
   PetscCall(advance_fields(predict, currI));
 
-  /// TO BE REMOVED
-  PetscCall(MatScale(matL, 0.5 * dt));
-  PetscCall(MatMultAdd(matL, En, currJ, currJ));
-
-  PetscCall(VecDot(currJ, En, &w1));
-  LOG("  Work of the predicted field ((ECSIM cur.) * E^(n+1/2)): {}", w1);
-
-  DM da = world_.da;
-
-  Vec newE, diff;
-  PetscCall(DMGetGlobalVector(da, &newE));
-  PetscCall(DMGetGlobalVector(da, &diff));
-  PetscCall(VecSet(newE, 0.0));
-  PetscCall(VecSet(diff, 0.0));
-
-  PetscCall(VecAXPBYPCZ(newE, 2, -1, 1, En, E));
-  PetscCall(VecWAXPY(diff, -1, newE, E));
-
-  PetscReal norm;
-  PetscCall(VecNorm(diff, NORM_2, &norm));
-  LOG("  Norm of the difference in predicted and corrected fields: {}", norm);
-
-  PetscCall(VecSwap(newE, E));
-  PetscCall(DMRestoreGlobalVector(da, &newE));
-  PetscCall(DMRestoreGlobalVector(da, &diff));
-
-  PetscCall(MatMultAdd(rotE, En, B, B));
-  ///
-
+  PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// Solving Maxwell's equation to find correct E^{n+1/2}, satisfying continuity equation
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
-  PetscCall(MatScale(matL, 0.5 * dt));  // matL = dt / 2 * matL
-  PetscCall(MatMultAdd(matL, En, currJ, currJ));  // currJ = currJ + matL * E'^{n+1/2}
-
-  PetscCall(VecDot(currJ, En, &w1));  // w1 = (currJ, E'^{n+1/2})
-  LOG("  Work of the predicted field ((ECSIM cur.) * E_pred): {}", w1);
-  DM da = world_.da;
-
-  Vec diff;
-  PetscReal norm;
-  PetscCall(DMGetGlobalVector(da, &diff));
-  PetscCall(VecWAXPY(diff, -1, currJ, currJe));
-  PetscCall(VecNorm(diff, NORM_2, &norm));
-  PetscCall(DMRestoreGlobalVector(da, &diff));
-  LOG("  Norm of the difference in ECSIM and Esirkepov currents: {}", norm);
-
-  PetscCall(VecCopy(currJe, currJ));  // currJ = currJe
-
-  // Solving Maxwell's equation to find correct
-  // E^{n+1/2}, satisfying continuity equation
   PetscCall(advance_fields(correct, currJe));
-
-  PetscCall(VecDot(currJ, En, &w2));  // w2 = (currJ, E^{n+1/2})
-  LOG("  Work of the corrected field ((Esirkepov cur.) * E_corr): {}", w2);
-
-  Vec newE;
-  PetscCall(DMGetGlobalVector(da, &newE));
-  PetscCall(VecAXPBYPCZ(newE, 2, -1, 1, En, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
-  PetscCall(VecNorm(newE, NORM_2, &norm));
-  PetscCall(VecSwap(newE, E));
-  PetscCall(DMRestoreGlobalVector(da, &newE));
-  LOG("  Norm of the difference in predicted and corrected fields: {}", norm);
-
-  PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::advance_fields(KSP ksp, Vec rhs)
+PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr)
 {
   PetscFunctionBeginUser;
+  Vec rhs;
+  PetscCall(DMGetGlobalVector(world_.da, &rhs));
+
+  PetscCall(VecCopy(curr, rhs));  // rhs = curr
   PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * rhs)
   PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
 
   PetscCall(KSPSolve(ksp, rhs, En));
   PetscCall(KSPGetSolution(ksp, &En));
 
+  PetscCall(DMRestoreGlobalVector(world_.da, &rhs));
+
   // Convergence analysis
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::final_update()
+{
+  PetscFunctionBeginUser;
+  Vec util;
+  PetscReal norm;
+  PetscCall(DMGetGlobalVector(world_.da, &util));
+
+  PetscCall(MatMultAdd(matL, En, currI, currI));  // currI = currI + matL * E^{n+1/2}
+  PetscCall(VecWAXPY(util, -1, currI, currJe));  // util = -currI + currJe
+  PetscCall(VecNorm(util, NORM_2, &norm));
+  LOG("  Norm of the difference in ECSIM and Esirkepov currents: {:.7f}", norm);
+
+  PetscCall(VecSet(util, 0.0));  // util = 0.0
+  PetscCall(VecAXPBYPCZ(util, 2, -1, 1, En, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
+  PetscCall(VecNorm(util, NORM_2, &norm));
+  LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
+
+  PetscCall(VecSwap(util, E));
+  PetscCall(DMRestoreGlobalVector(world_.da, &util));
+
+  PetscCall(MatMultAdd(rotE, En, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -346,12 +311,10 @@ Vec Simulation::get_named_vector(std::string_view name)
     return B;
   if (name == "B^0")
     return B0;
-  if (name == "I")
-    return currI;
   if (name == "J_{ecsim}")
     return currI;
   if (name == "J_{esirkepov}")
-    return currI;
+    return currJe;
   throw std::runtime_error("Unknown vector name " + std::string(name));
 }
 
@@ -376,7 +339,6 @@ Simulation::~Simulation()
   PetscCallVoid(VecDestroy(&B));
   PetscCallVoid(VecDestroy(&B0));
   PetscCallVoid(VecDestroy(&currI));
-  PetscCallVoid(VecDestroy(&currJ));
   PetscCallVoid(VecDestroy(&currJe));
 
   PetscCallVoid(MatDestroy(&matL));

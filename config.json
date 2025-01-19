@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/energy-test/ecsim-periodic-square",
+  "OutputDirectory": "results/energy-test/ecsimcorr-periodic-square",
 
   "Simulation": "ecsimcorr",
 

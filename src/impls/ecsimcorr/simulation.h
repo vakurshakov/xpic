@@ -23,7 +23,6 @@ public:
   Vec B;
   Vec B0;
   Vec currI;
-  Vec currJ;
   Vec currJe;
 
   /**
@@ -38,8 +37,6 @@ public:
    *     when needed: `DMSetMatrixPreallocateSkip()`, `MatSetPreallocation()`.
    */
   Mat matL;
-
-  PetscReal w1, w2;
 
   /// @note Use of stack-allocated `Particles` breaks internal pointers.
   std::vector<std::unique_ptr<Particles>> particles_;
@@ -60,6 +57,7 @@ private:
   PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
   PetscErrorCode advance_fields(KSP ksp, Vec rhs);
+  PetscErrorCode final_update();
 
   std::unique_ptr<FieldsDamping> damping;
 
