@@ -5,6 +5,7 @@
 #include "src/commands/setup_magnetic_field.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/impls/ecsimcorr/energy_conservation.h"
+#include "src/impls/ecsimcorr/charge_conservation.h"
 #include "src/utils/operators.h"
 #include "src/utils/particles_load.hpp"
 #include "src/utils/random_generator.h"
@@ -35,6 +36,7 @@ PetscErrorCode Simulation::initialize_implementation()
     particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
   }
 
+/*
   std::list<Command_up> presets;
   const Configuration::json_t& presets_info = CONFIG().json.at("Presets");
 
@@ -87,9 +89,13 @@ PetscErrorCode Simulation::initialize_implementation()
 
   for (auto&& preset : presets)
     preset->execute(0);
+*/
+
+  particles_[0]->add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 2}, {0.0, 0.0, 0.5}});
 
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
+  diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
 
   for (auto& sort : particles_)
     PetscCall(sort->init());
@@ -195,28 +201,28 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 
   PetscCall(predict_fields());
 
-  PetscLogStagePop();
-  PetscLogStagePush(stagenums[3]);
+  // PetscLogStagePop();
+  // PetscLogStagePush(stagenums[3]);
 
-  for (auto& sort : particles_) {
-    PetscCall(sort->second_push());
-    PetscCall(sort->correct_coordinates());
-  }
+  // for (auto& sort : particles_) {
+  //   PetscCall(sort->second_push());
+  //   PetscCall(sort->correct_coordinates());
+  // }
 
-  PetscLogStagePop();
-  PetscLogStagePush(stagenums[4]);
+  // PetscLogStagePop();
+  // PetscLogStagePush(stagenums[4]);
 
-  PetscCall(correct_fields());
+  // PetscCall(correct_fields());
 
-  PetscLogStagePop();
-  PetscLogStagePush(stagenums[5]);
+  // PetscLogStagePop();
+  // PetscLogStagePush(stagenums[5]);
 
-  for (auto& sort : particles_) {
-    PetscCall(sort->final_update());
+  // for (auto& sort : particles_) {
+  //   PetscCall(sort->final_update());
 
-    /// @todo Testing petsc as a computational server first
-    /// PetscCall(sort->communicate());
-  }
+  //   /// @todo Testing petsc as a computational server first
+  //   /// PetscCall(sort->communicate());
+  // }
 
   PetscCall(final_update());
 

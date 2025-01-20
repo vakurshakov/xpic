@@ -19,7 +19,7 @@
                 "-options_left",
                 "-omp_view",
                 "-fp_trap",
-                "-info", // [filename]
+                // "-info", // [filename]
                 // "-log_view",  // [:filename]
                 // "-log_trace",  // [filename]
                 // "-start_in_debugger",

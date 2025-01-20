@@ -21,6 +21,7 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
   static constexpr PetscInt j_geom = POW2(shape_width);
   static constexpr PetscInt j_comp = Vector3I::dim;
   static constexpr std::size_t j_size = static_cast<std::size_t>(j_geom) * j_comp;
+  static constexpr PetscReal add_tolerance = 1e-10;
 
   std::array<PetscReal, j_size> temp_j;
 
@@ -32,9 +33,15 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
 
+    /// @todo there are lots of empty p_j values, they should condensed in some way
     PetscReal p_jx = get_jx(z, y, x, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * X));
     PetscReal p_jy = get_jy(z, y, x, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * Y));
     PetscReal p_jz = get_jz(z, y, x, temp_j.data() + static_cast<std::ptrdiff_t>(j_geom * Z));
+
+    if (std::abs(p_jx) < add_tolerance &&
+        std::abs(p_jy) < add_tolerance &&
+        std::abs(p_jz) < add_tolerance)
+      continue;
 
 #pragma omp atomic update
       J[g_z][g_y][g_x][X] += p_jx;

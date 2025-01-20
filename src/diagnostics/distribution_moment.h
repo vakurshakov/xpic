@@ -4,30 +4,15 @@
 #include "src/interfaces/particles.h"
 #include "src/diagnostics/field_view.h"
 
-// clang-format off
 using Moment = PetscReal (*)(const interfaces::Particles&, const Point&);
+
+/// @note To see the list of available moment getters, check the implementation
 Moment moment_from_string(const std::string& name);
 
-/// @note The list of available moment getters
-inline PetscReal get_density(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_vx(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_vy(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_vz(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_vr(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_vphi(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vx_vx(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vx_vy(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vx_vz(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vy_vy(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vy_vz(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vz_vz(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vr_vr(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vr_vphi(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vr_vz(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vphi_vphi(const interfaces::Particles& particles, const Point& point);
-inline PetscReal get_m_vphi_vz(const interfaces::Particles& particles, const Point& point);
-// clang-format on
 
+namespace ecsimcorr {
+  class ChargeConservation;
+}
 
 /**
  * @brief Diagnostic of particles _coordinate_ distribution moment
@@ -59,6 +44,8 @@ private:
 
   const interfaces::Particles& particles_;
   Moment moment_;
+
+  friend class ecsimcorr::ChargeConservation;
 };
 
 #endif  // SRC_DIAGNOSTICS_DISTRIBUTION_MOMENT_H

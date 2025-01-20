@@ -131,6 +131,7 @@ PetscErrorCode DistributionMoment::diagnose(timestep_t t)
 PetscErrorCode DistributionMoment::collect()
 {
   PetscFunctionBeginUser;
+  static constexpr PetscReal add_tolerance = 1e-10;
 
   PetscCall(VecSet(local_, 0.0));
   PetscCall(VecSet(field_, 0.0));
@@ -139,31 +140,37 @@ PetscErrorCode DistributionMoment::collect()
   PetscCall(DMDAVecGetArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
 
 #pragma omp parallel for
-  for (const Point& point : particles_.points()) {
-    /// @todo We can reuse `Simple_decomposition`
-    /// algorithm here and make `Shape::make*()` private
+  for (const auto& point : particles_.points()) {
+    /// @todo We can reuse `Simple_decomposition` algorithm here and make `Shape::make*()` private
     const Vector3R p_r = Shape::make_r(point.r);
-    const Vector3I p_g = Shape::make_g(p_r);
+    const Vector3I start = Shape::make_start(p_r, shape_radius);
+    const Vector3I size = Shape::make_end(p_r, shape_radius) - start;
 
     if (!is_point_within_bounds(
-          p_g, vector_cast(region_.start), vector_cast(region_.size)))
+          start, vector_cast(region_.start), vector_cast(region_.size)))
       continue;
 
-    PetscReal np = particles_.density(point) / particles_.particles_number(point);
+    PetscReal moment =
+      moment_(particles_, point) / particles_.particles_number(point);
 
     // clang-format off
-    for (PetscInt z = 0; z < shape_width; ++z) {
-    for (PetscInt y = 0; y < shape_width; ++y) {
-    for (PetscInt x = 0; x < shape_width; ++x) {
-      PetscInt g_x = p_g[X] + x;
-      PetscInt g_y = p_g[Y] + y;
-      PetscInt g_z = p_g[Z] + z;
+    for (PetscInt z = 0; z < size[Z]; ++z) {
+    for (PetscInt y = 0; y < size[Y]; ++y) {
+    for (PetscInt x = 0; x < size[X]; ++x) {
+      PetscInt g_x = start[X] + x;
+      PetscInt g_y = start[Y] + y;
+      PetscInt g_z = start[Z] + z;
 
-#pragma omp atomic update
-      arr[g_z][g_y][g_x] += moment_(particles_, point) * np *
+      PetscReal a = moment *
         shape_function(p_r[X] - g_x) *
         shape_function(p_r[Y] - g_y) *
         shape_function(p_r[Z] - g_z);
+
+      if (std::abs(a) < add_tolerance)
+        continue;
+
+#pragma omp atomic update
+      arr[g_z][g_y][g_x] += a;
     }}}
     // clang-format on
   }
@@ -174,9 +181,9 @@ PetscErrorCode DistributionMoment::collect()
 
 
 // clang-format off
-inline PetscReal get_density(const Particles& /* particles */, const Point& /* point */)
+inline PetscReal get_density(const Particles& particles, const Point& point)
 {
-  return 1.0;
+  return particles.density(point);
 }
 
 inline PetscReal get_vx(const Particles& particles, const Point& point)

@@ -87,6 +87,7 @@ set(impls_ecsimcorr
   src/impls/ecsimcorr/simulation.cpp
   src/impls/ecsimcorr/particles.cpp
   src/impls/ecsimcorr/energy_conservation.cpp
+  src/impls/ecsimcorr/charge_conservation.cpp
 )
 
 set(impls_ricketson

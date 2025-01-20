@@ -57,6 +57,7 @@ private:
   PetscLogEvent events[3];
 
   friend class EnergyConservation;
+  friend class ChargeConservation;
 };
 
 }  // namespace ecsimcorr

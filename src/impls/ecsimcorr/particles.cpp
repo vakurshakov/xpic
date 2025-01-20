@@ -105,6 +105,9 @@ PetscErrorCode Particles::first_push()
   PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, global_currI));
   PetscCall(VecAXPY(simulation_.currI, 1.0, global_currI));
 
+  PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, global_currJe));
+  PetscCall(VecAXPY(simulation_.currJe, 1.0, global_currJe));
+
   PetscCall(MatAssemblyBegin(simulation_.matL, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(simulation_.matL, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -211,7 +214,7 @@ PetscErrorCode Particles::final_update()
 void Particles::decompose_esirkepov_current(const Shape& shape, const Point& point)
 {
   const PetscReal alpha =
-    charge(point) * density(point) / (particles_number(point) * (3.0 * dt));
+    charge(point) * density(point) / (particles_number(point) * (6.0 * dt));
 
   EsirkepovDecomposition decomposition(shape, alpha);
   PetscCallVoid(decomposition.process(currJe));

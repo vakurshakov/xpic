@@ -1,21 +1,21 @@
 {
-  "OutputDirectory": "results/energy-test/ecsimcorr-periodic-square",
+  "OutputDirectory": "results/charge-test/ecsim-periodic-square",
 
   "Simulation": "ecsimcorr",
 
   "Geometry": {
     "x": 5,
     "y": 5,
-    "z": 0.5,
-    "t": 10,
+    "z": 5,
+    "t": 20,
     "[x]": "c/w_pe",
     "[y]": "c/w_pe",
     "[z]": "c/w_pe",
     "[t]": "1/w_pe",
 
-    "dx": 0.5,
-    "dy": 0.5,
-    "dz": 0.5,
+    "dx": 1.0,
+    "dy": 1.0,
+    "dz": 1.0,
     "dt": 1.0,
 
     "diagnose_period": 1.0,
@@ -32,16 +32,8 @@
 
   "Particles": [
     {
-      "sort_name": "ions",
-      "Np": 1000,
-      "n": 1.0,
-      "q": 1.0,
-      "m": 100.0,
-      "T": 1.0
-    },
-    {
       "sort_name": "electrons",
-      "Np": 1000,
+      "Np": 1,
       "n":  1.0,
       "q": -1.0,
       "m":  1.0,
@@ -74,23 +66,5 @@
   ],
 
   "Diagnostics": [
-    {
-      "diagnostic": "FieldView",
-      "field": "E"
-    },
-    {
-      "diagnostic": "FieldView",
-      "field": "B"
-    },
-    {
-      "diagnostic": "DistributionMoment",
-      "particles": "ions",
-      "moment": "Density"
-    },
-    {
-      "diagnostic": "DistributionMoment",
-      "particles": "electrons",
-      "moment": "Density"
-    }
   ]
 }
