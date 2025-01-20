@@ -74,7 +74,7 @@ private:
 
   PetscLogStage stagenums[6];
 
-  friend class EnergyDiagnostic;
+  friend class EnergyConservation;
 };
 
 }  // namespace ecsimcorr

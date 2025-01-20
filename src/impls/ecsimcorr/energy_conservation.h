@@ -9,11 +9,11 @@
 
 namespace ecsimcorr {
 
-class EnergyDiagnostic : public interfaces::Diagnostic {
+class EnergyConservation : public interfaces::Diagnostic {
 public:
-  DEFAULT_MOVABLE(EnergyDiagnostic);
+  DEFAULT_MOVABLE(EnergyConservation);
 
-  EnergyDiagnostic(const Simulation& simulation);
+  EnergyConservation(const Simulation& simulation);
 
   PetscErrorCode diagnose(timestep_t t) override;
 

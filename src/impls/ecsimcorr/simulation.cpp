@@ -4,7 +4,7 @@
 #include "src/commands/remove_particles.h"
 #include "src/commands/setup_magnetic_field.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
-#include "src/impls/ecsimcorr/energy.h"
+#include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/utils/operators.h"
 #include "src/utils/particles_load.hpp"
 #include "src/utils/random_generator.h"
@@ -89,7 +89,7 @@ PetscErrorCode Simulation::initialize_implementation()
     preset->execute(0);
 
   PetscCall(build_diagnostics(*this, diagnostics_));
-  diagnostics_.emplace_back(std::make_unique<EnergyDiagnostic>(*this));
+  diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
 
   for (auto& sort : particles_)
     PetscCall(sort->init());

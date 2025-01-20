@@ -1,4 +1,4 @@
-#include "src/impls/ecsimcorr/energy.h"
+#include "src/impls/ecsimcorr/energy_conservation.h"
 
 #include <iomanip>
 
@@ -9,10 +9,10 @@
 
 namespace ecsimcorr {
 
-EnergyDiagnostic::EnergyDiagnostic(const Simulation& simulation)
+EnergyConservation::EnergyConservation(const Simulation& simulation)
   : simulation(simulation)
 {
-  file_ = SyncFile(CONFIG().out_dir + "/energy.dat");
+  file_ = SyncFile(CONFIG().out_dir + "/energy_conservation.dat");
 
   E = simulation.E;
   B = simulation.B;
@@ -21,7 +21,7 @@ EnergyDiagnostic::EnergyDiagnostic(const Simulation& simulation)
   fields_energy = std::make_unique<FieldsEnergy>(simulation.world_.da, E, B);
 }
 
-PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
+PetscErrorCode EnergyConservation::diagnose(timestep_t t)
 {
   PetscFunctionBeginUser;
   if (t == 0)
@@ -67,7 +67,7 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
 
   output((dE + dB) + dK);
   output((dE + dB) + corr_w);
-  output(dK - corr_w);
+  output(std::abs(dK - corr_w));
 
   file_() << "\n";
 
@@ -77,7 +77,7 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode EnergyDiagnostic::write_header()
+PetscErrorCode EnergyConservation::write_header()
 {
   PetscFunctionBeginUser;
   file_() << "Delta(E)\tDelta(B)\t";
@@ -102,7 +102,7 @@ PetscErrorCode EnergyDiagnostic::write_header()
 
   file_() << "Total(dE+dB+dK)\t";
   file_() << "Total(dE+dB+dt*JE)\t";
-  file_() << "Work(dK-dt*JE)\t";
+  file_() << "Work(|dK-dt*JE|)\t";
 
   file_() << "\n";
   PetscFunctionReturn(PETSC_SUCCESS);
