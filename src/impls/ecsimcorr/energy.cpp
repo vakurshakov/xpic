@@ -19,14 +19,6 @@ EnergyDiagnostic::EnergyDiagnostic(const Simulation& simulation)
   B0 = simulation.B0;
 
   fields_energy = std::make_unique<FieldsEnergy>(simulation.world_.da, E, B);
-
-  ParticlesEnergy::ParticlesPointersVector storage;
-  storage.reserve(simulation.particles_.size());
-
-  for (const auto& particles : simulation.particles_)
-    storage.emplace_back(particles.get());
-
-  particles_energy = std::make_unique<ParticlesEnergy>(storage);
 }
 
 PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
@@ -40,27 +32,21 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
   };
 
   PetscCall(VecAXPY(B, -1.0, B0));
-  PetscReal prev_we = fields_energy->get_electric_energy();
-  PetscReal prev_wb = fields_energy->get_magnetic_energy();
+  PetscReal prev_E = fields_energy->get_electric_energy();
+  PetscReal prev_B = fields_energy->get_magnetic_energy();
   fields_energy->calculate_energies();
-  PetscReal dE = fields_energy->get_electric_energy() - prev_we;
-  PetscReal dB = fields_energy->get_magnetic_energy() - prev_wb;
+  PetscReal dE = fields_energy->get_electric_energy() - prev_E;
+  PetscReal dB = fields_energy->get_magnetic_energy() - prev_B;
   output(dE);
   output(dB);
   PetscCall(VecAXPY(B, +1.0, B0));
 
-  std::vector<PetscReal> prev_energies = particles_energy->get_energies();
-  particles_energy->calculate_energies();
-  std::vector<PetscReal> new_energies = particles_energy->get_energies();
-
   PetscReal dK = 0.0;
-  for (std::size_t i = 0; i < new_energies.size(); ++i) {
-    dK += new_energies[i] - prev_energies[i];
-    output(new_energies[i] - prev_energies[i]);
+  for (const auto& particles : simulation.particles_) {
+    dK += particles->corr_dK;
+    output(particles->corr_dK);
+    output(particles->lambda_dK);
   }
-
-  for (const auto& particles : simulation.particles_)
-    output(particles->lambda_energy);
 
   if (simulation.damping)
     output(simulation.damping->get_damped_energy());
@@ -75,14 +61,13 @@ PetscErrorCode EnergyDiagnostic::diagnose(timestep_t t)
   }
 
   /// @note Esirkepov current finally created electric field, so its work should be used
-  PetscReal w2 = 0.0;
-
+  PetscReal corr_w = 0.0;
   for (const auto& particles : simulation.particles_)
-    w2 += dt * particles->w2;
+    corr_w += dt * particles->corr_w;
 
   output((dE + dB) + dK);
-  output((dE + dB) + w2);
-  output(dK - w2);
+  output((dE + dB) + corr_w);
+  output(dK - corr_w);
 
   file_() << "\n";
 
@@ -97,11 +82,11 @@ PetscErrorCode EnergyDiagnostic::write_header()
   PetscFunctionBeginUser;
   file_() << "Delta(E)\tDelta(B)\t";
 
-  for (const auto& particles : simulation.particles_)
-    file_() << "Delta(K_" << particles->parameters().sort_name << ")\t";
-
-  for (const auto& particles : simulation.particles_)
-    file_() << "Lambda(K_" << particles->parameters().sort_name << ")\t";
+  for (const auto& particles : simulation.particles_) {
+    auto&& name = particles->parameters().sort_name;
+    file_() << "Delta(K_" << name << ")\t";
+    file_() << "Lambda(dK_" << name << ")\t";
+  }
 
   if (simulation.damping)
     file_() << "Damped(E+B)\t";

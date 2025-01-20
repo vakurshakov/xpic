@@ -16,6 +16,7 @@ public:
   Particles(Simulation& simulation, const SortParameters& parameters);
   ~Particles() override;
 
+  PetscErrorCode init();
   PetscErrorCode clear_sources();
   PetscErrorCode first_push();
   PetscErrorCode second_push();
@@ -37,6 +38,7 @@ private:
     const Shape& shape, const Point& point, const Vector3R& B_p);
 
   Simulation& simulation_;
+
   Vec local_currI;
   Vec local_currJe;
   Vec global_currI;
@@ -44,10 +46,12 @@ private:
   Vector3R*** currI;
   Vector3R*** currJe;
 
-  PetscReal w1 = 0.0;
-  PetscReal w2 = 0.0;
   PetscReal energy = 0.0;
-  PetscReal lambda_energy = 0.0;
+  PetscReal pred_w = 0.0;
+  PetscReal corr_w = 0.0;
+  PetscReal pred_dK = 0.0;
+  PetscReal corr_dK = 0.0;
+  PetscReal lambda_dK = 0.0;
 
   PetscClassId classid;
   PetscLogEvent events[3];

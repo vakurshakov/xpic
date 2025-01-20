@@ -29,7 +29,6 @@ private:
   Vec B0;
 
   std::unique_ptr<FieldsEnergy> fields_energy;
-  std::unique_ptr<ParticlesEnergy> particles_energy;
 };
 
 }  // namespace ecsimcorr

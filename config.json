@@ -76,11 +76,11 @@
   "Diagnostics": [
     {
       "diagnostic": "FieldView",
-      "field": "E^n"
+      "field": "E"
     },
     {
       "diagnostic": "FieldView",
-      "field": "B^n"
+      "field": "B"
     },
     {
       "diagnostic": "DistributionMoment",

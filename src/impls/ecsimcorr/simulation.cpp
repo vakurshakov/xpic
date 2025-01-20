@@ -91,6 +91,9 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyDiagnostic>(*this));
 
+  for (auto& sort : particles_)
+    PetscCall(sort->init());
+
   PetscCall(init_log_stages());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -35,6 +35,19 @@ Particles::~Particles()
   PetscFunctionReturnVoid();
 }
 
+PetscErrorCode Particles::init()
+{
+  PetscFunctionBeginUser;
+  energy = 0.0;
+
+#pragma omp parallel for reduction(+ : energy), \
+  schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+  for (auto& point : points_)
+    energy += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Particles::clear_sources()
 {
   PetscFunctionBeginUser;
@@ -158,34 +171,39 @@ PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
   // PetscCall(MatMultAdd(simulation_.matL, simulation_.Ep, global_currI, global_currI));
-  PetscCall(VecDot(global_currI, simulation_.Ep, &w1));
-  PetscCall(VecDot(global_currJe, simulation_.Ec, &w2));
+  PetscCall(VecDot(global_currI, simulation_.Ep, &pred_w));
+  PetscCall(VecDot(global_currJe, simulation_.Ec, &corr_w));
 
-  energy = 0.0;
+  PetscReal K0 = energy;
+  PetscReal K = 0.0;
   PetscLogEventBegin(events[2], 0, 0, 0, 0);
 
-#pragma omp parallel for reduction(+ : energy), \
+#pragma omp parallel for reduction(+ : K), \
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_)
-    energy += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+    K += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
 
-  PetscReal lambda2 = 1.0 + dt * (w2 - w1) / energy;
+  PetscReal lambda2 = 1.0 + dt * (corr_w - pred_w) / K;
   PetscReal lambda = std::sqrt(lambda2);
-  lambda_energy = (1.0 - lambda2) * energy;
-
-  LOG("  Velocity renormalization for \"{}\"", parameters_.sort_name);
-  LOG("    predicted field work [(ECSIM) * E_pred]: {:.7f}", w1);
-  LOG("    corrected field work [(Esirkepov) * E_corr]: {:.7f}", w2);
-  LOG("    lambda: {:.7f}, lambda^2: {:.7f}", lambda, lambda2, lambda_energy);
-  LOG("    energy pred.: {:.7f}, corr.: {:.7f}, diff: {:.7f}", energy, energy + lambda_energy, lambda_energy);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_)
     point.p *= lambda;
 
-  energy += lambda_energy;
-
   PetscLogEventEnd(events[2], 0, 0, 0, 0);
+
+  lambda_dK = (lambda2 - 1.0) * K;
+  pred_dK = K - K0;
+  corr_dK = lambda2 * K - K0;
+  energy = lambda2 * K;
+
+  LOG("  Velocity renormalization for \"{}\"", parameters_.sort_name);
+  LOG("    predicted field work [(ECSIM) * E_pred]: {:.7f}", pred_w);
+  LOG("    corrected field work [(Esirkepov) * E_corr]: {:.7f}", corr_w);
+  LOG("    lambda: {:.7f}, lambda^2: {:.7f}", lambda, lambda2);
+  LOG("    d(energy) pred.: {:.7f}, corr.: {:.7f}, lambda: {:.7f}", pred_dK, corr_dK, lambda_dK);
+  LOG("    energy prev.: {:.7f}, curr.: {:.7f}, diff: {:.7f}", K0, energy, energy - K0 /* == corr_dK */);
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
