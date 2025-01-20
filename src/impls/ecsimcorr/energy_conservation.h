@@ -1,9 +1,8 @@
-#ifndef SRC_ECSIMCORR_ENERGY_H
-#define SRC_ECSIMCORR_ENERGY_H
+#ifndef SRC_ECSIMCORR_ENERGY_CONSERVATION_H
+#define SRC_ECSIMCORR_ENERGY_CONSERVATION_H
 
 #include "src/interfaces/diagnostic.h"
 #include "src/diagnostics/fields_energy.h"
-#include "src/diagnostics/particles_energy.h"
 #include "src/impls/ecsimcorr/simulation.h"
 #include "src/utils/sync_file.h"
 
@@ -33,4 +32,4 @@ private:
 
 }  // namespace ecsimcorr
 
-#endif  // SRC_ECSIMCORR_ENERGY_H
+#endif  // SRC_ECSIMCORR_ENERGY_CONSERVATION_H
