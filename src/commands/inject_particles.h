@@ -20,7 +20,7 @@ public:
     timestep_t injection_end,                       //
     PetscInt per_step_particles_num,                //
     const CoordinateGenerator& generate_coordinate, //
-    const MomentumGenerator& generate_momentum_i,           //
+    const MomentumGenerator& generate_momentum_i,   //
     const MomentumGenerator& generate_momentum_e);
 
   /**
