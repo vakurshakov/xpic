@@ -40,8 +40,6 @@ PetscErrorCode Simulation::initialize_implementation()
   for (auto&& preset : presets)
     preset->execute(0);
 
-  particles_[0]->add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 2}, {0.0, 0.0, 0.5}});
-
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));

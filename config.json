@@ -43,21 +43,15 @@
 
   "Presets": [
     {
-      "command": "InjectParticles",
-      "ionized": "ions",
-      "ejected": "electrons",
+      "command": "SetParticles",
+      "particles": "electrons",
       "coordinate": {
-        "name": "CoordinateInBox",
-        "min": 0.0,
-        "max": "Geom"
+        "name": "PreciseCoordinate",
+        "value": "Geom / 2"
       },
-      "momentum_i": {
-        "name": "MaxwellianMomentum",
-        "tov": true
-      },
-      "momentum_e": {
-        "name": "MaxwellianMomentum",
-        "tov": true
+      "momentum": {
+        "name": "PreciseMomentum",
+        "value": [0, 0, 0.5]
       }
     }
   ],
