@@ -69,6 +69,7 @@ set(commands
   src/commands/builders/remove_particles_builder.cpp
   src/commands/builders/set_particles_builder.cpp
   src/commands/builders/setup_magnetic_field_builder.cpp
+  src/commands/builders/fields_damping_builder.cpp
 )
 
 set(utils

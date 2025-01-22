@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/remove-test/non-touching-square",
+  "OutputDirectory": "results/damping-test/touching-square",
 
   "Simulation": "ecsimcorr",
 
@@ -83,6 +83,18 @@
     {
       "command": "RemoveParticles",
       "particles": "electrons",
+      "geometry": {
+        "name": "BoxGeometry",
+        "min": 0,
+        "max": "Geom"
+      }
+    },
+    {
+      "command": "FieldsDamping",
+      "E": "E",
+      "B": "B",
+      "B0": "B0",
+      "damping_coefficient": 0.8,
       "geometry": {
         "name": "BoxGeometry",
         "min": 0,

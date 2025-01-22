@@ -4,6 +4,7 @@
 #include "src/commands/builders/remove_particles_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
 #include "src/commands/builders/setup_magnetic_field_builder.h"
+#include "src/commands/builders/fields_damping_builder.h"
 
 CommandBuilder::CommandBuilder(
   const interfaces::Simulation& simulation, std::list<Command_up>& result)
@@ -40,6 +41,9 @@ CommandBuilder::CommandBuilder(
     }
     else if (name == "SetupMagneticField") {
       PetscCall(Builder::use_impl<SetupMagneticFieldBuilder>(info, simulation, result));
+    }
+    else if (name == "FieldsDamping") {
+      PetscCall(Builder::use_impl<FieldsDampingBuilder>(info, simulation, result));
     }
     else {
       throw std::runtime_error("Unknown command name " + name);

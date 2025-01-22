@@ -76,6 +76,7 @@ RemoveParticles::RemoveFromBox::RemoveFromBox(const BoxGeometry& geom)
 
 bool RemoveParticles::RemoveFromBox::operator()(const Point& point)
 {
+  /// @todo REUSE region_operations.h AS TEMPLATES
   return //
     (geom_.min[X] > point.x() || point.x() > geom_.max[X]) ||
     (geom_.min[Y] > point.y() || point.y() > geom_.max[Y]) ||
