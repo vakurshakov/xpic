@@ -59,11 +59,13 @@ set(diagnostics
 
 set(commands
   src/commands/inject_particles.cpp
+  src/commands/set_particles.cpp
   src/commands/setup_magnetic_field.cpp
   src/commands/remove_particles.cpp
   src/commands/fields_damping.cpp
   src/commands/builders/command_builder.cpp
   src/commands/builders/inject_particles_builder.cpp
+  src/commands/builders/set_particles_builder.cpp
   src/commands/builders/setup_magnetic_field_builder.cpp
 )
 

@@ -1,6 +1,8 @@
 #include "command_builder.h"
 
 #include "src/commands/builders/inject_particles_builder.h"
+#include "src/commands/builders/set_particles_builder.h"
+#include "src/commands/builders/setup_magnetic_field_builder.h"
 
 CommandBuilder::CommandBuilder(
   const interfaces::Simulation& simulation, std::list<Command_up>& result)
@@ -29,11 +31,15 @@ CommandBuilder::CommandBuilder(
     if (name == "InjectParticles") {
       PetscCall(Builder::use_impl<InjectParticlesBuilder>(info, simulation, result));
     }
+    else if (name == "SetParticles") {
+      PetscCall(Builder::use_impl<SetParticlesBuilder>(info, simulation, result));
+    }
+    else if (name == "SetupMagneticField") {
+      PetscCall(Builder::use_impl<SetupMagneticFieldBuilder>(info, simulation, result));
+    }
     else {
-      throw std::runtime_error("Unknown diagnostic name " + name);
+      throw std::runtime_error("Unknown command name " + name);
     }
   }
-
-  /// @todo Check uniqueness of result directories
   PetscFunctionReturn(PETSC_SUCCESS);
 }

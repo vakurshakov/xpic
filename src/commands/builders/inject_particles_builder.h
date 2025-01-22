@@ -1,10 +1,10 @@
 #ifndef SRC_COMMANDS_BUILDERS_INJECT_PARTICLES_BUILDER_H
 #define SRC_COMMANDS_BUILDERS_INJECT_PARTICLES_BUILDER_H
 
-#include "src/commands/builders/command_builder.h"
+#include "src/commands/builders/set_particles_builder.h"
 #include "src/utils/particles_load.hpp"
 
-class InjectParticlesBuilder : public CommandBuilder {
+class InjectParticlesBuilder : public SetParticlesBuilder {
 public:
   InjectParticlesBuilder(
     const interfaces::Simulation& simulation, std::list<Command_up>& result);
@@ -29,13 +29,6 @@ private:
       "}";
     return help;
   }
-
-  void load_coordinate(const Configuration::json_t& info,
-    const interfaces::Particles& particles, CoordinateGenerator& gen,
-    PetscInt& per_step_particles_number);
-
-  void load_momentum(const Configuration::json_t& info,
-    const interfaces::Particles& particles, MomentumGenerator& gen);
 };
 
 #endif  // SRC_COMMANDS_BUILDERS_INJECT_PARTICLES_BUILDER_H
