@@ -76,11 +76,10 @@ RemoveParticles::RemoveFromBox::RemoveFromBox(const BoxGeometry& geom)
 
 bool RemoveParticles::RemoveFromBox::operator()(const Point& point)
 {
-  bool is_inside = //
-    (geom_.min[X] <= point.px() && point.px() <= geom_.max[X]) &&
-    (geom_.min[Y] <= point.py() && point.py() <= geom_.max[Y]) &&
-    (geom_.min[Z] <= point.pz() && point.pz() <= geom_.max[Z]);
-  return !is_inside;
+  return //
+    (geom_.min[X] > point.x() || point.x() > geom_.max[X]) ||
+    (geom_.min[Y] > point.y() || point.y() > geom_.max[Y]) ||
+    (geom_.min[Z] > point.z() || point.z() > geom_.max[Z]);
 }
 
 
@@ -91,7 +90,7 @@ RemoveParticles::RemoveFromCircle::RemoveFromCircle(const CircleGeometry& geom)
 
 bool RemoveParticles::RemoveFromCircle::operator()(const Point& point)
 {
-  PetscReal x = point.r[X] - geom_.center[X];
-  PetscReal y = point.r[Y] - geom_.center[Y];
+  PetscReal x = point.x() - geom_.center[X];
+  PetscReal y = point.y() - geom_.center[Y];
   return (x * x + y * y) > POW2(geom_.radius);
 }

@@ -37,6 +37,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_commands(*this, "Presets", presets));
   PetscCall(build_commands(*this, "StepPresets", step_presets_));
 
+  LOG("Executing presets");
   for (auto&& preset : presets)
     preset->execute(0);
 

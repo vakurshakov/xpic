@@ -21,7 +21,7 @@ CommandBuilder::CommandBuilder(
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
-  LOG("Building commands for {}", name);
+  LOG("Building commands from \"{}\"", name);
 
   using namespace interfaces;
 

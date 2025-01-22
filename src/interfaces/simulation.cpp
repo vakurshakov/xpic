@@ -11,8 +11,8 @@ PetscErrorCode Simulation::initialize()
 {
   PetscFunctionBeginUser;
   PetscCall(world_.initialize());
-  PetscCall(initialize_implementation());
   PetscCall(log_information());
+  PetscCall(initialize_implementation());
 
   for (const Diagnostic_up& diagnostic : diagnostics_)
     PetscCall(diagnostic->diagnose(0));
