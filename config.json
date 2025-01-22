@@ -54,14 +54,32 @@
 
   "StepPresets": [
     {
+      "command": "RemoveParticles",
+      "particles": "ions",
+      "geometry": {
+        "name": "BoxGeometry",
+        "min": 0,
+        "max": "Geom"
+      }
+    },
+    {
+      "command": "RemoveParticles",
+      "particles": "electrons",
+      "geometry": {
+        "name": "BoxGeometry",
+        "min": 0,
+        "max": "Geom"
+      }
+    },
+    {
       "command": "InjectParticles",
       "ionized": "ions",
       "ejected": "electrons",
       "injection_end": "geom_t",
       "coordinate": {
         "name": "CoordinateInBox",
-        "min": [4, 4, 4],
-        "max": [6, 6, 6]
+        "min": [2, 2, 2],
+        "max": [8, 8, 8]
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",

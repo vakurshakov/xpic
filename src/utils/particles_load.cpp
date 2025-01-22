@@ -3,28 +3,28 @@
 #include "src/utils/random_generator.h"
 #include "src/utils/utils.h"
 
-PreciseCoordinate::PreciseCoordinate(const Vector3R& value)
-  : value_(value)
+PreciseCoordinate::PreciseCoordinate(const DotGeometry& dot)
+  : dot(dot)
 {
 }
 
 Vector3R PreciseCoordinate::operator()()
 {
-  return value_;
+  return dot.dot;
 }
 
 
-CoordinateInBox::CoordinateInBox(const Vector3R& min, const Vector3R& max)
-  : min_(min), max_(max)
+CoordinateInBox::CoordinateInBox(const BoxGeometry& box)
+  : box(box)
 {
 }
 
 Vector3R CoordinateInBox::operator()()
 {
   return Vector3R{
-    min_[X] + random_01() * (max_[X] - min_[X]),
-    min_[Y] + random_01() * (max_[Y] - min_[Y]),
-    min_[Z] + random_01() * (max_[Z] - min_[Z]),
+    box.min[X] + random_01() * (box.max[X] - box.min[X]),
+    box.min[Y] + random_01() * (box.max[Y] - box.min[Y]),
+    box.min[Z] + random_01() * (box.max[Z] - box.min[Z]),
   };
 }
 

@@ -64,7 +64,9 @@ set(commands
   src/commands/remove_particles.cpp
   src/commands/fields_damping.cpp
   src/commands/builders/command_builder.cpp
+  src/commands/builders/particles_builder.cpp
   src/commands/builders/inject_particles_builder.cpp
+  src/commands/builders/remove_particles_builder.cpp
   src/commands/builders/set_particles_builder.cpp
   src/commands/builders/setup_magnetic_field_builder.cpp
 )

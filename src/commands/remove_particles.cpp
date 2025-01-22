@@ -1,6 +1,15 @@
 #include "remove_particles.h"
 
 #include "src/utils/configuration.h"
+#include "src/utils/region_operations.h"
+
+class RemoveParticles::RemoveFromBox {
+public:
+  RemoveFromBox(const BoxGeometry& geom);
+  bool operator()(const Point& point);
+  BoxGeometry geom_;
+};
+
 
 class RemoveParticles::RemoveFromCircle {
 public:
@@ -9,6 +18,12 @@ public:
   CircleGeometry geom_;
 };
 
+
+RemoveParticles::RemoveParticles(
+  interfaces::Particles& particles, const BoxGeometry& geom)
+  : particles_(particles), should_remove_(RemoveFromBox(geom))
+{
+}
 
 RemoveParticles::RemoveParticles(
   interfaces::Particles& particles, const CircleGeometry& geom)
@@ -51,6 +66,21 @@ std::string RemoveParticles::get_particles_name() const
 PetscReal RemoveParticles::get_removed_energy() const
 {
   return removed_energy_;
+}
+
+
+RemoveParticles::RemoveFromBox::RemoveFromBox(const BoxGeometry& geom)
+  : geom_(geom)
+{
+}
+
+bool RemoveParticles::RemoveFromBox::operator()(const Point& point)
+{
+  bool is_inside = //
+    (geom_.min[X] <= point.px() && point.px() <= geom_.max[X]) &&
+    (geom_.min[Y] <= point.py() && point.py() <= geom_.max[Y]) &&
+    (geom_.min[Z] <= point.pz() && point.pz() <= geom_.max[Z]);
+  return !is_inside;
 }
 
 

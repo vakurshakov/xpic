@@ -9,6 +9,9 @@
 
 class RemoveParticles : public interfaces::Command {
 public:
+  /// @todo `RemoveParticles::Tester` should be made public,
+  /// we should create structs like it is in `SetParticles`.
+  RemoveParticles(interfaces::Particles& particles, const BoxGeometry& geom);
   RemoveParticles(interfaces::Particles& particles, const CircleGeometry& geom);
 
   PetscErrorCode execute(timestep_t t) override;
@@ -23,6 +26,7 @@ private:
   Tester should_remove_;
   PetscReal removed_energy_ = 0.0;
 
+  class RemoveFromBox;
   class RemoveFromCircle;
 };
 

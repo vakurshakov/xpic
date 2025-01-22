@@ -1,6 +1,7 @@
 #include "command_builder.h"
 
 #include "src/commands/builders/inject_particles_builder.h"
+#include "src/commands/builders/remove_particles_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
 #include "src/commands/builders/setup_magnetic_field_builder.h"
 
@@ -28,11 +29,14 @@ CommandBuilder::CommandBuilder(
     std::string name;
     info.at("command").get_to(name);
 
-    if (name == "InjectParticles") {
+    if (name == "SetParticles") {
+      PetscCall(Builder::use_impl<SetParticlesBuilder>(info, simulation, result));
+    }
+    else if (name == "InjectParticles") {
       PetscCall(Builder::use_impl<InjectParticlesBuilder>(info, simulation, result));
     }
-    else if (name == "SetParticles") {
-      PetscCall(Builder::use_impl<SetParticlesBuilder>(info, simulation, result));
+    else if (name == "RemoveParticles") {
+      PetscCall(Builder::use_impl<RemoveParticlesBuilder>(info, simulation, result));
     }
     else if (name == "SetupMagneticField") {
       PetscCall(Builder::use_impl<SetupMagneticFieldBuilder>(info, simulation, result));

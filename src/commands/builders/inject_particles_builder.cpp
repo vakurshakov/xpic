@@ -4,7 +4,7 @@
 
 InjectParticlesBuilder::InjectParticlesBuilder(
   const interfaces::Simulation& simulation, std::list<Command_up>& result)
-  : SetParticlesBuilder(simulation, result)
+  : interfaces::ParticlesBuilder(simulation, result)
 {
 }
 
@@ -48,10 +48,10 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
     info.at("per_step_particles_num").get_to(per_step_particles_num);
 
   MomentumGenerator generate_momentum_i;
-  momentum(info.at("momentum_i"), ionized, generate_momentum_i);
+  load_momentum(info.at("momentum_i"), ionized, generate_momentum_i);
 
   MomentumGenerator generate_momentum_e;
-  momentum(info.at("momentum_e"), ejected, generate_momentum_e);
+  load_momentum(info.at("momentum_e"), ejected, generate_momentum_e);
 
   auto&& diag = std::make_unique<InjectParticles>(ionized, ejected,
     injection_start, injection_end, per_step_particles_num,  //
@@ -59,6 +59,6 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
 
   commands_.emplace_back(std::move(diag));
 
-  LOG("Inject particles command is added for ionized: \"{}\", ejected: \"{}\"", ionized_name, ejected_name);
+  LOG("InjectParticles command is added with ionized: \"{}\", ejected: \"{}\"", ionized_name, ejected_name);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

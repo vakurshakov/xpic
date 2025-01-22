@@ -3,6 +3,7 @@
 
 #include "src/pch.h"
 #include "src/interfaces/sort_parameters.h"
+#include "src/utils/geometries.h"
 #include "src/utils/vector3.h"
 
 using CoordinateGenerator = std::function<Vector3R()>;
@@ -11,17 +12,16 @@ using MomentumGenerator =
   std::function<Vector3R(const Vector3R& /* reference */)>;
 
 struct PreciseCoordinate {
-  PreciseCoordinate(const Vector3R& value);
+  PreciseCoordinate(const DotGeometry& dot);
   Vector3R operator()();
-  Vector3R value_;
+  DotGeometry dot;
 };
 
 
 struct CoordinateInBox {
-  CoordinateInBox(const Vector3R& min, const Vector3R& max);
+  CoordinateInBox(const BoxGeometry& box);
   Vector3R operator()();
-  Vector3R min_;
-  Vector3R max_;
+  BoxGeometry box;
 };
 
 

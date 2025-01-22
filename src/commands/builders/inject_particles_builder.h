@@ -1,10 +1,10 @@
 #ifndef SRC_COMMANDS_BUILDERS_INJECT_PARTICLES_BUILDER_H
 #define SRC_COMMANDS_BUILDERS_INJECT_PARTICLES_BUILDER_H
 
-#include "src/commands/builders/set_particles_builder.h"
+#include "src/commands/builders/particles_builder.h"
 #include "src/utils/particles_load.hpp"
 
-class InjectParticlesBuilder : public SetParticlesBuilder {
+class InjectParticlesBuilder : public interfaces::ParticlesBuilder {
 public:
   InjectParticlesBuilder(
     const interfaces::Simulation& simulation, std::list<Command_up>& result);
@@ -17,7 +17,7 @@ private:
     std::string_view help =
       "\nStructure of the InjectParticles command description:\n"
       "{\n"
-      "  \"command\": \"InjectParticles\", -- Name of the comand, constant\n"
+      "  \"command\": \"InjectParticles\", -- Name of the command, constant\n"
       "  \"ionized\": \"Pa\", -- Particles name from \"Particles\" section.\n"
       "  \"ejected\": \"Pb\", -- Particles name from \"Particles\" section.\n"
       "  \"coordinate\": {}, -- Description of _both_ particles coordinate.\n"
