@@ -37,6 +37,7 @@ PetscErrorCode EnergyConservation::diagnose(timestep_t t)
   fields_energy->calculate_energies();
   PetscReal dE = fields_energy->get_electric_energy() - prev_E;
   PetscReal dB = fields_energy->get_magnetic_energy() - prev_B;
+  PetscReal dF = dE + dB;
   output(dE);
   output(dB);
   PetscCall(VecAXPY(B, +1.0, B0));
@@ -48,10 +49,11 @@ PetscErrorCode EnergyConservation::diagnose(timestep_t t)
     output(particles->lambda_dK);
   }
 
-  if (simulation.damping)
-    output(simulation.damping->get_damped_energy());
-
   for (const auto& command : simulation.step_presets_) {
+    if (auto&& damp = dynamic_cast<FieldsDamping*>(command.get())) {
+      output(damp->get_damped_energy());
+      dF += damp->get_damped_energy();
+    }
     if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
       output(injection->get_ionized_energy());
       output(injection->get_ejected_energy());
@@ -68,8 +70,8 @@ PetscErrorCode EnergyConservation::diagnose(timestep_t t)
   for (const auto& particles : simulation.particles_)
     corr_w += dt * particles->corr_w;
 
-  output((dE + dB) + dK);
-  output((dE + dB) + corr_w);
+  output(dF + dK);
+  output(dF + corr_w);
   output(std::abs(dK - corr_w));
 
   file_() << "\n";
@@ -91,10 +93,10 @@ PetscErrorCode EnergyConservation::write_header()
     file_() << "Lambda(dK_" << name << ")\t";
   }
 
-  if (simulation.damping)
-    file_() << "Damped(E+B)\t";
 
   for (const auto& command : simulation.step_presets_) {
+    if (dynamic_cast<FieldsDamping*>(command.get()))
+      file_() << "Damped(dE+dB)\t";
     if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
       file_() << "Inj_" << injection->get_ionized_name() << "\t";
       file_() << "Inj_" << injection->get_ejected_name() << "\t";

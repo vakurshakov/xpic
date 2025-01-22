@@ -111,6 +111,7 @@ void FieldsDamping::DampForBox::operator()(
       width = geom_.min[i] - 0;
       delta = r[i] - 0;
     }
+    else continue;
 
     PetscReal damping = 1.0 - coefficient_ * POW2(delta / width - 1.0);
 

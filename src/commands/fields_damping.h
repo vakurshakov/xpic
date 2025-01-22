@@ -32,7 +32,7 @@ private:
     std::function<void(PetscInt, PetscInt, PetscInt, Vector3R***, PetscReal&)>;
 
   Damping damp_;
-  PetscReal damped_energy_;
+  PetscReal damped_energy_ = 0.0;
 
   class DampForBox;
   class DampForCircle;

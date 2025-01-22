@@ -56,8 +56,8 @@
       "ejected": "electrons",
       "coordinate": {
         "name": "CoordinateInBox",
-        "min": 2,
-        "max": 8
+        "min": 0,
+        "max": "Geom"
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",
@@ -97,8 +97,8 @@
       "damping_coefficient": 0.8,
       "geometry": {
         "name": "BoxGeometry",
-        "min": 0,
-        "max": "Geom"
+        "min": 0.5,
+        "max": 9.5
       }
     }
   ],

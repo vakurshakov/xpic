@@ -4,7 +4,6 @@
 #include <petscksp.h>
 
 #include "src/interfaces/simulation.h"
-#include "src/commands/fields_damping.h"
 #include "src/impls/ecsimcorr/particles.h"
 
 namespace ecsimcorr {
@@ -58,8 +57,6 @@ private:
   PetscErrorCode final_update();
 
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
-
-  std::unique_ptr<FieldsDamping> damping;
 
   Mat matA;
   Mat matM;
