@@ -47,8 +47,8 @@ void SetParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = Npi;
   }
   else if (name == "CoordinateInBox") {
-    Vector3R min{0.0};
-    Vector3R max{Geom};
+    Vector3R min = parse_vector(info, "min");
+    Vector3R max = parse_vector(info, "max");
     gen = CoordinateInBox(min, max);
     number_of_particles = (max - min).elements_product() / (dx * dy * dz) * Npi;
   }

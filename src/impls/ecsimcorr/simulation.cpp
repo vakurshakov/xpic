@@ -35,6 +35,7 @@ PetscErrorCode Simulation::initialize_implementation()
 
   std::list<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
+  PetscCall(build_commands(*this, "StepPresets", step_presets_));
 
   for (auto&& preset : presets)
     preset->execute(0);

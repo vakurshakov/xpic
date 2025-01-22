@@ -6,10 +6,6 @@
 #include "src/interfaces/particles.h"
 #include "src/utils/particles_load.hpp"
 
-/**
- * @brief Sets the fixed number of particles
- * into the computational domain each time step.
- */
 class InjectParticles : public interfaces::Command {
 public:
 
@@ -23,19 +19,7 @@ public:
     const MomentumGenerator& generate_momentum_i,   //
     const MomentumGenerator& generate_momentum_e);
 
-  /**
-   * @brief Loads the number of particles (per_step_particles_num)
-   * in pairs into a computational domain with some space and
-   * momentum distributions.
-   *
-   * @param t Outer time step to start from injection_start.
-   */
   PetscErrorCode execute(timestep_t t) override;
-
-  bool needs_to_be_removed(timestep_t t) const override
-  {
-    return t >= injection_end_;
-  }
 
   std::string get_ionized_name() const;
   std::string get_ejected_name() const;

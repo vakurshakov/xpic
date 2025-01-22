@@ -1,12 +1,12 @@
 {
-  "OutputDirectory": "results/charge-test/ecsim-periodic-square",
+  "OutputDirectory": "results/inject-test/periodic-square",
 
   "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "x": 5,
-    "y": 5,
-    "z": 5,
+    "x": 10,
+    "y": 10,
+    "z": 10,
     "t": 20,
     "[x]": "c/w_pe",
     "[y]": "c/w_pe",
@@ -50,14 +50,18 @@
   ],
 
   "Presets": [
+  ],
+
+  "StepPresets": [
     {
       "command": "InjectParticles",
       "ionized": "ions",
       "ejected": "electrons",
+      "injection_end": "geom_t",
       "coordinate": {
         "name": "CoordinateInBox",
-        "min": 0,
-        "max": "Geom"
+        "min": [4, 4, 4],
+        "max": [6, 6, 6]
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",
@@ -68,9 +72,6 @@
         "tov": true
       }
     }
-  ],
-
-  "StepPresets": [
   ],
 
   "Diagnostics": [

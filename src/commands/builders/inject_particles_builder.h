@@ -15,7 +15,7 @@ private:
   std::string_view usage_message() const override
   {
     std::string_view help =
-      "\nStructure of the InjectParticles diagnostic description:\n"
+      "\nStructure of the InjectParticles command description:\n"
       "{\n"
       "  \"command\": \"InjectParticles\", -- Name of the comand, constant\n"
       "  \"ionized\": \"Pa\", -- Particles name from \"Particles\" section.\n"
