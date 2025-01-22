@@ -30,7 +30,7 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
   energy_i_ = 0.0;
   energy_e_ = 0.0;
 
-  if (t < injection_start_ || t >= injection_end_)
+  if (t < injection_start_ || t > injection_end_)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;

@@ -55,12 +55,12 @@ PetscErrorCode EnergyConservation::diagnose(timestep_t t)
     if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
       output(injection->get_ionized_energy());
       output(injection->get_ejected_energy());
-
-      /// @note Injected energy shouldn't be counted as particles energy delta.
       dK -= injection->get_ionized_energy() + injection->get_ejected_energy();
     }
-    if (auto&& remove = dynamic_cast<RemoveParticles*>(command.get()))
+    if (auto&& remove = dynamic_cast<RemoveParticles*>(command.get())) {
       output(remove->get_removed_energy());
+      dK += remove->get_removed_energy();
+    }
   }
 
   /// @note Esirkepov current finally created electric field, so its work should be used
