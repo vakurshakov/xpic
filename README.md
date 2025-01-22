@@ -21,8 +21,8 @@ Change the directory to `./external/petsc/` and configure the library. The follo
   --with-threadsafety=1                 \
   --with-openmp=1                       \
   ---with-openmp-kernels=true           \
-  --download-f2cblaslapack
-make PETSC_ARCH=linux-mpi-debug all
+  --download-f2cblaslapack;             \
+make PETSC_ARCH=linux-mpi-debug all;    \
 make PETSC_ARCH=linux-mpi-debug check
 ```
 ```sh
@@ -35,8 +35,8 @@ make PETSC_ARCH=linux-mpi-debug check
   --download-f2cblaslapack                       \
   --with-debugging=0                             \
   COPTFLAGS='-O3 -march=native -mtune=native'    \
-  CXXOPTFLAGS='-O3 -march=native -mtune=native'
-make PETSC_ARCH=linux-mpi-opt all
+  CXXOPTFLAGS='-O3 -march=native -mtune=native'; \
+make PETSC_ARCH=linux-mpi-opt all;               \
 make PETSC_ARCH=linux-mpi-opt check
 ```
 
