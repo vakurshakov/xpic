@@ -3,6 +3,17 @@
 #include "src/utils/random_generator.h"
 #include "src/utils/utils.h"
 
+PreciseCoordinate::PreciseCoordinate(const Vector3R& value)
+  : value_(value)
+{
+}
+
+Vector3R PreciseCoordinate::operator()()
+{
+  return value_;
+}
+
+
 CoordinateInBox::CoordinateInBox(const Vector3R& min, const Vector3R& max)
   : min_(min), max_(max)
 {
@@ -66,6 +77,17 @@ Vector3R CoordinateOnAnnulus::operator()()
     center_[Y] + r * sin(phi),
     center_[Z] + 0.0,
   };
+}
+
+
+PreciseMomentum::PreciseMomentum(const Vector3R& value)
+  : value_(value)
+{
+}
+
+Vector3R PreciseMomentum::operator()(const Vector3R& /* coordinate */)
+{
+  return value_;
 }
 
 
