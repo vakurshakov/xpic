@@ -1,9 +1,9 @@
 #include "simulation.h"
 
-#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/commands/builders/command_builder.h"
-#include "src/impls/ecsimcorr/energy_conservation.h"
+#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/impls/ecsimcorr/charge_conservation.h"
+#include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/utils/operators.h"
 #include "src/utils/particles_load.hpp"
 #include "src/utils/random_generator.h"
@@ -20,7 +20,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_ksp_solvers());
 
   const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
-
   for (auto&& info : particles_info) {
     SortParameters parameters;
     info.at("sort_name").get_to(parameters.sort_name);
@@ -138,38 +137,34 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   PetscLogStagePop();
   PetscLogStagePush(stagenums[1]);
 
-  for (auto& sort : particles_) {
+  for (auto& sort : particles_)
     PetscCall(sort->first_push());
-    PetscCall(sort->correct_coordinates());
-  }
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
 
   PetscCall(predict_fields());
 
-  // PetscLogStagePop();
-  // PetscLogStagePush(stagenums[3]);
+  PetscLogStagePop();
+  PetscLogStagePush(stagenums[3]);
 
-  // for (auto& sort : particles_) {
-  //   PetscCall(sort->second_push());
-  //   PetscCall(sort->correct_coordinates());
-  // }
+  for (auto& sort : particles_)
+    PetscCall(sort->second_push());
 
-  // PetscLogStagePop();
-  // PetscLogStagePush(stagenums[4]);
+  PetscLogStagePop();
+  PetscLogStagePush(stagenums[4]);
 
-  // PetscCall(correct_fields());
+  PetscCall(correct_fields());
 
-  // PetscLogStagePop();
-  // PetscLogStagePush(stagenums[5]);
+  PetscLogStagePop();
+  PetscLogStagePush(stagenums[5]);
 
-  // for (auto& sort : particles_) {
-  //   PetscCall(sort->final_update());
+  for (auto& sort : particles_) {
+    PetscCall(sort->final_update());
 
-  //   /// @todo Testing petsc as a computational server first
-  //   /// PetscCall(sort->communicate());
-  // }
+    /// @todo Testing petsc as a computational server first
+    /// PetscCall(sort->communicate());
+  }
 
   PetscCall(final_update());
 

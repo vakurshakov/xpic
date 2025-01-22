@@ -32,8 +32,16 @@
 
   "Particles": [
     {
+      "sort_name": "ions",
+      "Np": 10,
+      "n": 1.0,
+      "q": 1.0,
+      "m": 100,
+      "T": 1.0
+    },
+    {
       "sort_name": "electrons",
-      "Np": 1,
+      "Np": 10,
       "n":  1.0,
       "q": -1.0,
       "m":  1.0,
@@ -43,15 +51,21 @@
 
   "Presets": [
     {
-      "command": "SetParticles",
-      "particles": "electrons",
+      "command": "InjectParticles",
+      "ionized": "ions",
+      "ejected": "electrons",
       "coordinate": {
-        "name": "PreciseCoordinate",
-        "value": "Geom / 2"
+        "name": "CoordinateInBox",
+        "min": 0,
+        "max": "Geom"
       },
-      "momentum": {
-        "name": "PreciseMomentum",
-        "value": [0, 0, 0.5]
+      "momentum_i": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      },
+      "momentum_e": {
+        "name": "MaxwellianMomentum",
+        "tov": true
       }
     }
   ],

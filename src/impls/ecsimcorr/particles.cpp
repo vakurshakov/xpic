@@ -93,6 +93,8 @@ PetscErrorCode Particles::first_push()
 
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
     decompose_esirkepov_current(shape, point);
+
+    correct_coordinates(point);
   }
 
   PetscLogEventEnd(events[0], 0, 0, 0, 0);
@@ -104,9 +106,6 @@ PetscErrorCode Particles::first_push()
 
   PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, global_currI));
   PetscCall(VecAXPY(simulation_.currI, 1.0, global_currI));
-
-  PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, global_currJe));
-  PetscCall(VecAXPY(simulation_.currJe, 1.0, global_currJe));
 
   PetscCall(MatAssemblyBegin(simulation_.matL, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(simulation_.matL, MAT_FINAL_ASSEMBLY));
@@ -153,6 +152,8 @@ PetscErrorCode Particles::second_push()
 
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
     decompose_esirkepov_current(shape, point);
+
+    correct_coordinates(point);
   }
 
   PetscLogEventEnd(events[1], 0, 0, 0, 0);
