@@ -20,12 +20,9 @@ private:
       "  \"command\": \"InjectParticles\", -- Name of the comand, constant\n"
       "  \"ionized\": \"Pa\", -- Particles name from \"Particles\" section.\n"
       "  \"ejected\": \"Pb\", -- Particles name from \"Particles\" section.\n"
-      "  \"set_point_of_birth\": {}, -- Description of _both_ particles\n"
-      "                                 coordinate generator.\n"
-      "  \"load_momentum_i\": {}, -- Description of \"ionized\" particles\n"
-      "                              momentum generator.\n"
-      "  \"load_momentum_e\": {}, -- Description of \"ejected\" particles\n"
-      "                              momentum generator.\n"
+      "  \"coordinate\": {}, -- Description of _both_ particles coordinate.\n"
+      "  \"momentum_i\": {}, -- \"ionized\" particles momentum description.\n"
+      "  \"momentum_e\": {}, -- \"ejected\" particles momentum description.\n"
       "}";
     return help;
   }

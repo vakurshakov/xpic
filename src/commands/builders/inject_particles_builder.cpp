@@ -19,18 +19,18 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   PetscInt per_step_particles_num = 0.0;
 
   CoordinateGenerator generate_coordinate;
-  load_coordinate(info.at("set_point_of_birth"), //
+  load_coordinate(info.at("coordinate"), //
     ionized, generate_coordinate, per_step_particles_num);
 
-  MomentumGenerator generate_vi;
-  load_momentum(info.at("load_momentum_i"), ionized, generate_vi);
+  MomentumGenerator generate_momentum_i;
+  momentum(info.at("momentum_i"), ionized, generate_momentum_i);
 
-  MomentumGenerator generate_ve;
-  load_momentum(info.at("load_momentum_e"), ejected, generate_ve);
+  MomentumGenerator generate_momentum_e;
+  momentum(info.at("momentum_e"), ejected, generate_momentum_e);
 
   auto&& diag = std::make_unique<InjectParticles>(  //
     ionized, ejected, 0, 1, per_step_particles_num, //
-    generate_coordinate, generate_vi, generate_ve);
+    generate_coordinate, generate_momentum_i, generate_momentum_e);
 
   commands_.emplace_back(std::move(diag));
 

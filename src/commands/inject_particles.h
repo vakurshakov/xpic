@@ -20,8 +20,8 @@ public:
     timestep_t injection_end,                       //
     PetscInt per_step_particles_num,                //
     const CoordinateGenerator& generate_coordinate, //
-    const MomentumGenerator& generate_vi,           //
-    const MomentumGenerator& generate_ve);
+    const MomentumGenerator& generate_momentum_i,           //
+    const MomentumGenerator& generate_momentum_e);
 
   /**
    * @brief Loads the number of particles (per_step_particles_num)
@@ -52,8 +52,8 @@ private:
   PetscInt per_step_particles_num_;
 
   CoordinateGenerator generate_coordinate_;
-  MomentumGenerator generate_vi_;
-  MomentumGenerator generate_ve_;
+  MomentumGenerator generate_momentum_i_;
+  MomentumGenerator generate_momentum_e_;
 
   PetscReal energy_i_ = 0.0;
   PetscReal energy_e_ = 0.0;

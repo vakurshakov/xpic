@@ -17,14 +17,14 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
   PetscInt number_of_particles = 0.0;
 
   CoordinateGenerator generate_coordinate;
-  load_coordinate(info.at("set_point_of_birth"), //
+  load_coordinate(info.at("coordinate"), //
     particles, generate_coordinate, number_of_particles);
 
-  MomentumGenerator generate_v;
-  load_momentum(info.at("load_momentum"), particles, generate_v);
+  MomentumGenerator generate_momentum;
+  momentum(info.at("momentum"), particles, generate_momentum);
 
   auto&& diag = std::make_unique<SetParticles>(
-    particles, number_of_particles, generate_coordinate, generate_v);
+    particles, number_of_particles, generate_coordinate, generate_momentum);
 
   commands_.emplace_back(std::move(diag));
 
@@ -47,7 +47,7 @@ void SetParticlesBuilder::load_coordinate(const Configuration::json_t& info,
   }
 }
 
-void SetParticlesBuilder::load_momentum(const Configuration::json_t& info,
+void SetParticlesBuilder::momentum(const Configuration::json_t& info,
   const interfaces::Particles& particles, MomentumGenerator& gen)
 {
   if (info.at("name") == "MaxwellianMomentum") {

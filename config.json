@@ -46,16 +46,16 @@
       "command": "InjectParticles",
       "ionized": "ions",
       "ejected": "electrons",
-      "set_point_of_birth": {
+      "coordinate": {
         "name": "CoordinateInBox",
         "min": 0.0,
         "max": "Geom"
       },
-      "load_momentum_i": {
+      "momentum_i": {
         "name": "MaxwellianMomentum",
         "tov": true
       },
-      "load_momentum_e": {
+      "momentum_e": {
         "name": "MaxwellianMomentum",
         "tov": true
       }

@@ -10,16 +10,16 @@ InjectParticles::InjectParticles(                  //
   timestep_t injection_end,                        //
   PetscInt per_step_particles_num,                 //
   const CoordinateGenerator& generate_coordinate, //
-  const MomentumGenerator& generate_vi,           //
-  const MomentumGenerator& generate_ve)
+  const MomentumGenerator& generate_momentum_i,           //
+  const MomentumGenerator& generate_momentum_e)
   : ionized_(ionized),
     ejected_(ejected),
     injection_start_(injection_start),
     injection_end_(injection_end),
     per_step_particles_num_(per_step_particles_num),
     generate_coordinate_(generate_coordinate),
-    generate_vi_(generate_vi),
-    generate_ve_(generate_ve)
+    generate_momentum_i_(generate_momentum_i),
+    generate_momentum_e_(generate_momentum_e)
 {
   ionized_.reserve(per_step_particles_num_ * (injection_end_ - injection_start_));
   ejected_.reserve(per_step_particles_num_ * (injection_end_ - injection_start_));
@@ -42,15 +42,15 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
 
   for (PetscInt p = 0; p < per_step_particles_num_; ++p) {
     Vector3R shared_coordinate = generate_coordinate_();
-    Vector3R vi = generate_vi_(shared_coordinate);
-    Vector3R ve = generate_ve_(shared_coordinate);
+    Vector3R pi = generate_momentum_i_(shared_coordinate);
+    Vector3R pe = generate_momentum_e_(shared_coordinate);
 
     /// @todo different formula should be used for relativity case
-    energy_i_ += 0.5 * (mi * vi.squared()) * (dx * dy * dz) / Npi;
-    energy_e_ += 0.5 * (me * ve.squared()) * (dx * dy * dz) / Npe;
+    energy_i_ += 0.5 * (mi * pi.squared()) * (dx * dy * dz) / Npi;
+    energy_e_ += 0.5 * (me * pe.squared()) * (dx * dy * dz) / Npe;
 
-    ionized_.add_particle(Point(shared_coordinate, vi));
-    ejected_.add_particle(Point(shared_coordinate, ve));
+    ionized_.add_particle(Point(shared_coordinate, pi));
+    ejected_.add_particle(Point(shared_coordinate, pe));
   }
 
   constexpr auto message =

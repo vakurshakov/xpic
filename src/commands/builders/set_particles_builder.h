@@ -19,10 +19,8 @@ protected:
       "{\n"
       "  \"command\": \"SetParticles\", -- Name of the comand, constant\n"
       "  \"particles\": \"p\", -- Particles name from \"Particles\" section.\n"
-      "  \"set_point_of_birth\": {}, -- Description of particles\n"
-      "                                 coordinate generator.\n"
-      "  \"load_momentum\": {}, -- Description of particles\n"
-      "                            momentum generator.\n"
+      "  \"coordinate\": {}, -- Particles coordinate generator description.\n"
+      "  \"momentum\": {}, -- Particles momentum generator description.\n"
       "}";
     return help;
   }
@@ -31,7 +29,7 @@ protected:
     const interfaces::Particles& particles, CoordinateGenerator& gen,
     PetscInt& per_step_particles_number);
 
-  void load_momentum(const Configuration::json_t& info,
+  void momentum(const Configuration::json_t& info,
     const interfaces::Particles& particles, MomentumGenerator& gen);
 };
 
