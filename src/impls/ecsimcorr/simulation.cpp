@@ -1,9 +1,7 @@
 #include "simulation.h"
 
-#include "src/commands/inject_particles.h"
-#include "src/commands/remove_particles.h"
-#include "src/commands/setup_magnetic_field.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
+#include "src/commands/builders/command_builder.h"
 #include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/impls/ecsimcorr/charge_conservation.h"
 #include "src/utils/operators.h"
@@ -36,60 +34,11 @@ PetscErrorCode Simulation::initialize_implementation()
     particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
   }
 
-/*
   std::list<Command_up> presets;
-  const Configuration::json_t& presets_info = CONFIG().json.at("Presets");
-
-  for (auto&& info : presets_info) {
-    if (info.at("command") == "InjectParticles") {
-      auto&& ionized = get_named_particles(info.at("ionized").get<std::string>());
-      auto&& ejected = get_named_particles(info.at("ejected").get<std::string>());
-
-      const PetscInt Npi = ionized.parameters().Np;
-      PetscInt per_step_particles_num = 0.0;
-
-      InjectParticles::CoordinateGenerator generate_coordinate;
-      const Configuration::json_t& set_point_of_birth =
-        info.at("set_point_of_birth");
-
-      if (set_point_of_birth.at("name") == "CoordinateInBox") {
-        Vector3R min{0.0};
-        Vector3R max{Geom};
-        generate_coordinate = CoordinateInBox(min, max);
-        per_step_particles_num =
-          (max - min).elements_product() / (dx * dy * dz) * Npi;
-      }
-
-      auto load_momentum = [](const Configuration::json_t& info,
-                             const Particles& particles,
-                             InjectParticles::MomentumGenerator& gen) {
-        if (info.at("name") == "MaxwellianMomentum") {
-          bool tov = false;
-
-          if (info.contains("tov"))
-            info.at("tov").get_to(tov);
-
-          gen = MaxwellianMomentum(particles.parameters(), tov);
-        }
-      };
-
-      InjectParticles::MomentumGenerator generate_vi;
-      const Configuration::json_t& load_momentum_i = info.at("load_momentum_i");
-      load_momentum(load_momentum_i, ionized, generate_vi);
-
-      InjectParticles::MomentumGenerator generate_ve;
-      const Configuration::json_t& load_momentum_e = info.at("load_momentum_e");
-      load_momentum(load_momentum_e, ejected, generate_ve);
-
-      presets.emplace_back(std::make_unique<InjectParticles>( //
-        ionized, ejected, 0, 1, per_step_particles_num, //
-        generate_coordinate, generate_vi, generate_ve));
-    }
-  }
+  PetscCall(build_commands(*this, "Presets", presets));
 
   for (auto&& preset : presets)
     preset->execute(0);
-*/
 
   particles_[0]->add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 2}, {0.0, 0.0, 0.5}});
 

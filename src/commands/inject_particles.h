@@ -4,6 +4,7 @@
 #include "src/pch.h"
 #include "src/interfaces/command.h"
 #include "src/interfaces/particles.h"
+#include "src/utils/particles_load.hpp"
 
 /**
  * @brief Sets the fixed number of particles
@@ -11,10 +12,6 @@
  */
 class InjectParticles : public interfaces::Command {
 public:
-  using CoordinateGenerator = std::function<Vector3R()>;
-
-  using MomentumGenerator =
-    std::function<Vector3R(const Vector3R& /* reference */)>;
 
   InjectParticles( //
     interfaces::Particles& ionized,                 //

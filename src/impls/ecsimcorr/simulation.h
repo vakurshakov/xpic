@@ -5,8 +5,6 @@
 
 #include "src/interfaces/simulation.h"
 #include "src/commands/fields_damping.h"
-#include "src/diagnostics/fields_energy.h"
-#include "src/diagnostics/particles_energy.h"
 #include "src/impls/ecsimcorr/particles.h"
 
 namespace ecsimcorr {

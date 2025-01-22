@@ -17,6 +17,16 @@ public:
 
   virtual PetscErrorCode build(const Configuration::json_t& info) = 0;
 
+  template<class InheritedBuilder, class Container>
+  static PetscErrorCode use_impl(const Configuration::json_t& info,
+    const interfaces::Simulation& simulation, Container& result)
+  {
+    PetscFunctionBeginUser;
+    auto&& builder = std::make_unique<InheritedBuilder>(simulation, result);
+    PetscCall(builder->build(info));
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
 protected:
   virtual std::string_view usage_message() const = 0;
 

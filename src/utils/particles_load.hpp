@@ -5,6 +5,10 @@
 #include "src/interfaces/sort_parameters.h"
 #include "src/utils/vector3.h"
 
+using CoordinateGenerator = std::function<Vector3R()>;
+
+using MomentumGenerator =
+  std::function<Vector3R(const Vector3R& /* reference */)>;
 
 class CoordinateInBox {
 public:
