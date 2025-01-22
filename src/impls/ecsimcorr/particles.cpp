@@ -174,7 +174,7 @@ PetscErrorCode Particles::second_push()
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
-  // PetscCall(MatMultAdd(simulation_.matL, simulation_.Ep, global_currI, global_currI));
+  PetscCall(MatMultAdd(simulation_.matL, simulation_.Ep, global_currI, global_currI));
   PetscCall(VecDot(global_currI, simulation_.Ep, &pred_w));
   PetscCall(VecDot(global_currJe, simulation_.Ec, &corr_w));
 
