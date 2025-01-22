@@ -26,23 +26,43 @@ Vector3R Builder::parse_vector(
 {
   std::string message;
   try {
-    const Configuration::array_t& arr = info.at(name);
+    const Configuration::json_t value = info.at(name);
 
-    if (arr.size() != 3) {
-      message = name + " vector should be of size 3.";
-      throw std::runtime_error(message);
+    switch (value.type()) {
+      case nlohmann::json::value_t::array: {
+        const Configuration::array_t& arr = value;
+
+        if (arr.size() != 3) {
+          message = name + " vector should be of size 3.";
+          throw std::runtime_error(message);
+        }
+
+        Vector3R result;
+        for (PetscInt i = 0; i < 3; ++i)
+          arr[i].get_to(result[i]);
+
+        return result;
+      }
+      case nlohmann::json::value_t::string: {
+        if (value.get<std::string>() == "Geom")
+          return Vector3R{Geom};
+        if (value.get<std::string>() == "Geom / 2")
+          return Vector3R{geom_x / 2, geom_y / 2, geom_z / 2};
+        break;
+      }
+      case nlohmann::json::value_t::number_integer:
+      case nlohmann::json::value_t::number_unsigned:
+      case nlohmann::json::value_t::number_float:
+      default:
+        return Vector3R{value.get<PetscReal>()};
     }
-
-    Vector3R result;
-    for (PetscInt i = 0; i < 3; ++i)
-      arr[i].get_to(result[i]);
-    return result;
   }
   catch (const std::exception& e) {
     message = e.what();
     message += usage_message();
     throw std::runtime_error(message);
   }
+  return Vector3R{};
 }
 
 
