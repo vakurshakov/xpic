@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/remove-test/periodic-square",
+  "OutputDirectory": "results/remove-test/non-touching-square",
 
   "Simulation": "ecsimcorr",
 
@@ -33,7 +33,7 @@
   "Particles": [
     {
       "sort_name": "ions",
-      "Np": 100,
+      "Np": 10,
       "n": 1.0,
       "q": 1.0,
       "m": 100,
@@ -41,7 +41,7 @@
     },
     {
       "sort_name": "electrons",
-      "Np": 100,
+      "Np": 10,
       "n":  1.0,
       "q": -1.0,
       "m":  1.0,
@@ -56,8 +56,8 @@
       "ejected": "electrons",
       "coordinate": {
         "name": "CoordinateInBox",
-        "min": [2, 2, 2],
-        "max": [8, 8, 8]
+        "min": 2,
+        "max": 8
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",
