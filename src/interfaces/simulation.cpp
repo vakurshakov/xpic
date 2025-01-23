@@ -17,6 +17,8 @@ PetscErrorCode Simulation::initialize()
   for (const Diagnostic_up& diagnostic : diagnostics_)
     PetscCall(diagnostic->diagnose(0));
 
+  PetscLogStageRegister("Commands run", &stagenums[0]);
+  PetscLogStageRegister("Diagnostics run", &stagenums[1]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -47,13 +49,17 @@ PetscErrorCode Simulation::calculate()
     LOG_FLUSH();
     LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
 
+    PetscLogStagePush(stagenums[0]);
     for (const Command_up& command : step_presets_)
       PetscCall(command->execute(t));
+    PetscLogStagePop();
 
     PetscCall(timestep_implementation(t));
 
+    PetscLogStagePush(stagenums[1]);
     for (const Diagnostic_up& diagnostic : diagnostics_)
       PetscCall(diagnostic->diagnose(t));
+    PetscLogStagePop();
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

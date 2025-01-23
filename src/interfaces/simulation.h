@@ -35,6 +35,7 @@ protected:
   std::list<Command_up> step_presets_;
   std::vector<Diagnostic_up> diagnostics_;
 
+  PetscLogStage stagenums[2];
 
   template<class ParticlesContainer>
   static auto&& get_named_particles(
