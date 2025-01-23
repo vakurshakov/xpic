@@ -34,5 +34,7 @@ PetscErrorCode SetupMagneticField::UniformField::operator()(Vec vec)
   PetscCall(VecStrideSet(vec, X, value_[X]));
   PetscCall(VecStrideSet(vec, Y, value_[Y]));
   PetscCall(VecStrideSet(vec, Z, value_[Z]));
+  LOG("  Magnetic fields is set: value ({} {} {}), energy {}",
+    REP3_A(value_), 0.5 * value_.squared() * Vector3I{Geom_n}.elements_product());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

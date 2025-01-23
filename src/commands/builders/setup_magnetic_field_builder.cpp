@@ -8,29 +8,20 @@ SetupMagneticFieldBuilder::SetupMagneticFieldBuilder(
 {
 }
 
-PetscErrorCode SetupMagneticFieldBuilder::build(const Configuration::json_t& json)
+PetscErrorCode SetupMagneticFieldBuilder::build(const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
 
   std::string field;
-  Vector3R value;
+  info.at("field").get_to(field);
 
-  std::string message;
-  try {
-    json.at("field").get_to(field);
-    value = parse_vector(json, "value");
-  }
-  catch (const std::exception& e) {
-    message = e.what();
-    message += usage_message();
-    throw std::runtime_error(message);
-  }
+  Vector3R value = parse_vector(info, "value");
 
   auto&& diag = std::make_unique<SetupMagneticField>(
     simulation_.get_named_vector(field), value);
 
   commands_.emplace_back(std::move(diag));
 
-  LOG("Setup magnetic field command is added for {}", field);
+  LOG("SetupMagneticField command is added for {}", field);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
