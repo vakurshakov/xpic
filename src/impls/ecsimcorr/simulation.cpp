@@ -41,6 +41,8 @@ PetscErrorCode Simulation::initialize_implementation()
   for (auto&& preset : presets)
     preset->execute(0);
 
+  PetscCall(VecAXPY(B, 1.0, B0));
+
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
@@ -216,6 +218,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscFunctionBeginUser;
   Vec rhs;
   PetscCall(DMGetGlobalVector(world_.da, &rhs));
+  PetscCall(VecAXPY(B, -1.0, B0));
 
   PetscCall(VecCopy(curr, rhs));  // rhs = curr
   PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * rhs)
@@ -224,6 +227,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscCall(KSPSolve(ksp, rhs, out));
   PetscCall(KSPGetSolution(ksp, &out));
 
+  PetscCall(VecAXPY(B, +1.0, B0));
   PetscCall(DMRestoreGlobalVector(world_.da, &rhs));
 
   // Convergence analysis
