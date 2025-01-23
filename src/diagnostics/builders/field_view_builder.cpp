@@ -17,43 +17,33 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
   region.dof = 3;
 
   std::string field;
+  info.at("field").get_to(field);
+
   std::string comp;
+  region.start[3] = 0;
+  region.size[3] = 3;
 
-  std::string message;
-  try {
-    info.at("field").get_to(field);
-
-    region.start[3] = 0;
-    region.size[3] = 3;
-
-    if (info.contains("comp")) {
-      info.at("comp").get_to(comp);
-      region.start[3] = get_component(comp);
-      region.size[3] = 1;
-    }
-
-    Vector3R start{0, 0, 0};
-    Vector3R size{geom_x, geom_y, geom_z};
-
-    if (info.contains("start"))
-      start = parse_vector(info, "start");
-
-    if (info.contains("size"))
-      size = parse_vector(info, "size");
-
-    for (PetscInt i = 0; i < 3; ++i) {
-      region.start[i] = TO_STEP(start[i], Dx[i]);
-      region.size[i] = TO_STEP(size[i], Dx[i]);
-    }
-
-    check_region(
-      vector_cast(region.start), vector_cast(region.size), field + comp);
+  if (info.contains("comp")) {
+    info.at("comp").get_to(comp);
+    region.start[3] = get_component(comp);
+    region.size[3] = 1;
   }
-  catch (const std::exception& e) {
-    message = e.what();
-    message += usage_message();
-    throw std::runtime_error(message);
+
+  Vector3R start{0.0};
+  Vector3R size{Geom};
+
+  if (info.contains("start"))
+    start = parse_vector(info, "start");
+
+  if (info.contains("size"))
+    size = parse_vector(info, "size");
+
+  for (PetscInt i = 0; i < 3; ++i) {
+    region.start[i] = TO_STEP(start[i], Dx[i]);
+    region.size[i] = TO_STEP(size[i], Dx[i]);
   }
+
+  check_region(vector_cast(region.start), vector_cast(region.size), field + comp);
 
   LOG("Field view diagnostic is added for {}", field + comp);
 
