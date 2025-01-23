@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/damping-test/touching-square",
+  "OutputDirectory": "results/field-setup-test",
 
   "Simulation": "ecsimcorr",
 
@@ -7,7 +7,7 @@
     "x": 10,
     "y": 10,
     "z": 10,
-    "t": 20,
+    "t": 10,
     "[x]": "c/w_pe",
     "[y]": "c/w_pe",
     "[z]": "c/w_pe",
@@ -21,9 +21,9 @@
     "diagnose_period": 1.0,
     "[dp]": "1/w_pe",
 
-    "da_boundary_x": "DM_BOUNDARY_GHOSTED",
-    "da_boundary_y": "DM_BOUNDARY_GHOSTED",
-    "da_boundary_z": "DM_BOUNDARY_GHOSTED",
+    "da_boundary_x": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_z": "DM_BOUNDARY_PERIODIC",
 
     "da_processors_x": -1,
     "da_processors_y": -1,
@@ -67,40 +67,15 @@
         "name": "MaxwellianMomentum",
         "tov": true
       }
+    },
+    {
+      "command": "SetupMagneticField",
+      "field": "B0",
+      "value": [0, 0, 0.2]
     }
   ],
 
   "StepPresets": [
-    {
-      "command": "RemoveParticles",
-      "particles": "ions",
-      "geometry": {
-        "name": "BoxGeometry",
-        "min": 0,
-        "max": "Geom"
-      }
-    },
-    {
-      "command": "RemoveParticles",
-      "particles": "electrons",
-      "geometry": {
-        "name": "BoxGeometry",
-        "min": 0,
-        "max": "Geom"
-      }
-    },
-    {
-      "command": "FieldsDamping",
-      "E": "E",
-      "B": "B",
-      "B0": "B0",
-      "damping_coefficient": 0.8,
-      "geometry": {
-        "name": "BoxGeometry",
-        "min": 0.5,
-        "max": 9.5
-      }
-    }
   ],
 
   "Diagnostics": [
