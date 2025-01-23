@@ -23,13 +23,21 @@ public:
   {
     PetscFunctionBeginUser;
     auto&& builder = std::make_unique<InheritedBuilder>(simulation, result);
-    PetscCall(builder->build(info));
+    try {
+      PetscCall(builder->build(info));
+    }
+    catch (const std::exception& e) {
+      std::string message;
+      message = e.what();
+      message += builder->usage_message();
+      throw std::runtime_error(message);
+    }
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-protected:
   virtual std::string_view usage_message() const = 0;
 
+protected:
   static Axis get_component(const std::string& name);
 
   Vector3R parse_vector(

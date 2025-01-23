@@ -8,12 +8,17 @@ public:
   SetupMagneticFieldBuilder(
     const interfaces::Simulation& simulation, std::list<Command_up>& result);
 
-  PetscErrorCode build(const Configuration::json_t& json) override;
+  PetscErrorCode build(const Configuration::json_t& info) override;
 
-private:
   std::string_view usage_message() const override
   {
-    return "";
+    std::string_view help =
+      "{\n"
+      "  \"command\": \"SetupMagneticField\",\n"
+      "  \"field\": \"B0\",\n"
+      "  \"value\": [0, 0, 0.2]\n"
+      "}\n";
+    return help;
   }
 };
 

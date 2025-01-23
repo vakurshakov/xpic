@@ -10,7 +10,6 @@ public:
 
   PetscErrorCode build(const Configuration::json_t& info) override;
 
-private:
   std::string_view usage_message() const override
   {
     std::string_view help =

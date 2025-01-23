@@ -11,13 +11,11 @@ public:
   {
   }
 
-
   PetscErrorCode build(const Configuration::json_t& /* info */) override
   {
     return PETSC_SUCCESS;
   }
 
-private:
   std::string_view usage_message() const override
   {
     return "";
