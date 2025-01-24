@@ -54,83 +54,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::init_vectors()
-{
-  PetscFunctionBeginUser;
-  DM da = world_.da;
-  PetscCall(DMCreateGlobalVector(da, &E));
-  PetscCall(DMCreateGlobalVector(da, &Ep));
-  PetscCall(DMCreateGlobalVector(da, &Ec));
-  PetscCall(DMCreateGlobalVector(da, &B));
-  PetscCall(DMCreateGlobalVector(da, &B0));
-  PetscCall(DMCreateGlobalVector(da, &currI));
-  PetscCall(DMCreateGlobalVector(da, &currJe));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::init_matrices()
-{
-  PetscFunctionBeginUser;
-  DM da = world_.da;
-  PetscCall(DMCreateMatrix(da, &matL));
-  PetscCall(MatSetOption(matL, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
-  PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
-
-  Rotor rotor(da);
-  PetscCall(rotor.create_positive(&rotE));
-  PetscCall(rotor.create_negative(&rotB));
-
-  PetscCall(MatProductCreate(rotB, rotE, nullptr, &matM));
-  PetscCall(MatProductSetType(matM, MATPRODUCT_AB));
-  PetscCall(MatProductSetFromOptions(matM));
-  PetscCall(MatProductSymbolic(matM));
-  PetscCall(MatProductNumeric(matM));  // matM = rotB(rotE())
-  PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
-  PetscCall(MatShift(matM, 2.0));  // matM = 2 * I + matM
-
-  PetscCall(MatScale(rotE, -dt));
-  PetscCall(MatScale(rotB, +dt));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/// @todo We can optimize `correct` ksp further, by choosing appropriate KSPType
-PetscErrorCode Simulation::init_ksp_solvers()
-{
-  PetscFunctionBeginUser;
-  PetscCall(KSPCreate(PETSC_COMM_WORLD, &predict));
-  PetscCall(KSPCreate(PETSC_COMM_WORLD, &correct));
-  PetscCall(KSPSetErrorIfNotConverged(predict, PETSC_TRUE));
-  PetscCall(KSPSetErrorIfNotConverged(correct, PETSC_TRUE));
-
-  static constexpr PetscReal atol = 1e-10;
-  static constexpr PetscReal rtol = 1e-10;
-  PetscCall(KSPSetTolerances(predict, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
-  PetscCall(KSPSetTolerances(correct, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
-
-  PC pc;
-  PetscCall(KSPGetPC(predict, &pc));
-
-  // `matA` can be overwritten during `advance_fields()`, we would use only stored copy of `matL`
-  PetscCall(PCFactorSetUseInPlace(pc, PETSC_TRUE));
-
-  PetscCall(KSPSetOperators(correct, matM, matM));
-  PetscCall(KSPSetUp(correct));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::init_log_stages()
-{
-  PetscFunctionBeginUser;
-  PetscLogStageRegister("Clear sources", &stagenums[0]);
-  PetscLogStageRegister("First particles push", &stagenums[1]);
-  PetscLogStageRegister("Predict electric field", &stagenums[2]);
-  PetscLogStageRegister("Second particles push", &stagenums[3]);
-  PetscLogStageRegister("Correct electric and magnetic fields", &stagenums[4]);
-  PetscLogStageRegister("Final particles update", &stagenums[5]);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
 PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 {
   PetscFunctionBeginUser;
@@ -290,6 +213,77 @@ Particles& Simulation::get_named_particles(std::string_view name)
   return **it;
 }
 
+
+PetscErrorCode Simulation::init_vectors()
+{
+  PetscFunctionBeginUser;
+  DM da = world_.da;
+  PetscCall(DMCreateGlobalVector(da, &E));
+  PetscCall(DMCreateGlobalVector(da, &Ep));
+  PetscCall(DMCreateGlobalVector(da, &Ec));
+  PetscCall(DMCreateGlobalVector(da, &B));
+  PetscCall(DMCreateGlobalVector(da, &B0));
+  PetscCall(DMCreateGlobalVector(da, &currI));
+  PetscCall(DMCreateGlobalVector(da, &currJe));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::init_matrices()
+{
+  PetscFunctionBeginUser;
+  DM da = world_.da;
+  PetscCall(DMCreateMatrix(da, &matL));
+  PetscCall(MatSetOption(matL, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
+  PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
+
+  Rotor rotor(da);
+  PetscCall(rotor.create_positive(&rotE));
+  PetscCall(rotor.create_negative(&rotB));
+
+  PetscCall(MatProductCreate(rotB, rotE, nullptr, &matM));
+  PetscCall(MatProductSetType(matM, MATPRODUCT_AB));
+  PetscCall(MatProductSetFromOptions(matM));
+  PetscCall(MatProductSymbolic(matM));
+  PetscCall(MatProductNumeric(matM));  // matM = rotB(rotE())
+  PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
+  PetscCall(MatShift(matM, 2.0));  // matM = 2 * I + matM
+
+  PetscCall(MatScale(rotE, -dt));
+  PetscCall(MatScale(rotB, +dt));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::init_ksp_solvers()
+{
+  PetscFunctionBeginUser;
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &predict));
+  PetscCall(KSPCreate(PETSC_COMM_WORLD, &correct));
+  PetscCall(KSPSetErrorIfNotConverged(predict, PETSC_TRUE));
+  PetscCall(KSPSetErrorIfNotConverged(correct, PETSC_TRUE));
+
+  static constexpr PetscReal atol = 1e-10;
+  static constexpr PetscReal rtol = 1e-10;
+  PetscCall(KSPSetTolerances(predict, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
+  PetscCall(KSPSetTolerances(correct, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
+
+  PetscCall(KSPSetOperators(correct, matM, matM));
+  PetscCall(KSPSetUp(correct));
+
+  PetscCall(KSPSetFromOptions(predict));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::init_log_stages()
+{
+  PetscFunctionBeginUser;
+  PetscLogStageRegister("Clear sources", &stagenums[0]);
+  PetscLogStageRegister("First push", &stagenums[1]);
+  PetscLogStageRegister("Predict field", &stagenums[2]);
+  PetscLogStageRegister("Second push", &stagenums[3]);
+  PetscLogStageRegister("Correct fields", &stagenums[4]);
+  PetscLogStageRegister("Renormalization", &stagenums[5]);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 Simulation::~Simulation()
 {
