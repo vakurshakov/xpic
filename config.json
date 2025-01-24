@@ -1,12 +1,12 @@
 {
-  "OutputDirectory": "results/field-setup-test",
+  "OutputDirectory": "results/performance-test/common-ground",
 
   "Simulation": "ecsimcorr",
 
   "Geometry": {
     "x": 10,
     "y": 10,
-    "z": 10,
+    "z": 2,
     "t": 10,
     "[x]": "c/w_pe",
     "[y]": "c/w_pe",
@@ -21,8 +21,8 @@
     "diagnose_period": 1.0,
     "[dp]": "1/w_pe",
 
-    "da_boundary_x": "DM_BOUNDARY_PERIODIC",
-    "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_x": "DM_BOUNDARY_GHOSTED",
+    "da_boundary_y": "DM_BOUNDARY_GHOSTED",
     "da_boundary_z": "DM_BOUNDARY_PERIODIC",
 
     "da_processors_x": -1,
@@ -33,7 +33,7 @@
   "Particles": [
     {
       "sort_name": "ions",
-      "Np": 10,
+      "Np": 100,
       "n": 1.0,
       "q": 1.0,
       "m": 100,
@@ -41,7 +41,7 @@
     },
     {
       "sort_name": "electrons",
-      "Np": 10,
+      "Np": 100,
       "n":  1.0,
       "q": -1.0,
       "m":  1.0,
@@ -51,13 +51,37 @@
 
   "Presets": [
     {
+      "command": "SetupMagneticField",
+      "field": "B0",
+      "value": [0, 0, 0.2]
+    }
+  ],
+
+  "StepPresets": [
+    {
+      "command": "RemoveParticles",
+      "particles": "ions",
+      "geometry": {
+        "name": "BoxGeometry"
+      }
+    },
+    {
+      "command": "RemoveParticles",
+      "particles": "electrons",
+      "geometry": {
+        "name": "BoxGeometry"
+      }
+    },
+    {
       "command": "InjectParticles",
       "ionized": "ions",
       "ejected": "electrons",
+      "injection_start": 0,
+      "injection_end": "geom_t",
       "coordinate": {
         "name": "CoordinateInBox",
-        "min": 0,
-        "max": "Geom"
+        "min": [2, 2, 0],
+        "max": [8, 8, 2]
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",
@@ -67,17 +91,31 @@
         "name": "MaxwellianMomentum",
         "tov": true
       }
-    },
-    {
-      "command": "SetupMagneticField",
-      "field": "B0",
-      "value": [0, 0, 0.2]
     }
   ],
 
-  "StepPresets": [
-  ],
-
   "Diagnostics": [
+    {
+      "diagnostic": "FieldView",
+      "field": "E"
+    },
+    {
+      "diagnostic": "FieldView",
+      "field": "B"
+    },
+    {
+      "diagnostic": "FieldView",
+      "field": "J_esirkepov"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "ions",
+      "moment": "Density"
+    },
+    {
+      "diagnostic": "DistributionMoment",
+      "particles": "electrons",
+      "moment": "Density"
+    }
   ]
 }

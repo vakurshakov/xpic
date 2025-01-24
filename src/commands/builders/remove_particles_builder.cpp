@@ -21,8 +21,13 @@ PetscErrorCode RemoveParticlesBuilder::build(const Configuration::json_t& info)
   geometry.at("name").get_to(name);
 
   if (name == "BoxGeometry") {
-    Vector3R min = parse_vector(geometry, "min");
-    Vector3R max = parse_vector(geometry, "max");
+    Vector3R min{0.0};
+    Vector3R max{Geom};
+    if (geometry.contains("min"))
+      min = parse_vector(geometry, "min");
+    if (geometry.contains("max"))
+      max = parse_vector(geometry, "max");
+
     diag = std::make_unique<RemoveParticles>(particles, BoxGeometry(min, max));
   }
   else {
