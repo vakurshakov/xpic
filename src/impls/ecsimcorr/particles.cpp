@@ -83,16 +83,34 @@ PetscErrorCode Particles::first_push()
     push.update_r((0.5 * dt), point, *this);
 
     Shape shape;
+    shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    decompose_esirkepov_current(shape, point);
+  }
+
+  const PetscInt size = 576 * points_.size();
+
+  // `PETSC_DEFAULT` to skip the value some cases
+  std::vector<PetscInt> coo_i(size, PETSC_DEFAULT);
+  std::vector<PetscInt> coo_j(size, PETSC_DEFAULT);
+  std::vector<PetscReal> coo_v(size);
+
+  // #pragma omp parallel
+  for (PetscInt i = 0; i < (PetscInt)points_.size(); ++i) {
+    auto& point = points_[i];
+
+    Shape shape;
     shape.setup(point.r, shape_radius1, shape_func1);
 
     Vector3R B_p;
     SimpleInterpolation interpolation(shape);
     interpolation.process({}, {{B_p, B}});
 
-    decompose_identity_current(shape, point, B_p);
+    Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
 
-    shape.setup(old_r, point.r, shape_radius2, shape_func2);
-    decompose_esirkepov_current(shape, point);
+    decompose_identity_current(shape, point, b);
+
+    decompose_lapenta_matrix(
+      coo_i.data(), coo_j.data(), coo_v.data(), i, shape, point, b);
 
     correct_coordinates(point);
   }
@@ -107,8 +125,8 @@ PetscErrorCode Particles::first_push()
   PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, global_currI));
   PetscCall(VecAXPY(simulation_.currI, 1.0, global_currI));
 
-  PetscCall(MatAssemblyBegin(simulation_.matL, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(simulation_.matL, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatSetPreallocationCOO(simulation_.matL, size, coo_i.data(), coo_j.data()));
+  PetscCall(MatSetValuesCOO(simulation_.matL, coo_v.data(), ADD_VALUES));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -174,7 +192,6 @@ PetscErrorCode Particles::second_push()
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
-  PetscCall(MatMultAdd(simulation_.matL, simulation_.Ep, global_currI, global_currI));
   PetscCall(VecDot(global_currI, simulation_.Ep, &pred_w));
   PetscCall(VecDot(global_currJe, simulation_.Ec, &corr_w));
 
@@ -214,6 +231,7 @@ PetscErrorCode Particles::final_update()
 
 void Particles::decompose_esirkepov_current(const Shape& shape, const Point& point)
 {
+  PetscFunctionBeginHot;
   const PetscReal alpha =
     charge(point) * density(point) / (particles_number(point) * (6.0 * dt));
 
@@ -222,104 +240,125 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
 }
 
 
-// NOLINTBEGIN(readability-function-cognitive-complexity)
-
-/// @note Also decomposes `Simulation::matL`
 void Particles::decompose_identity_current(
-  const Shape& shape, const Point& point, const Vector3R& B_p)
+  const Shape& shape, const Point& point, const Vector3R& b)
 {
   PetscFunctionBeginHot;
+  const PetscReal betaI = density(point) / particles_number(point) *
+    charge(point) / (1.0 + b.squared());
+
   const Vector3R& v = point.p;
-
-  Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
-
-  PetscReal betaI = density(point) * charge(point) /
-    (particles_number(point) * (1.0 + b.squared()));
-
-  PetscReal betaL = charge(point) / mass(point) * betaI;
-
   Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
 
   SimpleDecomposition decomposition(shape, I_p);
   PetscCallVoid(decomposition.process(currI));
+  PetscFunctionReturnVoid();
+}
 
 
-  /// @todo Combine it with `Simple_decomposition::process()`?
-  Mat matL = simulation_.matL;
-
-  const PetscInt m = shape.size.elements_product();
-  const PetscInt n = m;
-
-  std::vector<MatStencil> idxm(m);
-  std::vector<MatStencil> idxn(n);
-  std::vector<PetscReal> values(static_cast<std::size_t>(m * n * POW2(3)), 0);
+void Particles::decompose_lapenta_matrix(PetscInt* coo_i, PetscInt* coo_j,
+  PetscReal* coo_v, PetscInt i, const Shape& shape, const Point& point,
+  const Vector3R& b)
+{
+  PetscFunctionBeginHot;
+  const PetscReal betaL = density(point) / particles_number(point) *
+    POW2(charge(point)) / (mass(point) * (1.0 + b.squared()));
 
   constexpr PetscReal shape_tolerance = 1e-10;
 
-  /**
-   * @brief indexing of `values` buffer for `MatSetValuesBlocked*()`
-   * @param I block row, with `idxm[I]` being its index
-   * @param J block column, with `idxn[J]` being its index
-   * @param i row within a block, first component
-   * @param j column within a block, second component
-   */
-  auto ind = [n](PetscInt I, PetscInt J, PetscInt i, PetscInt j) {
-    return (I * 3 + i) * (3 * n) + (J * 3 + j);
+  /// @todo Remove logical duplication. How to extrapolate this result on all shapes?
+  PetscReal no[3][2];
+  PetscReal sh[3][2];
+
+  PetscReal x = point.x() / dx;
+  PetscReal y = point.y() / dy;
+  PetscReal z = point.z() / dz;
+  PetscReal x05 = x - 0.5;
+  PetscReal y05 = y - 0.5;
+  PetscReal z05 = z - 0.5;
+
+  auto no_gx = (PetscInt)x;
+  auto no_gy = (PetscInt)y;
+  auto no_gz = (PetscInt)z;
+  auto sh_gx = (PetscInt)x05;
+  auto sh_gy = (PetscInt)y05;
+  auto sh_gz = (PetscInt)z05;
+
+  PetscInt i0 = shape.s_p(0, 0, 0);
+  PetscInt i1 = shape.s_p(1, 1, 1);
+  sh[X][0] = shape(i0, Sh, X);
+  sh[Y][0] = shape(i0, Sh, Y);
+  sh[Z][0] = shape(i0, Sh, Z);
+  sh[X][1] = shape(i1, Sh, X);
+  sh[Y][1] = shape(i1, Sh, Y);
+  sh[Z][1] = shape(i1, Sh, Z);
+
+  i0 = shape.s_p(no_gz - sh_gz + 0, no_gy - sh_gy + 0, no_gx - sh_gy + 0);
+  i1 = shape.s_p(no_gz - sh_gz + 1, no_gy - sh_gy + 1, no_gx - sh_gy + 1);
+  no[X][0] = shape(i0, No, X);
+  no[Y][0] = shape(i0, No, Y);
+  no[Z][0] = shape(i0, No, Z);
+  no[X][1] = shape(i1, No, X);
+  no[Y][1] = shape(i1, No, Y);
+  no[Z][1] = shape(i1, No, Z);
+
+  auto t_g = [](PetscInt zi, PetscInt yi, PetscInt xi,  //
+               PetscInt zj, PetscInt yj, PetscInt xj) {
+    return ((zi * 2 + yi) * 2 + xi) * 8 + ((zj * 2 + yj) * 2 + xj);
+  };
+
+  auto ind = [&](PetscInt g, PetscInt c1, PetscInt c2) {
+    return i * 576 + g * 9 + (c1 * 3 + c2);
+  };
+
+  const PetscReal matB[3][3]{
+    {1.0 + b[X] * b[X], +b[Z] + b[X] * b[Y], -b[Y] + b[X] * b[Z]},
+    {-b[Z] + b[Y] * b[X], 1.0 + b[Y] * b[Y], +b[X] + b[Y] * b[Z]},
+    {+b[Y] + b[Z] * b[X], -b[X] + b[Z] * b[Y], 1.0 + b[Z] * b[Z]},
   };
 
   // clang-format off
-  for (PetscInt z1 = 0; z1 < shape.size[Z]; ++z1) {
-  for (PetscInt y1 = 0; y1 < shape.size[Y]; ++y1) {
-  for (PetscInt x1 = 0; x1 < shape.size[X]; ++x1) {
-    PetscInt i = shape.s_p(z1, y1, x1);
-    Vector3R si = shape.electric(i);
-
-    idxm[i] = MatStencil{
-      shape.start[Z] + z1,
-      shape.start[Y] + y1,
-      shape.start[X] + x1,
+  for (PetscInt zi = 0; zi < 2; ++zi) {
+  for (PetscInt yi = 0; yi < 2; ++yi) {
+  for (PetscInt xi = 0; xi < 2; ++xi) {
+    Vector3R si{
+      no[Z][zi] * no[Y][yi] * sh[X][xi],
+      no[Z][zi] * sh[Y][yi] * no[X][xi],
+      sh[Z][zi] * no[Y][yi] * no[X][xi],
     };
 
     // Shifts of g'=g2 iteration
-    for (PetscInt z2 = 0; z2 < shape.size[Z]; ++z2) {
-    for (PetscInt y2 = 0; y2 < shape.size[Y]; ++y2) {
-    for (PetscInt x2 = 0; x2 < shape.size[X]; ++x2) {
-      PetscInt j = shape.s_p(z2, y2, x2);
-      Vector3R sj = shape.electric(j);
-
-      idxn[j] = MatStencil{
-        shape.start[Z] + z2,
-        shape.start[Y] + y2,
-        shape.start[X] + x2,
+    for (PetscInt zj = 0; zj < 2; ++zj) {
+    for (PetscInt yj = 0; yj < 2; ++yj) {
+    for (PetscInt xj = 0; xj < 2; ++xj) {
+      Vector3R sj{
+        no[Z][zj] * no[Y][yj] * sh[X][xj],
+        no[Z][zj] * sh[Y][yj] * no[X][xj],
+        sh[Z][zj] * no[Y][yj] * no[X][xj],
       };
 
       if (si.abs_max() < shape_tolerance || sj.abs_max() < shape_tolerance)
         continue;
 
-      values[ind(i, j, X, X)] = si[X] * sj[X] * betaL * (1.0   + b[X] * b[X]);
-      values[ind(i, j, X, Y)] = si[X] * sj[Y] * betaL * (+b[Z] + b[X] * b[Y]);
-      values[ind(i, j, X, Z)] = si[X] * sj[Z] * betaL * (-b[Y] + b[X] * b[Z]);
+      PetscInt g = t_g(zi, yi, xi, zj, yj, xj);
 
-      values[ind(i, j, Y, Y)] = si[Y] * sj[Y] * betaL * (1.0   + b[Y] * b[Y]);
-      values[ind(i, j, Y, X)] = si[Y] * sj[X] * betaL * (-b[Z] + b[Y] * b[X]);
-      values[ind(i, j, Y, Z)] = si[Y] * sj[Z] * betaL * (+b[X] + b[Y] * b[Z]);
+      for (PetscInt c1 = 0; c1 < 3; ++c1) {
+        coo_i[ind(g, X, c1)] = indexing::v_g(no_gz + zi, no_gy + yi, sh_gx + xi, X);
+        coo_i[ind(g, Y, c1)] = indexing::v_g(no_gz + zi, sh_gy + yi, no_gx + xi, Y);
+        coo_i[ind(g, Z, c1)] = indexing::v_g(sh_gz + zi, no_gy + yi, no_gx + xi, Z);
 
-      values[ind(i, j, Z, Z)] = si[Z] * sj[Z] * betaL * (1.0   + b[Z] * b[Z]);
-      values[ind(i, j, Z, X)] = si[Z] * sj[X] * betaL * (+b[Y] + b[X] * b[Z]);
-      values[ind(i, j, Z, Y)] = si[Z] * sj[Y] * betaL * (-b[X] + b[Y] * b[Z]);
-    }}}  // g'=g2
-  }}}  // g=g1
+        coo_j[ind(g, c1, X)] = indexing::v_g(no_gz + zj, no_gy + yj, sh_gx + xj, X);
+        coo_j[ind(g, c1, Y)] = indexing::v_g(no_gz + zj, sh_gy + yj, no_gx + xj, Y);
+        coo_j[ind(g, c1, Z)] = indexing::v_g(sh_gz + zj, no_gy + yj, no_gx + xj, Z);
+
+        for (PetscInt c2 = 0; c2 < 3; ++c2) {
+          coo_v[ind(g, c1, c2)] = si[c1] * sj[c2] * betaL * matB[c1][c2];
+        }
+      }
+    }}}
+  }}}
   // clang-format on
-
-#pragma omp critical
-  {
-    // cannot use `PetscCall()`, omp section cannot be broken by return statement
-    MatSetValuesBlockedStencil(
-      matL, m, idxm.data(), n, idxn.data(), values.data(), ADD_VALUES);
-  }
   PetscFunctionReturnVoid();
 }
-
-// NOLINTEND(readability-function-cognitive-complexity)
 
 }  // namespace ecsimcorr

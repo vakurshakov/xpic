@@ -35,7 +35,10 @@ private:
   void decompose_esirkepov_current(const Shape& shape, const Point& point);
 
   void decompose_identity_current(
-    const Shape& shape, const Point& point, const Vector3R& B_p);
+    const Shape& shape, const Point& p, const Vector3R& b);
+
+  void decompose_lapenta_matrix(PetscInt* coo_i, PetscInt* coo_j,
+    PetscReal* coo_v, PetscInt i, const Shape& shape, const Point& p, const Vector3R& b);
 
   Simulation& simulation_;
 
