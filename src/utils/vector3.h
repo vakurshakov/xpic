@@ -152,7 +152,7 @@ struct Vector3 {
     return dot(*this);
   }
 
-  T abs_max()
+  T abs_max() const
   {
     return std::max(std::abs(data[X]), //
       std::max(std::abs(data[Y]), std::abs(data[Z])));
