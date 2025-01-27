@@ -67,6 +67,9 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
 
+  PetscCall(MatAssemblyBegin(matL, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(matL, MAT_FINAL_ASSEMBLY));
+
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
 

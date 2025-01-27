@@ -106,9 +106,6 @@ PetscErrorCode Particles::first_push()
 
   PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, global_currI));
   PetscCall(VecAXPY(simulation_.currI, 1.0, global_currI));
-
-  PetscCall(MatAssemblyBegin(simulation_.matL, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(simulation_.matL, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
