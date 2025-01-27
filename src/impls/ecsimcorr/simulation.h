@@ -44,7 +44,7 @@ public:
 
 private:
   PetscErrorCode initialize_implementation() override;
-  PetscErrorCode timestep_implementation(timestep_t timestep) override;
+  PetscErrorCode timestep_implementation(timestep_t t) override;
 
   PetscErrorCode init_vectors();
   PetscErrorCode init_matrices();
@@ -57,6 +57,7 @@ private:
   PetscErrorCode final_update();
 
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
+  PetscErrorCode dump_matL(timestep_t t);
 
   Mat matA;
   Mat matM;

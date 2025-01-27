@@ -1,5 +1,9 @@
 #include "simulation.h"
 
+#include <filesystem>
+
+#include <petscviewer.h>
+
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/impls/ecsimcorr/charge_conservation.h"
@@ -54,7 +58,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
+PetscErrorCode Simulation::timestep_implementation(timestep_t t)
 {
   PetscFunctionBeginUser;
   PetscLogStagePush(stagenums[0]);
@@ -69,6 +73,8 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 
   PetscCall(MatAssemblyBegin(matL, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(matL, MAT_FINAL_ASSEMBLY));
+
+  dump_matL(t);
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
@@ -182,6 +188,28 @@ PetscErrorCode Simulation::final_update()
   PetscCall(DMRestoreGlobalVector(world_.da, &util));
 
   PetscCall(MatMultAdd(rotE, Ec, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::dump_matL(timestep_t t)
+{
+  if (t % diagnose_period != 0)
+    return PETSC_SUCCESS;
+
+  PetscFunctionBeginUser;
+  const std::string dir = CONFIG().out_dir + "/matL/";
+
+  if (!std::filesystem::exists(dir))
+    std::filesystem::create_directories(dir);
+
+  auto time_width = static_cast<PetscInt>(std::to_string(geom_nt).size());
+  std::stringstream ss;
+  ss << dir << std::setw(time_width) << std::setfill('0') << t;
+
+  PetscViewer viewer;
+  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, ss.str().c_str(), &viewer));
+  PetscCall(MatView(matL, viewer));
+  PetscCall(PetscViewerDestroy(&viewer));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
