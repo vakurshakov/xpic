@@ -1,13 +1,13 @@
 {
-  "OutputDirectory": "results/performance-test/common-ground",
+  "OutputDirectory": "results/performance-test/common-ground-100",
 
   "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "x": 10,
-    "y": 10,
+    "x": 100,
+    "y": 100,
     "z": 2,
-    "t": 10,
+    "t": 20,
     "[x]": "c/w_pe",
     "[y]": "c/w_pe",
     "[z]": "c/w_pe",
@@ -18,7 +18,7 @@
     "dz": 1.0,
     "dt": 1.0,
 
-    "diagnose_period": 1.0,
+    "diagnose_period": 5.0,
     "[dp]": "1/w_pe",
 
     "da_boundary_x": "DM_BOUNDARY_GHOSTED",
@@ -80,8 +80,8 @@
       "injection_end": "geom_t",
       "coordinate": {
         "name": "CoordinateInBox",
-        "min": [2, 2, 0],
-        "max": [8, 8, 2]
+        "min": [40, 40, 0],
+        "max": [60, 60, 2]
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",
