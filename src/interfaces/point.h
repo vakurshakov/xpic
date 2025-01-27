@@ -6,6 +6,7 @@
 
 class Point {
 public:
+  Vector3R old_r;
   Vector3R r;
   Vector3R p;
 

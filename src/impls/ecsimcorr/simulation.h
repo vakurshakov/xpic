@@ -52,6 +52,7 @@ private:
   PetscErrorCode init_log_stages();
 
   PetscErrorCode clear_sources();
+  PetscErrorCode fill_lapenta_matrix();
   PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
   PetscErrorCode final_update();
@@ -66,6 +67,8 @@ private:
 
   KSP predict;
   KSP correct;
+
+  bool matL_preallocated = false;
 
   PetscLogStage stagenums[6];
 
