@@ -20,9 +20,8 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 
   PetscClassIdRegister("ecsimcorr::Particles", &classid);
   PetscLogEventRegister("first_push", classid, &events[0]);
-  PetscLogEventRegister("fill_matL", classid, &events[1]);
-  PetscLogEventRegister("second_push", classid, &events[2]);
-  PetscLogEventRegister("final_update", classid, &events[3]);
+  PetscLogEventRegister("second_push", classid, &events[1]);
+  PetscLogEventRegister("final_update", classid, &events[2]);
   PetscFunctionReturnVoid();
 }
 
@@ -63,32 +62,6 @@ PetscErrorCode Particles::clear_sources()
 PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
-  PetscCall(DMDAVecGetArrayWrite(world_.da, local_currJe, &currJe));
-
-  PetscLogEventBegin(events[0], local_currJe, 0, 0, 0);
-
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& point : points_) {
-    point.old_r = point.r;
-
-    BorisPush push;
-    push.update_r((0.5 * dt), point, *this);
-
-    Shape shape;
-    shape.setup(point.old_r, point.r, shape_radius2, shape_func2);
-    decompose_esirkepov_current(shape, point);
-  }
-
-  PetscLogEventEnd(events[0], local_currJe, 0, 0, 0);
-
-  PetscCall(DMDAVecRestoreArrayWrite(world_.da, local_currJe, &currJe));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Particles::fill_lapenta_matrix(
-  PetscInt* coo_i, PetscInt* coo_j, PetscReal* coo_v, bool& preallocated)
-{
-  PetscFunctionBeginUser;
   Vec local_B;
   Vector3R*** B;
 
@@ -98,8 +71,28 @@ PetscErrorCode Particles::fill_lapenta_matrix(
 
   PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
   PetscCall(DMDAVecGetArrayWrite(da, local_currI, &currI));
+  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
 
-  PetscLogEventBegin(events[1], local_B, local_currI, 0, 0);
+  PetscLogEventBegin(events[0], 0, 0, 0, 0);
+
+#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+  for (auto& point : points_) {
+    const Vector3R old_r = point.r;
+
+    BorisPush push;
+    push.update_r((0.5 * dt), point, *this);
+
+    Shape shape;
+    shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    decompose_esirkepov_current(shape, point);
+  }
+
+  const PetscInt size = 576 * points_.size();
+
+  // `PETSC_DEFAULT` to skip the value some cases
+  std::vector<PetscInt> coo_i(size, PETSC_DEFAULT);
+  std::vector<PetscInt> coo_j(size, PETSC_DEFAULT);
+  std::vector<PetscReal> coo_v(size);
 
   // #pragma omp parallel
   for (PetscInt i = 0; i < (PetscInt)points_.size(); ++i) {
@@ -113,20 +106,27 @@ PetscErrorCode Particles::fill_lapenta_matrix(
     interpolation.process({}, {{B_p, B}});
 
     Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
+
     decompose_identity_current(shape, point, b);
-    decompose_lapenta_matrix(shape, i, b, coo_i, coo_j, coo_v, preallocated);
+
+    decompose_lapenta_matrix(
+      coo_i.data(), coo_j.data(), coo_v.data(), i, shape, point, b);
 
     correct_coordinates(point);
   }
 
-  PetscLogEventEnd(events[1], local_B, local_currI, 0, 0);
+  PetscLogEventEnd(events[0], 0, 0, 0, 0);
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
   PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, &currI));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
   PetscCall(DMRestoreLocalVector(da, &local_B));
 
   PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, global_currI));
   PetscCall(VecAXPY(simulation_.currI, 1.0, global_currI));
+
+  PetscCall(MatSetPreallocationCOO(simulation_.matL, size, coo_i.data(), coo_j.data()));
+  PetscCall(MatSetValuesCOO(simulation_.matL, coo_v.data(), ADD_VALUES));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -149,7 +149,7 @@ PetscErrorCode Particles::second_push()
   PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
   PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
 
-  PetscLogEventBegin(events[2], 0, 0, 0, 0);
+  PetscLogEventBegin(events[1], 0, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& point : points_) {
@@ -174,7 +174,7 @@ PetscErrorCode Particles::second_push()
     correct_coordinates(point);
   }
 
-  PetscLogEventEnd(events[2], 0, 0, 0, 0);
+  PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
@@ -197,7 +197,7 @@ PetscErrorCode Particles::final_update()
 
   PetscReal K0 = energy;
   PetscReal K = 0.0;
-  PetscLogEventBegin(events[3], 0, 0, 0, 0);
+  PetscLogEventBegin(events[2], 0, 0, 0, 0);
 
 #pragma omp parallel for reduction(+ : K), \
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
@@ -211,7 +211,7 @@ PetscErrorCode Particles::final_update()
   for (auto& point : points_)
     point.p *= lambda;
 
-  PetscLogEventEnd(events[3], 0, 0, 0, 0);
+  PetscLogEventEnd(events[2], 0, 0, 0, 0);
 
   lambda_dK = (lambda2 - 1.0) * K;
   pred_dK = K - K0;
@@ -256,20 +256,11 @@ void Particles::decompose_identity_current(
 }
 
 
-void Particles::decompose_lapenta_matrix(  //
-  const Shape& shape, PetscInt i, const Vector3R& b, //
-  PetscInt* coo_i, PetscInt* coo_j, PetscReal* coo_v, bool& preallocated)
+void Particles::decompose_lapenta_matrix(PetscInt* coo_i, PetscInt* coo_j,
+  PetscReal* coo_v, PetscInt i, const Shape& shape, const Point& point,
+  const Vector3R& b)
 {
   PetscFunctionBeginHot;
-  const Point& point = points_[i];
-
-  /// @todo Bad, because 1) This condition always fails;
-  /// 2) There can be particles in the nearest cells;
-  if ((Shape::make_r(point.old_r) - Shape::make_r(point.r)).abs_max() >= 0.5){
-    LOG("  Preallocation of Lapenta matrix disabled by sort:{}, i:{}", parameters_.sort_name, i);
-    preallocated = false;
-  }
-
   const PetscReal betaL = density(point) / particles_number(point) *
     POW2(charge(point)) / (mass(point) * (1.0 + b.squared()));
 
@@ -317,8 +308,7 @@ void Particles::decompose_lapenta_matrix(  //
   };
 
   auto ind = [&](PetscInt g, PetscInt c1, PetscInt c2) {
-    constexpr PetscInt shape_size = POW2(3 * POW3(2));
-    return i * shape_size + g * 9 + (c1 * 3 + c2);
+    return i * 576 + g * 9 + (c1 * 3 + c2);
   };
 
   const PetscReal matB[3][3]{

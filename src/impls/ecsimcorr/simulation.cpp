@@ -67,8 +67,6 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
 
-  PetscCall(fill_lapenta_matrix());
-
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
 
@@ -110,38 +108,6 @@ PetscErrorCode Simulation::clear_sources()
 
   for (auto& sort : particles_)
     PetscCall(sort->clear_sources());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::fill_lapenta_matrix()
-{
-  PetscFunctionBeginUser;
-  constexpr PetscInt shape_size = POW2(3 * POW3(2));
-  PetscInt size = 0;
-
-  for (const auto& particles : particles_)
-    size += shape_size * particles->points().size();
-
-  // `PETSC_DEFAULT` to skip the value some cases
-  std::vector<PetscInt> coo_i(size, PETSC_DEFAULT);
-  std::vector<PetscInt> coo_j(size, PETSC_DEFAULT);
-  std::vector<PetscReal> coo_v(size);
-
-  size = 0;
-  for (auto& particles : particles_) {
-    PetscInt* coo_pi = coo_i.data() + size;
-    PetscInt* coo_pj = coo_j.data() + size;
-    PetscReal* coo_pv = coo_v.data() + size;
-    PetscCall(particles->fill_lapenta_matrix(coo_pi, coo_pj, coo_pv, matL_preallocated));
-    size += shape_size * particles->points().size();
-  }
-
-  if (!matL_preallocated) {
-    PetscCall(MatSetPreallocationCOO(matL, size, coo_i.data(), coo_j.data()));
-    matL_preallocated = true;
-  }
-
-  PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

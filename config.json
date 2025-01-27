@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/performance-test/MatSetPreallocationCOO",
+  "OutputDirectory": "results/performance-test/MatSetValuesCOO",
 
   "Simulation": "ecsimcorr",
 

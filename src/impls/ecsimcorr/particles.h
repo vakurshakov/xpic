@@ -22,9 +22,6 @@ public:
   PetscErrorCode second_push();
   PetscErrorCode final_update();
 
-  PetscErrorCode fill_lapenta_matrix(
-    PetscInt* coo_i, PetscInt* coo_j, PetscReal* coo_v, bool& preallocated);
-
 private:
   static constexpr PetscInt OMP_CHUNK_SIZE = 16;
 
@@ -40,9 +37,8 @@ private:
   void decompose_identity_current(
     const Shape& shape, const Point& p, const Vector3R& b);
 
-  void decompose_lapenta_matrix( //
-    const Shape& shape, PetscInt i, const Vector3R& b, //
-    PetscInt* coo_i, PetscInt* coo_j, PetscReal* coo_v, bool& preallocated);
+  void decompose_lapenta_matrix(PetscInt* coo_i, PetscInt* coo_j,
+    PetscReal* coo_v, PetscInt i, const Shape& shape, const Point& p, const Vector3R& b);
 
   Simulation& simulation_;
 
@@ -61,7 +57,7 @@ private:
   PetscReal lambda_dK = 0.0;
 
   PetscClassId classid;
-  PetscLogEvent events[4];
+  PetscLogEvent events[3];
 
   friend class EnergyConservation;
   friend class ChargeConservation;
