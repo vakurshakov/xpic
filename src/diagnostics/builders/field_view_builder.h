@@ -30,6 +30,10 @@ public:
       "}";
     return help;
   }
+
+protected:
+  void parse_region_start_size(const Configuration::json_t& info,
+    FieldView::Region& region, const std::string& name);
 };
 
 #endif  // SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H

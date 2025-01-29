@@ -8,7 +8,7 @@
 DistributionMomentBuilder::DistributionMomentBuilder(
   const interfaces::Simulation& simulation,
   std::vector<Diagnostic_up>& diagnostics)
-  : DiagnosticBuilder(simulation, diagnostics)
+  : FieldViewBuilder(simulation, diagnostics)
 {
 }
 
@@ -45,26 +45,11 @@ PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& inf
     throw std::runtime_error(
       "Unknown moment name " + moment + " for particles " + particles);
 
-  Vector3R start{0.0};
-  Vector3R size{Geom};
-
-  if (info.contains("start"))
-    start = parse_vector(info, "start");
-
-  if (info.contains("size"))
-    size = parse_vector(info, "size");
-
   FieldView::Region region;
   region.dim = 3;
   region.dof = 1;
 
-  for (PetscInt i = 0; i < 3; ++i) {
-    region.start[i] = TO_STEP(start[i], Dx[i]);
-    region.size[i] = TO_STEP(size[i], Dx[i]);
-  }
-
-  check_region(vector_cast(region.start), vector_cast(region.size),
-    particles + " " + moment);
+  parse_region_start_size(info, region, particles + " " + moment);
 
   LOG("{} diagnostic is added for {}", moment, particles);
 

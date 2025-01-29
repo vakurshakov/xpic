@@ -1,10 +1,10 @@
 #ifndef SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
 #define SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
 
-#include "src/diagnostics/builders/diagnostic_builder.h"
+#include "src/diagnostics/builders/field_view_builder.h"
 #include "src/diagnostics/distribution_moment.h"
 
-class DistributionMomentBuilder : public DiagnosticBuilder {
+class DistributionMomentBuilder : public FieldViewBuilder {
 public:
   DistributionMomentBuilder(const interfaces::Simulation& simulation,
     std::vector<Diagnostic_up>& diagnostics);

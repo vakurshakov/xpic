@@ -29,6 +29,25 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
     region.size[3] = 1;
   }
 
+  parse_region_start_size(info, region, field + comp);
+
+  LOG("Field view diagnostic is added for {}", field + comp);
+
+  std::string res_dir = CONFIG().out_dir + "/" + field + comp + "/";
+
+  auto&& diagnostic = FieldView::create(res_dir, simulation_.world_.da,
+    simulation_.get_named_vector(field), region);
+
+  if (!diagnostic)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
+  diagnostics_.emplace_back(std::move(diagnostic));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+void FieldViewBuilder::parse_region_start_size(const Configuration::json_t& info,
+  FieldView::Region& region, const std::string& name)
+{
   Vector3R start{0.0};
   Vector3R size{Geom};
 
@@ -43,18 +62,5 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
     region.size[i] = TO_STEP(size[i], Dx[i]);
   }
 
-  check_region(vector_cast(region.start), vector_cast(region.size), field + comp);
-
-  LOG("Field view diagnostic is added for {}", field + comp);
-
-  std::string res_dir = CONFIG().out_dir + "/" + field + comp + "/";
-
-  auto&& diagnostic = FieldView::create(res_dir, simulation_.world_.da,
-    simulation_.get_named_vector(field), region);
-
-  if (!diagnostic)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
-  diagnostics_.emplace_back(std::move(diagnostic));
-  PetscFunctionReturn(PETSC_SUCCESS);
+  check_region(vector_cast(region.start), vector_cast(region.size), name);
 }
