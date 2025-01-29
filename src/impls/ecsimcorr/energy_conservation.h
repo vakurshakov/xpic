@@ -3,6 +3,7 @@
 
 #include "src/interfaces/diagnostic.h"
 #include "src/diagnostics/fields_energy.h"
+#include "src/diagnostics/particles_energy.h"
 #include "src/impls/ecsimcorr/simulation.h"
 #include "src/utils/sync_file.h"
 
@@ -28,6 +29,7 @@ private:
   Vec B0;
 
   std::unique_ptr<FieldsEnergy> fields_energy;
+  std::unique_ptr<ParticlesEnergy> particles_energy;
 };
 
 }  // namespace ecsimcorr

@@ -19,19 +19,29 @@ EnergyConservation::EnergyConservation(const Simulation& simulation)
   B0 = simulation.B0;
 
   fields_energy = std::make_unique<FieldsEnergy>(simulation.world_.da, E, B);
+
+  ParticlesEnergy::ParticlesPointersVector storage;
+  for (const auto& particles : simulation.particles_)
+    storage.push_back(particles.get());
+
+  particles_energy = std::make_unique<ParticlesEnergy>(storage);
 }
 
 PetscErrorCode EnergyConservation::diagnose(timestep_t t)
 {
   PetscFunctionBeginUser;
-  if (t == 0)
+  PetscCall(VecAXPY(B, -1.0, B0));
+
+  if (t == 0) {
     PetscCall(write_header());
+    fields_energy->calculate_energies();
+    particles_energy->calculate_energies();
+  }
 
   auto output = [&](PetscReal x) {
     file_() << std::setw(14) << x;
   };
 
-  PetscCall(VecAXPY(B, -1.0, B0));
   PetscReal prev_E = fields_energy->get_electric_energy();
   PetscReal prev_B = fields_energy->get_magnetic_energy();
   fields_energy->calculate_energies();
@@ -40,12 +50,17 @@ PetscErrorCode EnergyConservation::diagnose(timestep_t t)
   PetscReal dF = dE + dB;
   output(dE);
   output(dB);
-  PetscCall(VecAXPY(B, +1.0, B0));
 
   PetscReal dK = 0.0;
-  for (const auto& particles : simulation.particles_) {
-    dK += particles->corr_dK;
-    output(particles->corr_dK);
+  auto&& K0 = particles_energy->get_energies();
+  particles_energy->calculate_energies();
+  auto&& K = particles_energy->get_energies();
+
+  for (PetscInt i = 0; i < (PetscInt)K.size(); ++i) {
+    output(K[i] - K0[i]);
+    dK += K[i] - K0[i];
+
+    const auto& particles = simulation.particles_[i];
     output(particles->lambda_dK);
   }
 
@@ -79,6 +94,7 @@ PetscErrorCode EnergyConservation::diagnose(timestep_t t)
   if (t % diagnose_period == 0)
     file_.flush();
 
+  PetscCall(VecAXPY(B, +1.0, B0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

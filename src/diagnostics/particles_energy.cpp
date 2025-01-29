@@ -67,9 +67,9 @@ PetscErrorCode ParticlesEnergy::calculate_energies()
   std::vector<PetscReal> recvbuf(3 * energies_.size());
 
   for (std::size_t i = 0; i < energies_.size(); ++i) {
-    sendbuf[i + 0] = energies_[i][X];
-    sendbuf[i + 1] = energies_[i][Y];
-    sendbuf[i + 2] = energies_[i][Z];
+    sendbuf[i * 3 + 0] = energies_[i][X];
+    sendbuf[i * 3 + 1] = energies_[i][Y];
+    sendbuf[i * 3 + 2] = energies_[i][Z];
   }
   PetscCallMPI(MPI_Reduce(sendbuf.data(), recvbuf.data(), energies_.size(), MPIU_REAL, MPI_SUM, 0, PETSC_COMM_WORLD));
 
