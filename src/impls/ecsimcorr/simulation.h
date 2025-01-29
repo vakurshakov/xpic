@@ -1,6 +1,8 @@
 #ifndef SRC_ECSIMCORR_SIMULATION_H
 #define SRC_ECSIMCORR_SIMULATION_H
 
+#define MAT_SET_VALUES_COO 0
+
 #include <petscksp.h>
 
 #include "src/interfaces/simulation.h"
@@ -57,7 +59,9 @@ private:
   PetscErrorCode final_update();
 
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
-  PetscErrorCode dump_matL(timestep_t t);
+
+  PetscErrorCode fill_ecsim_current(timestep_t t);
+  PetscErrorCode dump_ecsim_curr(timestep_t t);
 
   Mat matA;
   Mat matM;

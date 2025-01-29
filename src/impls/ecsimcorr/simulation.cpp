@@ -71,10 +71,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t t)
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
 
-  PetscCall(MatAssemblyBegin(matL, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(matL, MAT_FINAL_ASSEMBLY));
-
-  dump_matL(t);
+  PetscCall(fill_ecsim_current(t));
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
@@ -191,25 +188,121 @@ PetscErrorCode Simulation::final_update()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::dump_matL(timestep_t t)
+PetscErrorCode Simulation::fill_ecsim_current(timestep_t t)
 {
-  if (t % diagnose_period != 0)
-    return PETSC_SUCCESS;
-
   PetscFunctionBeginUser;
-  const std::string dir = CONFIG().out_dir + "/matL/";
+#if !MAT_SET_VALUES_COO
+  MatStencil* coo_pi = nullptr;
+  MatStencil* coo_pj = nullptr;
+  PetscReal* coo_pv = nullptr;
 
-  if (!std::filesystem::exists(dir))
-    std::filesystem::create_directories(dir);
+  for (auto& particles : particles_)
+    PetscCall(particles->fill_ecsim_current(coo_pi, coo_pj, coo_pv));
 
-  auto time_width = static_cast<PetscInt>(std::to_string(geom_nt).size());
-  std::stringstream ss;
-  ss << dir << std::setw(time_width) << std::setfill('0') << t;
+  PetscCall(MatAssemblyBegin(matL, MAT_FINAL_ASSEMBLY));
+  PetscCall(MatAssemblyEnd(matL, MAT_FINAL_ASSEMBLY));
+#else
+  constexpr PetscInt shape_size = POW2(3 * POW3(3));
+  PetscInt size = 0;
+
+  for (const auto& particles : particles_)
+    size += shape_size * particles->points().size();
+
+  /// @warning It quickly becomes more expensive with increasing number of particles,
+  /// both on memory and computation time. There are some ways to improve this:
+  /// 1) Per-cell particle storage; 2) Lowering the `shape_size`.
+  std::vector<MatStencil> coo_i(size);
+  std::vector<MatStencil> coo_j(size);
+  std::vector<PetscReal> coo_v(size);
+
+  size = 0;
+  for (auto& particles : particles_) {
+    MatStencil* coo_pi = coo_i.data() + size;
+    MatStencil* coo_pj = coo_j.data() + size;
+    PetscReal* coo_pv = coo_v.data() + size;
+    PetscCall(particles->fill_ecsim_current(coo_pi, coo_pj, coo_pv));
+    size += shape_size * particles->points().size();
+  }
+
+  PetscInt starts[4];
+  PetscInt dims[4];
+  PetscCall(DMDAGetGhostCorners(world_.da, REP3_AP(&starts), REP3_AP(&dims)));
+  starts[3] = 0;
+  dims[3] = 3;
+
+  /// @note `idxm` will be modified to be an array of local indices
+  auto remap_stencil = [&](MatStencil* coo, PetscInt* idxm) {
+    PetscInt* in = (PetscInt*)coo;
+    PetscInt* out = idxm;
+
+    for (PetscInt i = 0; i < size; ++i) {
+      PetscInt tmp = *in++ - starts[0];
+
+      for (PetscInt j = 0; j < 3; ++j)
+        if ((*in++ - starts[j + 1]) < 0 || tmp < 0)
+          tmp = -1;
+        else
+          tmp = tmp * dims[j + 1] + *(in - 1) - starts[j + 1];
+      out[i] = tmp;
+    }
+  };
+
+  std::vector<PetscInt> idxm(size);
+  std::vector<PetscInt> idxn(size);
+  remap_stencil(coo_i.data(), idxm.data());
+  remap_stencil(coo_j.data(), idxn.data());
+
+  PetscCall(MatSetPreallocationCOOLocal(matL, size, idxm.data(), idxn.data()));
+  PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
+#endif
+
+  PetscCall(dump_ecsim_curr(t));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::dump_ecsim_curr(timestep_t t)
+{
+  PetscFunctionBeginUser;
+  const std::string dir = CONFIG().out_dir + "/ecsim";
+  std::filesystem::create_directories(dir + "/matL");
+  std::filesystem::create_directories(dir + "/currI");
+
+  std::string matL_out = std::format("{}/matL/{:0>4}", dir, t);
+  std::string currI_out = std::format("{}/currI/{:0>4}", dir, t);
 
   PetscViewer viewer;
-  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, ss.str().c_str(), &viewer));
+  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, matL_out.c_str(), FILE_MODE_WRITE, &viewer));
   PetscCall(MatView(matL, viewer));
   PetscCall(PetscViewerDestroy(&viewer));
+
+  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, currI_out.c_str(), FILE_MODE_WRITE, &viewer));
+  PetscCall(VecView(currI, viewer));
+  PetscCall(PetscViewerDestroy(&viewer));
+
+#if 0
+  DM da = world_.da;
+  Mat mat1, mat2;
+  DMCreateMatrix(da, &mat1);
+  DMCreateMatrix(da, &mat2);
+
+  const std::string mat1_out = "./results/performance-test/MatSetValuesCOO/full-MatSetValuesCOO/ecsim/matL/000" + std::to_string(t);
+  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat1_out.c_str(), FILE_MODE_READ, &viewer));
+  PetscCall(MatLoad(mat1, viewer));
+  PetscCall(PetscViewerDestroy(&viewer));
+
+  const std::string mat2_out = "./results/performance-test/MatSetValuesCOO/full-MatSetValuesBlockedStencil/ecsim/matL/000" + std::to_string(t);
+  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat2_out.c_str(), FILE_MODE_READ, &viewer));
+  PetscCall(MatLoad(mat2, viewer));
+  PetscCall(PetscViewerDestroy(&viewer));
+
+  PetscReal norm;
+  PetscCall(MatAXPY(mat1, -1.0, mat2, UNKNOWN_NONZERO_PATTERN));
+  PetscCall(MatNorm(mat1, NORM_1, &norm));
+  LOG(" ---- LAPENTA MATRIX COMPARISON RESULT: {}, t: {}", norm, t);
+
+  MatDestroy(&mat1);
+  MatDestroy(&mat2);
+#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

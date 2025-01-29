@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/performance-test/common-ground-100",
+  "OutputDirectory": "results/performance-test/MatSetValuesCOO",
 
   "Simulation": "ecsimcorr",
 

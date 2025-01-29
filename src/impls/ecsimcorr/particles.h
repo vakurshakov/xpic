@@ -22,6 +22,9 @@ public:
   PetscErrorCode second_push();
   PetscErrorCode final_update();
 
+  PetscErrorCode fill_ecsim_current(
+    MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);
+
 private:
   static constexpr PetscInt OMP_CHUNK_SIZE = 16;
 
@@ -34,8 +37,8 @@ private:
 
   void decompose_esirkepov_current(const Shape& shape, const Point& point);
 
-  void decompose_identity_current(
-    const Shape& shape, const Point& point, const Vector3R& B_p);
+  void decompose_ecsim_current(const Shape& shape, PetscInt i,
+    const Vector3R& B_p, MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);
 
   Simulation& simulation_;
 
