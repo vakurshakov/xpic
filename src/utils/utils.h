@@ -24,13 +24,13 @@ constexpr PetscInt petsc_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c,
 /// @brief Grid indices for scalar fields in PETSc natural ordering
 inline PetscInt s_g(PetscInt z, PetscInt y, PetscInt x)
 {
-  return petsc_index(z, y, x, 0, geom_nz, geom_ny, geom_nz, 1);
+  return petsc_index(z, y, x, 0, geom_nz, geom_ny, geom_nx, 1);
 }
 
 /// @brief Grid indices for vector fields in PETSc natural ordering
 inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 {
-  return petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nz, 3);
+  return petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nx, 3);
 }
 
 }  // namespace indexing
