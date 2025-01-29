@@ -50,7 +50,6 @@ set(diagnostics
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
-  # src/diagnostics/builders/fields_energy_builder.cpp
 )
 
 set(commands
