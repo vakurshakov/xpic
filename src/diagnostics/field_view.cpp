@@ -92,10 +92,7 @@ PetscErrorCode FieldView::diagnose(timestep_t t)
     PetscFunctionReturn(PETSC_SUCCESS);
   PetscFunctionBeginUser;
 
-  auto time_width = static_cast<PetscInt>(std::to_string(geom_nt).size());
-  std::stringstream ss;
-  ss << std::setw(time_width) << std::setfill('0') << t;
-  PetscCall(file_.open(comm_, out_dir_, ss.str()));
+  PetscCall(file_.open(comm_, out_dir_, format_time(t)));
 
   const PetscReal* arr;
   PetscCall(VecGetArrayRead(field_, &arr));

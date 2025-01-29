@@ -1,9 +1,5 @@
 #include "simulation.h"
 
-#include <filesystem>
-
-#include <petscviewer.h>
-
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/impls/ecsimcorr/charge_conservation.h"
@@ -208,9 +204,9 @@ PetscErrorCode Simulation::fill_ecsim_current(timestep_t t)
   for (const auto& particles : particles_)
     size += shape_size * particles->points().size();
 
-  /// @warning It quickly becomes more expensive with increasing number of particles,
-  /// both on memory and computation time. There are some ways to improve this:
-  /// 1) Per-cell particle storage; 2) Lowering the `shape_size`.
+  /// @warning It quickly becomes more expensive with increasing number of
+  /// particles, both on memory and computation time. There are some ways to
+  /// improve this: 1) Per-cell particle storage; 2) Lowering the `shape_size`.
   std::vector<MatStencil> coo_i(size);
   std::vector<MatStencil> coo_j(size);
   std::vector<PetscReal> coo_v(size);
@@ -254,54 +250,6 @@ PetscErrorCode Simulation::fill_ecsim_current(timestep_t t)
 
   PetscCall(MatSetPreallocationCOOLocal(matL, size, idxm.data(), idxn.data()));
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
-#endif
-
-  PetscCall(dump_ecsim_curr(t));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::dump_ecsim_curr(timestep_t t)
-{
-  PetscFunctionBeginUser;
-  const std::string dir = CONFIG().out_dir + "/ecsim";
-  std::filesystem::create_directories(dir + "/matL");
-  std::filesystem::create_directories(dir + "/currI");
-
-  std::string matL_out = std::format("{}/matL/{:0>4}", dir, t);
-  std::string currI_out = std::format("{}/currI/{:0>4}", dir, t);
-
-  PetscViewer viewer;
-  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, matL_out.c_str(), FILE_MODE_WRITE, &viewer));
-  PetscCall(MatView(matL, viewer));
-  PetscCall(PetscViewerDestroy(&viewer));
-
-  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, currI_out.c_str(), FILE_MODE_WRITE, &viewer));
-  PetscCall(VecView(currI, viewer));
-  PetscCall(PetscViewerDestroy(&viewer));
-
-#if 0
-  DM da = world_.da;
-  Mat mat1, mat2;
-  DMCreateMatrix(da, &mat1);
-  DMCreateMatrix(da, &mat2);
-
-  const std::string mat1_out = "./results/performance-test/MatSetValuesCOO/full-MatSetValuesCOO/ecsim/matL/000" + std::to_string(t);
-  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat1_out.c_str(), FILE_MODE_READ, &viewer));
-  PetscCall(MatLoad(mat1, viewer));
-  PetscCall(PetscViewerDestroy(&viewer));
-
-  const std::string mat2_out = "./results/performance-test/MatSetValuesCOO/full-MatSetValuesBlockedStencil/ecsim/matL/000" + std::to_string(t);
-  PetscCall(PetscViewerBinaryOpen(PETSC_COMM_WORLD, mat2_out.c_str(), FILE_MODE_READ, &viewer));
-  PetscCall(MatLoad(mat2, viewer));
-  PetscCall(PetscViewerDestroy(&viewer));
-
-  PetscReal norm;
-  PetscCall(MatAXPY(mat1, -1.0, mat2, UNKNOWN_NONZERO_PATTERN));
-  PetscCall(MatNorm(mat1, NORM_1, &norm));
-  LOG(" ---- LAPENTA MATRIX COMPARISON RESULT: {}, t: {}", norm, t);
-
-  MatDestroy(&mat1);
-  MatDestroy(&mat2);
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }

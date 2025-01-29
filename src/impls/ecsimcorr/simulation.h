@@ -61,7 +61,6 @@ private:
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
 
   PetscErrorCode fill_ecsim_current(timestep_t t);
-  PetscErrorCode dump_ecsim_curr(timestep_t t);
 
   Mat matA;
   Mat matM;
