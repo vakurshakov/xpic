@@ -2,6 +2,7 @@
 
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
+#include "src/diagnostics/mat_dump.h"
 #include "src/impls/ecsimcorr/charge_conservation.h"
 #include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/utils/operators.h"
@@ -46,6 +47,11 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
+  diagnostics_.emplace_back(
+    std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
+      "./results/performance-test/MatSetValuesCOO/"
+      "full-MatSetValuesBlockedStencil/ecsim/matL"));
+
 
   for (auto& sort : particles_)
     PetscCall(sort->init());
@@ -54,7 +60,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t t)
+PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
 {
   PetscFunctionBeginUser;
   PetscLogStagePush(stagenums[0]);
@@ -67,7 +73,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t t)
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
 
-  PetscCall(fill_ecsim_current(t));
+  PetscCall(fill_ecsim_current());
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
@@ -119,14 +125,12 @@ PetscErrorCode Simulation::predict_fields()
   PetscFunctionBeginUser;
   // Storing `matL` to reuse it for ECSIM current calculation later
   PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));  // matA = matL
-  PetscCall(MatAYPX(matA, 0.5 * POW2(dt), matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt^2 / 2 * matA
+  PetscCall(MatAYPX(matA, 2.0 * dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + (2 * dt) * matA
 
   PetscCall(KSPSetOperators(predict, matA, matA));
   PetscCall(KSPSetUp(predict));
 
   PetscCall(advance_fields(predict, currI, Ep));
-
-  PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -184,7 +188,7 @@ PetscErrorCode Simulation::final_update()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::fill_ecsim_current(timestep_t t)
+PetscErrorCode Simulation::fill_ecsim_current()
 {
   PetscFunctionBeginUser;
 #if !MAT_SET_VALUES_COO
@@ -251,6 +255,8 @@ PetscErrorCode Simulation::fill_ecsim_current(timestep_t t)
   PetscCall(MatSetPreallocationCOOLocal(matL, size, idxm.data(), idxn.data()));
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
 #endif
+
+  PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

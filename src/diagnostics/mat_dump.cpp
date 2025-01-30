@@ -27,6 +27,7 @@ PetscErrorCode MatDump::diagnose(timestep_t t)
 
 PetscErrorCode MatDump::compare(timestep_t t)
 {
+  PetscFunctionBeginUser;
   Mat comp_mat;
   PetscCall(MatDuplicate(mat_, MAT_DO_NOT_COPY_VALUES, &comp_mat));
 
@@ -40,4 +41,5 @@ PetscErrorCode MatDump::compare(timestep_t t)
   PetscCall(MatNorm(comp_mat, NORM_1, &norm));
   PetscCall(MatDestroy(&comp_mat));
   LOG("  MatDump::compare({}): norm of the difference in matrices {}", t, norm);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
