@@ -16,7 +16,7 @@ public:
   Simulation() = default;
   virtual ~Simulation() = default;
 
-  World world_;
+  World world;
 
   PetscErrorCode initialize();
   PetscErrorCode calculate();

@@ -14,8 +14,8 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
   PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "Ricketson scheme is uniprocessor currently");
 
-  PetscCall(DMCreateGlobalVector(world_.da, &E_));
-  PetscCall(DMCreateGlobalVector(world_.da, &B_));
+  PetscCall(DMCreateGlobalVector(world.da, &E_));
+  PetscCall(DMCreateGlobalVector(world.da, &B_));
   PetscCall(setup_norm_gradient());
 
   /// @todo Move this into class Set_approximate_magnetic_mirror.
@@ -25,10 +25,10 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscInt rstart[3];
   PetscInt rsize[3];
-  PetscCall(DMDAGetCorners(world_.da, REP3_A(&rstart), REP3_A(&rsize)));
+  PetscCall(DMDAGetCorners(world.da, REP3_A(&rstart), REP3_A(&rsize)));
 
   Vector3R*** B;
-  PetscCall(DMDAVecGetArrayWrite(world_.da, B_, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayWrite(world.da, B_, reinterpret_cast<void*>(&B)));
 
   // clang-format off
   for (PetscInt z = rstart[Z]; z < rstart[Z] + rsize[Z]; ++z) {
@@ -48,7 +48,7 @@ PetscErrorCode Simulation::initialize_implementation()
     B[z][y][x].z() = B0 * 1.0;
   }}}
   // clang-format on
-  PetscCall(DMDAVecRestoreArrayWrite(world_.da, B_, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecRestoreArrayWrite(world.da, B_, reinterpret_cast<void*>(&B)));
 
   SortParameters parameters = {
     .sort_name = "positron",
@@ -75,14 +75,14 @@ PetscErrorCode Simulation::calculate_b_norm_gradient()
   PetscFunctionBeginUser;
 
   Vector3R*** B;
-  PetscCall(DMDAVecGetArrayRead(world_.da, B_, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayRead(world.da, B_, reinterpret_cast<void*>(&B)));
 
   PetscReal* B_norm;
   PetscCall(VecGetArrayWrite(B_norm_, &B_norm));
 
   PetscInt start[3];
   PetscInt size[3];
-  PetscCall(DMDAGetCorners(world_.da, REP3_A(&start), REP3_A(&size)));
+  PetscCall(DMDAGetCorners(world.da, REP3_A(&start), REP3_A(&size)));
 
   // clang-format off
   for (PetscInt z = start[Z]; z < start[Z] + size[Z]; ++z)
@@ -91,7 +91,7 @@ PetscErrorCode Simulation::calculate_b_norm_gradient()
     B_norm[indexing::s_g(z, y, x)] = B[z][y][x].length();
   // clang-format on
 
-  PetscCall(DMDAVecRestoreArrayRead(world_.da, B_, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecRestoreArrayRead(world.da, B_, reinterpret_cast<void*>(&B)));
   PetscCall(VecRestoreArrayWrite(B_norm_, &B_norm));
 
   PetscCall(MatMult(norm_gradient_, B_norm_, DB_));
@@ -102,7 +102,7 @@ PetscErrorCode Simulation::calculate_b_norm_gradient()
 PetscErrorCode Simulation::setup_norm_gradient()
 {
   PetscFunctionBeginUser;
-  DM da = world_.da;
+  DM da = world.da;
   PetscCall(DMCreateGlobalVector(da, &DB_));
 
   PetscInt start[3];

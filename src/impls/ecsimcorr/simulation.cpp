@@ -146,7 +146,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 {
   PetscFunctionBeginUser;
   Vec rhs;
-  PetscCall(DMGetGlobalVector(world_.da, &rhs));
+  PetscCall(DMGetGlobalVector(world.da, &rhs));
   PetscCall(VecAXPY(B, -1.0, B0));
 
   PetscCall(VecCopy(curr, rhs));  // rhs = curr
@@ -157,7 +157,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscCall(KSPGetSolution(ksp, &out));
 
   PetscCall(VecAXPY(B, +1.0, B0));
-  PetscCall(DMRestoreGlobalVector(world_.da, &rhs));
+  PetscCall(DMRestoreGlobalVector(world.da, &rhs));
 
   // Convergence analysis
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
@@ -169,7 +169,7 @@ PetscErrorCode Simulation::final_update()
   PetscFunctionBeginUser;
   Vec util;
   PetscReal norm;
-  PetscCall(DMGetGlobalVector(world_.da, &util));
+  PetscCall(DMGetGlobalVector(world.da, &util));
 
   PetscCall(MatMultAdd(matL, Ec, currI, currI));  // currI = currI + matL * E^{n+1/2}
   PetscCall(VecWAXPY(util, -1, currI, currJe));  // util = -currI + currJe
@@ -182,7 +182,7 @@ PetscErrorCode Simulation::final_update()
   LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
 
   PetscCall(VecSwap(util, E));
-  PetscCall(DMRestoreGlobalVector(world_.da, &util));
+  PetscCall(DMRestoreGlobalVector(world.da, &util));
 
   PetscCall(MatMultAdd(rotE, Ec, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -226,7 +226,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
 
   PetscInt starts[4];
   PetscInt dims[4];
-  PetscCall(DMDAGetGhostCorners(world_.da, REP3_AP(&starts), REP3_AP(&dims)));
+  PetscCall(DMDAGetGhostCorners(world.da, REP3_AP(&starts), REP3_AP(&dims)));
   starts[3] = 0;
   dims[3] = 3;
 
@@ -295,7 +295,7 @@ Particles& Simulation::get_named_particles(std::string_view name)
 PetscErrorCode Simulation::init_vectors()
 {
   PetscFunctionBeginUser;
-  DM da = world_.da;
+  DM da = world.da;
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &Ep));
   PetscCall(DMCreateGlobalVector(da, &Ec));
@@ -309,7 +309,7 @@ PetscErrorCode Simulation::init_vectors()
 PetscErrorCode Simulation::init_matrices()
 {
   PetscFunctionBeginUser;
-  DM da = world_.da;
+  DM da = world.da;
   PetscCall(DMCreateMatrix(da, &matL));
   PetscCall(MatSetOption(matL, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
   PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));

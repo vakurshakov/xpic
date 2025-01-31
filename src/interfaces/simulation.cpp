@@ -10,7 +10,7 @@ namespace interfaces {
 PetscErrorCode Simulation::initialize()
 {
   PetscFunctionBeginUser;
-  PetscCall(world_.initialize());
+  PetscCall(world.initialize());
   PetscCall(log_information());
   PetscCall(initialize_implementation());
 

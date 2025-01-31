@@ -15,7 +15,7 @@ public:
   Particles(const World& world, const SortParameters& parameters);
   virtual ~Particles() = default;
 
-  const World& world_;
+  const World& world;
 
   void reserve(PetscInt number_of_particles);
   PetscErrorCode add_particle(const Point& point);

@@ -27,7 +27,7 @@ PetscErrorCode FieldsDampingBuilder::build(const Configuration::json_t& info)
   if (name == "BoxGeometry") {
     Vector3R min = parse_vector(geometry, "min");
     Vector3R max = parse_vector(geometry, "max");
-    diag = std::make_unique<FieldsDamping>(simulation_.world_.da, E, B, B0,
+    diag = std::make_unique<FieldsDamping>(simulation_.world.da, E, B, B0,
       BoxGeometry(min, max), damping_coefficient);
   }
   else {

@@ -9,7 +9,7 @@ namespace basic {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-  DM da = world_.da;
+  DM da = world.da;
   PetscCall(DMCreateGlobalVector(da, &E_));
   PetscCall(DMCreateGlobalVector(da, &B_));
   PetscCall(DMCreateGlobalVector(da, &J_));

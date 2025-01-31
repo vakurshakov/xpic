@@ -9,10 +9,10 @@
 namespace ecsimcorr {
 
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
-  : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
+  : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
-  DM da = world_.da;
+  DM da = world.da;
   PetscCallVoid(DMCreateLocalVector(da, &local_currI));
   PetscCallVoid(DMCreateLocalVector(da, &local_currJe));
   PetscCallVoid(DMCreateGlobalVector(da, &global_currI));
@@ -63,7 +63,7 @@ PetscErrorCode Particles::clear_sources()
 PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
-  PetscCall(DMDAVecGetArrayWrite(world_.da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArrayWrite(world.da, local_currJe, &currJe));
 
   PetscLogEventBegin(events[0], local_currJe, 0, 0, 0);
 
@@ -81,7 +81,7 @@ PetscErrorCode Particles::first_push()
 
   PetscLogEventEnd(events[0], local_currJe, 0, 0, 0);
 
-  PetscCall(DMDAVecRestoreArrayWrite(world_.da, local_currJe, &currJe));
+  PetscCall(DMDAVecRestoreArrayWrite(world.da, local_currJe, &currJe));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -92,7 +92,7 @@ PetscErrorCode Particles::fill_ecsim_current(
   Vec local_B;
   Vector3R*** B;
 
-  DM da = world_.da;
+  DM da = world.da;
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
 
@@ -137,7 +137,7 @@ PetscErrorCode Particles::second_push()
   Vector3R*** E;
   Vector3R*** B;
 
-  DM da = world_.da;
+  DM da = world.da;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.Ep, INSERT_VALUES, local_E));

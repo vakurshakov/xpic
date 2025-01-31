@@ -15,7 +15,7 @@ std::unique_ptr<DistributionMoment> DistributionMoment::create(
 {
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
-  PetscCallThrow(get_local_communicator(particles.world_.da, region, &newcomm));
+  PetscCallThrow(get_local_communicator(particles.world.da, region, &newcomm));
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
@@ -27,7 +27,7 @@ std::unique_ptr<DistributionMoment> DistributionMoment::create(
 
 DistributionMoment::DistributionMoment(const std::string& out_dir,
   const Particles& particles, const Moment& moment, MPI_Comm newcomm)
-  : FieldView(out_dir, particles.world_.da, nullptr, newcomm),
+  : FieldView(out_dir, particles.world.da, nullptr, newcomm),
     particles_(particles),
     moment_(moment)
 {

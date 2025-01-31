@@ -25,7 +25,7 @@ ChargeConservation::ChargeConservation(const Simulation& simulation)
       "", *particles, moment_from_string("Density"), region));
   }
 
-  Divergence divergence(simulation.world_.da);
+  Divergence divergence(simulation.world.da);
   PetscCallVoid(divergence.create_negative(&divE));
 }
 

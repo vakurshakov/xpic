@@ -31,7 +31,7 @@ static constexpr PetscReal t_res = 10;
 
 
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
-  : interfaces::Particles(simulation.world_, parameters), simulation_(simulation)
+  : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
   particle_iterations_log =
@@ -61,7 +61,7 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 
 
 Particles::Particles(Particles&& other) noexcept
-  : interfaces::Particles(other.world_, other.parameters_),
+  : interfaces::Particles(other.world, other.parameters_),
     simulation_(other.simulation_)
 {
   points_ = std::move(other.points_);
@@ -85,7 +85,7 @@ PetscErrorCode Particles::push()
 {
   PetscFunctionBeginUser;
 
-  DM da = simulation_.world_.da;
+  DM da = simulation_.world.da;
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGetLocalVector(da, &local_DB));
