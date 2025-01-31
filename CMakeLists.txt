@@ -47,6 +47,7 @@ set(diagnostics
   src/diagnostics/fields_energy.cpp
   src/diagnostics/particles_energy.cpp
   src/diagnostics/distribution_moment.cpp
+  src/diagnostics/mat_dump.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
