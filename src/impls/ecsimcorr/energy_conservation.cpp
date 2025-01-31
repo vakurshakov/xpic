@@ -104,7 +104,7 @@ PetscErrorCode EnergyConservation::write_header()
   file_() << "Delta(E)\tDelta(B)\t";
 
   for (const auto& particles : simulation.particles_) {
-    auto&& name = particles->parameters().sort_name;
+    auto&& name = particles->parameters.sort_name;
     file_() << "Delta(K_" << name << ")\t";
     file_() << "Lambda(dK_" << name << ")\t";
   }

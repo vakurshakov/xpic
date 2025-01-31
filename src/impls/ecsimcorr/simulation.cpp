@@ -283,7 +283,7 @@ Particles& Simulation::get_named_particles(std::string_view name)
 {
   auto it = std::find_if(particles_.begin(), particles_.end(),  //
     [&](const auto& sort) {
-      return sort->parameters().sort_name == name;
+      return sort->parameters.sort_name == name;
     });
 
   if (it == particles_.end())

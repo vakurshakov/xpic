@@ -15,7 +15,7 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
   std::string name;
   info.at("name").get_to(name);
 
-  const PetscInt Npi = particles.parameters().Np;
+  const PetscInt Npi = particles.parameters.Np;
 
   if (name == "PreciseCoordinate") {
     gen = PreciseCoordinate(parse_vector(info, "value"));
@@ -47,7 +47,7 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
     if (info.contains("tov"))
       info.at("tov").get_to(tov);
 
-    gen = MaxwellianMomentum(particles.parameters(), tov);
+    gen = MaxwellianMomentum(particles.parameters, tov);
   }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);

@@ -49,7 +49,7 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   PetscCallVoid(VecSetType(solution_, VECSEQ));
   PetscCallVoid(VecSetSizes(solution_, PETSC_DECIDE, solution_size));
 
-  LOG("Nonlinear solver for \"{}\" is set, tolerances:",  parameters_.sort_name);
+  LOG("Nonlinear solver for \"{}\" is set, tolerances:",  parameters.sort_name);
   LOG("  atol = {} - absolute convergence tolerance", atol);
   LOG("  rtol = {} - relative convergence tolerance", rtol);
   LOG("  stol = {} - convergence tolerance in terms of the norm of the change in the solution between steps", stol);
@@ -61,7 +61,7 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 
 
 Particles::Particles(Particles&& other) noexcept
-  : interfaces::Particles(other.world, other.parameters_),
+  : interfaces::Particles(other.world, other.parameters),
     simulation_(other.simulation_)
 {
   points_ = std::move(other.points_);

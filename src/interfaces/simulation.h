@@ -43,7 +43,7 @@ protected:
   {
     auto it = std::find_if(storage.begin(), storage.end(),  //
       [&](const auto& sort) {
-        return sort.parameters().sort_name == name;
+        return sort.parameters.sort_name == name;
       });
 
     if (it == storage.end())

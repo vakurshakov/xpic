@@ -34,11 +34,11 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
-  const PetscInt Npi = ionized_.parameters().Np;
-  const PetscReal mi = ionized_.parameters().m;
+  const PetscInt Npi = ionized_.parameters.Np;
+  const PetscReal mi = ionized_.parameters.m;
 
-  const PetscInt Npe = ejected_.parameters().Np;
-  const PetscReal me = ejected_.parameters().m;
+  const PetscInt Npe = ejected_.parameters.Np;
+  const PetscReal me = ejected_.parameters.m;
 
   for (PetscInt p = 0; p < per_step_particles_num_; ++p) {
     Vector3R shared_coordinate = generate_coordinate_();
@@ -55,19 +55,19 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
 
   constexpr auto message =
     "  Particles are added into \"{}\"; particles: {}, energy: {}";
-  LOG(message, ionized_.parameters().sort_name, per_step_particles_num_, energy_i_);
-  LOG(message, ejected_.parameters().sort_name, per_step_particles_num_, energy_e_);
+  LOG(message, ionized_.parameters.sort_name, per_step_particles_num_, energy_i_);
+  LOG(message, ejected_.parameters.sort_name, per_step_particles_num_, energy_e_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 std::string InjectParticles::get_ionized_name() const
 {
-  return ionized_.parameters().sort_name;
+  return ionized_.parameters.sort_name;
 }
 
 std::string InjectParticles::get_ejected_name() const
 {
-  return ejected_.parameters().sort_name;
+  return ejected_.parameters.sort_name;
 }
 
 PetscReal InjectParticles::get_ionized_energy() const

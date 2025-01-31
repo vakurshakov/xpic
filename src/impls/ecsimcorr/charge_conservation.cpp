@@ -58,7 +58,7 @@ PetscErrorCode ChargeConservation::diagnose(timestep_t t)
 
     PetscCall(VecAYPX(diff, -1.0, charge_density->field_));
     PetscCall(VecScale(diff, 1.0 / dt));
-    PetscCall(VecScale(diff, charge_density->particles_.parameters().q));
+    PetscCall(VecScale(diff, charge_density->particles_.parameters.q));
 
     PetscCall(VecAXPY(sum, 1.0, diff));
 
@@ -90,7 +90,7 @@ PetscErrorCode ChargeConservation::write_header()
 {
   PetscFunctionBeginUser;
   for (const auto& particles : simulation.particles_) {
-    auto&& name = particles->parameters().sort_name;
+    auto&& name = particles->parameters.sort_name;
     file_() << "Norm1(dC_" << name << ")\t";
     file_() << "Norm2(dC_" << name << ")\t";
   }

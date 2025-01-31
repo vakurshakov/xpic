@@ -16,11 +16,10 @@ public:
   virtual ~Particles() = default;
 
   const World& world;
+  const SortParameters parameters;
 
   void reserve(PetscInt number_of_particles);
   PetscErrorCode add_particle(const Point& point);
-
-  const SortParameters& parameters() const;
 
   std::vector<Point>& points();
   const std::vector<Point>& points() const;
@@ -40,8 +39,6 @@ protected:
   static constexpr PetscInt MPI_TAG_POINTS = 4;
 
   void correct_coordinates(Point& point);
-
-  SortParameters parameters_;
   std::vector<Point> points_;
 };
 

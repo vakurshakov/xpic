@@ -217,7 +217,7 @@ PetscErrorCode Particles::final_update()
   corr_dK = lambda2 * K - K0;
   energy = lambda2 * K;
 
-  LOG("  Velocity renormalization for \"{}\"", parameters_.sort_name);
+  LOG("  Velocity renormalization for \"{}\"", parameters.sort_name);
   LOG("    predicted field work [(ECSIM) * E_pred]: {:.7f}", pred_w);
   LOG("    corrected field work [(Esirkepov) * E_corr]: {:.7f}", corr_w);
   LOG("    lambda: {:.7f}, lambda^2: {:.7f}", lambda, lambda2);

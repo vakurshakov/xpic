@@ -40,8 +40,8 @@ PetscErrorCode ParticlesEnergy::diagnose(timestep_t t)
 PetscErrorCode ParticlesEnergy::calculate_energies()
 {
   auto calculate = [&](const interfaces::Particles* particles, Vector3R& result) {
-    const PetscInt Np = particles->parameters().Np;
-    const PetscReal m = particles->parameters().m;
+    const PetscInt Np = particles->parameters.Np;
+    const PetscReal m = particles->parameters.m;
 
     PetscReal wx = 0.0;
     PetscReal wy = 0.0;

@@ -21,8 +21,8 @@ PetscErrorCode SetParticles::execute(timestep_t /* t */)
   PetscFunctionBeginUser;
   PetscReal energy = 0.0;
 
-  const PetscInt Np = particles_.parameters().Np;
-  const PetscReal m = particles_.parameters().m;
+  const PetscInt Np = particles_.parameters.Np;
+  const PetscReal m = particles_.parameters.m;
 
   for (PetscInt p = 0; p < number_of_particles_; ++p) {
     Vector3R coordinate = generate_coordinate_();
@@ -36,6 +36,6 @@ PetscErrorCode SetParticles::execute(timestep_t /* t */)
 
   constexpr auto message =
     "  Particles are added into \"{}\"; particles: {}, energy: {}";
-  LOG(message, particles_.parameters().sort_name, number_of_particles_, energy);
+  LOG(message, particles_.parameters.sort_name, number_of_particles_, energy);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -33,7 +33,7 @@ PetscInt get_index(const Vector3R& r, Axis axis, const World& world)
 
 
 Particles::Particles(const World& world, const SortParameters& parameters)
-  : world(world), parameters_(parameters)
+  : world(world), parameters(parameters)
 {
 }
 
@@ -132,12 +132,6 @@ PetscErrorCode Particles::communicate()
 }
 
 
-const SortParameters& Particles::parameters() const
-{
-  return parameters_;
-}
-
-
 std::vector<Point>& Particles::points()
 {
   return points_;
@@ -150,22 +144,22 @@ const std::vector<Point>& Particles::points() const
 
 PetscInt Particles::particles_number(const Point& /* point */) const
 {
-  return parameters_.Np;
+  return parameters.Np;
 }
 
 PetscReal Particles::density(const Point& /* point */) const
 {
-  return parameters_.n;
+  return parameters.n;
 }
 
 PetscReal Particles::charge(const Point& /* point */) const
 {
-  return parameters_.q;
+  return parameters.q;
 }
 
 PetscReal Particles::mass(const Point& /* point */) const
 {
-  return parameters_.m;
+  return parameters.m;
 }
 
 Vector3R Particles::velocity(const Point& point) const

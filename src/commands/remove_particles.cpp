@@ -36,8 +36,8 @@ PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
   PetscFunctionBeginUser;
   removed_energy_ = 0.0;
 
-  const PetscInt Np = particles_.parameters().Np;
-  const PetscReal m = particles_.parameters().m;
+  const PetscInt Np = particles_.parameters.Np;
+  const PetscReal m = particles_.parameters.m;
 
   auto& storage = particles_.points();
   auto it =
@@ -52,7 +52,7 @@ PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
   if (it != storage.end()) {
     constexpr auto message =
       "  Particles are removed from \"{}\"; particles: {}, energy: {}";
-    LOG(message, particles_.parameters().sort_name, storage.end() - it, removed_energy_);
+    LOG(message, particles_.parameters.sort_name, storage.end() - it, removed_energy_);
     storage.erase(it, storage.end());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -60,7 +60,7 @@ PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
 
 std::string RemoveParticles::get_particles_name() const
 {
-  return particles_.parameters().sort_name;
+  return particles_.parameters.sort_name;
 }
 
 PetscReal RemoveParticles::get_removed_energy() const
