@@ -54,7 +54,7 @@ PetscErrorCode Simulation::initialize_implementation()
 
 
   for (auto& sort : particles_)
-    PetscCall(sort->init());
+    PetscCall(sort->calculate_energy());
 
   PetscCall(init_log_stages());
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -75,6 +75,11 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
 
   PetscCall(fill_ecsim_current());
 
+  for (auto& sort : particles_) {
+    PetscCall(sort->correct_coordinates());
+    PetscCall(sort->update_cells());
+  }
+
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
 
@@ -83,8 +88,11 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
   PetscLogStagePop();
   PetscLogStagePush(stagenums[3]);
 
-  for (auto& sort : particles_)
+  for (auto& sort : particles_) {
     PetscCall(sort->second_push());
+    PetscCall(sort->correct_coordinates());
+    PetscCall(sort->update_cells());
+  }
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[4]);
@@ -196,17 +204,21 @@ PetscErrorCode Simulation::fill_ecsim_current()
   MatStencil* coo_pj = nullptr;
   PetscReal* coo_pv = nullptr;
 
-  for (auto& particles : particles_)
-    PetscCall(particles->fill_ecsim_current(coo_pi, coo_pj, coo_pv));
+  for (auto& sort : particles_)
+    PetscCall(sort->fill_ecsim_current(coo_pi, coo_pj, coo_pv));
 
   PetscCall(MatAssemblyBegin(matL, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(matL, MAT_FINAL_ASSEMBLY));
 #else
   constexpr PetscInt shape_size = POW2(3 * POW3(3));
   PetscInt size = 0;
+  PetscInt s2 = 0;
 
-  for (const auto& particles : particles_)
-    size += shape_size * particles->points().size();
+  for (auto& sort : particles_)
+    for (auto& cell : sort->storage) {
+      size += shape_size * (PetscInt)!cell.empty();
+      s2 += shape_size * cell.size();
+    }
 
   /// @warning It quickly becomes more expensive with increasing number of
   /// particles, both on memory and computation time. There are some ways to
@@ -216,12 +228,17 @@ PetscErrorCode Simulation::fill_ecsim_current()
   std::vector<PetscReal> coo_v(size);
 
   size = 0;
-  for (auto& particles : particles_) {
-    MatStencil* coo_pi = coo_i.data() + size;
-    MatStencil* coo_pj = coo_j.data() + size;
-    PetscReal* coo_pv = coo_v.data() + size;
-    PetscCall(particles->fill_ecsim_current(coo_pi, coo_pj, coo_pv));
-    size += shape_size * particles->points().size();
+  for (const auto& sort : particles_) {
+    for (const auto& cell : sort->storage) {
+      if (cell.empty())
+        continue;
+
+      MatStencil* coo_pi = coo_i.data() + size;
+      MatStencil* coo_pj = coo_j.data() + size;
+      PetscReal* coo_pv = coo_v.data() + size;
+      PetscCall(sort->fill_ecsim_current(cell, coo_pi, coo_pj, coo_pv));
+      size += shape_size;
+    }
   }
 
   PetscInt starts[4];

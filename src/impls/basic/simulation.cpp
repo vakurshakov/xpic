@@ -46,7 +46,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
 
   for (auto& sort : particles_) {
     PetscCall(sort.push());
-    PetscCall(sort.communicate());
+    // PetscCall(sort.communicate());
   }
 
   PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // B (n+1) = B(n) - rot(E) * dt

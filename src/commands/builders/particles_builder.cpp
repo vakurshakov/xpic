@@ -15,17 +15,17 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
   std::string name;
   info.at("name").get_to(name);
 
-  const PetscInt Npi = particles.parameters.Np;
+  const PetscInt Np = particles.parameters.Np;
 
   if (name == "PreciseCoordinate") {
     gen = PreciseCoordinate(parse_vector(info, "value"));
-    number_of_particles = Npi;
+    number_of_particles = Np;
   }
   else if (name == "CoordinateInBox") {
     Vector3R min = parse_vector(info, "min");
     Vector3R max = parse_vector(info, "max");
     gen = CoordinateInBox(BoxGeometry(min, max));
-    number_of_particles = (max - min).elements_product() / (dx * dy * dz) * Npi;
+    number_of_particles = (max - min).elements_product() / (dx * dy * dz) * Np;
   }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);

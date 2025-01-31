@@ -9,8 +9,8 @@ InjectParticles::InjectParticles(                  //
   timestep_t injection_start,                      //
   timestep_t injection_end,                        //
   PetscInt per_step_particles_num,                 //
-  const CoordinateGenerator& generate_coordinate, //
-  const MomentumGenerator& generate_momentum_i,           //
+  const CoordinateGenerator& generate_coordinate,  //
+  const MomentumGenerator& generate_momentum_i,    //
   const MomentumGenerator& generate_momentum_e)
   : ionized_(ionized),
     ejected_(ejected),
@@ -21,8 +21,6 @@ InjectParticles::InjectParticles(                  //
     generate_momentum_i_(generate_momentum_i),
     generate_momentum_e_(generate_momentum_e)
 {
-  ionized_.reserve(per_step_particles_num_ * (injection_end_ - injection_start_));
-  ejected_.reserve(per_step_particles_num_ * (injection_end_ - injection_start_));
 }
 
 PetscErrorCode InjectParticles::execute(timestep_t t)

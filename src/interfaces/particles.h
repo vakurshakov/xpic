@@ -8,6 +8,7 @@
 
 namespace interfaces {
 
+/// @note Points are stored in a contiguous 3d array of cells
 class Particles {
 public:
   DEFAULT_MOVABLE(Particles);
@@ -17,12 +18,12 @@ public:
 
   const World& world;
   const SortParameters parameters;
+  std::vector<std::list<Point>> storage;
 
-  void reserve(PetscInt number_of_particles);
   PetscErrorCode add_particle(const Point& point);
-
-  std::vector<Point>& points();
-  const std::vector<Point>& points() const;
+  PetscErrorCode correct_coordinates();
+  PetscErrorCode update_cells();
+  // PetscErrorCode communicate();
 
   PetscReal mass(const Point& point) const;
   PetscReal charge(const Point& point) const;
@@ -31,15 +32,11 @@ public:
 
   Vector3R velocity(const Point& point) const;
 
-  PetscErrorCode communicate();
-  PetscErrorCode correct_coordinates();
-
 protected:
   static constexpr PetscInt MPI_TAG_NUMBERS = 2;
   static constexpr PetscInt MPI_TAG_POINTS = 4;
 
   void correct_coordinates(Point& point);
-  std::vector<Point> points_;
 };
 
 }  // namespace interfaces

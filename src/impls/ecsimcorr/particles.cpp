@@ -36,15 +36,18 @@ Particles::~Particles()
   PetscFunctionReturnVoid();
 }
 
-PetscErrorCode Particles::init()
+PetscErrorCode Particles::calculate_energy()
 {
   PetscFunctionBeginUser;
   energy = 0.0;
 
 #pragma omp parallel for reduction(+ : energy), \
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& point : points_)
-    energy += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+  for (auto& cell : storage) {
+    for (auto& point : cell) {
+      energy += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+    }
+  }
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -68,15 +71,17 @@ PetscErrorCode Particles::first_push()
   PetscLogEventBegin(events[0], local_currJe, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& point : points_) {
-    const Vector3R old_r = point.r;
+  for (auto& cell : storage) {
+    for (auto& point : cell) {
+      const Vector3R old_r = point.r;
 
-    BorisPush push;
-    push.update_r((0.5 * dt), point, *this);
+      BorisPush push;
+      push.update_r((0.5 * dt), point, *this);
 
-    Shape shape;
-    shape.setup(old_r, point.r, shape_radius2, shape_func2);
-    decompose_esirkepov_current(shape, point);
+      Shape shape;
+      shape.setup(old_r, point.r, shape_radius2, shape_func2);
+      decompose_esirkepov_current(shape, point);
+    }
   }
 
   PetscLogEventEnd(events[0], local_currJe, 0, 0, 0);
@@ -101,20 +106,18 @@ PetscErrorCode Particles::fill_ecsim_current(
 
   PetscLogEventBegin(events[1], local_B, local_currI, 0, 0);
 
-  // #pragma omp parallel
-  for (PetscInt i = 0; i < (PetscInt)points_.size(); ++i) {
-    auto& point = points_[i];
+// #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+  for (const auto& cell : storage) {
+    for (const auto& point : cell) {
+      Shape shape;
+      shape.setup(point.r, shape_radius1, shape_func1);
 
-    Shape shape;
-    shape.setup(point.r, shape_radius1, shape_func1);
+      Vector3R B_p;
+      SimpleInterpolation interpolation(shape);
+      interpolation.process({}, {{B_p, B}});
 
-    Vector3R B_p;
-    SimpleInterpolation interpolation(shape);
-    interpolation.process({}, {{B_p, B}});
-
-    decompose_ecsim_current(shape, i, B_p, coo_i, coo_j, coo_v);
-
-    correct_coordinates(point);
+      decompose_ecsim_current(shape, point, B_p, coo_i, coo_j, coo_v);
+    }
   }
 
   PetscLogEventEnd(events[1], local_B, local_currI, 0, 0);
@@ -150,26 +153,26 @@ PetscErrorCode Particles::second_push()
   PetscLogEventBegin(events[2], 0, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& point : points_) {
-    const Vector3R old_r = point.r;
+  for (auto& cell : storage) {
+    for (auto& point : cell) {
+      const Vector3R old_r = point.r;
 
-    Shape shape;
-    shape.setup(point.r, shape_radius1, shape_func1);
+      Shape shape;
+      shape.setup(point.r, shape_radius1, shape_func1);
 
-    Vector3R E_p;
-    Vector3R B_p;
-    SimpleInterpolation interpolation(shape);
-    interpolation.process({{E_p, E}}, {{B_p, B}});
+      Vector3R E_p;
+      Vector3R B_p;
+      SimpleInterpolation interpolation(shape);
+      interpolation.process({{E_p, E}}, {{B_p, B}});
 
-    BorisPush push;
-    push.update_fields(E_p, B_p);
-    push.update_vEB(dt, point, *this);
-    push.update_r((0.5 * dt), point, *this);
+      BorisPush push;
+      push.update_fields(E_p, B_p);
+      push.update_vEB(dt, point, *this);
+      push.update_r((0.5 * dt), point, *this);
 
-    shape.setup(old_r, point.r, shape_radius2, shape_func2);
-    decompose_esirkepov_current(shape, point);
-
-    correct_coordinates(point);
+      shape.setup(old_r, point.r, shape_radius2, shape_func2);
+      decompose_esirkepov_current(shape, point);
+    }
   }
 
   PetscLogEventEnd(events[2], 0, 0, 0, 0);
@@ -195,20 +198,18 @@ PetscErrorCode Particles::final_update()
   PetscCall(VecDot(global_currJe, simulation_.Ec, &corr_w));
 
   PetscReal K0 = energy;
-  PetscReal K = 0.0;
   PetscLogEventBegin(events[3], 0, 0, 0, 0);
 
-#pragma omp parallel for reduction(+ : K), \
-  schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& point : points_)
-    K += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+  calculate_energy();
+  PetscReal K = energy;
 
   PetscReal lambda2 = 1.0 + dt * (corr_w - pred_w) / K;
   PetscReal lambda = std::sqrt(lambda2);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& point : points_)
-    point.p *= lambda;
+  for (auto& cell : storage)
+    for (auto& point : cell)
+      point.p *= lambda;
 
   PetscLogEventEnd(events[3], 0, 0, 0, 0);
 
@@ -243,16 +244,15 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
 
 /// @note Also decomposes `Simulation::matL`
 #if !MAT_SET_VALUES_COO
-void Particles::decompose_ecsim_current(const Shape& shape, PetscInt i,
+void Particles::decompose_ecsim_current(const Shape& shape, const Point& point,
   const Vector3R& B_p, MatStencil* /* coo_i */, MatStencil* /* coo_j */,
   PetscReal* /* coo_v */)
 #else
-void Particles::decompose_ecsim_current(const Shape& shape, PetscInt i,
+void Particles::decompose_ecsim_current(const Shape& shape, const Point& point,
   const Vector3R& B_p, MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v)
 #endif
 {
   PetscFunctionBeginHot;
-  const Point& point = points_[i];
   const Vector3R& v = point.p;
 
   Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
@@ -343,14 +343,13 @@ void Particles::decompose_ecsim_current(const Shape& shape, PetscInt i,
   }
   PetscFunctionReturnVoid();
 #else
-  auto t_g = [&](PetscInt zi, PetscInt yi, PetscInt xi,  //
+  auto s_k = [&](PetscInt zi, PetscInt yi, PetscInt xi,  //
                PetscInt zj, PetscInt yj, PetscInt xj) {
     return ((zi * 3 + yi) * 3 + xi) * POW3(3) + ((zj * 3 + yj) * 3 + xj);
   };
 
   auto ind = [&](PetscInt g, PetscInt c1, PetscInt c2) {
-    constexpr PetscInt shape_size = POW2(3 * POW3(3));
-    return i * shape_size + g * 9 + (c1 * 3 + c2);
+    return g * POW2(3) + (c1 * 3 + c2);
   };
 
   const PetscReal matB[3][3]{
@@ -374,7 +373,7 @@ void Particles::decompose_ecsim_current(const Shape& shape, PetscInt i,
       if (si.abs_max() < shape_tolerance || sj.abs_max() < shape_tolerance)
         continue;
 
-      PetscInt g = t_g(zi, yi, xi, zj, yj, xj);
+      PetscInt g = s_k(zi, yi, xi, zj, yj, xj);
 
       for (PetscInt c1 = 0; c1 < 3; ++c1) {
         coo_i[ind(g, X, c1)] = MatStencil{shape.start[Z] + zi, shape.start[Y] + yi, shape.start[X] + xi, X};
@@ -386,7 +385,7 @@ void Particles::decompose_ecsim_current(const Shape& shape, PetscInt i,
         coo_j[ind(g, c1, Z)] = MatStencil{shape.start[Z] + zj, shape.start[Y] + yj, shape.start[X] + xj, Z};
 
         for (PetscInt c2 = 0; c2 < 3; ++c2)
-          coo_v[ind(g, c1, c2)] = si[c1] * sj[c2] * betaL * matB[c1][c2];
+          coo_v[ind(g, c1, c2)] += si[c1] * sj[c2] * betaL * matB[c1][c2];
       }
     }}}
   }}}

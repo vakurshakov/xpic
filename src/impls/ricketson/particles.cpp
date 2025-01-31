@@ -64,7 +64,7 @@ Particles::Particles(Particles&& other) noexcept
   : interfaces::Particles(other.world, other.parameters),
     simulation_(other.simulation_)
 {
-  points_ = std::move(other.points_);
+  storage = std::move(other.storage);
   particle_iterations_log = std::move(other.particle_iterations_log);
 
   snes_ = other.snes_;
@@ -98,8 +98,9 @@ PetscErrorCode Particles::push()
   PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));
   PetscCall(DMDAVecGetArrayRead(da, local_DB, reinterpret_cast<void*>(&ctx.DB)));
 
-  for (auto& point : points_)
-    PetscCall(push(point));
+  for (auto& cell : storage)
+    for (auto& point : cell)
+      PetscCall(push(point));
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&ctx.E)));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));

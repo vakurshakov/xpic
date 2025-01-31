@@ -42,20 +42,22 @@ PetscErrorCode Particles::push()
   PetscCall(DMDAVecGetArrayWrite(da, local_J, reinterpret_cast<void*>(&J)));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& point : points_) {
-    const Vector3R old_r = point.r;
+  for (auto& cell : storage) {
+    for (auto& point : cell) {
+      const Vector3R old_r = point.r;
 
-    Shape shape;
-    shape.setup(point.r);
+      Shape shape;
+      shape.setup(point.r);
 
-    Vector3R E_p;
-    Vector3R B_p;
-    interpolate(shape, E_p, B_p);
+      Vector3R E_p;
+      Vector3R B_p;
+      interpolate(shape, E_p, B_p);
 
-    push(E_p, B_p, point);
+      push(E_p, B_p, point);
 
-    shape.setup(old_r, point.r);
-    decompose(shape, point);
+      shape.setup(old_r, point.r);
+      decompose(shape, point);
+    }
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&E)));

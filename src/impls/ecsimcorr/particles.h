@@ -16,7 +16,7 @@ public:
   Particles(Simulation& simulation, const SortParameters& parameters);
   ~Particles() override;
 
-  PetscErrorCode init();
+  PetscErrorCode calculate_energy();
   PetscErrorCode clear_sources();
   PetscErrorCode first_push();
   PetscErrorCode second_push();
@@ -37,7 +37,7 @@ private:
 
   void decompose_esirkepov_current(const Shape& shape, const Point& point);
 
-  void decompose_ecsim_current(const Shape& shape, PetscInt i,
+  void decompose_ecsim_current(const Shape& shape, const Point& point,
     const Vector3R& B_p, MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);
 
   Simulation& simulation_;

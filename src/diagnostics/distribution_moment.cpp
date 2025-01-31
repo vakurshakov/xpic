@@ -140,39 +140,41 @@ PetscErrorCode DistributionMoment::collect()
   PetscCall(DMDAVecGetArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
 
 #pragma omp parallel for
-  for (const auto& point : particles_.points()) {
-    /// @todo We can reuse `Simple_decomposition` algorithm here and make `Shape::make*()` private
-    const Vector3R p_r = Shape::make_r(point.r);
-    const Vector3I start = Shape::make_start(p_r, shape_radius);
-    const Vector3I size = Shape::make_end(p_r, shape_radius) - start;
+  for (auto&& cell : particles_.storage) {
+    for (auto&& point : cell) {
+      /// @todo We can reuse `Simple_decomposition` algorithm here and make `Shape::make*()` private
+      const Vector3R p_r = Shape::make_r(point.r);
+      const Vector3I start = Shape::make_start(p_r, shape_radius);
+      const Vector3I size = Shape::make_end(p_r, shape_radius) - start;
 
-    if (!is_point_within_bounds(
-          start, vector_cast(region_.start), vector_cast(region_.size)))
-      continue;
-
-    PetscReal moment =
-      moment_(particles_, point) / particles_.particles_number(point);
-
-    // clang-format off
-    for (PetscInt z = 0; z < size[Z]; ++z) {
-    for (PetscInt y = 0; y < size[Y]; ++y) {
-    for (PetscInt x = 0; x < size[X]; ++x) {
-      PetscInt g_x = start[X] + x;
-      PetscInt g_y = start[Y] + y;
-      PetscInt g_z = start[Z] + z;
-
-      PetscReal a = moment *
-        shape_function(p_r[X] - g_x) *
-        shape_function(p_r[Y] - g_y) *
-        shape_function(p_r[Z] - g_z);
-
-      if (std::abs(a) < add_tolerance)
+      if (!is_point_within_bounds(
+            start, vector_cast(region_.start), vector_cast(region_.size)))
         continue;
 
-#pragma omp atomic update
-      arr[g_z][g_y][g_x] += a;
-    }}}
-    // clang-format on
+      PetscReal moment =
+        moment_(particles_, point) / particles_.particles_number(point);
+
+      // clang-format off
+      for (PetscInt z = 0; z < size[Z]; ++z) {
+      for (PetscInt y = 0; y < size[Y]; ++y) {
+      for (PetscInt x = 0; x < size[X]; ++x) {
+        PetscInt g_x = start[X] + x;
+        PetscInt g_y = start[Y] + y;
+        PetscInt g_z = start[Z] + z;
+
+        PetscReal a = moment *
+          shape_function(p_r[X] - g_x) *
+          shape_function(p_r[Y] - g_y) *
+          shape_function(p_r[Z] - g_z);
+
+        if (std::abs(a) < add_tolerance)
+          continue;
+
+  #pragma omp atomic update
+        arr[g_z][g_y][g_x] += a;
+      }}}
+      // clang-format on
+    }
   }
   PetscCall(DMDAVecRestoreArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
   PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, field_));

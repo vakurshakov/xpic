@@ -34,26 +34,27 @@ RemoveParticles::RemoveParticles(
 PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
 {
   PetscFunctionBeginUser;
+  PetscInt removed_particles = 0;
   removed_energy_ = 0.0;
 
   const PetscInt Np = particles_.parameters.Np;
   const PetscReal m = particles_.parameters.m;
 
-  auto& storage = particles_.points();
-  auto it =
-    std::remove_if(storage.begin(), storage.end(), [&](const Point& point) {
+  /// @note Now we can check only `cell` indices, not the `point` coordinates!
+  for (auto& cell : particles_.storage) {
+    cell.remove_if([&](const Point& point) {
       if (should_remove_(point)) {
+        removed_particles++;
         removed_energy_ += 0.5 * (m * point.p.squared()) * (dx * dy * dz) / Np;
         return true;
       }
       return false;
     });
+  }
 
-  if (it != storage.end()) {
-    constexpr auto message =
-      "  Particles are removed from \"{}\"; particles: {}, energy: {}";
-    LOG(message, particles_.parameters.sort_name, storage.end() - it, removed_energy_);
-    storage.erase(it, storage.end());
+  if (removed_particles > 0) {
+    LOG("  Particles are removed from \"{}\", particles: {}, energy: {}",
+      particles_.parameters.sort_name, removed_particles, removed_energy_);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -77,7 +78,7 @@ RemoveParticles::RemoveFromBox::RemoveFromBox(const BoxGeometry& geom)
 bool RemoveParticles::RemoveFromBox::operator()(const Point& point)
 {
   /// @todo REUSE region_operations.h AS TEMPLATES
-  return //
+  return  //
     (geom_.min[X] > point.x() || point.x() > geom_.max[X]) ||
     (geom_.min[Y] > point.y() || point.y() > geom_.max[Y]) ||
     (geom_.min[Z] > point.z() || point.z() > geom_.max[Z]);

@@ -13,7 +13,6 @@ SetParticles::SetParticles(                       //
     generate_coordinate_(generate_coordinate),
     generate_momentum_(generate_momentum)
 {
-  particles_.reserve(number_of_particles_);
 }
 
 PetscErrorCode SetParticles::execute(timestep_t /* t */)

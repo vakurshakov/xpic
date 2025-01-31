@@ -48,10 +48,12 @@ PetscErrorCode ParticlesEnergy::calculate_energies()
     PetscReal wz = 0.0;
 
 #pragma omp parallel for reduction(+ : wx, wy, wz)
-    for (const auto& point : particles->points()) {
-      wx += POW2(point.px());
-      wy += POW2(point.py());
-      wz += POW2(point.pz());
+    for (auto&& cell : particles->storage) {
+      for (auto&& point : cell) {
+        wx += POW2(point.px());
+        wy += POW2(point.py());
+        wz += POW2(point.pz());
+      }
     }
 
     result = 0.5 * m * Vector3R{wx, wy, wz} / Np;

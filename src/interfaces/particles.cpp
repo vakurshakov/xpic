@@ -2,6 +2,9 @@
 
 namespace interfaces {
 
+#define COMMUNICATION 0
+
+#if COMMUNICATION
 namespace {
 
 constexpr PetscInt dim = 3;
@@ -11,14 +14,14 @@ PetscInt to_contiguous_index(PetscInt z, PetscInt y, PetscInt x)
   return indexing::petsc_index(z, y, x, 0, dim, dim, dim, 1);
 }
 
-// Vector3I from_contiguous_index(PetscInt index)
-// {
-//   return Vector3I{
-//     (index) % dim,
-//     (index / dim) % dim,
-//     (index / dim) / dim,
-//   };
-// }
+Vector3I from_contiguous_index(PetscInt index)
+{
+  return Vector3I{
+    (index) % dim,
+    (index / dim) % dim,
+    (index / dim) / dim,
+  };
+}
 
 PetscInt get_index(const Vector3R& r, Axis axis, const World& world)
 {
@@ -30,26 +33,62 @@ PetscInt get_index(const Vector3R& r, Axis axis, const World& world)
 }
 
 }  // namespace
+#endif
 
 
 Particles::Particles(const World& world, const SortParameters& parameters)
-  : world(world), parameters(parameters)
+  : world(world), parameters(parameters), storage(geom_nz * geom_ny * geom_nx)
 {
-}
-
-void Particles::reserve(PetscInt number_of_particles)
-{
-  points_.reserve(number_of_particles);
 }
 
 PetscErrorCode Particles::add_particle(const Point& point)
 {
   PetscFunctionBeginUser;
+  auto x = static_cast<PetscInt>(point.x() / dx);
+  auto y = static_cast<PetscInt>(point.y() / dy);
+  auto z = static_cast<PetscInt>(point.z() / dz);
 #pragma omp critical
-  points_.emplace_back(point);
+  storage[indexing::s_g(z, y, x)].emplace_back(point);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @todo geometry from `world` should be reused for MPI
+PetscErrorCode Particles::update_cells()
+{
+  PetscFunctionBeginUser;
+  // clang-format off
+  for (PetscInt z = 0; z < geom_nz; ++z) {
+  for (PetscInt y = 0; y < geom_ny; ++y) {
+  for (PetscInt x = 0; x < geom_nx; ++x) {
+    auto& storage_g = storage[indexing::s_g(z, y, x)];
+
+    for (auto it = storage_g.begin(); it != storage_g.end(); ++it) {
+      auto nx = static_cast<PetscInt>(it->x() / dx);
+      auto ny = static_cast<PetscInt>(it->y() / dy);
+      auto nz = static_cast<PetscInt>(it->z() / dz);
+
+      if (nx == x && ny == y && nz == z)
+        continue;
+
+      storage[indexing::s_g(nz, ny, nx)].emplace_back(*it);
+      it = storage_g.erase(it);
+    }
+  }}}
+  // clang-format on
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Particles::correct_coordinates()
+{
+  PetscFunctionBeginUser;
+#pragma omp parallel for
+  for (auto& cell : storage)
+    for (auto& point : cell)
+      correct_coordinates(point);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+#if COMMUNICATION
 PetscErrorCode Particles::communicate()
 {
   PetscFunctionBeginUser;
@@ -59,13 +98,13 @@ PetscErrorCode Particles::communicate()
 
   PetscInt center_index = to_contiguous_index(1, 1, 1);
 
-  auto end = points_.end();
-  for (auto it = points_.begin(); it != end; ++it) {
+  auto end = storage.end();
+  for (auto it = storage.begin(); it != end; ++it) {
     const Vector3R& r = it->r;
 
     PetscInt index = to_contiguous_index( //
-      get_index(r, Z, world),            //
-      get_index(r, Y, world),            //
+      get_index(r, Z, world),             //
+      get_index(r, Y, world),             //
       get_index(r, X, world));
 
     // Particle didn't cross local boundaries
@@ -79,7 +118,7 @@ PetscErrorCode Particles::communicate()
     --it;
     --end;
   }
-  points_.erase(end, points_.end());
+  storage.erase(end, storage.end());
 
   size_t o_num[neighbors_num];
   size_t i_num[neighbors_num];
@@ -122,7 +161,7 @@ PetscErrorCode Particles::communicate()
     if (i == center_index || i_num[i] == 0)
       continue;
 
-    points_.insert(points_.end(),                    //
+    storage.insert(storage.end(),                    //
       std::make_move_iterator(incoming[i].begin()),  //
       std::make_move_iterator(incoming[i].end()));
 
@@ -130,17 +169,8 @@ PetscErrorCode Particles::communicate()
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+#endif
 
-
-std::vector<Point>& Particles::points()
-{
-  return points_;
-}
-
-const std::vector<Point>& Particles::points() const
-{
-  return points_;
-}
 
 PetscInt Particles::particles_number(const Point& /* point */) const
 {
@@ -167,15 +197,6 @@ Vector3R Particles::velocity(const Point& point) const
   const Vector3R& p = point.p;
   PetscReal m = mass(point);
   return p / sqrt(m * m + p.squared());
-}
-
-
-PetscErrorCode Particles::correct_coordinates()
-{
-  PetscFunctionBeginUser;
-  for (auto& point : points_)
-    correct_coordinates(point);
-  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 void Particles::correct_coordinates(Point& point)
