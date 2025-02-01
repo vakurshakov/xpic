@@ -11,7 +11,7 @@ template<typename T>
   requires std::is_arithmetic_v<T>
 struct Vector4 {
   static constexpr PetscInt dim = 4;
-  std::array<T, dim> data;
+  T data[dim];
 
   constexpr Vector4()
     : data{
@@ -40,12 +40,12 @@ struct Vector4 {
 
   constexpr operator const T*() const
   {
-    return data.data();
+    return data;
   }
 
   constexpr operator T*()
   {
-    return data.data();
+    return data;
   }
 
   Vector4& operator+=(const Vector4& other)

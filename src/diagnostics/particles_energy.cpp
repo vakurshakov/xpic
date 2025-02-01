@@ -26,7 +26,7 @@ PetscErrorCode ParticlesEnergy::diagnose(timestep_t t)
   PetscReal total = 0.0;
 
   for (const auto& energy : energies_) {
-    PetscCall(file_.write_floats(3, energy.data.data()));
+    PetscCall(file_.write_floats(3, energy.data));
     total += energy.elements_sum();
   }
 

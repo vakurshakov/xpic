@@ -21,8 +21,8 @@ PetscErrorCode FieldsEnergy::diagnose(timestep_t t)
 {
   PetscFunctionBeginUser;
   PetscCall(calculate_energies());
-  PetscCall(file_.write_floats(3, energy_E_.data.data()));
-  PetscCall(file_.write_floats(3, energy_B_.data.data()));
+  PetscCall(file_.write_floats(3, energy_E_.data));
+  PetscCall(file_.write_floats(3, energy_B_.data));
 
   PetscReal total = get_electric_energy() + get_magnetic_energy();
   PetscCall(file_.write_floats(1, &total));
