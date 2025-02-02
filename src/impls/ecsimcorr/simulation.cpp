@@ -49,8 +49,8 @@ PetscErrorCode Simulation::initialize_implementation()
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
   diagnostics_.emplace_back(
     std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
-      "./results/performance-test/MatSetValuesCOO/"
-      "full-MatSetValuesBlockedStencil/ecsim/matL"));
+      "./results/performance-test/ecsimcorr::Particles-container/"
+      "small-MatSetValuesBlockedStencil/ecsim/matL"));
 
 
   for (auto& sort : particles_)
@@ -70,15 +70,13 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
   PetscLogStagePop();
   PetscLogStagePush(stagenums[1]);
 
-  for (auto& sort : particles_)
-    PetscCall(sort->first_push());
-
-  PetscCall(fill_ecsim_current());
-
   for (auto& sort : particles_) {
+    PetscCall(sort->first_push());
     PetscCall(sort->correct_coordinates());
     PetscCall(sort->update_cells());
   }
+
+  PetscCall(fill_ecsim_current());
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[2]);
@@ -212,33 +210,25 @@ PetscErrorCode Simulation::fill_ecsim_current()
 #else
   constexpr PetscInt shape_size = POW2(3 * POW3(3));
   PetscInt size = 0;
-  PetscInt s2 = 0;
 
-  for (auto& sort : particles_)
-    for (auto& cell : sort->storage) {
+  for (const auto& sort : particles_)
+    for (const auto& cell : sort->storage)
       size += shape_size * (PetscInt)!cell.empty();
-      s2 += shape_size * cell.size();
-    }
 
-  /// @warning It quickly becomes more expensive with increasing number of
-  /// particles, both on memory and computation time. There are some ways to
-  /// improve this: 1) Per-cell particle storage; 2) Lowering the `shape_size`.
   std::vector<MatStencil> coo_i(size);
   std::vector<MatStencil> coo_j(size);
-  std::vector<PetscReal> coo_v(size);
+  std::vector<PetscReal> coo_v(size, 0.0);
 
   size = 0;
   for (const auto& sort : particles_) {
-    for (const auto& cell : sort->storage) {
-      if (cell.empty())
-        continue;
+    MatStencil* coo_si = coo_i.data() + size;
+    MatStencil* coo_sj = coo_j.data() + size;
+    PetscReal* coo_sv = coo_v.data() + size;
 
-      MatStencil* coo_pi = coo_i.data() + size;
-      MatStencil* coo_pj = coo_j.data() + size;
-      PetscReal* coo_pv = coo_v.data() + size;
-      PetscCall(sort->fill_ecsim_current(cell, coo_pi, coo_pj, coo_pv));
-      size += shape_size;
-    }
+    PetscCall(sort->fill_ecsim_current(coo_si, coo_sj, coo_sv));
+
+    for (const auto& cell : sort->storage)
+      size += shape_size * (PetscInt)!cell.empty();
   }
 
   PetscInt starts[4];

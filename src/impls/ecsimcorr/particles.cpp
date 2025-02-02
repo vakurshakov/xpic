@@ -106,8 +106,22 @@ PetscErrorCode Particles::fill_ecsim_current(
 
   PetscLogEventBegin(events[1], local_B, local_currI, 0, 0);
 
+  constexpr PetscInt shs = POW2(3 * POW3(3));
+  PetscInt size = 0;
+
 // #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (const auto& cell : storage) {
+  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
+    const auto& cell = storage[g];
+    if (cell.empty())
+      continue;
+
+    MatStencil* coo_ci = coo_i + size;
+    MatStencil* coo_cj = coo_j + size;
+    PetscReal* coo_cv = coo_v + size;
+    size += shs;
+
+    fill_matrix_indices(g, coo_ci, coo_cj);
+
     for (const auto& point : cell) {
       Shape shape;
       shape.setup(point.r, shape_radius1, shape_func1);
@@ -116,7 +130,7 @@ PetscErrorCode Particles::fill_ecsim_current(
       SimpleInterpolation interpolation(shape);
       interpolation.process({}, {{B_p, B}});
 
-      decompose_ecsim_current(shape, point, B_p, coo_i, coo_j, coo_v);
+      decompose_ecsim_current(shape, point, B_p, coo_cv);
     }
   }
 
@@ -245,11 +259,10 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
 /// @note Also decomposes `Simulation::matL`
 #if !MAT_SET_VALUES_COO
 void Particles::decompose_ecsim_current(const Shape& shape, const Point& point,
-  const Vector3R& B_p, MatStencil* /* coo_i */, MatStencil* /* coo_j */,
-  PetscReal* /* coo_v */)
+  const Vector3R& B_p, PetscReal* /* coo_v */)
 #else
-void Particles::decompose_ecsim_current(const Shape& shape, const Point& point,
-  const Vector3R& B_p, MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v)
+void Particles::decompose_ecsim_current(
+  const Shape& shape, const Point& point, const Vector3R& B_p, PetscReal* coo_v)
 #endif
 {
   PetscFunctionBeginHot;
@@ -343,13 +356,31 @@ void Particles::decompose_ecsim_current(const Shape& shape, const Point& point,
   }
   PetscFunctionReturnVoid();
 #else
-  auto s_k = [&](PetscInt zi, PetscInt yi, PetscInt xi,  //
-               PetscInt zj, PetscInt yj, PetscInt xj) {
-    return ((zi * 3 + yi) * 3 + xi) * POW3(3) + ((zj * 3 + yj) * 3 + xj);
+  constexpr PetscInt shw = 3;
+
+  /// @note It is an offset from particle `shape` indexing into `coo_v` one.
+  const Vector3I off{
+    shape.start[X] - ((PetscInt)point.x() - 1),
+    shape.start[Y] - ((PetscInt)point.y() - 1),
+    shape.start[Z] - ((PetscInt)point.z() - 1),
   };
 
-  auto ind = [&](PetscInt g, PetscInt c1, PetscInt c2) {
-    return g * POW2(3) + (c1 * 3 + c2);
+  auto s_gg = [&](PetscInt g1, PetscInt g2) {
+    Vector3I vg1{
+      off[X] + g1 % shape.size[X],
+      off[Y] + (g1 / shape.size[X]) % shape.size[Y],
+      off[Z] + (g1 / shape.size[X]) / shape.size[Y],
+    };
+
+    Vector3I vg2{
+      off[X] + g2 % shape.size[X],
+      off[Y] + (g2 / shape.size[X]) % shape.size[Y],
+      off[Z] + (g2 / shape.size[X]) / shape.size[Y],
+    };
+
+    return //
+      ((vg1[Z] * shw + vg1[Y]) * shw + vg1[X]) * POW3(shw) +
+      ((vg2[Z] * shw + vg2[Y]) * shw + vg2[X]);
   };
 
   const PetscReal matB[3][3]{
@@ -358,40 +389,65 @@ void Particles::decompose_ecsim_current(const Shape& shape, const Point& point,
     {+b[Y] + b[Z] * b[X], -b[X] + b[Z] * b[Y], 1.0 + b[Z] * b[Z]},
   };
 
-  // clang-format off
-  for (PetscInt zi = 0; zi < shape.size[Z]; ++zi) {
-  for (PetscInt yi = 0; yi < shape.size[Y]; ++yi) {
-  for (PetscInt xi = 0; xi < shape.size[X]; ++xi) {
-    Vector3R si = shape.electric(shape.s_p(zi, yi, xi));
+  for (PetscInt g1 = 0; g1 < shape.size.elements_product(); ++g1) {
+    for (PetscInt g2 = 0; g2 < shape.size.elements_product(); ++g2) {
+      Vector3R s1 = shape.electric(g1);
+      Vector3R s2 = shape.electric(g2);
 
-    // Shifts of g'=g2 iteration
-    for (PetscInt zj = 0; zj < shape.size[Z]; ++zj) {
-    for (PetscInt yj = 0; yj < shape.size[Y]; ++yj) {
-    for (PetscInt xj = 0; xj < shape.size[X]; ++xj) {
-      Vector3R sj = shape.electric(shape.s_p(zj, yj, xj));
-
-      if (si.abs_max() < shape_tolerance || sj.abs_max() < shape_tolerance)
+      if (s1.abs_max() < shape_tolerance || s2.abs_max() < shape_tolerance)
         continue;
 
-      PetscInt g = s_k(zi, yi, xi, zj, yj, xj);
+      PetscInt gg = s_gg(g1, g2);
 
-      for (PetscInt c1 = 0; c1 < 3; ++c1) {
-        coo_i[ind(g, X, c1)] = MatStencil{shape.start[Z] + zi, shape.start[Y] + yi, shape.start[X] + xi, X};
-        coo_i[ind(g, Y, c1)] = MatStencil{shape.start[Z] + zi, shape.start[Y] + yi, shape.start[X] + xi, Y};
-        coo_i[ind(g, Z, c1)] = MatStencil{shape.start[Z] + zi, shape.start[Y] + yi, shape.start[X] + xi, Z};
-
-        coo_j[ind(g, c1, X)] = MatStencil{shape.start[Z] + zj, shape.start[Y] + yj, shape.start[X] + xj, X};
-        coo_j[ind(g, c1, Y)] = MatStencil{shape.start[Z] + zj, shape.start[Y] + yj, shape.start[X] + xj, Y};
-        coo_j[ind(g, c1, Z)] = MatStencil{shape.start[Z] + zj, shape.start[Y] + yj, shape.start[X] + xj, Z};
-
+      for (PetscInt c1 = 0; c1 < 3; ++c1)
         for (PetscInt c2 = 0; c2 < 3; ++c2)
-          coo_v[ind(g, c1, c2)] += si[c1] * sj[c2] * betaL * matB[c1][c2];
-      }
-    }}}
-  }}}
-  // clang-format on
+          coo_v[ind(gg, c1, c2)] += s1[c1] * s2[c2] * betaL * matB[c1][c2];
+    }
+  }
   PetscFunctionReturnVoid();
 #endif
+}
+
+void Particles::fill_matrix_indices(
+  PetscInt g, MatStencil* coo_i, MatStencil* coo_j)
+{
+  PetscFunctionBeginUser;
+  constexpr PetscInt shw = 3;
+
+  Vector3I vg{
+    g % geom_nx,
+    (g / geom_nx) % geom_ny,
+    (g / geom_nx) / geom_ny,
+  };
+
+  for (PetscInt g1 = 0; g1 < POW3(shw); ++g1) {
+    for (PetscInt g2 = 0; g2 < POW3(shw); ++g2) {
+      PetscInt gg = g1 * POW3(shw) + g2;
+
+      Vector3I vg1{
+        vg[X] + g1 % shw - 1,
+        vg[Y] + (g1 / shw) % shw - 1,
+        vg[Z] + (g1 / shw) / shw - 1,
+      };
+
+      Vector3I vg2{
+        vg[X] + g2 % shw - 1,
+        vg[Y] + (g2 / shw) % shw - 1,
+        vg[Z] + (g2 / shw) / shw - 1,
+      };
+
+      for (PetscInt c = 0; c < 3; ++c) {
+        coo_i[ind(gg, X, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], X};
+        coo_i[ind(gg, Y, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Y};
+        coo_i[ind(gg, Z, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Z};
+
+        coo_j[ind(gg, c, X)] = MatStencil{vg2[Z], vg2[Y], vg2[X], X};
+        coo_j[ind(gg, c, Y)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Y};
+        coo_j[ind(gg, c, Z)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Z};
+      }
+    }
+  }
+  PetscFunctionReturnVoid();
 }
 
 // NOLINTEND(readability-function-cognitive-complexity)

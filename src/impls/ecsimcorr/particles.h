@@ -38,7 +38,14 @@ private:
   void decompose_esirkepov_current(const Shape& shape, const Point& point);
 
   void decompose_ecsim_current(const Shape& shape, const Point& point,
-    const Vector3R& B_p, MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);
+    const Vector3R& B_p, PetscReal* coo_v);
+
+  void fill_matrix_indices(PetscInt g, MatStencil* coo_i, MatStencil* coo_j);
+
+  constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
+  {
+    return g * POW2(3) + (c1 * 3 + c2);
+  }
 
   Simulation& simulation_;
 

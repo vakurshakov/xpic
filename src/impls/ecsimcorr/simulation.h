@@ -1,7 +1,7 @@
 #ifndef SRC_ECSIMCORR_SIMULATION_H
 #define SRC_ECSIMCORR_SIMULATION_H
 
-#define MAT_SET_VALUES_COO 0
+#define MAT_SET_VALUES_COO 1
 
 #include <petscksp.h>
 
