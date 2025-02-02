@@ -50,7 +50,7 @@ PetscErrorCode Simulation::initialize_implementation()
   diagnostics_.emplace_back(
     std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
       "./results/performance-test/ecsimcorr::Particles-container/"
-      "small-MatSetValuesBlockedStencil/ecsim/matL"));
+      "full-MatSetValuesBlockedStencil/ecsim/matL"));
 
 
   for (auto& sort : particles_)

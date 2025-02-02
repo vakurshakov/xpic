@@ -120,7 +120,9 @@ PetscErrorCode Particles::fill_ecsim_current(
     PetscReal* coo_cv = coo_v + size;
     size += shs;
 
+#if MAT_SET_VALUES_COO
     fill_matrix_indices(g, coo_ci, coo_cj);
+#endif
 
     for (const auto& point : cell) {
       Shape shape;
