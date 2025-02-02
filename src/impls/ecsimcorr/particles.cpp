@@ -26,42 +26,6 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   PetscFunctionReturnVoid();
 }
 
-Particles::~Particles()
-{
-  PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&local_currI));
-  PetscCallVoid(VecDestroy(&local_currJe));
-  PetscCallVoid(VecDestroy(&global_currI));
-  PetscCallVoid(VecDestroy(&global_currJe));
-  PetscFunctionReturnVoid();
-}
-
-PetscErrorCode Particles::calculate_energy()
-{
-  PetscFunctionBeginUser;
-  energy = 0.0;
-
-#pragma omp parallel for reduction(+ : energy), \
-  schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      energy += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
-    }
-  }
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Particles::clear_sources()
-{
-  PetscFunctionBeginUser;
-  PetscCall(VecSet(local_currI, 0.0));
-  PetscCall(VecSet(local_currJe, 0.0));
-  PetscCall(VecSet(global_currI, 0.0));
-  PetscCall(VecSet(global_currJe, 0.0));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 
 PetscErrorCode Particles::first_push()
 {
@@ -255,8 +219,6 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
   PetscCallVoid(decomposition.process(currJe));
 }
 
-
-// NOLINTBEGIN(readability-function-cognitive-complexity)
 
 /// @note Also decomposes `Simulation::matL`
 #if !MAT_SET_VALUES_COO
@@ -452,6 +414,43 @@ void Particles::fill_matrix_indices(
   PetscFunctionReturnVoid();
 }
 
-// NOLINTEND(readability-function-cognitive-complexity)
+
+
+Particles::~Particles()
+{
+  PetscFunctionBeginUser;
+  PetscCallVoid(VecDestroy(&local_currI));
+  PetscCallVoid(VecDestroy(&local_currJe));
+  PetscCallVoid(VecDestroy(&global_currI));
+  PetscCallVoid(VecDestroy(&global_currJe));
+  PetscFunctionReturnVoid();
+}
+
+PetscErrorCode Particles::calculate_energy()
+{
+  PetscFunctionBeginUser;
+  energy = 0.0;
+
+#pragma omp parallel for reduction(+ : energy), \
+  schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+  for (auto& cell : storage) {
+    for (auto& point : cell) {
+      energy += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
+    }
+  }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Particles::clear_sources()
+{
+  PetscFunctionBeginUser;
+  PetscCall(VecSet(local_currI, 0.0));
+  PetscCall(VecSet(local_currJe, 0.0));
+  PetscCall(VecSet(global_currI, 0.0));
+  PetscCall(VecSet(global_currJe, 0.0));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 }  // namespace ecsimcorr
