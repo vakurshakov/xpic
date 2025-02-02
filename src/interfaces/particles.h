@@ -22,8 +22,9 @@ public:
 
   PetscErrorCode add_particle(const Point& point);
   PetscErrorCode correct_coordinates();
-  PetscErrorCode update_cells();
   // PetscErrorCode communicate();
+
+  virtual PetscErrorCode update_cells();
 
   PetscReal mass(const Point& point) const;
   PetscReal charge(const Point& point) const;

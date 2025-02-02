@@ -209,15 +209,26 @@ PetscErrorCode Simulation::fill_ecsim_current()
   PetscCall(MatAssemblyEnd(matL, MAT_FINAL_ASSEMBLY));
 #else
   constexpr PetscInt shape_size = POW2(3 * POW3(3));
-  PetscInt size = 0;
 
-  for (const auto& sort : particles_)
+  PetscInt size = 0;
+  bool matrix_indices_assembled = true;
+
+  for (const auto& sort : particles_) {
     for (const auto& cell : sort->storage)
       size += shape_size * (PetscInt)!cell.empty();
 
-  std::vector<MatStencil> coo_i(size);
-  std::vector<MatStencil> coo_j(size);
-  std::vector<PetscReal> coo_v(size, 0.0);
+    matrix_indices_assembled &= sort->is_matrix_indices_assembled();
+  }
+
+  std::vector<MatStencil> coo_i;
+  std::vector<MatStencil> coo_j;
+  std::vector<PetscReal> coo_v;
+
+  if (!matrix_indices_assembled) {
+    coo_i.resize(size);
+    coo_j.resize(size);
+  }
+  coo_v.resize(size, 0.0);
 
   size = 0;
   for (const auto& sort : particles_) {
@@ -231,6 +242,20 @@ PetscErrorCode Simulation::fill_ecsim_current()
       size += shape_size * (PetscInt)!cell.empty();
   }
 
+  if (!matrix_indices_assembled)
+    PetscCall(mat_set_preallocation_coo(size, coo_i.data(), coo_j.data()));
+
+  PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
+#endif
+
+  PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::mat_set_preallocation_coo(
+  PetscInt size, MatStencil* coo_i, MatStencil* coo_j)
+{
+  PetscFunctionBeginUser;
   PetscInt starts[4];
   PetscInt dims[4];
   PetscCall(DMDAGetGhostCorners(world.da, REP3_AP(&starts), REP3_AP(&dims)));
@@ -256,16 +281,13 @@ PetscErrorCode Simulation::fill_ecsim_current()
 
   std::vector<PetscInt> idxm(size);
   std::vector<PetscInt> idxn(size);
-  remap_stencil(coo_i.data(), idxm.data());
-  remap_stencil(coo_j.data(), idxn.data());
+  remap_stencil(coo_i, idxm.data());
+  remap_stencil(coo_j, idxn.data());
 
   PetscCall(MatSetPreallocationCOOLocal(matL, size, idxm.data(), idxn.data()));
-  PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
-#endif
-
-  PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 Vec Simulation::get_named_vector(std::string_view name)
 {

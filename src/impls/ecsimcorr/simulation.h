@@ -62,6 +62,9 @@ private:
 
   PetscErrorCode fill_ecsim_current();
 
+  PetscErrorCode mat_set_preallocation_coo(
+    PetscInt size, MatStencil* coo_i, MatStencil* coo_j);
+
   Mat matA;
   Mat matM;
 

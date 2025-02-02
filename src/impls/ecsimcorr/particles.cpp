@@ -54,6 +54,7 @@ PetscErrorCode Particles::first_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @note Particles::update_cells() _must_ be called before this routine
 PetscErrorCode Particles::fill_ecsim_current(
   MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v)
 {
@@ -79,14 +80,16 @@ PetscErrorCode Particles::fill_ecsim_current(
     if (cell.empty())
       continue;
 
-    MatStencil* coo_ci = coo_i + size;
-    MatStencil* coo_cj = coo_j + size;
+#if MAT_SET_VALUES_COO
+    if (!matrix_indices_assembled) {
+      MatStencil* coo_ci = coo_i + size;
+      MatStencil* coo_cj = coo_j + size;
+      fill_matrix_indices(g, coo_ci, coo_cj);
+    }
+#endif
+
     PetscReal* coo_cv = coo_v + size;
     size += shs;
-
-#if MAT_SET_VALUES_COO
-    fill_matrix_indices(g, coo_ci, coo_cj);
-#endif
 
     for (const auto& point : cell) {
       Shape shape;
@@ -99,6 +102,8 @@ PetscErrorCode Particles::fill_ecsim_current(
       decompose_ecsim_current(shape, point, B_p, coo_cv);
     }
   }
+
+  matrix_indices_assembled = true;
 
   PetscLogEventEnd(events[1], local_B, local_currI, 0, 0);
 
@@ -414,6 +419,31 @@ void Particles::fill_matrix_indices(
   PetscFunctionReturnVoid();
 }
 
+
+PetscErrorCode Particles::update_cells()
+{
+  PetscFunctionBeginUser;
+  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
+    auto it = storage[g].begin();
+    while (it != storage[g].end()) {
+      auto ng = indexing::s_g(  //
+        static_cast<PetscInt>(it->z() / dz),  //
+        static_cast<PetscInt>(it->y() / dy),  //
+        static_cast<PetscInt>(it->x() / dx));
+
+      if (ng == g) {
+        it = std::next(it);
+        continue;
+      }
+
+      matrix_indices_assembled &= !storage[ng].empty();
+
+      storage[ng].emplace_back(*it);
+      it = storage[g].erase(it);
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 
 Particles::~Particles()

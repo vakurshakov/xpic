@@ -25,6 +25,14 @@ public:
   PetscErrorCode fill_ecsim_current(
     MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);
 
+  PetscErrorCode update_cells() override;
+
+  /// @warning For some reason, if bool variable is simply placed here,
+  /// it causes "munmap_chunk(): invalid pointer" error in PETSc library.
+  bool is_matrix_indices_assembled() const {
+    return matrix_indices_assembled;
+  }
+
 private:
   static constexpr PetscInt OMP_CHUNK_SIZE = 16;
 
@@ -62,6 +70,9 @@ private:
   PetscReal pred_dK = 0.0;
   PetscReal corr_dK = 0.0;
   PetscReal lambda_dK = 0.0;
+
+  /// @note We start with _unassembled_ state to force first indexes assembly
+  bool matrix_indices_assembled = false;
 
   PetscClassId classid;
   PetscLogEvent events[3];
