@@ -36,8 +36,6 @@ PetscErrorCode MatDump::compare(timestep_t t)
   PetscCall(MatLoad(comp_mat, viewer_));
   PetscCall(PetscViewerDestroy(&viewer_));
 
-  PetscCall(MatScale(comp_mat, 0.25 * dt));  // matL *= dt / 4
-
   PetscReal norm;
   PetscCall(MatAXPY(comp_mat, -1.0, mat_, UNKNOWN_NONZERO_PATTERN));
   PetscCall(MatNorm(comp_mat, NORM_1, &norm));
