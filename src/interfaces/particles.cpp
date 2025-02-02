@@ -62,13 +62,16 @@ PetscErrorCode Particles::update_cells()
   for (PetscInt x = 0; x < geom_nx; ++x) {
     auto& storage_g = storage[indexing::s_g(z, y, x)];
 
-    for (auto it = storage_g.begin(); it != storage_g.end(); ++it) {
+    auto it = storage_g.begin();
+    while (it != storage_g.end()) {
       auto nx = static_cast<PetscInt>(it->x() / dx);
       auto ny = static_cast<PetscInt>(it->y() / dy);
       auto nz = static_cast<PetscInt>(it->z() / dz);
 
-      if (nx == x && ny == y && nz == z)
+      if (nx == x && ny == y && nz == z) {
+        it = std::next(it);
         continue;
+      }
 
       storage[indexing::s_g(nz, ny, nx)].emplace_back(*it);
       it = storage_g.erase(it);
