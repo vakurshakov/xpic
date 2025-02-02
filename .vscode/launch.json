@@ -48,8 +48,8 @@
             "preLaunchTask": "${defaultBuildTask}",
             "miDebuggerPath": "/usr/bin/gdb",
             "sourceFileMap": {
-                "/home/kurshakov/code/xpic": {
-                    "editorPath": "/home/kurshakov/code/xpic",
+                "/home/kurshakov/Code/xpic": {
+                    "editorPath": "/home/kurshakov/Code/xpic",
                     "useForBreakpoints": true
                 }
             }
