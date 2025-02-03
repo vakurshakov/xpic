@@ -165,6 +165,9 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscCall(DMRestoreGlobalVector(world.da, &rhs));
 
   // Convergence analysis
+  const char* name;
+  PetscCall(PetscObjectGetName((PetscObject)ksp, &name));
+  LOG("  KSPSolve() has finished for \"{}\", KSPConvergedReasonView():", name);
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -371,6 +374,8 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &correct));
   PetscCall(KSPSetErrorIfNotConverged(predict, PETSC_TRUE));
   PetscCall(KSPSetErrorIfNotConverged(correct, PETSC_TRUE));
+  PetscCall(PetscObjectSetName((PetscObject)predict, "predict"));
+  PetscCall(PetscObjectSetName((PetscObject)correct, "correct"));
 
   static constexpr PetscReal atol = 1e-10;
   static constexpr PetscReal rtol = 1e-10;

@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/performance-test/omp-parallelization",
+  "OutputDirectory": "results/performance-test/ksp-pc-types",
 
   "Simulation": "ecsimcorr",
 
