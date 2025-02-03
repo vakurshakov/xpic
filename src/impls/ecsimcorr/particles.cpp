@@ -63,6 +63,8 @@ PetscErrorCode Particles::fill_ecsim_current(
   Vec local_B;
   Vector3R*** B;
 
+  /// @note There is no ideological meaning to call `DMGlobalToLocal()`
+  /// for each particles sort, they all will produce the same result.
   DM da = world.da;
   PetscCall(DMGetLocalVector(da, &local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
@@ -73,24 +75,27 @@ PetscErrorCode Particles::fill_ecsim_current(
   PetscLogEventBegin(events[1], local_B, local_currI, 0, 0);
 
   constexpr PetscInt shs = POW2(3 * POW3(3));
-  PetscInt size = 0;
 
-// #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
     const auto& cell = storage[g];
     if (cell.empty())
       continue;
 
+    /// @note Calculating the proper offset of this thread into global array
+    PetscInt off = 0;
+
+    for (PetscInt omp_g = 0; omp_g < g; ++omp_g)
+      off += shs * (PetscInt)!storage[omp_g].empty();
+
 #if MAT_SET_VALUES_COO
     if (!assembled) {
-      MatStencil* coo_ci = coo_i + size;
-      MatStencil* coo_cj = coo_j + size;
+      MatStencil* coo_ci = coo_i + off;
+      MatStencil* coo_cj = coo_j + off;
       fill_matrix_indices(g, coo_ci, coo_cj);
     }
 #endif
-
-    PetscReal* coo_cv = coo_v + size;
-    size += shs;
+    PetscReal* coo_cv = coo_v + off;
 
     for (const auto& point : cell) {
       Shape shape;
@@ -421,6 +426,8 @@ void Particles::fill_matrix_indices(
 }
 
 
+/// @note Ideally, since we use one global Lapenta matrix, test on
+/// `matrix_indices_assembled` should include particles of all sorts.
 PetscErrorCode Particles::update_cells()
 {
   PetscFunctionBeginUser;

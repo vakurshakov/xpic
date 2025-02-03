@@ -35,8 +35,6 @@ public:
   }
 
 private:
-  static constexpr PetscInt OMP_CHUNK_SIZE = 16;
-
 #if (PARTICLES_FORM_FACTOR == 2)
   static constexpr auto& shape_func1 = spline_of_1st_order;
   static constexpr auto& shape_func2 = spline_of_2nd_order;

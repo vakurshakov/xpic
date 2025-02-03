@@ -19,8 +19,6 @@ public:
   PetscErrorCode push();
 
 private:
-  static constexpr PetscInt OMP_CHUNK_SIZE = 16;
-
   void interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const;
   void push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const;
   void decompose(const Shape& shape, const Point& point);

@@ -37,6 +37,8 @@ protected:
   static constexpr PetscInt MPI_TAG_NUMBERS = 2;
   static constexpr PetscInt MPI_TAG_POINTS = 4;
 
+  static constexpr PetscInt OMP_CHUNK_SIZE = 16;
+
   void correct_coordinates(Point& point);
 };
 

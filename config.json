@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/performance-test/ecsimcorr::Particles-container/comparison",
+  "OutputDirectory": "results/performance-test/omp-parallelization",
 
   "Simulation": "ecsimcorr",
 
@@ -18,7 +18,7 @@
     "dz": 1.0,
     "dt": 1.0,
 
-    "diagnose_period": 5.0,
+    "diagnose_period": 1.0,
     "[dp]": "1/w_pe",
 
     "da_boundary_x": "DM_BOUNDARY_GHOSTED",

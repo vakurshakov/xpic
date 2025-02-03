@@ -224,10 +224,10 @@ PetscErrorCode Simulation::fill_ecsim_current()
   std::vector<PetscReal> coo_v;
 
   if (!matrix_indices_assembled) {
-    LOG("  Indices assembly was broken, recollecting them again."
-        " Additional space: {:4.3f} GB", (PetscReal)(2 * 4 * size) * sizeof(PetscInt) / 1e9);
     coo_i.resize(size);
     coo_j.resize(size);
+    LOG("  Indices assembly was broken, recollecting them again."
+        " Additional space: {:4.3f} GB", (PetscReal)(2 * 4 * size) * sizeof(PetscInt) / 1e9);
   }
   coo_v.resize(size, 0.0);
   LOG("  To collect matrix values, temporary storage of size {:4.3f} GB was allocated",
