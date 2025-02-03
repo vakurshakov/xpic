@@ -54,9 +54,10 @@ PetscErrorCode Particles::first_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @note Particles::update_cells() _must_ be called before this routine
+/// @note `Particles::update_cells()` _must_ be called before this routine
+/// @note `!assembled` state may be forced on particles sort by the other one
 PetscErrorCode Particles::fill_ecsim_current(
-  MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v)
+  MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v, bool assembled)
 {
   PetscFunctionBeginUser;
   Vec local_B;
@@ -81,7 +82,7 @@ PetscErrorCode Particles::fill_ecsim_current(
       continue;
 
 #if MAT_SET_VALUES_COO
-    if (!matrix_indices_assembled) {
+    if (!assembled) {
       MatStencil* coo_ci = coo_i + size;
       MatStencil* coo_cj = coo_j + size;
       fill_matrix_indices(g, coo_ci, coo_cj);
@@ -435,6 +436,9 @@ PetscErrorCode Particles::update_cells()
         it = std::next(it);
         continue;
       }
+
+      if (matrix_indices_assembled && storage[ng].empty())
+        LOG("  Indices assembly is broken by \"{}\"", parameters.sort_name);
 
       matrix_indices_assembled &= !storage[ng].empty();
 

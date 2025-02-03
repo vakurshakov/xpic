@@ -49,8 +49,7 @@ PetscErrorCode Simulation::initialize_implementation()
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
   diagnostics_.emplace_back(
     std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
-      "./results/performance-test/ecsimcorr::Particles-container/"
-      "full-MatSetValuesBlockedStencil/ecsim/matL"));
+      "./results/performance-test/common-ground-100/ecsim/matL"));
 
 
   for (auto& sort : particles_)
@@ -225,10 +224,14 @@ PetscErrorCode Simulation::fill_ecsim_current()
   std::vector<PetscReal> coo_v;
 
   if (!matrix_indices_assembled) {
+    LOG("  Indices assembly was broken, recollecting them again."
+        " Additional space: {:4.3f} GB", (PetscReal)(2 * 4 * size) * sizeof(PetscInt) / 1e9);
     coo_i.resize(size);
     coo_j.resize(size);
   }
   coo_v.resize(size, 0.0);
+  LOG("  To collect matrix values, temporary storage of size {:4.3f} GB was allocated",
+      (PetscReal)size * sizeof(PetscReal) / 1e9);
 
   size = 0;
   for (const auto& sort : particles_) {
@@ -236,7 +239,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
     MatStencil* coo_sj = coo_j.data() + size;
     PetscReal* coo_sv = coo_v.data() + size;
 
-    PetscCall(sort->fill_ecsim_current(coo_si, coo_sj, coo_sv));
+    PetscCall(sort->fill_ecsim_current(coo_si, coo_sj, coo_sv, matrix_indices_assembled));
 
     for (const auto& cell : sort->storage)
       size += shape_size * (PetscInt)!cell.empty();
@@ -263,8 +266,8 @@ PetscErrorCode Simulation::mat_set_preallocation_coo(
   dims[3] = 3;
 
   /// @note `idxm` will be modified to be an array of local indices
-  auto remap_stencil = [&](MatStencil* coo, PetscInt* idxm) {
-    PetscInt* in = (PetscInt*)coo;
+  auto remap_stencil = [&](PetscInt* idxm) {
+    PetscInt* in = idxm;
     PetscInt* out = idxm;
 
     for (PetscInt i = 0; i < size; ++i) {
@@ -279,12 +282,13 @@ PetscErrorCode Simulation::mat_set_preallocation_coo(
     }
   };
 
-  std::vector<PetscInt> idxm(size);
-  std::vector<PetscInt> idxn(size);
-  remap_stencil(coo_i, idxm.data());
-  remap_stencil(coo_j, idxn.data());
+  /// @note we will reuse the space allocated for coordinates as `PetscInt*` arrays
+  auto idxm = (PetscInt*)coo_i;
+  auto idxn = (PetscInt*)coo_j;
+  remap_stencil(idxm);
+  remap_stencil(idxn);
 
-  PetscCall(MatSetPreallocationCOOLocal(matL, size, idxm.data(), idxn.data()));
+  PetscCall(MatSetPreallocationCOOLocal(matL, size, idxm, idxn));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

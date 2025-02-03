@@ -23,13 +23,14 @@ public:
   PetscErrorCode final_update();
 
   PetscErrorCode fill_ecsim_current(
-    MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);
+    MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v, bool assembled);
 
   PetscErrorCode update_cells() override;
 
   /// @warning For some reason, if bool variable is simply placed here,
   /// it causes "munmap_chunk(): invalid pointer" error in PETSc library.
-  bool is_matrix_indices_assembled() const {
+  bool is_matrix_indices_assembled() const
+  {
     return matrix_indices_assembled;
   }
 
