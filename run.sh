@@ -7,7 +7,7 @@ export MPI_NUM_PROC=1
 
 export OMP_PLACES=cores
 export OMP_PROC_BIND=spread
-export OMP_NUM_THREAD=1
+export OMP_NUM_THREADS=1
 
 # export OMP_DISPLAY_ENV=verbose
 # export OMP_DISPLAY_AFFINITY=true  # to measure thread migration
