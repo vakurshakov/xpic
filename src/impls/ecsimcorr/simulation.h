@@ -60,6 +60,7 @@ private:
 
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
 
+  PetscErrorCode update_cells();
   PetscErrorCode fill_ecsim_current();
 
   PetscErrorCode mat_set_preallocation_coo(
@@ -73,6 +74,9 @@ private:
 
   KSP predict;
   KSP correct;
+
+  /// @note We start with _unassembled_ state to force first indexes assembly
+  bool matL_indices_assembled = false;
 
   PetscLogStage stagenums[6];
 

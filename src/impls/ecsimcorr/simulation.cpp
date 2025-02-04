@@ -72,9 +72,9 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
   for (auto& sort : particles_) {
     PetscCall(sort->first_push());
     PetscCall(sort->correct_coordinates());
-    PetscCall(sort->update_cells());
   }
 
+  PetscCall(update_cells());
   PetscCall(fill_ecsim_current());
 
   PetscLogStagePop();
@@ -88,8 +88,9 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
   for (auto& sort : particles_) {
     PetscCall(sort->second_push());
     PetscCall(sort->correct_coordinates());
-    PetscCall(sort->update_cells());
   }
+
+  PetscCall(update_cells());
 
   PetscLogStagePop();
   PetscLogStagePush(stagenums[4]);
@@ -196,6 +197,46 @@ PetscErrorCode Simulation::final_update()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
+/// @note Since we use one global Lapenta matrix, test on
+/// `matL_indices_assembled` should include particles of all sorts.
+/// @note This routine _must_ be called before `fill_ecsim_current()`
+PetscErrorCode Simulation::update_cells()
+{
+  PetscFunctionBeginUser;
+  for (auto& sort : particles_) {
+    for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
+      auto& storage_g = sort->storage[g];
+      auto it = storage_g.begin();
+      while (it != storage_g.end()) {
+        auto ng = indexing::s_g(  //
+          static_cast<PetscInt>(it->z() / dz),  //
+          static_cast<PetscInt>(it->y() / dy),  //
+          static_cast<PetscInt>(it->x() / dx));
+
+        if (ng == g) {
+          it = std::next(it);
+          continue;
+        }
+
+        for (const auto& check_sort : particles_) {
+          if (!matL_indices_assembled || !check_sort->storage[ng].empty())
+            continue;
+
+          LOG("  Indices assembly is broken by \"{}\"", sort->parameters.sort_name);
+          matL_indices_assembled = false;
+        }
+
+        auto& storage_ng = sort->storage[ng];
+        storage_ng.emplace_back(*it);
+        it = storage_g.erase(it);
+      }
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 PetscErrorCode Simulation::fill_ecsim_current()
 {
   PetscFunctionBeginUser;
@@ -212,21 +253,18 @@ PetscErrorCode Simulation::fill_ecsim_current()
 #else
   constexpr PetscInt shape_size = POW2(3 * POW3(3));
 
+  /// @note The `size` can be approximately halved using common array for ions and electrons.
   PetscInt size = 0;
-  bool matrix_indices_assembled = true;
 
-  for (const auto& sort : particles_) {
+  for (const auto& sort : particles_)
     for (const auto& cell : sort->storage)
       size += shape_size * (PetscInt)!cell.empty();
-
-    matrix_indices_assembled &= sort->is_matrix_indices_assembled();
-  }
 
   std::vector<MatStencil> coo_i;
   std::vector<MatStencil> coo_j;
   std::vector<PetscReal> coo_v;
 
-  if (!matrix_indices_assembled) {
+  if (!matL_indices_assembled) {
     coo_i.resize(size);
     coo_j.resize(size);
     LOG("  Indices assembly was broken, recollecting them again."
@@ -242,14 +280,16 @@ PetscErrorCode Simulation::fill_ecsim_current()
     MatStencil* coo_sj = coo_j.data() + size;
     PetscReal* coo_sv = coo_v.data() + size;
 
-    PetscCall(sort->fill_ecsim_current(coo_si, coo_sj, coo_sv, matrix_indices_assembled));
+    PetscCall(sort->fill_ecsim_current(coo_si, coo_sj, coo_sv, matL_indices_assembled));
 
     for (const auto& cell : sort->storage)
       size += shape_size * (PetscInt)!cell.empty();
   }
 
-  if (!matrix_indices_assembled)
+  if (!matL_indices_assembled) {
     PetscCall(mat_set_preallocation_coo(size, coo_i.data(), coo_j.data()));
+    matL_indices_assembled = true;
+  }
 
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
 #endif

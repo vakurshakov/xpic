@@ -24,7 +24,7 @@ public:
   PetscErrorCode correct_coordinates();
   // PetscErrorCode communicate();
 
-  virtual PetscErrorCode update_cells();
+  PetscErrorCode update_cells();
 
   PetscReal mass(const Point& point) const;
   PetscReal charge(const Point& point) const;
