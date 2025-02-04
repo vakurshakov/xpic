@@ -20,7 +20,7 @@ PetscErrorCode MatDump::diagnose(timestep_t t)
   PetscCall(PetscViewerDestroy(&viewer_));
 
   if (!comp_dir_.empty())
-    compare(t);
+    PetscCall(compare(t));
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
