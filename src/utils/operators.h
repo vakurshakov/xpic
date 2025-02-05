@@ -26,13 +26,11 @@ protected:
   PetscInt mdof_, ndof_;
 };
 
-
 class Identity final : public Operator {
 public:
   Identity(DM da);
   PetscErrorCode create(Mat* mat) const;
 };
-
 
 /**
  * @brief This structure serves as an abstraction of derivatives in finite-
@@ -71,7 +69,6 @@ protected:
   const std::vector<PetscReal> values_;
 };
 
-
 class Rotor final : public FiniteDifferenceOperator {
 public:
   Rotor(DM da);
@@ -81,6 +78,20 @@ private:
     std::vector<MatStencil>& row, std::vector<MatStencil>& col) const override;
 };
 
+class RotorMult final : public FiniteDifferenceOperator {
+public:
+  RotorMult(DM da);
+
+  /// @note Implements only `negative * positive` product
+  PetscErrorCode create(Mat* mat);
+
+private:
+  void fill_stencil(Yee_shift, PetscInt x, PetscInt y, PetscInt z,
+    std::vector<MatStencil>& row, std::vector<MatStencil>& col) const override;
+
+  using FiniteDifferenceOperator::create_positive;
+  using FiniteDifferenceOperator::create_negative;
+};
 
 class NonRectangularOperator : public FiniteDifferenceOperator {
 public:
@@ -101,7 +112,6 @@ protected:
   ISLocalToGlobalMapping v_ltog_, s_ltog_;
 };
 
-
 class Divergence final : public NonRectangularOperator {
 public:
   Divergence(DM da);
@@ -111,7 +121,6 @@ protected:
   void fill_stencil(Yee_shift s, PetscInt x, PetscInt y, PetscInt z,
     std::vector<MatStencil>& row, std::vector<MatStencil>& col) const override;
 };
-
 
 class Gradient final : public NonRectangularOperator {
 public:

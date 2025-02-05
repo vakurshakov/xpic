@@ -107,7 +107,7 @@ PetscErrorCode FiniteDifferenceOperator::mat_set_values_stencil(Mat mat,
   const PetscScalar v[], InsertMode addv) const
 {
   PetscFunctionBegin;
-  static const PetscInt MAX_CHUNK_SIZE = 4;
+  static const PetscInt MAX_CHUNK_SIZE = 14;
   PetscCheck(m < MAX_CHUNK_SIZE, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Inserted columns number %" PetscInt_FMT ", is greater than MAX_CHUNK_SIZE %" PetscInt_FMT, m, MAX_CHUNK_SIZE);
 
   // Inserting one row at a time, cols are limited by `MAX_CHUNK_SIZE`
@@ -223,6 +223,99 @@ void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
       return;
     }
   }
+}
+
+
+RotorMult::RotorMult(DM da)
+  : FiniteDifferenceOperator(da, 3, 3,
+      {
+        -1.0 / POW2(dz), +2.0 / POW2(dz), -1.0 / POW2(dz),  //
+        -1.0 / POW2(dy), +2.0 / POW2(dy), -1.0 / POW2(dy),  //
+        +1.0 / dy * dx, -1.0 / dy * dx, -1.0 / dy * dx, +1.0 / dy * dx,  //
+        +1.0 / dz * dx, -1.0 / dz * dx, -1.0 / dz * dx, +1.0 / dz * dx,  //
+        //
+        -1.0 / POW2(dz), +2.0 / POW2(dz), -1.0 / POW2(dz),  //
+        -1.0 / POW2(dx), +2.0 / POW2(dx), -1.0 / POW2(dx),  //
+        +1.0 / dx * dy, -1.0 / dx * dy, -1.0 / dx * dy, +1.0 / dx * dy,  //
+        +1.0 / dz * dy, -1.0 / dz * dy, -1.0 / dz * dy, +1.0 / dz * dy,  //
+        //
+        -1.0 / POW2(dy), +2.0 / POW2(dy), -1.0 / POW2(dy),  //
+        -1.0 / POW2(dx), +2.0 / POW2(dx), -1.0 / POW2(dx),  //
+        +1.0 / dx * dz, -1.0 / dx * dz, -1.0 / dx * dz, +1.0 / dx * dz,  //
+        +1.0 / dy * dz, -1.0 / dy * dz, -1.0 / dy * dz, +1.0 / dy * dz,  //
+      })
+{
+}
+
+PetscErrorCode RotorMult::create(Mat* mat)
+{
+  PetscFunctionBeginUser;
+  PetscCall(create_positive(mat));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+void RotorMult::fill_stencil(Yee_shift, PetscInt xc, PetscInt yc, PetscInt zc,
+  std::vector<MatStencil>& row, std::vector<MatStencil>& col) const
+{
+  auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
+  auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
+
+  row[0] = {zc, yc, xc, X};
+
+  col[0] = {zp, yc, xc, X};
+  col[1] = {zc, yc, xc, X};
+  col[2] = {zm, yc, xc, X};
+  col[3] = {zc, yp, xc, X};
+  col[4] = {zc, yc, xc, X};
+  col[5] = {zc, ym, xc, X};
+
+  col[6] = {zc, yc, xp, Y};
+  col[7] = {zc, ym, xp, Y};
+  col[8] = {zc, yc, xc, Y};
+  col[9] = {zc, ym, xc, Y};
+
+  col[10] = {zc, yc, xp, Z};
+  col[11] = {zm, yc, xp, Z};
+  col[12] = {zc, yc, xc, Z};
+  col[13] = {zm, yc, xc, Z};
+
+  row[1] = {zc, yc, xc, Y};
+
+  col[14] = {zp, yc, xc, Y};
+  col[15] = {zc, yc, xc, Y};
+  col[16] = {zm, yc, xc, Y};
+  col[17] = {zc, yc, xp, Y};
+  col[18] = {zc, yc, xc, Y};
+  col[19] = {zc, yc, xm, Y};
+
+  col[20] = {zc, yp, xc, X};
+  col[21] = {zc, yp, xm, X};
+  col[22] = {zc, yc, xc, X};
+  col[23] = {zc, yc, xm, X};
+
+  col[24] = {zc, yp, xc, Z};
+  col[25] = {zm, yp, xc, Z};
+  col[26] = {zc, yc, xc, Z};
+  col[27] = {zm, yc, xc, Z};
+
+  row[2] = {zc, yc, xc, Z};
+
+  col[28] = {zc, yp, xc, Z};
+  col[29] = {zc, yc, xc, Z};
+  col[30] = {zc, ym, xc, Z};
+  col[31] = {zc, yc, xp, Z};
+  col[32] = {zc, yc, xc, Z};
+  col[33] = {zc, yc, xm, Z};
+
+  col[34] = {zp, yc, xc, X};
+  col[35] = {zp, yc, xm, X};
+  col[36] = {zc, yc, xc, X};
+  col[37] = {zc, yc, xm, X};
+
+  col[38] = {zp, yc, xc, Y};
+  col[39] = {zp, ym, xc, Y};
+  col[40] = {zc, yc, xc, Y};
+  col[41] = {zc, ym, xc, Y};
 }
 
 

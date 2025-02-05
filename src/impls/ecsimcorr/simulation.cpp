@@ -49,7 +49,7 @@ PetscErrorCode Simulation::initialize_implementation()
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
   diagnostics_.emplace_back(
     std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
-      "./results/performance-test/common-ground-100/ecsim/matL"));
+      "./results/performance-test/mpi-parallelization/test/ecsim/matL"));
 
 
   for (auto& sort : particles_)
@@ -394,11 +394,8 @@ PetscErrorCode Simulation::init_matrices()
   PetscCall(rotor.create_positive(&rotE));
   PetscCall(rotor.create_negative(&rotB));
 
-  PetscCall(MatProductCreate(rotB, rotE, nullptr, &matM));
-  PetscCall(MatProductSetType(matM, MATPRODUCT_AB));
-  PetscCall(MatProductSetFromOptions(matM));
-  PetscCall(MatProductSymbolic(matM));
-  PetscCall(MatProductNumeric(matM));  // matM = rotB(rotE())
+  RotorMult rotor_mult(da);
+  PetscCall(rotor_mult.create(&matM));  // matM = rotB(rotE())
   PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
   PetscCall(MatShift(matM, 2.0));  // matM = 2 * I + matM
 
@@ -444,13 +441,8 @@ PetscErrorCode Simulation::init_log_stages()
 Simulation::~Simulation()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&E));
-  PetscCallVoid(VecDestroy(&Ep));
-  PetscCallVoid(VecDestroy(&Ec));
-  PetscCallVoid(VecDestroy(&B));
-  PetscCallVoid(VecDestroy(&B0));
-  PetscCallVoid(VecDestroy(&currI));
-  PetscCallVoid(VecDestroy(&currJe));
+  PetscCallVoid(KSPDestroy(&predict));
+  PetscCallVoid(KSPDestroy(&correct));
 
   PetscCallVoid(MatDestroy(&matL));
   PetscCallVoid(MatDestroy(&matA));
@@ -458,8 +450,13 @@ Simulation::~Simulation()
   PetscCallVoid(MatDestroy(&rotE));
   PetscCallVoid(MatDestroy(&rotB));
 
-  PetscCallVoid(KSPDestroy(&predict));
-  PetscCallVoid(KSPDestroy(&correct));
+  PetscCallVoid(VecDestroy(&E));
+  PetscCallVoid(VecDestroy(&Ep));
+  PetscCallVoid(VecDestroy(&Ec));
+  PetscCallVoid(VecDestroy(&B));
+  PetscCallVoid(VecDestroy(&B0));
+  PetscCallVoid(VecDestroy(&currI));
+  PetscCallVoid(VecDestroy(&currJe));
   PetscFunctionReturnVoid();
 }
 
