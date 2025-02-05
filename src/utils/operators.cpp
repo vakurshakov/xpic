@@ -166,9 +166,9 @@ std::tuple<REP3(PetscInt)> get_negative_offsets(PetscInt x, PetscInt y, PetscInt
 Rotor::Rotor(DM da)
   : FiniteDifferenceOperator(da, 3, 3,
       {
-        +1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz,  //
-        +1.0 / dz, -1.0 / dz, -1.0 / dx, +1.0 / dx,  //
-        +1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy,  //
+        +1.0 / dz, -1.0 / dz, -1.0 / dy, +1.0 / dy,  //
+        -1.0 / dz, +1.0 / dz, +1.0 / dx, -1.0 / dx,  //
+        +1.0 / dy, -1.0 / dy, -1.0 / dx, +1.0 / dx,  //
       })
 {
 }
@@ -181,10 +181,10 @@ void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
       auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
       row[0] = {zc, yc, xc, X};
-      col[0 + 0] = {zc, yp, xc, Z};
-      col[0 + 1] = {zc, yc, xc, Z};
-      col[0 + 2] = {zp, yc, xc, Y};
-      col[0 + 3] = {zc, yc, xc, Y};
+      col[0 + 0] = {zp, yc, xc, Y};
+      col[0 + 1] = {zc, yc, xc, Y};
+      col[0 + 2] = {zc, yp, xc, Z};
+      col[0 + 3] = {zc, yc, xc, Z};
 
       row[1] = {zc, yc, xc, Y};
       col[4 + 0] = {zp, yc, xc, X};
@@ -193,10 +193,10 @@ void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
       col[4 + 3] = {zc, yc, xc, Z};
 
       row[2] = {zc, yc, xc, Z};
-      col[8 + 0] = {zc, yc, xp, Y};
-      col[8 + 1] = {zc, yc, xc, Y};
-      col[8 + 2] = {zc, yp, xc, X};
-      col[8 + 3] = {zc, yc, xc, X};
+      col[8 + 0] = {zc, yp, xc, X};
+      col[8 + 1] = {zc, yc, xc, X};
+      col[8 + 2] = {zc, yc, xp, Y};
+      col[8 + 3] = {zc, yc, xc, Y};
       return;
     }
 
@@ -204,10 +204,10 @@ void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
       auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
 
       row[0] = {zc, yc, xc, X};
-      col[0 + 0] = {zc, yc, xc, Z};
-      col[0 + 1] = {zc, ym, xc, Z};
-      col[0 + 2] = {zc, yc, xc, Y};
-      col[0 + 3] = {zm, yc, xc, Y};
+      col[0 + 0] = {zc, yc, xc, Y};
+      col[0 + 1] = {zm, yc, xc, Y};
+      col[0 + 2] = {zc, yc, xc, Z};
+      col[0 + 3] = {zc, ym, xc, Z};
 
       row[1] = {zc, yc, xc, Y};
       col[4 + 0] = {zc, yc, xc, X};
@@ -216,10 +216,10 @@ void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
       col[4 + 3] = {zc, yc, xm, Z};
 
       row[2] = {zc, yc, xc, Z};
-      col[8 + 0] = {zc, yc, xc, Y};
-      col[8 + 1] = {zc, yc, xm, Y};
-      col[8 + 2] = {zc, yc, xc, X};
-      col[8 + 3] = {zc, ym, xc, X};
+      col[8 + 0] = {zc, yc, xc, X};
+      col[8 + 1] = {zc, ym, xc, X};
+      col[8 + 2] = {zc, yc, xc, Y};
+      col[8 + 3] = {zc, yc, xm, Y};
       return;
     }
   }
