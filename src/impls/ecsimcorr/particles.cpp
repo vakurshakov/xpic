@@ -86,13 +86,11 @@ PetscErrorCode Particles::fill_ecsim_current(
     for (PetscInt omp_g = 0; omp_g < g; ++omp_g)
       off += shs * (PetscInt)!storage[omp_g].empty();
 
-#if MAT_SET_VALUES_COO
     if (!assembled) {
       MatStencil* coo_ci = coo_i + off;
       MatStencil* coo_cj = coo_j + off;
       fill_matrix_indices(g, coo_ci, coo_cj);
     }
-#endif
     PetscReal* coo_cv = coo_v + off;
 
     for (const auto& point : cell) {
@@ -228,13 +226,8 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
 
 
 /// @note Also decomposes `Simulation::matL`
-#if !MAT_SET_VALUES_COO
-void Particles::decompose_ecsim_current(const Shape& shape, const Point& point,
-  const Vector3R& B_p, PetscReal* /* coo_v */)
-#else
 void Particles::decompose_ecsim_current(
   const Shape& shape, const Point& point, const Vector3R& B_p, PetscReal* coo_v)
-#endif
 {
   PetscFunctionBeginHot;
   const Vector3R& v = point.p;
@@ -253,80 +246,6 @@ void Particles::decompose_ecsim_current(
 
   constexpr PetscReal shape_tolerance = 1e-10;
 
-#if !MAT_SET_VALUES_COO
-  /// @todo Combine it with `Simple_decomposition::process()`?
-  Mat matL = simulation_.matL;
-
-  const PetscInt m = shape.size.elements_product();
-  const PetscInt n = m;
-
-  std::vector<MatStencil> idxm(m);
-  std::vector<MatStencil> idxn(n);
-  std::vector<PetscReal> values(static_cast<std::size_t>(m * n * POW2(3)), 0);
-
-  /**
-   * @brief indexing of `values` buffer for `MatSetValuesBlocked*()`
-   * @param I block row, with `idxm[I]` being its index
-   * @param J block column, with `idxn[J]` being its index
-   * @param i row within a block, first component
-   * @param j column within a block, second component
-   */
-  auto ind = [n](PetscInt I, PetscInt J, PetscInt i, PetscInt j) {
-    return (I * 3 + i) * (3 * n) + (J * 3 + j);
-  };
-
-  // clang-format off
-  for (PetscInt zi = 0; zi < shape.size[Z]; ++zi) {
-  for (PetscInt yi = 0; yi < shape.size[Y]; ++yi) {
-  for (PetscInt xi = 0; xi < shape.size[X]; ++xi) {
-    PetscInt i = shape.s_p(zi, yi, xi);
-    Vector3R si = shape.electric(i);
-
-    idxm[i] = MatStencil{
-      shape.start[Z] + zi,
-      shape.start[Y] + yi,
-      shape.start[X] + xi,
-    };
-
-    // Shifts of g'=g2 iteration
-    for (PetscInt zj = 0; zj < shape.size[Z]; ++zj) {
-    for (PetscInt yj = 0; yj < shape.size[Y]; ++yj) {
-    for (PetscInt xj = 0; xj < shape.size[X]; ++xj) {
-      PetscInt j = shape.s_p(zj, yj, xj);
-      Vector3R sj = shape.electric(j);
-
-      idxn[j] = MatStencil{
-        shape.start[Z] + zj,
-        shape.start[Y] + yj,
-        shape.start[X] + xj,
-      };
-
-      if (si.abs_max() < shape_tolerance || sj.abs_max() < shape_tolerance)
-        continue;
-
-      values[ind(i, j, X, X)] = si[X] * sj[X] * betaL * (1.0   + b[X] * b[X]);
-      values[ind(i, j, X, Y)] = si[X] * sj[Y] * betaL * (+b[Z] + b[X] * b[Y]);
-      values[ind(i, j, X, Z)] = si[X] * sj[Z] * betaL * (-b[Y] + b[X] * b[Z]);
-
-      values[ind(i, j, Y, Y)] = si[Y] * sj[Y] * betaL * (1.0   + b[Y] * b[Y]);
-      values[ind(i, j, Y, X)] = si[Y] * sj[X] * betaL * (-b[Z] + b[Y] * b[X]);
-      values[ind(i, j, Y, Z)] = si[Y] * sj[Z] * betaL * (+b[X] + b[Y] * b[Z]);
-
-      values[ind(i, j, Z, Z)] = si[Z] * sj[Z] * betaL * (1.0   + b[Z] * b[Z]);
-      values[ind(i, j, Z, X)] = si[Z] * sj[X] * betaL * (+b[Y] + b[X] * b[Z]);
-      values[ind(i, j, Z, Y)] = si[Z] * sj[Y] * betaL * (-b[X] + b[Y] * b[Z]);
-    }}}  // g'=g2
-  }}}  // g=g1
-  // clang-format on
-
-  #pragma omp critical
-  {
-    // cannot use `PetscCall()`, omp section cannot be broken by return statement
-    MatSetValuesBlockedStencil(
-      matL, m, idxm.data(), n, idxn.data(), values.data(), ADD_VALUES);
-  }
-  PetscFunctionReturnVoid();
-#else
   constexpr PetscInt shw = 3;
 
   /// @note It is an offset from particle `shape` indexing into `coo_v` one.
@@ -376,7 +295,6 @@ void Particles::decompose_ecsim_current(
     }
   }
   PetscFunctionReturnVoid();
-#endif
 }
 
 void Particles::fill_matrix_indices(

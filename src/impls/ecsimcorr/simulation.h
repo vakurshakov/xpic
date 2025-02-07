@@ -1,8 +1,6 @@
 #ifndef SRC_ECSIMCORR_SIMULATION_H
 #define SRC_ECSIMCORR_SIMULATION_H
 
-#define MAT_SET_VALUES_COO 1
-
 #include <petscksp.h>
 
 #include "src/interfaces/simulation.h"
@@ -26,15 +24,13 @@ public:
   Vec currJe;
 
   /**
-   * @details Filling up the (L)apenta's matrix will be the most time consuming
-   * part of the simulation process, so a proper path to do so should be chosen.
-   * In attempts to achieve it, we use the following steps:
+   * @details Filling up the Lapenta's matrix will be one of the most time
+   * consuming part of the simulation process, so a proper way to do so should
+   * be chosen. In attempts to speed up this process, we use the following steps:
    *
-   * (1) We treat `matL` as PETSc `baij` matrix and use `MatSetValuesBlocked()`,
-   *     since the blocksize of 3 (dof) was already set in `DMCreateMatrix()`.
-   *
-   * (2) We _should_ store nonzeros structure of the matrix and use the sequence
-   *     when needed: `DMSetMatrixPreallocateSkip()`, `MatSetPreallocation()`.
+   * 1) `MatSetPreallocationCOO()`/`MatSetValuesCOO()` technique is utilized;
+   * 2) Control of matrix indices assembly is added (to avoid reallocation);
+   * 3) Parallel-traversable buffers are used to fill indices and values.
    */
   Mat matL;
 

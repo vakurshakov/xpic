@@ -240,17 +240,6 @@ PetscErrorCode Simulation::update_cells()
 PetscErrorCode Simulation::fill_ecsim_current()
 {
   PetscFunctionBeginUser;
-#if !MAT_SET_VALUES_COO
-  MatStencil* coo_pi = nullptr;
-  MatStencil* coo_pj = nullptr;
-  PetscReal* coo_pv = nullptr;
-
-  for (auto& sort : particles_)
-    PetscCall(sort->fill_ecsim_current(coo_pi, coo_pj, coo_pv));
-
-  PetscCall(MatAssemblyBegin(matL, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(matL, MAT_FINAL_ASSEMBLY));
-#else
   constexpr PetscInt shape_size = POW2(3 * POW3(3));
 
   /// @note The `size` can be approximately halved using common array for ions and electrons.
@@ -292,8 +281,6 @@ PetscErrorCode Simulation::fill_ecsim_current()
   }
 
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
-#endif
-
   PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -386,6 +373,11 @@ PetscErrorCode Simulation::init_matrices()
 {
   PetscFunctionBeginUser;
   DM da = world.da;
+  /// @todo Replace all operators onto `MatSetValuesCOO()` and use
+  ///   PetscCall(DMSetMatrixPreallocateOnly(da, PETSC_FALSE));
+  ///   PetscCall(DMSetMatrixPreallocateSkip(da, PETSC_TRUE));
+  /// to reduce the initialization time for big systems.
+
   PetscCall(DMCreateMatrix(da, &matL));
   PetscCall(MatSetOption(matL, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
   PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
