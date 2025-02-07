@@ -17,4 +17,13 @@ if [[ $# == 0 ]]; then
   usage
 fi
 
-$MPI_DIR/bin/mpiexec -np $MPI_NUM_PROC ./build/xpic.out $@
+# Clearing shared memory allocated by `PetscShmgetAllocateArray()`
+ipcrm --all
+
+./external/petsc/lib/petsc/bin/petscfreesharedmemory
+
+$MPI_DIR/bin/mpiexec -np $MPI_NUM_PROC ./build/xpic.out $@ \
+    -predict_pc_type none                                  \
+    -mpi_linear_solver_server                              \
+    -mpi_linear_solver_server_always_use_server            \
+    -mpi_linear_solver_server_view                         \

@@ -51,7 +51,6 @@ PetscErrorCode Simulation::initialize_implementation()
     std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
       "./results/performance-test/mpi-parallelization/test/ecsim/matL"));
 
-
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
 
@@ -413,6 +412,8 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscCall(KSPSetErrorIfNotConverged(correct, PETSC_TRUE));
   PetscCall(PetscObjectSetName((PetscObject)predict, "predict"));
   PetscCall(PetscObjectSetName((PetscObject)correct, "correct"));
+  PetscCall(KSPSetOptionsPrefix(predict, "predict_"));
+  PetscCall(KSPSetOptionsPrefix(correct, "correct_"));
 
   static constexpr PetscReal atol = 1e-10;
   static constexpr PetscReal rtol = 1e-10;

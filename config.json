@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/performance-test/ksp-pc-types",
+  "OutputDirectory": "results/performance-test/mpi-parallelization",
 
   "Simulation": "ecsimcorr",
 
