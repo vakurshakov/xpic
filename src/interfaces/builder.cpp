@@ -36,9 +36,16 @@ Vector3R Builder::parse_vector(
         throw std::runtime_error(message);
       }
 
+      static const std::vector<char> geom_map{'x', 'y', 'z'};
+
       Vector3R result;
       for (PetscInt i = 0; i < 3; ++i)
-        arr[i].get_to(result[i]);
+        if (arr[i].type() == nlohmann::json::value_t::string &&
+          arr[i].get<std::string>() == std::string("geom_") + geom_map.at(i)) {
+          result[i] = Geom[i];
+        }
+        else
+          arr[i].get_to(result[i]);
 
       return result;
     }

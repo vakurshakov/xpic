@@ -81,7 +81,7 @@
       "coordinate": {
         "name": "CoordinateInBox",
         "min": [40, 40, 0],
-        "max": [60, 60, 2]
+        "max": [60, 60, "geom_z"]
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",
