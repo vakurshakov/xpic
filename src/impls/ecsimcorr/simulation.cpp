@@ -132,7 +132,8 @@ PetscErrorCode Simulation::predict_fields()
   PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));  // matA = matL
   PetscCall(MatAYPX(matA, 2.0 * dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + (2 * dt) * matA
 
-  PetscCall(KSPSetOperators(predict, matA, matA));
+  // Note that we use `matM` to construct the preconditioning matrix
+  PetscCall(KSPSetOperators(predict, matA, matM));
   PetscCall(KSPSetUp(predict));
 
   PetscCall(advance_fields(predict, currI, Ep));
