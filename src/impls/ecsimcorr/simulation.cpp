@@ -111,7 +111,8 @@ PetscErrorCode Simulation::predict_fields()
   PetscLogStagePush(stagenums[2]);
 
   // Storing `matL` to reuse it for ECSIM current calculation later
-  PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));  // matA = matL
+  Mat matA;
+  PetscCall(MatDuplicate(matL, MAT_COPY_VALUES, &matA));  // matA = matL
   PetscCall(MatAYPX(matA, 2.0 * dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + (2 * dt) * matA
 
   // Note that we use `matM` to construct the preconditioning matrix
@@ -119,6 +120,7 @@ PetscErrorCode Simulation::predict_fields()
   PetscCall(KSPSetUp(predict));
 
   PetscCall(advance_fields(predict, currI, Ep));
+  PetscCall(MatDestroy(&matA));
 
   PetscLogStagePop();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -366,34 +368,12 @@ PetscErrorCode Simulation::mat_set_preallocation_coo(
   PetscInt size, MatStencil* coo_i, MatStencil* coo_j)
 {
   PetscFunctionBeginUser;
-  PetscInt starts[4];
-  PetscInt dims[4];
-  PetscCall(DMDAGetGhostCorners(world.da, REP3_AP(&starts), REP3_AP(&dims)));
-  starts[3] = 0;
-  dims[3] = 3;
-
-  /// @note `idxm` will be modified to be an array of local indices
-  auto remap_stencil = [&](PetscInt* idxm) {
-    PetscInt* in = idxm;
-    PetscInt* out = idxm;
-
-    for (PetscInt i = 0; i < size; ++i) {
-      PetscInt tmp = *in++ - starts[0];
-
-      for (PetscInt j = 0; j < 3; ++j)
-        if ((*in++ - starts[j + 1]) < 0 || tmp < 0)
-          tmp = -1;
-        else
-          tmp = tmp * dims[j + 1] + *(in - 1) - starts[j + 1];
-      out[i] = tmp;
-    }
-  };
-
-  /// @note we will reuse the space allocated for coordinates as `PetscInt*` arrays
   auto idxm = (PetscInt*)coo_i;
   auto idxn = (PetscInt*)coo_j;
-  remap_stencil(idxm);
-  remap_stencil(idxn);
+
+  DM da = world.da;
+  Operator::remap_stencil(da, 3, size, idxm);
+  Operator::remap_stencil(da, 3, size, idxn);
 
   PetscCall(MatSetPreallocationCOOLocal(matL, size, idxm, idxn));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -421,14 +401,11 @@ PetscErrorCode Simulation::init_matrices()
 {
   PetscFunctionBeginUser;
   DM da = world.da;
-  /// @todo Replace all operators onto `MatSetValuesCOO()` and use
-  ///   PetscCall(DMSetMatrixPreallocateOnly(da, PETSC_FALSE));
-  ///   PetscCall(DMSetMatrixPreallocateSkip(da, PETSC_TRUE));
-  /// to reduce the initialization time for big systems.
+  PetscCall(DMSetMatrixPreallocateOnly(da, PETSC_FALSE));
+  PetscCall(DMSetMatrixPreallocateSkip(da, PETSC_TRUE));
 
   PetscCall(DMCreateMatrix(da, &matL));
   PetscCall(MatSetOption(matL, MAT_NEW_NONZERO_LOCATIONS, PETSC_TRUE));
-  PetscCall(MatDuplicate(matL, MAT_DO_NOT_COPY_VALUES, &matA));
 
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rotE));
@@ -490,7 +467,6 @@ Simulation::~Simulation()
   PetscCallVoid(KSPDestroy(&correct));
 
   PetscCallVoid(MatDestroy(&matL));
-  PetscCallVoid(MatDestroy(&matA));
   PetscCallVoid(MatDestroy(&matM));
   PetscCallVoid(MatDestroy(&rotE));
   PetscCallVoid(MatDestroy(&rotB));

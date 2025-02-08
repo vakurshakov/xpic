@@ -72,11 +72,9 @@ private:
   Vec local_E;
   Vec local_B;
 
-  Mat matA;
-  Mat matM;
-
   Mat rotE;
   Mat rotB;
+  Mat matM;
 
   KSP predict;
   KSP correct;

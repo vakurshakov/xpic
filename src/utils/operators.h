@@ -16,6 +16,10 @@ public:
   Operator() = default;
   virtual ~Operator() = default;
 
+  /// @note `idxm` will be modified to be an array of local indices!
+  static PetscErrorCode remap_stencil(
+    DM da, PetscInt mdof, PetscInt m, PetscInt* idxm);
+
 protected:
   Operator(DM da, PetscInt mdof = 3, PetscInt ndof = 3);
 
@@ -54,18 +58,17 @@ protected:
   };
 
   virtual PetscErrorCode create_matrix(Mat* mat);
+
+  /// @brief Remaps the values from `MatStencil` into `PetscInt` arrays and then
+  /// passes it to default MatSetPreallocationCOO(), (different dof can be used).
   PetscErrorCode fill_matrix(Mat mat, Yee_shift sh);
 
-  /// @brief Specifies the stencil for each point `(x, y, z)` in space, after
+  /// @brief Specifies the stencil for each point `(z, y, x)` in space, after
   /// that whole chunk of `values` will be inserted into the matrix at once.
-  virtual void fill_stencil(Yee_shift sh, PetscInt x, PetscInt y, PetscInt z,
-    std::vector<MatStencil>& row, std::vector<MatStencil>& col) const = 0;
+  virtual void fill_stencil(Yee_shift sh, PetscInt z, PetscInt y, PetscInt x,
+    MatStencil* coo_i, MatStencil* coo_j) const = 0;
 
-  /// @brief Almost identical to `MatSetValuesStencil()`,
-  /// but can use different dof for rows and columns.
-  PetscErrorCode mat_set_values_stencil(Mat mat, PetscInt m,
-    const MatStencil idxm[], PetscInt n, const MatStencil idxn[],
-    const PetscScalar v[], InsertMode addv) const;
+  inline PetscInt ind(PetscInt c, PetscInt i) const;
 
   const std::vector<PetscReal> values_;
 };
@@ -75,8 +78,8 @@ public:
   Rotor(DM da);
 
 private:
-  void fill_stencil(Yee_shift s, PetscInt x, PetscInt y, PetscInt z,
-    std::vector<MatStencil>& row, std::vector<MatStencil>& col) const override;
+  void fill_stencil(Yee_shift sh, PetscInt z, PetscInt y, PetscInt x,
+    MatStencil* coo_i, MatStencil* coo_j) const override;
 };
 
 class RotorMult final : public FiniteDifferenceOperator {
@@ -87,8 +90,8 @@ public:
   PetscErrorCode create(Mat* mat);
 
 private:
-  void fill_stencil(Yee_shift, PetscInt x, PetscInt y, PetscInt z,
-    std::vector<MatStencil>& row, std::vector<MatStencil>& col) const override;
+  void fill_stencil(Yee_shift, PetscInt z, PetscInt y, PetscInt x,
+    MatStencil* coo_i, MatStencil* coo_j) const override;
 
   using FiniteDifferenceOperator::create_negative;
   using FiniteDifferenceOperator::create_positive;
@@ -119,8 +122,8 @@ public:
 
 protected:
   PetscErrorCode set_sizes_and_ltog(Mat mat) const override;
-  void fill_stencil(Yee_shift s, PetscInt x, PetscInt y, PetscInt z,
-    std::vector<MatStencil>& row, std::vector<MatStencil>& col) const override;
+  void fill_stencil(Yee_shift sh, PetscInt z, PetscInt y, PetscInt x,
+    MatStencil* coo_i, MatStencil* coo_j) const override;
 };
 
 class Gradient final : public NonRectangularOperator {
@@ -129,8 +132,8 @@ public:
 
 private:
   PetscErrorCode set_sizes_and_ltog(Mat mat) const override;
-  void fill_stencil(Yee_shift s, PetscInt x, PetscInt y, PetscInt z,
-    std::vector<MatStencil>& row, std::vector<MatStencil>& col) const override;
+  void fill_stencil(Yee_shift sh, PetscInt z, PetscInt y, PetscInt x,
+    MatStencil* coo_i, MatStencil* coo_j) const override;
 };
 
 #endif  // SRC_UTILS_OPERATORS_H

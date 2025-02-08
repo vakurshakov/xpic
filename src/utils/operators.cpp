@@ -5,11 +5,42 @@
 Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
   : da_(da), mdof_(mdof), ndof_(ndof)
 {
-  /// @note There is no need to use `DMDAGetGhostCorners()`, because here we
-  /// only create operators that are used for solving equations (global), not to
-  /// evaluate them. However, there should be a room in the stencil (ghost
-  /// points) to use +-1 offsets.
   PetscCallVoid(DMDAGetCorners(da_, REP3_A(&start_), REP3_A(&size_)));
+}
+
+/// @details For reference, see `DMCreateMatrix()`, `MatSetStencil()`, `MatSetValuesStencil()`.
+/* static */ PetscErrorCode Operator::remap_stencil(
+  DM da, PetscInt mdof, PetscInt size, PetscInt* idxm)
+{
+  PetscFunctionBeginUser;
+  PetscInt dims[4];
+  PetscInt start[4];
+  PetscCall(DMDAGetGhostCorners(da, REP3_AP(&start), REP3_AP(&dims)));
+
+  dims[3] = mdof;
+  start[3] = 0;
+
+  auto noc = static_cast<PetscBool>(mdof == 1);
+  PetscInt dim = 3 + static_cast<PetscInt>(!noc);
+
+  auto in = (PetscInt*)idxm;
+  auto out = (PetscInt*)idxm;
+
+  for (PetscInt i = 0; i < size; ++i) {
+    PetscInt tmp = *in++ - start[0];
+
+    for (PetscInt j = 0; j < dim - 1; ++j)
+      if ((*in++ - start[j + 1]) < 0 || tmp < 0)
+        tmp = -1;
+      else
+        tmp = tmp * dims[j + 1] + *(in - 1) - start[j + 1];
+
+    if (noc)
+      in++;
+
+    out[i] = tmp;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscInt Operator::m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
@@ -69,87 +100,42 @@ PetscErrorCode FiniteDifferenceOperator::create_matrix(Mat* mat)
 PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
 {
   PetscFunctionBeginUser;
+  const PetscInt chunk = values_.size();
+  const PetscInt size = chunk * size_.elements_product();
 
-  std::vector<MatStencil> row(3);
-  std::vector<MatStencil> col(values_.size());
+  std::vector<MatStencil> coo_i(size);
+  std::vector<MatStencil> coo_j(size);
 
-  const PetscInt chunk_size = static_cast<PetscInt>(values_.size()) / 3;
+  std::vector<PetscReal> coo_v;
+  coo_v.reserve(size);
 
   for (PetscInt g = 0; g < size_.elements_product(); ++g) {
     PetscInt x = start_[X] + g % size_[X];
     PetscInt y = start_[Y] + (g / size_[X]) % size_[Y];
     PetscInt z = start_[Z] + (g / size_[X]) / size_[Y];
 
-    fill_stencil(shift, x, y, z, row, col);
+    MatStencil* coo_ci = coo_i.data() + g * chunk;
+    MatStencil* coo_cj = coo_j.data() + g * chunk;
+    fill_stencil(shift, z, y, x, coo_ci, coo_cj);
 
-    // Periodic boundaries are handled by PETSc internally
-    for (PetscInt c = 0; c < 3; ++c) {
-      PetscCall(mat_set_values_stencil(mat, 1, &row[c], chunk_size,
-        (col.data() + static_cast<std::ptrdiff_t>(chunk_size * c)),
-        (values_.data() + static_cast<std::ptrdiff_t>(chunk_size * c)),
-        ADD_VALUES));
-    }
+    std::copy(values_.begin(), values_.end(), std::back_inserter(coo_v));
   }
-  PetscCall(MatAssemblyBegin(mat, MAT_FINAL_ASSEMBLY));
-  PetscCall(MatAssemblyEnd(mat, MAT_FINAL_ASSEMBLY));
+
+  auto idxm = (PetscInt*)coo_i.data();
+  auto idxn = (PetscInt*)coo_j.data();
+
+  remap_stencil(da_, mdof_, size, idxm);
+  remap_stencil(da_, ndof_, size, idxn);
+
+  // Periodic boundaries are handled by PETSc internally
+  PetscCall(MatSetPreallocationCOOLocal(mat, size, idxm, idxn));
+  PetscCall(MatSetValuesCOO(mat, coo_v.data(), ADD_VALUES));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/**
- * @details For reference, see `DMCreateMatrix()`,
- * `DMCreateMatrix_DA()` `MatSetStencil()`, `MatSetValuesStencil()`.
- *
- * @todo Try to simply set `MatSetBlockSizes()` as it was used
- * internally by `DMCreateMatrix()` with blocksize of 3 (dof).
- */
-PetscErrorCode FiniteDifferenceOperator::mat_set_values_stencil(Mat mat,
-  PetscInt m, const MatStencil idxm[], PetscInt n, const MatStencil idxn[],
-  const PetscScalar v[], InsertMode addv) const
+PetscInt FiniteDifferenceOperator::ind(PetscInt c, PetscInt i) const
 {
-  PetscFunctionBegin;
-  static const PetscInt MAX_CHUNK_SIZE = 14;
-  PetscCheck(m < MAX_CHUNK_SIZE, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Inserted columns number %" PetscInt_FMT ", is greater than MAX_CHUNK_SIZE %" PetscInt_FMT, m, MAX_CHUNK_SIZE);
-
-  // Inserting one row at a time, cols are limited by `MAX_CHUNK_SIZE`
-  PetscInt jdxm[1];
-  PetscInt jdxn[MAX_CHUNK_SIZE];
-
-  PetscInt dims[4];
-  PetscInt starts[4];
-  PetscCall(DMDAGetGhostCorners(da_, REP3_AP(&starts), REP3_AP(&dims)));
-
-  auto remap_indices = [&starts, &dims](PetscInt mdof, PetscInt m,
-                         const MatStencil idxm[], PetscInt* jdxm) {
-    dims[3] = mdof;
-    starts[3] = 0;
-
-    auto noc = static_cast<PetscBool>(mdof == 1);
-    PetscInt dim = 3 + static_cast<PetscInt>(!noc);
-
-    auto* dxm = reinterpret_cast<PetscInt*>(const_cast<MatStencil*>(idxm));
-
-    PetscInt i;
-    PetscInt j;
-    PetscInt tmp;
-
-    for (i = 0; i < m; ++i) {
-      tmp = *dxm++ - starts[0];
-      for (j = 0; j < dim - 1; ++j)
-        if ((*dxm++ - starts[j + 1]) < 0 || tmp < 0)
-          tmp = -1;
-        else
-          tmp = tmp * dims[j + 1] + *(dxm - 1) - starts[j + 1];
-      if (noc)
-        dxm++;
-      jdxm[i] = tmp;
-    }
-  };
-
-  remap_indices(mdof_, m, idxm, jdxm);
-  remap_indices(ndof_, n, idxn, jdxn);
-
-  PetscCall(MatSetValuesLocal(mat, m, jdxm, n, jdxn, v, addv));
-  PetscFunctionReturn(PETSC_SUCCESS);
+  return c * (PetscInt)values_.size() / 3 + i;
 }
 
 std::tuple<REP3(PetscInt)> get_positive_offsets(PetscInt x, PetscInt y, PetscInt z)
@@ -173,53 +159,53 @@ Rotor::Rotor(DM da)
 {
 }
 
-void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
-  std::vector<MatStencil>& row, std::vector<MatStencil>& col) const
+void Rotor::fill_stencil(Yee_shift shift, PetscInt zc, PetscInt yc, PetscInt xc,
+  MatStencil* coo_i, MatStencil* coo_j) const
 {
+  for (PetscInt i = 0; i < (PetscInt)values_.size() / 3; ++i) {
+    coo_i[ind(X, i)] = {zc, yc, xc, X};
+    coo_i[ind(Y, i)] = {zc, yc, xc, Y};
+    coo_i[ind(Z, i)] = {zc, yc, xc, Z};
+  }
+
   switch (shift) {
     case Yee_shift::Positive: {
       auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
-      row[0] = {zc, yc, xc, X};
-      col[0 + 0] = {zp, yc, xc, Y};
-      col[0 + 1] = {zc, yc, xc, Y};
-      col[0 + 2] = {zc, yp, xc, Z};
-      col[0 + 3] = {zc, yc, xc, Z};
+      coo_j[ind(X, 0)] = {zp, yc, xc, Y};
+      coo_j[ind(X, 1)] = {zc, yc, xc, Y};
+      coo_j[ind(X, 2)] = {zc, yp, xc, Z};
+      coo_j[ind(X, 3)] = {zc, yc, xc, Z};
 
-      row[1] = {zc, yc, xc, Y};
-      col[4 + 0] = {zp, yc, xc, X};
-      col[4 + 1] = {zc, yc, xc, X};
-      col[4 + 2] = {zc, yc, xp, Z};
-      col[4 + 3] = {zc, yc, xc, Z};
+      coo_j[ind(Y, 0)] = {zp, yc, xc, X};
+      coo_j[ind(Y, 1)] = {zc, yc, xc, X};
+      coo_j[ind(Y, 2)] = {zc, yc, xp, Z};
+      coo_j[ind(Y, 3)] = {zc, yc, xc, Z};
 
-      row[2] = {zc, yc, xc, Z};
-      col[8 + 0] = {zc, yp, xc, X};
-      col[8 + 1] = {zc, yc, xc, X};
-      col[8 + 2] = {zc, yc, xp, Y};
-      col[8 + 3] = {zc, yc, xc, Y};
+      coo_j[ind(Z, 0)] = {zc, yp, xc, X};
+      coo_j[ind(Z, 1)] = {zc, yc, xc, X};
+      coo_j[ind(Z, 2)] = {zc, yc, xp, Y};
+      coo_j[ind(Z, 3)] = {zc, yc, xc, Y};
       return;
     }
 
     case Yee_shift::Negative: {
       auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
 
-      row[0] = {zc, yc, xc, X};
-      col[0 + 0] = {zc, yc, xc, Y};
-      col[0 + 1] = {zm, yc, xc, Y};
-      col[0 + 2] = {zc, yc, xc, Z};
-      col[0 + 3] = {zc, ym, xc, Z};
+      coo_j[ind(X, 0)] = {zc, yc, xc, Y};
+      coo_j[ind(X, 1)] = {zm, yc, xc, Y};
+      coo_j[ind(X, 2)] = {zc, yc, xc, Z};
+      coo_j[ind(X, 3)] = {zc, ym, xc, Z};
 
-      row[1] = {zc, yc, xc, Y};
-      col[4 + 0] = {zc, yc, xc, X};
-      col[4 + 1] = {zm, yc, xc, X};
-      col[4 + 2] = {zc, yc, xc, Z};
-      col[4 + 3] = {zc, yc, xm, Z};
+      coo_j[ind(Y, 0)] = {zc, yc, xc, X};
+      coo_j[ind(Y, 1)] = {zm, yc, xc, X};
+      coo_j[ind(Y, 2)] = {zc, yc, xc, Z};
+      coo_j[ind(Y, 3)] = {zc, yc, xm, Z};
 
-      row[2] = {zc, yc, xc, Z};
-      col[8 + 0] = {zc, yc, xc, X};
-      col[8 + 1] = {zc, ym, xc, X};
-      col[8 + 2] = {zc, yc, xc, Y};
-      col[8 + 3] = {zc, yc, xm, Y};
+      coo_j[ind(Z, 0)] = {zc, yc, xc, X};
+      coo_j[ind(Z, 1)] = {zc, ym, xc, X};
+      coo_j[ind(Z, 2)] = {zc, yc, xc, Y};
+      coo_j[ind(Z, 3)] = {zc, yc, xm, Y};
       return;
     }
   }
@@ -254,68 +240,62 @@ PetscErrorCode RotorMult::create(Mat* mat)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void RotorMult::fill_stencil(Yee_shift, PetscInt xc, PetscInt yc, PetscInt zc,
-  std::vector<MatStencil>& row, std::vector<MatStencil>& col) const
+void RotorMult::fill_stencil(Yee_shift, PetscInt zc, PetscInt yc, PetscInt xc,
+  MatStencil* coo_i, MatStencil* coo_j) const
 {
+  for (PetscInt i = 0; i < (PetscInt)values_.size() / 3; ++i) {
+    coo_i[ind(X, i)] = {zc, yc, xc, X};
+    coo_i[ind(Y, i)] = {zc, yc, xc, Y};
+    coo_i[ind(Z, i)] = {zc, yc, xc, Z};
+  }
+
   auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
   auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
 
-  row[0] = {zc, yc, xc, X};
+  coo_j[ind(X, 0)] = {zp, yc, xc, X};
+  coo_j[ind(X, 1)] = {zc, yc, xc, X};
+  coo_j[ind(X, 2)] = {zm, yc, xc, X};
+  coo_j[ind(X, 3)] = {zc, yp, xc, X};
+  coo_j[ind(X, 4)] = {zc, yc, xc, X};
+  coo_j[ind(X, 5)] = {zc, ym, xc, X};
+  coo_j[ind(X, 6)] = {zc, yc, xp, Y};
+  coo_j[ind(X, 7)] = {zc, ym, xp, Y};
+  coo_j[ind(X, 8)] = {zc, yc, xc, Y};
+  coo_j[ind(X, 9)] = {zc, ym, xc, Y};
+  coo_j[ind(X, 10)] = {zc, yc, xp, Z};
+  coo_j[ind(X, 11)] = {zm, yc, xp, Z};
+  coo_j[ind(X, 12)] = {zc, yc, xc, Z};
+  coo_j[ind(X, 13)] = {zm, yc, xc, Z};
 
-  col[0] = {zp, yc, xc, X};
-  col[1] = {zc, yc, xc, X};
-  col[2] = {zm, yc, xc, X};
-  col[3] = {zc, yp, xc, X};
-  col[4] = {zc, yc, xc, X};
-  col[5] = {zc, ym, xc, X};
+  coo_j[ind(Y, 0)] = {zp, yc, xc, Y};
+  coo_j[ind(Y, 1)] = {zc, yc, xc, Y};
+  coo_j[ind(Y, 2)] = {zm, yc, xc, Y};
+  coo_j[ind(Y, 3)] = {zc, yc, xp, Y};
+  coo_j[ind(Y, 4)] = {zc, yc, xc, Y};
+  coo_j[ind(Y, 5)] = {zc, yc, xm, Y};
+  coo_j[ind(Y, 6)] = {zc, yp, xc, X};
+  coo_j[ind(Y, 7)] = {zc, yp, xm, X};
+  coo_j[ind(Y, 8)] = {zc, yc, xc, X};
+  coo_j[ind(Y, 9)] = {zc, yc, xm, X};
+  coo_j[ind(Y, 10)] = {zc, yp, xc, Z};
+  coo_j[ind(Y, 11)] = {zm, yp, xc, Z};
+  coo_j[ind(Y, 12)] = {zc, yc, xc, Z};
+  coo_j[ind(Y, 13)] = {zm, yc, xc, Z};
 
-  col[6] = {zc, yc, xp, Y};
-  col[7] = {zc, ym, xp, Y};
-  col[8] = {zc, yc, xc, Y};
-  col[9] = {zc, ym, xc, Y};
-
-  col[10] = {zc, yc, xp, Z};
-  col[11] = {zm, yc, xp, Z};
-  col[12] = {zc, yc, xc, Z};
-  col[13] = {zm, yc, xc, Z};
-
-  row[1] = {zc, yc, xc, Y};
-
-  col[14] = {zp, yc, xc, Y};
-  col[15] = {zc, yc, xc, Y};
-  col[16] = {zm, yc, xc, Y};
-  col[17] = {zc, yc, xp, Y};
-  col[18] = {zc, yc, xc, Y};
-  col[19] = {zc, yc, xm, Y};
-
-  col[20] = {zc, yp, xc, X};
-  col[21] = {zc, yp, xm, X};
-  col[22] = {zc, yc, xc, X};
-  col[23] = {zc, yc, xm, X};
-
-  col[24] = {zc, yp, xc, Z};
-  col[25] = {zm, yp, xc, Z};
-  col[26] = {zc, yc, xc, Z};
-  col[27] = {zm, yc, xc, Z};
-
-  row[2] = {zc, yc, xc, Z};
-
-  col[28] = {zc, yp, xc, Z};
-  col[29] = {zc, yc, xc, Z};
-  col[30] = {zc, ym, xc, Z};
-  col[31] = {zc, yc, xp, Z};
-  col[32] = {zc, yc, xc, Z};
-  col[33] = {zc, yc, xm, Z};
-
-  col[34] = {zp, yc, xc, X};
-  col[35] = {zp, yc, xm, X};
-  col[36] = {zc, yc, xc, X};
-  col[37] = {zc, yc, xm, X};
-
-  col[38] = {zp, yc, xc, Y};
-  col[39] = {zp, ym, xc, Y};
-  col[40] = {zc, yc, xc, Y};
-  col[41] = {zc, ym, xc, Y};
+  coo_j[ind(Z, 0)] = {zc, yp, xc, Z};
+  coo_j[ind(Z, 1)] = {zc, yc, xc, Z};
+  coo_j[ind(Z, 2)] = {zc, ym, xc, Z};
+  coo_j[ind(Z, 3)] = {zc, yc, xp, Z};
+  coo_j[ind(Z, 4)] = {zc, yc, xc, Z};
+  coo_j[ind(Z, 5)] = {zc, yc, xm, Z};
+  coo_j[ind(Z, 6)] = {zp, yc, xc, X};
+  coo_j[ind(Z, 7)] = {zp, yc, xm, X};
+  coo_j[ind(Z, 8)] = {zc, yc, xc, X};
+  coo_j[ind(Z, 9)] = {zc, yc, xm, X};
+  coo_j[ind(Z, 10)] = {zp, yc, xc, Y};
+  coo_j[ind(Z, 11)] = {zp, ym, xc, Y};
+  coo_j[ind(Z, 12)] = {zc, yc, xc, Y};
+  coo_j[ind(Z, 13)] = {zc, ym, xc, Y};
 }
 
 
@@ -386,41 +366,42 @@ Divergence::Divergence(DM da)
 {
 }
 
-void Divergence::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
-  PetscInt zc, std::vector<MatStencil>& row, std::vector<MatStencil>& col) const
+void Divergence::fill_stencil(Yee_shift shift, PetscInt zc, PetscInt yc,
+  PetscInt xc, MatStencil* coo_i, MatStencil* coo_j) const
 {
+  for (PetscInt i = 0; i < (PetscInt)values_.size() / 3; ++i) {
+    MatStencil s{zc, yc, xc};
+    coo_i[ind(X, i)] = s;
+    coo_i[ind(Y, i)] = s;
+    coo_i[ind(Z, i)] = s;
+  }
+
   switch (shift) {
     case Yee_shift::Positive: {
       auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
-      row[0] = {zc, yc, xc};
-      col[0 + 0] = {zc, yc, xp, X};
-      col[0 + 1] = {zc, yc, xc, X};
+      coo_j[ind(X, 0)] = {zc, yc, xp, X};
+      coo_j[ind(X, 1)] = {zc, yc, xc, X};
 
-      row[1] = row[0];
-      col[2 + 0] = {zc, yp, xc, Y};
-      col[2 + 1] = {zc, yc, xc, Y};
+      coo_j[ind(Y, 0)] = {zc, yp, xc, Y};
+      coo_j[ind(Y, 1)] = {zc, yc, xc, Y};
 
-      row[2] = row[0];
-      col[4 + 0] = {zp, yc, xc, Z};
-      col[4 + 1] = {zc, yc, xc, Z};
+      coo_j[ind(Z, 0)] = {zp, yc, xc, Z};
+      coo_j[ind(Z, 1)] = {zc, yc, xc, Z};
       return;
     }
 
     case Yee_shift::Negative: {
       auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
 
-      row[0] = {zc, yc, xc};
-      col[0 + 0] = {zc, yc, xc, X};
-      col[0 + 1] = {zc, yc, xm, X};
+      coo_j[ind(X, 0)] = {zc, yc, xc, X};
+      coo_j[ind(X, 1)] = {zc, yc, xm, X};
 
-      row[1] = row[0];
-      col[2 + 0] = {zc, yc, xc, Y};
-      col[2 + 1] = {zc, ym, xc, Y};
+      coo_j[ind(Y, 0)] = {zc, yc, xc, Y};
+      coo_j[ind(Y, 1)] = {zc, ym, xc, Y};
 
-      row[2] = row[0];
-      col[4 + 0] = {zc, yc, xc, Z};
-      col[4 + 1] = {zm, yc, xc, Z};
+      coo_j[ind(Z, 0)] = {zc, yc, xc, Z};
+      coo_j[ind(Z, 1)] = {zm, yc, xc, Z};
       return;
     }
   }
@@ -445,41 +426,41 @@ Gradient::Gradient(DM da)
 {
 }
 
-void Gradient::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
-  PetscInt zc, std::vector<MatStencil>& row, std::vector<MatStencil>& col) const
+void Gradient::fill_stencil(Yee_shift shift, PetscInt zc, PetscInt yc,
+  PetscInt xc, MatStencil* coo_i, MatStencil* coo_j) const
 {
+  for (PetscInt i = 0; i < (PetscInt)values_.size() / 3; ++i) {
+    coo_i[ind(X, i)] = {zc, yc, xc, X};
+    coo_i[ind(Y, i)] = {zc, yc, xc, Y};
+    coo_i[ind(Z, i)] = {zc, yc, xc, Z};
+  }
+
   switch (shift) {
     case Yee_shift::Positive: {
       auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
-      row[0] = {zc, yc, xc, X};
-      col[0 + 0] = {zc, yc, xp};
-      col[0 + 1] = {zc, yc, xc};
+      coo_j[ind(X, 0)] = {zc, yc, xp};
+      coo_j[ind(X, 1)] = {zc, yc, xc};
 
-      row[1] = {zc, yc, xc, Y};
-      col[2 + 0] = {zc, yp, xc};
-      col[2 + 1] = {zc, yc, xc};
+      coo_j[ind(Y, 0)] = {zc, yp, xc};
+      coo_j[ind(Y, 1)] = {zc, yc, xc};
 
-      row[2] = {zc, yc, xc, Z};
-      col[4 + 0] = {zp, yc, xc};
-      col[4 + 1] = {zc, yc, xc};
+      coo_j[ind(Z, 0)] = {zp, yc, xc};
+      coo_j[ind(Z, 1)] = {zc, yc, xc};
       return;
     }
 
     case Yee_shift::Negative: {
       auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
 
-      row[0] = {zc, yc, xc, X};
-      col[0 + 0] = {zc, yc, xc};
-      col[0 + 1] = {zc, yc, xm};
+      coo_j[ind(X, 0)] = {zc, yc, xc};
+      coo_j[ind(X, 1)] = {zc, yc, xm};
 
-      row[1] = {zc, yc, xc, Y};
-      col[2 + 0] = {zc, yc, xc};
-      col[2 + 1] = {zc, ym, xc};
+      coo_j[ind(Y, 0)] = {zc, yc, xc};
+      coo_j[ind(Y, 1)] = {zc, ym, xc};
 
-      row[2] = {zc, yc, xc, Z};
-      col[4 + 0] = {zc, yc, xc};
-      col[4 + 1] = {zm, yc, xc};
+      coo_j[ind(Z, 0)] = {zc, yc, xc};
+      coo_j[ind(Z, 1)] = {zm, yc, xc};
       return;
     }
   }
