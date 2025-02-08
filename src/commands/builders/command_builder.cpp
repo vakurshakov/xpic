@@ -1,10 +1,10 @@
 #include "command_builder.h"
 
+#include "src/commands/builders/fields_damping_builder.h"
 #include "src/commands/builders/inject_particles_builder.h"
 #include "src/commands/builders/remove_particles_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
 #include "src/commands/builders/setup_magnetic_field_builder.h"
-#include "src/commands/builders/fields_damping_builder.h"
 
 CommandBuilder::CommandBuilder(
   const interfaces::Simulation& simulation, std::list<Command_up>& result)

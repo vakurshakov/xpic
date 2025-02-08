@@ -35,8 +35,8 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
 
   std::string res_dir = CONFIG().out_dir + "/" + field + comp + "/";
 
-  auto&& diagnostic = FieldView::create(res_dir, simulation_.world.da,
-    simulation_.get_named_vector(field), region);
+  auto&& diagnostic = FieldView::create(
+    res_dir, simulation_.world.da, simulation_.get_named_vector(field), region);
 
   if (!diagnostic)
     PetscFunctionReturn(PETSC_SUCCESS);

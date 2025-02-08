@@ -8,7 +8,6 @@
 
 class InjectParticles : public interfaces::Command {
 public:
-
   InjectParticles( //
     interfaces::Particles& ionized,                 //
     interfaces::Particles& ejected,                 //

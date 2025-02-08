@@ -11,7 +11,7 @@ Moment moment_from_string(const std::string& name);
 
 
 namespace ecsimcorr {
-  class ChargeConservation;
+class ChargeConservation;
 }
 
 /**
