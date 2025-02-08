@@ -66,15 +66,11 @@ void Shape::setup(const Vector3R& old_r, const Vector3R& new_r,
 void Shape::fill(const Vector3R& p_r1, const Vector3R& p_r2, ShapeType t1,
   ShapeType t2, PetscReal (&sfunc)(PetscReal))
 {
-#pragma omp simd collapse(Vector3I::dim)
-  // clang-format off
-  for (PetscInt z = 0; z < size[Z]; ++z) {
-  for (PetscInt y = 0; y < size[Y]; ++y) {
-  for (PetscInt x = 0; x < size[X]; ++x) {
-    PetscInt i = s_p(z, y, x);
-    auto g_x = static_cast<PetscReal>(start[X] + x);
-    auto g_y = static_cast<PetscReal>(start[Y] + y);
-    auto g_z = static_cast<PetscReal>(start[Z] + z);
+#pragma omp simd
+  for (PetscInt i = 0; i < size.elements_product(); ++i) {
+    auto g_x = static_cast<PetscReal>(start[X] + i % size[X]);
+    auto g_y = static_cast<PetscReal>(start[Y] + (i / size[X]) % size[Y]);
+    auto g_z = static_cast<PetscReal>(start[Z] + (i / size[X]) / size[Y]);
 
     shape[i_p(i, t1, X)] = sfunc(p_r1[X] - g_x);
     shape[i_p(i, t1, Y)] = sfunc(p_r1[Y] - g_y);
@@ -89,6 +85,5 @@ void Shape::fill(const Vector3R& p_r1, const Vector3R& p_r2, ShapeType t1,
     shape[i_p(i, t2, X)] = sfunc(p_r2[X] - g_x);
     shape[i_p(i, t2, Y)] = sfunc(p_r2[Y] - g_y);
     shape[i_p(i, t2, Z)] = sfunc(p_r2[Z] - g_z);
-  }}}
-  // clang-format on
+  }
 }

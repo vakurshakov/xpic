@@ -9,10 +9,9 @@ namespace ricketson {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-
-  PetscMPIInt size;
-  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &size));
-  PetscCheck(size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "Ricketson scheme is uniprocessor currently");
+  PetscMPIInt comm_size;
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &comm_size));
+  PetscCheck(comm_size == 1, PETSC_COMM_WORLD, PETSC_ERR_WRONG_MPI_SIZE, "Ricketson scheme is uniprocessor currently");
 
   PetscCall(DMCreateGlobalVector(world.da, &E_));
   PetscCall(DMCreateGlobalVector(world.da, &B_));
@@ -23,20 +22,23 @@ PetscErrorCode Simulation::initialize_implementation()
   const PetscReal radius = 3;
   const PetscReal distance = 15;
 
-  PetscInt rstart[3];
-  PetscInt rsize[3];
-  PetscCall(DMDAGetCorners(world.da, REP3_A(&rstart), REP3_A(&rsize)));
+  Vector3I start;
+  Vector3I size;
+  PetscCall(DMDAGetCorners(world.da, REP3_A(&start), REP3_A(&size)));
 
   Vector3R*** B;
-  PetscCall(DMDAVecGetArrayWrite(world.da, B_, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayWrite(world.da, B_, &B));
 
-  // clang-format off
-  for (PetscInt z = rstart[Z]; z < rstart[Z] + rsize[Z]; ++z) {
-  for (PetscInt y = rstart[Y]; y < rstart[Y] + rsize[Y]; ++y) {
-  for (PetscInt x = rstart[X]; x < rstart[X] + rsize[X]; ++x) {
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    PetscInt x = start[X] + g % size[X];
+    PetscInt y = start[Y] + (g / size[X]) % size[Y];
+    PetscInt z = start[Z] + (g / size[X]) / size[Y];
+
+    // clang-format off
     PetscReal B0 = 0.5 * current * POW2(radius) *
       (1 / pow(POW2(radius) + POW2((z * dz - 0.5 * geom_z) + 0.5 * distance), 1.5) +
         1 / pow(POW2(radius) + POW2((z * dz - 0.5 * geom_z) - 0.5 * distance), 1.5));
+    // clang-format on
 
     PetscReal B1 = ((z * dz - 0.5 * geom_z) + 0.5 * distance) /
         (POW2(radius) + POW2((z * dz - 0.5 * geom_z) + 0.5 * distance)) +
@@ -46,9 +48,8 @@ PetscErrorCode Simulation::initialize_implementation()
     B[z][y][x].x() = B0 * 1.5 * (x * dx - 0.5 * geom_x) * B1;
     B[z][y][x].y() = B0 * 1.5 * (y * dy - 0.5 * geom_y) * B1;
     B[z][y][x].z() = B0 * 1.0;
-  }}}
-  // clang-format on
-  PetscCall(DMDAVecRestoreArrayWrite(world.da, B_, reinterpret_cast<void*>(&B)));
+  }
+  PetscCall(DMDAVecRestoreArrayWrite(world.da, B_, &B));
 
   SortParameters parameters = {
     .sort_name = "positron",
@@ -73,25 +74,24 @@ PetscErrorCode Simulation::initialize_implementation()
 PetscErrorCode Simulation::calculate_b_norm_gradient()
 {
   PetscFunctionBeginUser;
-
   Vector3R*** B;
-  PetscCall(DMDAVecGetArrayRead(world.da, B_, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecGetArrayRead(world.da, B_, &B));
 
   PetscReal* B_norm;
   PetscCall(VecGetArrayWrite(B_norm_, &B_norm));
 
-  PetscInt start[3];
-  PetscInt size[3];
+  Vector3I start;
+  Vector3I size;
   PetscCall(DMDAGetCorners(world.da, REP3_A(&start), REP3_A(&size)));
 
-  // clang-format off
-  for (PetscInt z = start[Z]; z < start[Z] + size[Z]; ++z)
-  for (PetscInt y = start[Y]; y < start[Y] + size[Y]; ++y)
-  for (PetscInt x = start[X]; x < start[X] + size[X]; ++x)
-    B_norm[indexing::s_g(z, y, x)] = B[z][y][x].length();
-  // clang-format on
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    PetscInt x = start[X] + g % size[X];
+    PetscInt y = start[Y] + (g / size[X]) % size[Y];
+    PetscInt z = start[Z] + (g / size[X]) / size[Y];
+    B_norm[g] = B[z][y][x].length();
+  }
 
-  PetscCall(DMDAVecRestoreArrayRead(world.da, B_, reinterpret_cast<void*>(&B)));
+  PetscCall(DMDAVecRestoreArrayRead(world.da, B_, &B));
   PetscCall(VecRestoreArrayWrite(B_norm_, &B_norm));
 
   PetscCall(MatMult(norm_gradient_, B_norm_, DB_));

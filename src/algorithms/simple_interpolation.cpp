@@ -9,14 +9,10 @@ PetscErrorCode SimpleInterpolation::process(
   const Context& e_fields, const Context& b_fields) const
 {
   PetscFunctionBeginHot;
-  // clang-format off: @todo create macro/range-based analogue for this loop
-  for (PetscInt z = 0; z < shape.size[Z]; ++z) {
-  for (PetscInt y = 0; y < shape.size[Y]; ++y) {
-  for (PetscInt x = 0; x < shape.size[X]; ++x) {
-    PetscInt i = shape.s_p(z, y, x);
-    PetscInt g_x = shape.start[X] + x;
-    PetscInt g_y = shape.start[Y] + y;
-    PetscInt g_z = shape.start[Z] + z;
+  for (PetscInt i = 0; i < shape.size.elements_product(); ++i) {
+    PetscInt g_x = shape.start[X] + i % shape.size[X];
+    PetscInt g_y = shape.start[Y] + (i / shape.size[X]) % shape.size[Y];
+    PetscInt g_z = shape.start[Z] + (i / shape.size[X]) / shape.size[Y];
 
     if (!e_fields.empty()) {
       auto&& E_shape = shape.electric(i);
@@ -37,7 +33,6 @@ PetscErrorCode SimpleInterpolation::process(
         B_p.z() += B_g[g_z][g_y][g_x][Z] * B_shape[Z];
       }
     }
-  }}}
-  // clang-format on
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

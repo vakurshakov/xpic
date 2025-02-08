@@ -56,28 +56,23 @@ PetscErrorCode Particles::add_particle(const Point& point)
 PetscErrorCode Particles::update_cells()
 {
   PetscFunctionBeginUser;
-  // clang-format off
-  for (PetscInt z = 0; z < geom_nz; ++z) {
-  for (PetscInt y = 0; y < geom_ny; ++y) {
-  for (PetscInt x = 0; x < geom_nx; ++x) {
-    auto& storage_g = storage[indexing::s_g(z, y, x)];
+  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
+    auto it = storage[g].begin();
+    while (it != storage[g].end()) {
+      auto ng = indexing::s_g(               //
+        static_cast<PetscInt>(it->x() / dx), //
+        static_cast<PetscInt>(it->y() / dy), //
+        static_cast<PetscInt>(it->z() / dz));
 
-    auto it = storage_g.begin();
-    while (it != storage_g.end()) {
-      auto nx = static_cast<PetscInt>(it->x() / dx);
-      auto ny = static_cast<PetscInt>(it->y() / dy);
-      auto nz = static_cast<PetscInt>(it->z() / dz);
-
-      if (nx == x && ny == y && nz == z) {
+      if (ng == g) {
         it = std::next(it);
         continue;
       }
 
-      storage[indexing::s_g(nz, ny, nx)].emplace_back(*it);
-      it = storage_g.erase(it);
+      storage[ng].emplace_back(*it);
+      it = storage[g].erase(it);
     }
-  }}}
-  // clang-format on
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

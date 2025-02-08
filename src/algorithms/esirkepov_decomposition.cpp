@@ -25,10 +25,11 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
   std::array<PetscReal, j_size> temp_j;
   temp_j.fill(0.0);
 
-  // clang-format off: @todo create macro/range-based analogue for this loop
-  for (PetscInt z = 0; z < shape.size[Z]; ++z) {
-  for (PetscInt y = 0; y < shape.size[Y]; ++y) {
-  for (PetscInt x = 0; x < shape.size[X]; ++x) {
+  for (PetscInt i = 0; i < shape.size.elements_product(); ++i) {
+    PetscInt x = i % shape.size[X];
+    PetscInt y = (i / shape.size[X]) % shape.size[Y];
+    PetscInt z = (i / shape.size[X]) / shape.size[Y];
+
     PetscInt g_x = shape.start[X] + x;
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
@@ -38,21 +39,20 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
     PetscReal p_jy = get_jy(z, y, x, temp_j.data() + j_geom * Y);
     PetscReal p_jz = get_jz(z, y, x, temp_j.data() + j_geom * Z);
 
-    if (std::abs(p_jx) < add_tolerance &&
-        std::abs(p_jy) < add_tolerance &&
-        std::abs(p_jz) < add_tolerance)
+    if (std::abs(p_jx) < add_tolerance &&  //
+      std::abs(p_jy) < add_tolerance &&  //
+      std::abs(p_jz) < add_tolerance)
       continue;
 
 #pragma omp atomic update
-      J[g_z][g_y][g_x][X] += p_jx;
+    J[g_z][g_y][g_x][X] += p_jx;
 
 #pragma omp atomic update
-      J[g_z][g_y][g_x][Y] += p_jy;
+    J[g_z][g_y][g_x][Y] += p_jy;
 
 #pragma omp atomic update
-      J[g_z][g_y][g_x][Z] += p_jz;
-  }}}
-  // clang-format on
+    J[g_z][g_y][g_x][Z] += p_jz;
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

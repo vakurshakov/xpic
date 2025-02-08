@@ -51,20 +51,19 @@ PetscErrorCode FieldsDamping::damping_implementation(Vec f)
 {
   PetscFunctionBeginUser;
   Vector3I start;
-  Vector3I end;
-  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&end)));
-  end += start;
+  Vector3I size;
+  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
 
   Vector3R*** arr;
   PetscCall(DMDAVecGetArrayWrite(da_, f, reinterpret_cast<void*>(&arr)));
 
-  // clang-format off
-  for (PetscInt z = start.z(); z < end.z(); ++z) {
-  for (PetscInt y = start.y(); y < end.y(); ++y) {
-  for (PetscInt x = start.x(); x < end.x(); ++x) {
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    PetscInt x = start[X] + g % size[X];
+    PetscInt y = start[Y] + (g / size[X]) % size[Y];
+    PetscInt z = start[Z] + (g / size[X]) / size[Y];
+
     damp_(z, y, x, arr, damped_energy_);
-  }}}
-  // clang-format on
+  }
 
   PetscCall(DMDAVecRestoreArrayWrite(da_, f, reinterpret_cast<void*>(&arr)));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -111,7 +110,8 @@ void FieldsDamping::DampForBox::operator()(
       width = geom_.min[i] - 0;
       delta = r[i] - 0;
     }
-    else continue;
+    else
+      continue;
 
     PetscReal damping = 1.0 - coefficient_ * POW2(delta / width - 1.0);
 

@@ -6,6 +6,7 @@
 #include <petscmat.h>
 
 #include "src/utils/utils.h"
+#include "src/utils/vector3.h"
 
 /// @brief Utility class to create constant operators on a `DMDA` grid.
 class Operator {
@@ -22,7 +23,7 @@ protected:
   PetscInt n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
 
   DM da_;
-  PetscInt start_[3], size_[3];
+  Vector3I start_, size_;
   PetscInt mdof_, ndof_;
 };
 
@@ -89,8 +90,8 @@ private:
   void fill_stencil(Yee_shift, PetscInt x, PetscInt y, PetscInt z,
     std::vector<MatStencil>& row, std::vector<MatStencil>& col) const override;
 
-  using FiniteDifferenceOperator::create_positive;
   using FiniteDifferenceOperator::create_negative;
+  using FiniteDifferenceOperator::create_positive;
 };
 
 class NonRectangularOperator : public FiniteDifferenceOperator {

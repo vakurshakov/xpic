@@ -154,26 +154,22 @@ PetscErrorCode DistributionMoment::collect()
       PetscReal moment =
         moment_(particles_, point) / particles_.particles_number(point);
 
-      // clang-format off
-      for (PetscInt z = 0; z < size[Z]; ++z) {
-      for (PetscInt y = 0; y < size[Y]; ++y) {
-      for (PetscInt x = 0; x < size[X]; ++x) {
-        PetscInt g_x = start[X] + x;
-        PetscInt g_y = start[Y] + y;
-        PetscInt g_z = start[Z] + z;
+      for (PetscInt g = 0; g < size.elements_product(); ++g) {
+        PetscInt g_x = start[X] + g % size[X];
+        PetscInt g_y = start[Y] + (g / size[X]) % size[Y];
+        PetscInt g_z = start[Z] + (g / size[X]) / size[Y];
 
-        PetscReal a = moment *
-          shape_function(p_r[X] - g_x) *
-          shape_function(p_r[Y] - g_y) *
+        PetscReal value = moment *  //
+          shape_function(p_r[X] - g_x) *  //
+          shape_function(p_r[Y] - g_y) *  //
           shape_function(p_r[Z] - g_z);
 
-        if (std::abs(a) < add_tolerance)
+        if (std::abs(value) < add_tolerance)
           continue;
 
-  #pragma omp atomic update
-        arr[g_z][g_y][g_x] += a;
-      }}}
-      // clang-format on
+#pragma omp atomic update
+        arr[g_z][g_y][g_x] += value;
+      }
     }
   }
   PetscCall(DMDAVecRestoreArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));

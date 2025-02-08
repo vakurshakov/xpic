@@ -75,10 +75,11 @@ PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
 
   const PetscInt chunk_size = static_cast<PetscInt>(values_.size()) / 3;
 
-  // clang-format off
-  for (PetscInt z = start_[Z]; z < start_[Z] + size_[Z]; ++z) {
-  for (PetscInt y = start_[Y]; y < start_[Y] + size_[Y]; ++y) {
-  for (PetscInt x = start_[X]; x < start_[X] + size_[X]; ++x) {
+  for (PetscInt g = 0; g < size_.elements_product(); ++g) {
+    PetscInt x = start_[X] + g % size_[X];
+    PetscInt y = start_[Y] + (g / size_[X]) % size_[Y];
+    PetscInt z = start_[Z] + (g / size_[X]) / size_[Y];
+
     fill_stencil(shift, x, y, z, row, col);
 
     // Periodic boundaries are handled by PETSc internally
@@ -88,8 +89,7 @@ PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
         (values_.data() + static_cast<std::ptrdiff_t>(chunk_size * c)),
         ADD_VALUES));
     }
-  }}}
-  // clang-format on
+  }
   PetscCall(MatAssemblyBegin(mat, MAT_FINAL_ASSEMBLY));
   PetscCall(MatAssemblyEnd(mat, MAT_FINAL_ASSEMBLY));
   PetscFunctionReturn(PETSC_SUCCESS);
