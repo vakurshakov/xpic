@@ -60,7 +60,8 @@ private:
 
   PetscErrorCode update_cells();
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
-  PetscInt get_array_offset(PetscInt g);
+
+  void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
 
   PetscErrorCode fill_ecsim_current(
     MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);

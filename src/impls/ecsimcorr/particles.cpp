@@ -254,7 +254,6 @@ PetscErrorCode Particles::final_update()
   LOG("    lambda: {:.7f}, lambda^2: {:.7f}", lambda, lambda2);
   LOG("    d(energy) pred.: {:.7f}, corr.: {:.7f}, lambda: {:.7f}", pred_dK, corr_dK, lambda_dK);
   LOG("    energy prev.: {:.7f}, curr.: {:.7f}, diff: {:.7f}", K0, energy, energy - K0 /* == corr_dK */);
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -47,9 +47,10 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
-  // diagnostics_.emplace_back(
-  //   std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
-  //     "./results/performance-test/mpi-parallelization/test/ecsim/matL"));
+  diagnostics_.emplace_back(
+    std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
+      "./results/performance-test/mpi-parallelization/"
+      "MatSetValuesBlockedStencil/ecsim/matL"));
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
@@ -267,7 +268,8 @@ PetscErrorCode Simulation::update_cells()
 PetscErrorCode Simulation::fill_ecsim_current()
 {
   PetscFunctionBeginUser;
-  PetscInt size = get_array_offset(geom_nz * geom_ny * geom_nx);
+  PetscInt size = 0;
+  get_array_offset(0, geom_nz * geom_ny * geom_nx, size);
 
   std::vector<MatStencil> coo_i;
   std::vector<MatStencil> coo_j;
@@ -312,15 +314,18 @@ PetscErrorCode Simulation::fill_ecsim_current(
   }
 
   static constexpr PetscInt OMP_CHUNK_SIZE = 16;
+  PetscInt prev_g = 0;
+  PetscInt off = 0;
 
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+#pragma omp parallel for firstprivate(prev_g, off) \
+  schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
     for (const auto& sort : particles_) {
       if (sort->storage[g].empty())
         continue;
 
-      PetscInt off = get_array_offset(g);
-      // LOG("id: {}, g: {:>6}, off: {:>6}, sort: \"{}\"", omp_get_thread_num(), g, off, sort->parameters.sort_name);
+      get_array_offset(prev_g, g, off);
+      prev_g = g;
 
       if (!matL_indices_assembled) {
         MatStencil* coo_ci = coo_i + off;
@@ -344,12 +349,10 @@ PetscErrorCode Simulation::fill_ecsim_current(
 }
 
 /// @returns The proper offset of cell `g` this into a global arrays
-PetscInt Simulation::get_array_offset(PetscInt g)
+void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off)
 {
   constexpr PetscInt shs = POW2(3 * POW3(3));
-  PetscInt off = 0;
-
-  for (PetscInt i = 0; i < g; ++i) {
+  for (PetscInt i = begin_g; i < end_g; ++i) {
     for (const auto& sort : particles_) {
       if (!sort->storage[i].empty()) {
         off += shs;
@@ -357,8 +360,6 @@ PetscInt Simulation::get_array_offset(PetscInt g)
       }
     }
   }
-
-  return off;
 }
 
 PetscErrorCode Simulation::mat_set_preallocation_coo(
