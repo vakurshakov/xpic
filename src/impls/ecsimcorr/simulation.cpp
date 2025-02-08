@@ -281,7 +281,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
     coo_i.resize(size);
     coo_j.resize(size);
     LOG("  Indices assembly was broken, recollecting them again."
-        " Additional space: {:4.3f} GB", (PetscReal)size * 2 * 4 * sizeof(PetscInt) / 1e9);
+        " Additional space: {:4.3f} GB", (PetscReal)size * 2 * sizeof(MatStencil) / 1e9);
   }
 
   coo_v.resize(size, 0.0);
@@ -340,17 +340,17 @@ PetscErrorCode Simulation::fill_ecsim_current(
     }
   }
 
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
+
   for (auto& sort : particles_) {
     PetscCall(DMDAVecRestoreArrayWrite(da, sort->local_currI, &sort->currI));
     PetscCall(DMLocalToGlobal(da, sort->local_currI, ADD_VALUES, sort->global_currI));
     PetscCall(VecAXPY(currI, 1.0, sort->global_currI));
   }
-
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @returns The proper offset of cell `g` this into a global arrays
+/// @returns The proper offset of cell `g` into a global arrays
 void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off)
 {
   constexpr PetscInt shs = POW2(3 * POW3(3));

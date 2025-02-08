@@ -9,8 +9,9 @@ export OMP_PLACES=cores
 export OMP_PROC_BIND=spread
 export OMP_NUM_THREADS=1
 
+# To inspect thread migration
 # export OMP_DISPLAY_ENV=verbose
-# export OMP_DISPLAY_AFFINITY=true  # to measure thread migration
+# export OMP_DISPLAY_AFFINITY=true
 
 if [[ $# == 0 ]]; then
   echo "Empty argument list, at least configuration file is required"
@@ -23,10 +24,12 @@ ipcrm --all
 ./external/petsc/lib/petsc/bin/petscfreesharedmemory
 
 # This can be useful to track down `KSPSolve()` residues
-# -predict_ksp_monitor_true_residual \
-# -correct_ksp_monitor_true_residual \
+# -predict_ksp_monitor_true_residual
+# -correct_ksp_monitor_true_residual
+
+# With `KSPSetReusePreconditioner()` the default "ilu" is usable!
+# -predict_pc_type none
 
 $MPI_DIR/bin/mpiexec -np $MPI_NUM_PROC ./build/xpic.out $@ \
-    -predict_pc_type none                                  \
     -mpi_linear_solver_server                              \
     -mpi_linear_solver_server_view                         \
