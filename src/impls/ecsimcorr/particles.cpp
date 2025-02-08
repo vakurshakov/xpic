@@ -54,86 +54,138 @@ PetscErrorCode Particles::first_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Particles::fill_ecsim_current(
-  MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v, bool assembled)
+void Particles::fill_ecsim_current(PetscInt g, PetscReal* coo_v)
+{
+  for (const auto& point : storage[g]) {
+    Shape shape;
+    shape.setup(point.r, shape_radius1, shape_func1);
+
+    Vector3R B_p;
+    SimpleInterpolation interpolation(shape);
+    interpolation.process({}, {{B_p, B}});
+
+    decompose_ecsim_current(shape, point, B_p, coo_v);
+  }
+}
+
+void Particles::fill_matrix_indices(
+  PetscInt g, MatStencil* coo_i, MatStencil* coo_j)
 {
   PetscFunctionBeginUser;
-  Vec local_B;
-  Vector3R*** B;
+  constexpr PetscInt shw = 3;
 
-  /// @note There is no ideological meaning to call `DMGlobalToLocal()`
-  /// for each particles sort, they all will produce the same result.
-  DM da = world.da;
-  PetscCall(DMGetLocalVector(da, &local_B));
-  PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
+  const Vector3I vg{
+    g % geom_nx,
+    (g / geom_nx) % geom_ny,
+    (g / geom_nx) / geom_ny,
+  };
 
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currI, &currI));
+  for (PetscInt g1 = 0; g1 < POW3(shw); ++g1) {
+    for (PetscInt g2 = 0; g2 < POW3(shw); ++g2) {
+      PetscInt gg = g1 * POW3(shw) + g2;
 
-  PetscLogEventBegin(events[1], local_B, local_currI, 0, 0);
+      Vector3I vg1{
+        vg[X] + g1 % shw - 1,
+        vg[Y] + (g1 / shw) % shw - 1,
+        vg[Z] + (g1 / shw) / shw - 1,
+      };
 
-  constexpr PetscInt shs = POW2(3 * POW3(3));
+      Vector3I vg2{
+        vg[X] + g2 % shw - 1,
+        vg[Y] + (g2 / shw) % shw - 1,
+        vg[Z] + (g2 / shw) / shw - 1,
+      };
 
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
-    const auto& cell = storage[g];
-    if (cell.empty())
-      continue;
+      for (PetscInt c = 0; c < 3; ++c) {
+        coo_i[ind(gg, X, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], X};
+        coo_i[ind(gg, Y, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Y};
+        coo_i[ind(gg, Z, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Z};
 
-    /// @note Calculating the proper offset of this thread into global array
-    PetscInt off = 0;
-
-    for (PetscInt omp_g = 0; omp_g < g; ++omp_g)
-      off += shs * (PetscInt)!storage[omp_g].empty();
-
-    if (!assembled) {
-      MatStencil* coo_ci = coo_i + off;
-      MatStencil* coo_cj = coo_j + off;
-      fill_matrix_indices(g, coo_ci, coo_cj);
-    }
-    PetscReal* coo_cv = coo_v + off;
-
-    for (const auto& point : cell) {
-      Shape shape;
-      shape.setup(point.r, shape_radius1, shape_func1);
-
-      Vector3R B_p;
-      SimpleInterpolation interpolation(shape);
-      interpolation.process({}, {{B_p, B}});
-
-      decompose_ecsim_current(shape, point, B_p, coo_cv);
+        coo_j[ind(gg, c, X)] = MatStencil{vg2[Z], vg2[Y], vg2[X], X};
+        coo_j[ind(gg, c, Y)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Y};
+        coo_j[ind(gg, c, Z)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Z};
+      }
     }
   }
+  PetscFunctionReturnVoid();
+}
 
-  PetscLogEventEnd(events[1], local_B, local_currI, 0, 0);
+/// @note Also decomposes `Simulation::matL`
+void Particles::decompose_ecsim_current(
+  const Shape& shape, const Point& point, const Vector3R& B_p, PetscReal* coo_v)
+{
+  PetscFunctionBeginUser;
+  const Vector3R& v = point.p;
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currI, &currI));
-  PetscCall(DMRestoreLocalVector(da, &local_B));
+  Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
 
-  PetscCall(DMLocalToGlobal(da, local_currI, ADD_VALUES, global_currI));
-  PetscCall(VecAXPY(simulation_.currI, 1.0, global_currI));
-  PetscFunctionReturn(PETSC_SUCCESS);
+  PetscReal betaI = density(point) * charge(point) /
+    (particles_number(point) * (1.0 + b.squared()));
+
+  PetscReal betaL = charge(point) / mass(point) * betaI;
+
+  Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
+
+  SimpleDecomposition decomposition(shape, I_p);
+  PetscCallVoid(decomposition.process(currI));
+
+  constexpr PetscReal shape_tolerance = 1e-10;
+  constexpr PetscInt shw = 3;
+
+  /// @note It is an offset from particle `shape` indexing into `coo_v` one.
+  const Vector3I off{
+    shape.start[X] - ((PetscInt)point.x() - 1),
+    shape.start[Y] - ((PetscInt)point.y() - 1),
+    shape.start[Z] - ((PetscInt)point.z() - 1),
+  };
+
+  auto s_gg = [&](PetscInt g1, PetscInt g2) {
+    Vector3I vg1{
+      off[X] + g1 % shape.size[X],
+      off[Y] + (g1 / shape.size[X]) % shape.size[Y],
+      off[Z] + (g1 / shape.size[X]) / shape.size[Y],
+    };
+
+    Vector3I vg2{
+      off[X] + g2 % shape.size[X],
+      off[Y] + (g2 / shape.size[X]) % shape.size[Y],
+      off[Z] + (g2 / shape.size[X]) / shape.size[Y],
+    };
+
+    return //
+      ((vg1[Z] * shw + vg1[Y]) * shw + vg1[X]) * POW3(shw) +
+      ((vg2[Z] * shw + vg2[Y]) * shw + vg2[X]);
+  };
+
+  const PetscReal matB[3][3]{
+    {1.0 + b[X] * b[X], +b[Z] + b[X] * b[Y], -b[Y] + b[X] * b[Z]},
+    {-b[Z] + b[Y] * b[X], 1.0 + b[Y] * b[Y], +b[X] + b[Y] * b[Z]},
+    {+b[Y] + b[Z] * b[X], -b[X] + b[Z] * b[Y], 1.0 + b[Z] * b[Z]},
+  };
+
+  for (PetscInt g1 = 0; g1 < shape.size.elements_product(); ++g1) {
+    for (PetscInt g2 = 0; g2 < shape.size.elements_product(); ++g2) {
+      Vector3R s1 = shape.electric(g1);
+      Vector3R s2 = shape.electric(g2);
+
+      if (s1.abs_max() < shape_tolerance || s2.abs_max() < shape_tolerance)
+        continue;
+
+      PetscInt gg = s_gg(g1, g2);
+
+      for (PetscInt c1 = 0; c1 < 3; ++c1)
+        for (PetscInt c2 = 0; c2 < 3; ++c2)
+          coo_v[ind(gg, c1, c2)] += s1[c1] * s2[c2] * betaL * matB[c1][c2];
+    }
+  }
+  PetscFunctionReturnVoid();
 }
 
 
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
-  Vec local_E;
-  Vec local_B;
-  Vector3R*** E;
-  Vector3R*** B;
-
-  DM da = world.da;
-  PetscCall(DMGetLocalVector(da, &local_E));
-  PetscCall(DMGetLocalVector(da, &local_B));
-  PetscCall(DMGlobalToLocal(da, simulation_.Ep, INSERT_VALUES, local_E));
-  PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
-
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecGetArrayWrite(da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArrayWrite(world.da, local_currJe, &currJe));
 
   PetscLogEventBegin(events[2], 0, 0, 0, 0);
 
@@ -162,15 +214,8 @@ PetscErrorCode Particles::second_push()
 
   PetscLogEventEnd(events[2], 0, 0, 0, 0);
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_currJe, &currJe));
-
-  PetscCall(DMLocalToGlobal(da, local_currJe, ADD_VALUES, global_currJe));
+  PetscCall(DMLocalToGlobal(world.da, local_currJe, ADD_VALUES, global_currJe));
   PetscCall(VecAXPY(simulation_.currJe, 1.0, global_currJe));
-
-  PetscCall(DMRestoreLocalVector(da, &local_E));
-  PetscCall(DMRestoreLocalVector(da, &local_B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -223,122 +268,6 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
   EsirkepovDecomposition decomposition(shape, alpha);
   PetscCallVoid(decomposition.process(currJe));
 }
-
-
-/// @note Also decomposes `Simulation::matL`
-void Particles::decompose_ecsim_current(
-  const Shape& shape, const Point& point, const Vector3R& B_p, PetscReal* coo_v)
-{
-  PetscFunctionBeginHot;
-  const Vector3R& v = point.p;
-
-  Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
-
-  PetscReal betaI = density(point) * charge(point) /
-    (particles_number(point) * (1.0 + b.squared()));
-
-  PetscReal betaL = charge(point) / mass(point) * betaI;
-
-  Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
-
-  SimpleDecomposition decomposition(shape, I_p);
-  PetscCallVoid(decomposition.process(currI));
-
-  constexpr PetscReal shape_tolerance = 1e-10;
-
-  constexpr PetscInt shw = 3;
-
-  /// @note It is an offset from particle `shape` indexing into `coo_v` one.
-  const Vector3I off{
-    shape.start[X] - ((PetscInt)point.x() - 1),
-    shape.start[Y] - ((PetscInt)point.y() - 1),
-    shape.start[Z] - ((PetscInt)point.z() - 1),
-  };
-
-  auto s_gg = [&](PetscInt g1, PetscInt g2) {
-    Vector3I vg1{
-      off[X] + g1 % shape.size[X],
-      off[Y] + (g1 / shape.size[X]) % shape.size[Y],
-      off[Z] + (g1 / shape.size[X]) / shape.size[Y],
-    };
-
-    Vector3I vg2{
-      off[X] + g2 % shape.size[X],
-      off[Y] + (g2 / shape.size[X]) % shape.size[Y],
-      off[Z] + (g2 / shape.size[X]) / shape.size[Y],
-    };
-
-    return //
-      ((vg1[Z] * shw + vg1[Y]) * shw + vg1[X]) * POW3(shw) +
-      ((vg2[Z] * shw + vg2[Y]) * shw + vg2[X]);
-  };
-
-  const PetscReal matB[3][3]{
-    {1.0 + b[X] * b[X], +b[Z] + b[X] * b[Y], -b[Y] + b[X] * b[Z]},
-    {-b[Z] + b[Y] * b[X], 1.0 + b[Y] * b[Y], +b[X] + b[Y] * b[Z]},
-    {+b[Y] + b[Z] * b[X], -b[X] + b[Z] * b[Y], 1.0 + b[Z] * b[Z]},
-  };
-
-  for (PetscInt g1 = 0; g1 < shape.size.elements_product(); ++g1) {
-    for (PetscInt g2 = 0; g2 < shape.size.elements_product(); ++g2) {
-      Vector3R s1 = shape.electric(g1);
-      Vector3R s2 = shape.electric(g2);
-
-      if (s1.abs_max() < shape_tolerance || s2.abs_max() < shape_tolerance)
-        continue;
-
-      PetscInt gg = s_gg(g1, g2);
-
-      for (PetscInt c1 = 0; c1 < 3; ++c1)
-        for (PetscInt c2 = 0; c2 < 3; ++c2)
-          coo_v[ind(gg, c1, c2)] += s1[c1] * s2[c2] * betaL * matB[c1][c2];
-    }
-  }
-  PetscFunctionReturnVoid();
-}
-
-void Particles::fill_matrix_indices(
-  PetscInt g, MatStencil* coo_i, MatStencil* coo_j)
-{
-  PetscFunctionBeginUser;
-  constexpr PetscInt shw = 3;
-
-  Vector3I vg{
-    g % geom_nx,
-    (g / geom_nx) % geom_ny,
-    (g / geom_nx) / geom_ny,
-  };
-
-  for (PetscInt g1 = 0; g1 < POW3(shw); ++g1) {
-    for (PetscInt g2 = 0; g2 < POW3(shw); ++g2) {
-      PetscInt gg = g1 * POW3(shw) + g2;
-
-      Vector3I vg1{
-        vg[X] + g1 % shw - 1,
-        vg[Y] + (g1 / shw) % shw - 1,
-        vg[Z] + (g1 / shw) / shw - 1,
-      };
-
-      Vector3I vg2{
-        vg[X] + g2 % shw - 1,
-        vg[Y] + (g2 / shw) % shw - 1,
-        vg[Z] + (g2 / shw) / shw - 1,
-      };
-
-      for (PetscInt c = 0; c < 3; ++c) {
-        coo_i[ind(gg, X, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], X};
-        coo_i[ind(gg, Y, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Y};
-        coo_i[ind(gg, Z, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Z};
-
-        coo_j[ind(gg, c, X)] = MatStencil{vg2[Z], vg2[Y], vg2[X], X};
-        coo_j[ind(gg, c, Y)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Y};
-        coo_j[ind(gg, c, Z)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Z};
-      }
-    }
-  }
-  PetscFunctionReturnVoid();
-}
-
 
 Particles::~Particles()
 {

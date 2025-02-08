@@ -61,11 +61,34 @@ PetscErrorCode Simulation::initialize_implementation()
 PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
 {
   PetscFunctionBeginUser;
+  PetscCall(clear_sources());
+  PetscCall(first_push());
+  PetscCall(predict_fields());
+  PetscCall(second_push());
+  PetscCall(correct_fields());
+  PetscCall(final_update());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::clear_sources()
+{
+  PetscFunctionBeginUser;
   PetscLogStagePush(stagenums[0]);
 
-  PetscCall(clear_sources());
+  PetscCall(VecSet(currI, 0.0));
+  PetscCall(VecSet(currJe, 0.0));
+  PetscCall(MatZeroEntries(matL));
+
+  for (auto& sort : particles_)
+    PetscCall(sort->clear_sources());
 
   PetscLogStagePop();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::first_push()
+{
+  PetscFunctionBeginUser;
   PetscLogStagePush(stagenums[1]);
 
   for (auto& sort : particles_) {
@@ -77,50 +100,6 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
   PetscCall(fill_ecsim_current());
 
   PetscLogStagePop();
-  PetscLogStagePush(stagenums[2]);
-
-  PetscCall(predict_fields());
-
-  PetscLogStagePop();
-  PetscLogStagePush(stagenums[3]);
-
-  for (auto& sort : particles_) {
-    PetscCall(sort->second_push());
-    PetscCall(sort->correct_coordinates());
-  }
-
-  PetscCall(update_cells());
-
-  PetscLogStagePop();
-  PetscLogStagePush(stagenums[4]);
-
-  PetscCall(correct_fields());
-
-  PetscLogStagePop();
-  PetscLogStagePush(stagenums[5]);
-
-  for (auto& sort : particles_) {
-    PetscCall(sort->final_update());
-
-    /// @todo Testing petsc as a computational server first
-    /// PetscCall(sort->communicate());
-  }
-
-  PetscCall(final_update());
-
-  PetscLogStagePop();
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::clear_sources()
-{
-  PetscFunctionBeginUser;
-  PetscCall(VecSet(currI, 0.0));
-  PetscCall(VecSet(currJe, 0.0));
-  PetscCall(MatZeroEntries(matL));
-
-  for (auto& sort : particles_)
-    PetscCall(sort->clear_sources());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -128,6 +107,8 @@ PetscErrorCode Simulation::clear_sources()
 PetscErrorCode Simulation::predict_fields()
 {
   PetscFunctionBeginUser;
+  PetscLogStagePush(stagenums[2]);
+
   // Storing `matL` to reuse it for ECSIM current calculation later
   PetscCall(MatCopy(matL, matA, DIFFERENT_NONZERO_PATTERN));  // matA = matL
   PetscCall(MatAYPX(matA, 2.0 * dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + (2 * dt) * matA
@@ -137,6 +118,38 @@ PetscErrorCode Simulation::predict_fields()
   PetscCall(KSPSetUp(predict));
 
   PetscCall(advance_fields(predict, currI, Ep));
+
+  PetscLogStagePop();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::second_push()
+{
+  PetscFunctionBeginUser;
+  PetscLogStagePush(stagenums[3]);
+
+  DM da = world.da;
+  PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, local_E));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, local_B));
+
+  Vector3R*** arr_E;
+  Vector3R*** arr_B;
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &arr_E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &arr_B));
+
+  for (auto& sort : particles_) {
+    sort->E = arr_E;
+    sort->B = arr_B;
+    PetscCall(sort->second_push());
+    PetscCall(sort->correct_coordinates());
+  }
+
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &arr_E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
+
+  PetscCall(update_cells());
+
+  PetscLogStagePop();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -144,9 +157,49 @@ PetscErrorCode Simulation::predict_fields()
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
+  PetscLogStagePush(stagenums[4]);
+
   PetscCall(advance_fields(correct, currJe, Ec));
+
+  PetscLogStagePop();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode Simulation::final_update()
+{
+  PetscFunctionBeginUser;
+  PetscLogStagePush(stagenums[5]);
+
+  for (auto& sort : particles_) {
+    PetscCall(sort->final_update());
+
+    /// @todo Testing petsc as a computational server first
+    /// PetscCall(sort->communicate());
+  }
+
+  Vec util;
+  PetscReal norm;
+  PetscCall(DMGetGlobalVector(world.da, &util));
+
+  PetscCall(MatMultAdd(matL, Ec, currI, currI));  // currI = currI + matL * E^{n+1/2}
+  PetscCall(VecWAXPY(util, -1, currI, currJe));  // util = -currI + currJe
+  PetscCall(VecNorm(util, NORM_2, &norm));
+  LOG("  Norm of the difference in ECSIM and Esirkepov currents: {:.7f}", norm);
+
+  PetscCall(VecSet(util, 0.0));  // util = 0.0
+  PetscCall(VecAXPBYPCZ(util, 2, -1, 1, Ec, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
+  PetscCall(VecNorm(util, NORM_2, &norm));
+  LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
+
+  PetscCall(VecSwap(util, E));
+  PetscCall(DMRestoreGlobalVector(world.da, &util));
+
+  PetscCall(MatMultAdd(rotE, Ec, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
+
+  PetscLogStagePop();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 {
@@ -172,31 +225,6 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-PetscErrorCode Simulation::final_update()
-{
-  PetscFunctionBeginUser;
-  Vec util;
-  PetscReal norm;
-  PetscCall(DMGetGlobalVector(world.da, &util));
-
-  PetscCall(MatMultAdd(matL, Ec, currI, currI));  // currI = currI + matL * E^{n+1/2}
-  PetscCall(VecWAXPY(util, -1, currI, currJe));  // util = -currI + currJe
-  PetscCall(VecNorm(util, NORM_2, &norm));
-  LOG("  Norm of the difference in ECSIM and Esirkepov currents: {:.7f}", norm);
-
-  PetscCall(VecSet(util, 0.0));  // util = 0.0
-  PetscCall(VecAXPBYPCZ(util, 2, -1, 1, Ec, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
-  PetscCall(VecNorm(util, NORM_2, &norm));
-  LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
-
-  PetscCall(VecSwap(util, E));
-  PetscCall(DMRestoreGlobalVector(world.da, &util));
-
-  PetscCall(MatMultAdd(rotE, Ec, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 
 /// @note Since we use one global Lapenta matrix, test on
 /// `matL_indices_assembled` should include particles of all sorts.
@@ -236,18 +264,10 @@ PetscErrorCode Simulation::update_cells()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 PetscErrorCode Simulation::fill_ecsim_current()
 {
   PetscFunctionBeginUser;
-  constexpr PetscInt shape_size = POW2(3 * POW3(3));
-
-  /// @note The `size` can be approximately halved using common array for ions and electrons.
-  PetscInt size = 0;
-
-  for (const auto& sort : particles_)
-    for (const auto& cell : sort->storage)
-      size += shape_size * (PetscInt)!cell.empty();
+  PetscInt size = get_array_offset(geom_nz * geom_ny * geom_nx);
 
   std::vector<MatStencil> coo_i;
   std::vector<MatStencil> coo_j;
@@ -259,21 +279,12 @@ PetscErrorCode Simulation::fill_ecsim_current()
     LOG("  Indices assembly was broken, recollecting them again."
         " Additional space: {:4.3f} GB", (PetscReal)size * 2 * 4 * sizeof(PetscInt) / 1e9);
   }
+
   coo_v.resize(size, 0.0);
   LOG("  To collect matrix values, temporary storage of size {:4.3f} GB was allocated",
       (PetscReal)size * sizeof(PetscReal) / 1e9);
 
-  size = 0;
-  for (const auto& sort : particles_) {
-    MatStencil* coo_si = coo_i.data() + size;
-    MatStencil* coo_sj = coo_j.data() + size;
-    PetscReal* coo_sv = coo_v.data() + size;
-
-    PetscCall(sort->fill_ecsim_current(coo_si, coo_sj, coo_sv, matL_indices_assembled));
-
-    for (const auto& cell : sort->storage)
-      size += shape_size * (PetscInt)!cell.empty();
-  }
+  fill_ecsim_current(coo_i.data(), coo_j.data(), coo_v.data());
 
   if (!matL_indices_assembled) {
     PetscCall(mat_set_preallocation_coo(size, coo_i.data(), coo_j.data()));
@@ -283,6 +294,71 @@ PetscErrorCode Simulation::fill_ecsim_current()
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
   PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::fill_ecsim_current(
+  MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v)
+{
+  PetscFunctionBeginUser;
+  Vector3R*** arr_B;
+
+  DM da = world.da;
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, local_B));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &arr_B));
+
+  for (auto& sort : particles_) {
+    sort->B = arr_B;
+    PetscCall(DMDAVecGetArrayWrite(da, sort->local_currI, &sort->currI));
+  }
+
+  static constexpr PetscInt OMP_CHUNK_SIZE = 16;
+
+#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
+  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
+    for (const auto& sort : particles_) {
+      if (sort->storage[g].empty())
+        continue;
+
+      PetscInt off = get_array_offset(g);
+      // LOG("id: {}, g: {:>6}, off: {:>6}, sort: \"{}\"", omp_get_thread_num(), g, off, sort->parameters.sort_name);
+
+      if (!matL_indices_assembled) {
+        MatStencil* coo_ci = coo_i + off;
+        MatStencil* coo_cj = coo_j + off;
+        sort->fill_matrix_indices(g, coo_ci, coo_cj);
+      }
+
+      PetscReal* coo_cv = coo_v + off;
+      sort->fill_ecsim_current(g, coo_cv);
+    }
+  }
+
+  for (auto& sort : particles_) {
+    PetscCall(DMDAVecRestoreArrayWrite(da, sort->local_currI, &sort->currI));
+    PetscCall(DMLocalToGlobal(da, sort->local_currI, ADD_VALUES, sort->global_currI));
+    PetscCall(VecAXPY(currI, 1.0, sort->global_currI));
+  }
+
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/// @returns The proper offset of cell `g` this into a global arrays
+PetscInt Simulation::get_array_offset(PetscInt g)
+{
+  constexpr PetscInt shs = POW2(3 * POW3(3));
+  PetscInt off = 0;
+
+  for (PetscInt i = 0; i < g; ++i) {
+    for (const auto& sort : particles_) {
+      if (!sort->storage[i].empty()) {
+        off += shs;
+        break;
+      }
+    }
+  }
+
+  return off;
 }
 
 PetscErrorCode Simulation::mat_set_preallocation_coo(
@@ -323,38 +399,6 @@ PetscErrorCode Simulation::mat_set_preallocation_coo(
 }
 
 
-Vec Simulation::get_named_vector(std::string_view name)
-{
-  if (name == "E")
-    return E;
-  if (name == "E_pred")
-    return Ep;
-  if (name == "E_corr")
-    return Ec;
-  if (name == "B")
-    return B;
-  if (name == "B0")
-    return B0;
-  if (name == "J_ecsim")
-    return currI;
-  if (name == "J_esirkepov")
-    return currJe;
-  throw std::runtime_error("Unknown vector name " + std::string(name));
-}
-
-Particles& Simulation::get_named_particles(std::string_view name)
-{
-  auto it = std::find_if(particles_.begin(), particles_.end(),  //
-    [&](const auto& sort) {
-      return sort->parameters.sort_name == name;
-    });
-
-  if (it == particles_.end())
-    throw std::runtime_error("No particles with name " + std::string(name));
-  return **it;
-}
-
-
 PetscErrorCode Simulation::init_vectors()
 {
   PetscFunctionBeginUser;
@@ -366,6 +410,9 @@ PetscErrorCode Simulation::init_vectors()
   PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &currI));
   PetscCall(DMCreateGlobalVector(da, &currJe));
+
+  PetscCall(DMCreateLocalVector(da, &local_E));
+  PetscCall(DMCreateLocalVector(da, &local_B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -396,13 +443,12 @@ PetscErrorCode Simulation::init_matrices()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// Both `predict` and `correct` use the same constant `matM` as a preconditioner
 PetscErrorCode Simulation::init_ksp_solvers()
 {
   PetscFunctionBeginUser;
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &predict));
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &correct));
-  PetscCall(KSPSetErrorIfNotConverged(predict, PETSC_TRUE));
-  PetscCall(KSPSetErrorIfNotConverged(correct, PETSC_TRUE));
   PetscCall(PetscObjectSetName((PetscObject)predict, "predict"));
   PetscCall(PetscObjectSetName((PetscObject)correct, "correct"));
   PetscCall(KSPSetOptionsPrefix(predict, "predict_"));
@@ -412,6 +458,10 @@ PetscErrorCode Simulation::init_ksp_solvers()
   static constexpr PetscReal rtol = 1e-10;
   PetscCall(KSPSetTolerances(predict, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
   PetscCall(KSPSetTolerances(correct, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
+  PetscCall(KSPSetErrorIfNotConverged(predict, PETSC_TRUE));
+  PetscCall(KSPSetErrorIfNotConverged(correct, PETSC_TRUE));
+  PetscCall(KSPSetReusePreconditioner(predict, PETSC_TRUE));
+  PetscCall(KSPSetReusePreconditioner(correct, PETSC_TRUE));
 
   PetscCall(KSPSetOperators(correct, matM, matM));
   PetscCall(KSPSetUp(correct));
@@ -451,7 +501,42 @@ Simulation::~Simulation()
   PetscCallVoid(VecDestroy(&B0));
   PetscCallVoid(VecDestroy(&currI));
   PetscCallVoid(VecDestroy(&currJe));
+
+  PetscCallVoid(VecDestroy(&local_E));
+  PetscCallVoid(VecDestroy(&local_B));
   PetscFunctionReturnVoid();
+}
+
+
+Vec Simulation::get_named_vector(std::string_view name)
+{
+  if (name == "E")
+    return E;
+  if (name == "E_pred")
+    return Ep;
+  if (name == "E_corr")
+    return Ec;
+  if (name == "B")
+    return B;
+  if (name == "B0")
+    return B0;
+  if (name == "J_ecsim")
+    return currI;
+  if (name == "J_esirkepov")
+    return currJe;
+  throw std::runtime_error("Unknown vector name " + std::string(name));
+}
+
+Particles& Simulation::get_named_particles(std::string_view name)
+{
+  auto it = std::find_if(particles_.begin(), particles_.end(),  //
+    [&](const auto& sort) {
+      return sort->parameters.sort_name == name;
+    });
+
+  if (it == particles_.end())
+    throw std::runtime_error("No particles with name " + std::string(name));
+  return **it;
 }
 
 }  // namespace ecsimcorr

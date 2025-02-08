@@ -49,18 +49,27 @@ private:
   PetscErrorCode init_ksp_solvers();
   PetscErrorCode init_log_stages();
 
+  // The main simulation steps
   PetscErrorCode clear_sources();
+  PetscErrorCode first_push();
+  PetscErrorCode fill_ecsim_current();
   PetscErrorCode predict_fields();
+  PetscErrorCode second_push();
   PetscErrorCode correct_fields();
   PetscErrorCode final_update();
 
-  PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
-
   PetscErrorCode update_cells();
-  PetscErrorCode fill_ecsim_current();
+  PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
+  PetscInt get_array_offset(PetscInt g);
+
+  PetscErrorCode fill_ecsim_current(
+    MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);
 
   PetscErrorCode mat_set_preallocation_coo(
     PetscInt size, MatStencil* coo_i, MatStencil* coo_j);
+
+  Vec local_E;
+  Vec local_B;
 
   Mat matA;
   Mat matM;

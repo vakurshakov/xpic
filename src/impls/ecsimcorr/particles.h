@@ -22,8 +22,18 @@ public:
   PetscErrorCode second_push();
   PetscErrorCode final_update();
 
-  PetscErrorCode fill_ecsim_current(
-    MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v, bool assembled);
+  void fill_matrix_indices(PetscInt g, MatStencil* coo_i, MatStencil* coo_j);
+  void fill_ecsim_current(PetscInt g, PetscReal* coo_v);
+
+  Vec local_currI;
+  Vec local_currJe;
+  Vec global_currI;
+  Vec global_currJe;
+  Vector3R*** currI;
+  Vector3R*** currJe;
+
+  Vector3R*** E;
+  Vector3R*** B;
 
 private:
 #if (PARTICLES_FORM_FACTOR == 2)
@@ -38,21 +48,12 @@ private:
   void decompose_ecsim_current(const Shape& shape, const Point& point,
     const Vector3R& B_p, PetscReal* coo_v);
 
-  void fill_matrix_indices(PetscInt g, MatStencil* coo_i, MatStencil* coo_j);
-
   constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
   {
     return g * POW2(3) + (c1 * 3 + c2);
   }
 
   Simulation& simulation_;
-
-  Vec local_currI;
-  Vec local_currJe;
-  Vec global_currI;
-  Vec global_currJe;
-  Vector3R*** currI;
-  Vector3R*** currJe;
 
   PetscReal energy = 0.0;
   PetscReal pred_w = 0.0;

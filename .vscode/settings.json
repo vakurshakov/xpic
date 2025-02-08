@@ -53,6 +53,7 @@
       "petscerror",
       "petscsys",
       "petscsystypes",
+      "preconditioner",
       "pthread",
       "recvbuf",
       "ricketson",
