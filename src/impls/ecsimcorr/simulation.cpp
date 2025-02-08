@@ -425,26 +425,27 @@ PetscErrorCode Simulation::init_matrices()
 PetscErrorCode Simulation::init_ksp_solvers()
 {
   PetscFunctionBeginUser;
-  PetscCall(KSPCreate(PETSC_COMM_WORLD, &predict));
-  PetscCall(KSPCreate(PETSC_COMM_WORLD, &correct));
-  PetscCall(PetscObjectSetName((PetscObject)predict, "predict"));
-  PetscCall(PetscObjectSetName((PetscObject)correct, "correct"));
-  PetscCall(KSPSetOptionsPrefix(predict, "predict_"));
-  PetscCall(KSPSetOptionsPrefix(correct, "correct_"));
+  const std::map<std::string, KSP&> map{
+    {"predict", predict},
+    {"correct", correct},
+  };
 
   static constexpr PetscReal atol = 1e-10;
   static constexpr PetscReal rtol = 1e-10;
-  PetscCall(KSPSetTolerances(predict, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
-  PetscCall(KSPSetTolerances(correct, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
-  PetscCall(KSPSetErrorIfNotConverged(predict, PETSC_TRUE));
-  PetscCall(KSPSetErrorIfNotConverged(correct, PETSC_TRUE));
-  PetscCall(KSPSetReusePreconditioner(predict, PETSC_TRUE));
-  PetscCall(KSPSetReusePreconditioner(correct, PETSC_TRUE));
+
+  for (auto&& [name, ksp] : map) {
+    PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
+    PetscCall(PetscObjectSetName((PetscObject)ksp, name.c_str()));
+    PetscCall(KSPSetOptionsPrefix(ksp, (name + "_").c_str()));
+
+    PetscCall(KSPSetTolerances(ksp, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
+    PetscCall(KSPSetErrorIfNotConverged(ksp, PETSC_TRUE));
+    PetscCall(KSPSetReusePreconditioner(ksp, PETSC_TRUE));
+    PetscCall(KSPSetFromOptions(ksp));
+  }
 
   PetscCall(KSPSetOperators(correct, matM, matM));
   PetscCall(KSPSetUp(correct));
-
-  PetscCall(KSPSetFromOptions(predict));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
