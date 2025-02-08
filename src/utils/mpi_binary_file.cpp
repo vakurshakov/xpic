@@ -100,8 +100,7 @@ PetscErrorCode MPI_BinaryFile::write_floats(PetscInt size, const PetscReal* data
 #if defined(PETSC_USE_REAL_SINGLE)
   PetscCallMPI(MPI_File_write_all(file_, data, 1, memview_, MPI_STATUS_IGNORE));
 #else
-  /// @todo It works, but it can be expensive for
-  /// small datasets. We should exploit memview_.
+  /// @todo It works, but it can be expensive for small datasets. We should exploit memview_.
   std::vector<float> buf(size);
   for (PetscInt i = 0; i < size; ++i)
     buf[i] = static_cast<float>(data[i]);

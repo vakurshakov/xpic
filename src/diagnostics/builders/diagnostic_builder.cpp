@@ -42,8 +42,6 @@ PetscErrorCode build_diagnostics(
       throw std::runtime_error("Unknown diagnostic name " + name);
     }
   }
-
-  /// @todo Check uniqueness of result directories
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -28,7 +28,6 @@ void Configuration::init(const std::string& config_path)
   Dx[1] = dy;
   Dx[2] = dz;
 
-  /// @todo Probably it would be better to use cells everywhere
   geometry.at("x").get_to(geom_x);
   geometry.at("y").get_to(geom_y);
   geometry.at("z").get_to(geom_z);

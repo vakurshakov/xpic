@@ -20,7 +20,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(MatScale(rot_dt_p, -dt));
   PetscCall(MatScale(rot_dt_m, +dt));
 
-  /// @todo Particles parametrization is needed!
   SortParameters parameters = {
     .sort_name = "electrons",
     .Np = 1,
@@ -31,8 +30,6 @@ PetscErrorCode Simulation::initialize_implementation()
   auto& sort = particles_.emplace_back(*this, parameters);
   sort.add_particle(Point{{geom_x / 2, geom_y / 2, geom_z / 4}, {0.0, 0.0, 0.9}});
 
-  /// @todo Create a particles_energy diagnostics!
-  /// @todo Create a charge_conservation diagnostic!
   PetscCall(build_diagnostics(*this, diagnostics_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

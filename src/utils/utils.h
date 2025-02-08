@@ -11,7 +11,6 @@ enum Axis : std::uint8_t {
 };
 
 /// @todo #pragma omp declare simd linear(z, y, x : 1), notinbranch
-/// @todo Additional motivation to make geom_n{x,y,z} constexpr is {s,v}_g.
 namespace indexing {
 
 /// @brief Standard notation inside PETSc, it's then reused to create aliases
