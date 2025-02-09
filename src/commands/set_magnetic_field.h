@@ -11,7 +11,6 @@ class SetMagneticField : public interfaces::Command {
 public:
   using Setter = std::function<PetscErrorCode(Vec /* storage */)>;
   SetMagneticField(Vec storage, Setter&& setup);
-
   PetscErrorCode execute(timestep_t t) override;
 
 private:
@@ -19,8 +18,7 @@ private:
   Setter setup_;
 };
 
-class SetUniformField {
-public:
+struct SetUniformField {
   SetUniformField(const Vector3R& value);
   PetscErrorCode operator()(Vec storage);
   Vector3R value_;
