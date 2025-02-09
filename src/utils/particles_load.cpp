@@ -141,7 +141,7 @@ Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
 {
   PetscReal x = coordinate.x() - center_[X];
   PetscReal y = coordinate.y() - center_[Y];
-  PetscReal r = std::sqrt(x * x + y * y);
+  PetscReal r = std::hypot(x, y);
 
   Vector3R temperature_moment{
     temperature_momentum(params_.Tx, params_.m),

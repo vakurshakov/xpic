@@ -132,13 +132,13 @@ void FieldsDamping::DampForCircle::operator()(
 {
   PetscInt cx = x * dx - geom_.center[X];
   PetscInt cy = y * dy - geom_.center[Y];
-  PetscReal r2 = (POW2(cx) + POW2(cy));
+  PetscReal r = std::hypot(cx, cy);
 
-  if (r2 < POW2(geom_.radius))
+  if (r < geom_.radius)
     return;
 
   PetscReal width = geom_.center[X] - geom_.radius;
-  PetscReal delta = std::sqrt(r2) - geom_.radius;
+  PetscReal delta = r - geom_.radius;
   PetscReal delta0 = width * (1.0 + 1.0 / sqrt(coefficient_));
 
   /// @note To avoid negative damping coefficients, we check against `delta0`.
