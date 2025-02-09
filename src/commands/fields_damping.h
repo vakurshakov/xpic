@@ -9,7 +9,7 @@
 class FieldsDamping : public interfaces::Command {
 public:
   /// @todo The same comment from `RemoveParticles` command applies here,
-  /// we shouldn't create so many constructors for each geometry type.j
+  /// we shouldn't create so many constructors for each geometry type.
   FieldsDamping(DM da, Vec E, Vec B, Vec B0, //
     const BoxGeometry& geom, PetscReal coefficient);
 

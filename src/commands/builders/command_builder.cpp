@@ -4,7 +4,7 @@
 #include "src/commands/builders/inject_particles_builder.h"
 #include "src/commands/builders/remove_particles_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
-#include "src/commands/builders/setup_magnetic_field_builder.h"
+#include "src/commands/builders/set_magnetic_field_builder.h"
 
 CommandBuilder::CommandBuilder(
   const interfaces::Simulation& simulation, std::list<Command_up>& result)
@@ -39,8 +39,8 @@ CommandBuilder::CommandBuilder(
     else if (name == "RemoveParticles") {
       PetscCall(Builder::use_impl<RemoveParticlesBuilder>(info, simulation, result));
     }
-    else if (name == "SetupMagneticField") {
-      PetscCall(Builder::use_impl<SetupMagneticFieldBuilder>(info, simulation, result));
+    else if (name == "SetMagneticField") {
+      PetscCall(Builder::use_impl<SetMagneticFieldBuilder>(info, simulation, result));
     }
     else if (name == "FieldsDamping") {
       PetscCall(Builder::use_impl<FieldsDampingBuilder>(info, simulation, result));

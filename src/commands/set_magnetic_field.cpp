@@ -1,21 +1,13 @@
-#include "setup_magnetic_field.h"
+#include "set_magnetic_field.h"
 
 #include "src/utils/configuration.h"
 
-class SetupMagneticField::UniformField {
-public:
-  UniformField(const Vector3R& value);
-  PetscErrorCode operator()(Vec storage);
-  Vector3R value_;
-};
-
-
-SetupMagneticField::SetupMagneticField(Vec storage, const Vector3R& value)
-  : storage_(storage), setup_(UniformField(value))
+SetMagneticField::SetMagneticField(Vec storage, Setter&& setup)
+  : storage_(storage), setup_(std::move(setup))
 {
 }
 
-PetscErrorCode SetupMagneticField::execute(timestep_t /* t */)
+PetscErrorCode SetMagneticField::execute(timestep_t /* t */)
 {
   PetscFunctionBeginUser;
   PetscCall(setup_(storage_));
@@ -23,12 +15,12 @@ PetscErrorCode SetupMagneticField::execute(timestep_t /* t */)
 }
 
 
-SetupMagneticField::UniformField::UniformField(const Vector3R& value)
+SetUniformField::SetUniformField(const Vector3R& value)
   : value_(value)
 {
 }
 
-PetscErrorCode SetupMagneticField::UniformField::operator()(Vec vec)
+PetscErrorCode SetUniformField::operator()(Vec vec)
 {
   PetscFunctionBeginUser;
   PetscCall(VecStrideSet(vec, X, value_[X]));
