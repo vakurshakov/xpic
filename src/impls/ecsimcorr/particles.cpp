@@ -134,9 +134,9 @@ void Particles::decompose_ecsim_current(
 
   /// @note It is an offset from particle `shape` indexing into `coo_v` one.
   const Vector3I off{
-    shape.start[X] - ((PetscInt)point.x() - 1),
-    shape.start[Y] - ((PetscInt)point.y() - 1),
-    shape.start[Z] - ((PetscInt)point.z() - 1),
+    shape.start[X] - ((PetscInt)(point.x() / dx) - 1),
+    shape.start[Y] - ((PetscInt)(point.y() / dy) - 1),
+    shape.start[Z] - ((PetscInt)(point.z() / dz) - 1),
   };
 
   auto s_gg = [&](PetscInt g1, PetscInt g2) {
