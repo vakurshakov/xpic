@@ -16,6 +16,9 @@ namespace ecsimcorr {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
+  PetscCall(init_log_stages());
+  PetscLogStagePush(stagenums[0]);
+
   PetscCall(init_vectors());
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
@@ -42,7 +45,7 @@ PetscErrorCode Simulation::initialize_implementation()
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
 
-  PetscCall(init_log_stages());
+  PetscLogStagePop();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -61,7 +64,7 @@ PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[0]);
+  PetscLogStagePush(stagenums[1]);
 
   PetscCall(VecSet(currI, 0.0));
   PetscCall(VecSet(currJe, 0.0));
@@ -77,7 +80,7 @@ PetscErrorCode Simulation::clear_sources()
 PetscErrorCode Simulation::first_push()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[1]);
+  PetscLogStagePush(stagenums[2]);
 
   for (auto& sort : particles_) {
     PetscCall(sort->first_push());
@@ -95,7 +98,7 @@ PetscErrorCode Simulation::first_push()
 PetscErrorCode Simulation::predict_fields()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[2]);
+  PetscLogStagePush(stagenums[3]);
 
   // Storing `matL` to reuse it for ECSIM current calculation later
   Mat matA;
@@ -116,7 +119,7 @@ PetscErrorCode Simulation::predict_fields()
 PetscErrorCode Simulation::second_push()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[3]);
+  PetscLogStagePush(stagenums[4]);
 
   DM da = world.da;
   PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, local_E));
@@ -147,7 +150,7 @@ PetscErrorCode Simulation::second_push()
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[4]);
+  PetscLogStagePush(stagenums[5]);
 
   PetscCall(advance_fields(correct, currJe, Ec));
 
@@ -158,7 +161,7 @@ PetscErrorCode Simulation::correct_fields()
 PetscErrorCode Simulation::final_update()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[5]);
+  PetscLogStagePush(stagenums[6]);
 
   for (auto& sort : particles_) {
     PetscCall(sort->final_update());
@@ -469,12 +472,13 @@ PetscErrorCode Simulation::init_particles()
 PetscErrorCode Simulation::init_log_stages()
 {
   PetscFunctionBeginUser;
-  PetscLogStageRegister("Clear sources", &stagenums[0]);
-  PetscLogStageRegister("First push", &stagenums[1]);
-  PetscLogStageRegister("Predict field", &stagenums[2]);
-  PetscLogStageRegister("Second push", &stagenums[3]);
-  PetscLogStageRegister("Correct fields", &stagenums[4]);
-  PetscLogStageRegister("Renormalization", &stagenums[5]);
+  PetscLogStageRegister("Initialization", &stagenums[0]);
+  PetscLogStageRegister("Clear sources", &stagenums[1]);
+  PetscLogStageRegister("First push", &stagenums[2]);
+  PetscLogStageRegister("Predict field", &stagenums[3]);
+  PetscLogStageRegister("Second push", &stagenums[4]);
+  PetscLogStageRegister("Correct fields", &stagenums[5]);
+  PetscLogStageRegister("Renormalization", &stagenums[6]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
