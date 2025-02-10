@@ -13,6 +13,7 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
   PetscFunctionBeginUser;
   std::set<std::string_view> available_setters{
     "SetUniformField",
+    "SetCoilsField",
   };
 
   std::string field;
@@ -29,8 +30,24 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
   SetMagneticField::Setter setup;
 
   if (name == "SetUniformField") {
-    Vector3R value = parse_vector(info, "value");
+    LOG("  Using SetUniformField setter");
+    Vector3R value = parse_vector(setter, "value");
     setup = SetUniformField(value);
+    LOG("    Magnetic field value: {} {} {}", REP3_A(value));
+  }
+  else if (name == "SetCoilsField") {
+    LOG("  Using SetCoilsField setter");
+    std::vector<SetCoilsField::Coil> coils;
+    for (auto& coil_info : setter.at("coils")) {
+      SetCoilsField::Coil coil{
+        .z0 = coil_info.at("z0").get<PetscReal>(),
+        .R = coil_info.at("R").get<PetscReal>(),
+        .I = coil_info.at("I").get<PetscReal>(),
+      };
+      LOG("    Adding magnetic coil, z0: {}, R: {}, I: {}", coil.z0, coil.R, coil.I);
+      coils.emplace_back(std::move(coil));
+    }
+    setup = SetCoilsField(std::move(coils));
   }
 
   auto&& diag = std::make_unique<SetMagneticField>(
@@ -38,6 +55,6 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
 
   commands_.emplace_back(std::move(diag));
 
-  LOG("SetMagneticField command is added for {}", field);
+  LOG("  SetMagneticField command is added for {}", field);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
