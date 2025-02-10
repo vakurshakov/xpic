@@ -118,8 +118,13 @@ void Configuration::get_boundaries_type(
 void Configuration::get_processors(PetscInt& px, PetscInt& py, PetscInt& pz)
 {
   const Configuration::json_t& geometry = config.json.at("Geometry");
-  geometry.at("da_processors_x").get_to(px);
-  geometry.at("da_processors_y").get_to(py);
-  geometry.at("da_processors_z").get_to(pz);
+
+  auto get = [&geometry](const char* name, PetscInt& p) {
+    p = geometry.contains(name) ? geometry.at(name).get<PetscInt>() : -1;
+  };
+
+  get("da_processors_x", px);
+  get("da_processors_y", py);
+  get("da_processors_z", pz);
 }
 
