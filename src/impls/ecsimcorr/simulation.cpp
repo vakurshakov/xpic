@@ -19,20 +19,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_vectors());
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
-
-  const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
-  for (auto&& info : particles_info) {
-    SortParameters parameters;
-    info.at("sort_name").get_to(parameters.sort_name);
-    info.at("Np").get_to(parameters.Np);
-    info.at("n").get_to(parameters.n);
-    info.at("q").get_to(parameters.q);
-    info.at("m").get_to(parameters.m);
-    info.at("T").get_to(parameters.Tx);
-    info.at("T").get_to(parameters.Ty);
-    info.at("T").get_to(parameters.Tz);
-    particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
-  }
+  PetscCall(init_particles());
 
   std::list<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
@@ -446,6 +433,36 @@ PetscErrorCode Simulation::init_ksp_solvers()
 
   PetscCall(KSPSetOperators(correct, matM, matM));
   PetscCall(KSPSetUp(correct));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::init_particles()
+{
+  PetscFunctionBeginUser;
+  const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
+  for (auto&& info : particles_info) {
+    SortParameters parameters;
+    info.at("sort_name").get_to(parameters.sort_name);
+    info.at("Np").get_to(parameters.Np);
+    info.at("n").get_to(parameters.n);
+    info.at("q").get_to(parameters.q);
+    info.at("m").get_to(parameters.m);
+
+    if (info.contains("T")) {
+      PetscReal T;
+      info.at("T").get_to(T);
+      parameters.Tx = T;
+      parameters.Ty = T;
+      parameters.Tz = T;
+    }
+    else {
+      info.at("Tx").get_to(parameters.Tx);
+      info.at("Ty").get_to(parameters.Ty);
+      info.at("Tz").get_to(parameters.Tz);
+    }
+
+    particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

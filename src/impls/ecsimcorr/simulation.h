@@ -47,6 +47,7 @@ private:
   PetscErrorCode init_vectors();
   PetscErrorCode init_matrices();
   PetscErrorCode init_ksp_solvers();
+  PetscErrorCode init_particles();
   PetscErrorCode init_log_stages();
 
   // The main simulation steps
