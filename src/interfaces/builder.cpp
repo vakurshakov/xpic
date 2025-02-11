@@ -93,9 +93,7 @@ void Builder::load_geometry(
   const Configuration::json_t& info, CylinderGeometry& cyl)
 {
   Vector3R center{0.5 * geom_x, 0.5 * geom_y, 0.5 * geom_z};
-
-  PetscReal s = std::min(geom_x, geom_y);
-  PetscReal radius = 0.5 * std::hypot(s, s);
+  PetscReal radius = 0.5 * std::min(geom_x, geom_y);
   PetscReal height = geom_z;
 
   if (info.contains("center"))
