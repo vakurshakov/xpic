@@ -2,7 +2,7 @@
 
 #include "src/diagnostics/builders/distribution_moment_builder.h"
 #include "src/diagnostics/builders/field_view_builder.h"
-#include "src/utils/region_operations.h"
+#include "src/utils/geometries.h"
 
 DiagnosticBuilder::DiagnosticBuilder(const interfaces::Simulation& simulation,
   std::vector<Diagnostic_up>& diagnostics)

@@ -18,9 +18,6 @@ protected:
 
   void load_momentum(const Configuration::json_t& info,
     const interfaces::Particles& particles, MomentumGenerator& gen);
-
-  void load_geometry(const Configuration::json_t& info, BoxGeometry& box);
-  void load_geometry(const Configuration::json_t& info, CylinderGeometry& cyl);
 };
 
 }  // namespace interfaces

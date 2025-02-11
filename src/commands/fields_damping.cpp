@@ -1,19 +1,15 @@
 #include "fields_damping.h"
 
 #include "src/diagnostics/fields_energy.h"
-#include "src/utils/configuration.h"
 
-class FieldsDamping::DampForBox {
-public:
-  void operator()(
-    PetscInt z, PetscInt y, PetscInt x, Vector3R*** f, PetscReal& energy);
-  BoxGeometry geom_;
-  PetscReal coefficient_;
-};
-
-FieldsDamping::FieldsDamping( //
-  DM da, Vec E, Vec B, Vec B0, const BoxGeometry& geom, PetscReal coefficient)
-  : da_(da), E_(E), B_(B), B0_(B0), damp_(DampForBox(geom, coefficient))
+FieldsDamping::FieldsDamping(
+  DM da, Vec E, Vec B, Vec B0, Tester&& test, Damping&& damp)
+  : da_(da),
+    E_(E),
+    B_(B),
+    B0_(B0),
+    within_geom_(std::move(test)),
+    damp_(std::move(damp))
 {
 }
 
@@ -45,8 +41,10 @@ PetscErrorCode FieldsDamping::damping_implementation(Vec f)
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
+    const Vector3R r{x * dx, y * dy, z * dz};
 
-    damp_(z, y, x, arr, damped_energy_);
+    if (!within_geom_(r))
+      damp_(r, arr[z][y][x], damped_energy_);
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da_, f, reinterpret_cast<void*>(&arr)));
@@ -59,41 +57,26 @@ PetscReal FieldsDamping::get_damped_energy() const
 }
 
 
-void FieldsDamping::DampForBox::operator()(
-  PetscInt z, PetscInt y, PetscInt x, Vector3R*** f, PetscReal& energy)
+void DampForBox::operator()(const Vector3R& r, Vector3R& f, PetscReal& energy)
 {
-  const Vector3R r{
-    x * dx,
-    y * dy,
-    z * dz,
-  };
-
-  bool is_outside = //
-    (geom_.min[X] > r[X] || r[X] > geom_.max[X]) ||
-    (geom_.min[Y] > r[Y] || r[Y] > geom_.max[Y]) ||
-    (geom_.min[Z] > r[Z] || r[Z] > geom_.max[Z]);
-
-  if (!is_outside)
-    return;
-
   for (PetscInt i = 0; i < 3; ++i) {
     PetscReal width = 0.0;
     PetscReal delta = 0.0;
 
-    if (r[i] > geom_.max[i]) {
-      width = Geom[i] - geom_.max[i];
-      delta = r[i] - geom_.max[i];
+    if (r[i] > geom.max[i]) {
+      width = Geom[i] - geom.max[i];
+      delta = r[i] - geom.max[i];
     }
-    else if (r[i] < geom_.min[i]) {
-      width = geom_.min[i] - 0;
+    else if (r[i] < geom.min[i]) {
+      width = geom.min[i] - 0;
       delta = r[i] - 0;
     }
     else
       continue;
 
-    PetscReal damping = 1.0 - coefficient_ * POW2(delta / width - 1.0);
+    PetscReal damping = 1.0 - coefficient * POW2(delta / width - 1.0);
 
-    energy += FieldsEnergy::get(f[z][y][x]) * (1.0 - POW2(damping));
-    f[z][y][x] *= damping;
+    energy += FieldsEnergy::get(f) * (1.0 - POW2(damping));
+    f *= damping;
   }
 }

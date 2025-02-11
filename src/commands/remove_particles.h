@@ -9,7 +9,7 @@
 
 class RemoveParticles : public interfaces::Command {
 public:
-  using Tester = std::function<bool(const Point& /* point */)>;
+  using Tester = std::function<bool(const Vector3R& g)>;
   RemoveParticles(interfaces::Particles& particles, Tester&& test);
 
   PetscErrorCode execute(timestep_t t) override;
@@ -20,20 +20,8 @@ public:
 private:
   interfaces::Particles& particles_;
 
-  Tester should_remove_;
+  Tester within_geom_;
   PetscReal removed_energy_ = 0.0;
 };
-
-
-struct RemoveFromBox {
-  bool operator()(const Point& point);
-  BoxGeometry geom_;
-};
-
-struct RemoveFromCylinder {
-  bool operator()(const Point& point);
-  CylinderGeometry geom_;
-};
-
 
 #endif  // SRC_COMMANDS_REMOVE_PARTICLES_H

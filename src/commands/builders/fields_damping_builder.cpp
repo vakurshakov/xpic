@@ -18,23 +18,26 @@ PetscErrorCode FieldsDampingBuilder::build(const Configuration::json_t& info)
   PetscReal damping_coefficient;
   info.at("damping_coefficient").get_to(damping_coefficient);
 
-  std::unique_ptr<FieldsDamping> diag;
   const Configuration::json_t& geometry = info.at("geometry");
 
   std::string name;
   geometry.at("name").get_to(name);
 
+  FieldsDamping::Tester test;
+  FieldsDamping::Damping damp;
+
   if (name == "BoxGeometry") {
-    Vector3R min = parse_vector(geometry, "min");
-    Vector3R max = parse_vector(geometry, "max");
-    diag = std::make_unique<FieldsDamping>(simulation_.world.da, E, B, B0,
-      BoxGeometry(min, max), damping_coefficient);
+    BoxGeometry box;
+    load_geometry(geometry, box);
+    test = WithinBox(box);
+    damp = DampForBox(std::move(box));
   }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);
   }
 
-  commands_.emplace_back(std::move(diag));
+  commands_.emplace_back(std::make_unique<FieldsDamping>(
+    simulation_.world.da, E, B, B0, std::move(test), std::move(damp)));
 
   LOG("  FieldsDamping command is added");
   PetscFunctionReturn(PETSC_SUCCESS);

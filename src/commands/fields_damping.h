@@ -8,10 +8,9 @@
 
 class FieldsDamping : public interfaces::Command {
 public:
-  /// @todo The same comment from `RemoveParticles` command applies here,
-  /// we shouldn't create so many constructors for each geometry type.
-  FieldsDamping(DM da, Vec E, Vec B, Vec B0, //
-    const BoxGeometry& geom, PetscReal coefficient);
+  using Tester = std::function<bool(const Vector3R&)>;
+  using Damping = std::function<void(const Vector3R&, Vector3R&, PetscReal&)>;
+  FieldsDamping(DM da, Vec E, Vec B, Vec B0, Tester&& test, Damping&& damp);
 
   PetscErrorCode execute(timestep_t t) override;
 
@@ -25,13 +24,16 @@ private:
   Vec B_;
   Vec B0_;
 
-  using Damping =
-    std::function<void(PetscInt, PetscInt, PetscInt, Vector3R***, PetscReal&)>;
-
+  Tester within_geom_;
   Damping damp_;
   PetscReal damped_energy_ = 0.0;
+};
 
-  class DampForBox;
+class DampForBox {
+public:
+  void operator()(const Vector3R& g, Vector3R& f, PetscReal& energy);
+  BoxGeometry geom;
+  PetscReal coefficient;
 };
 
 #endif  // SRC_COMMANDS_FIELDS_DAMPING_H

@@ -61,37 +61,4 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
   }
 }
 
-void ParticlesBuilder::load_geometry(
-  const Configuration::json_t& info, BoxGeometry& box)
-{
-  Vector3R min{0.0};
-  Vector3R max{Geom};
-
-  if (info.contains("min"))
-    min = parse_vector(info, "min");
-  if (info.contains("max"))
-    max = parse_vector(info, "max");
-
-  box = BoxGeometry(min, max);
-}
-
-void ParticlesBuilder::load_geometry(
-  const Configuration::json_t& info, CylinderGeometry& cyl)
-{
-  Vector3R center{0.5 * geom_x, 0.5 * geom_y, 0.5 * geom_z};
-
-  PetscReal s = std::min(geom_x, geom_y);
-  PetscReal radius = 0.5 * std::hypot(s, s);
-  PetscReal height = geom_z;
-
-  if (info.contains("center"))
-    center = parse_vector(info, "center");
-  if (info.contains("radius"))
-    info.at("radius").get_to(radius);
-  if (info.contains("height"))
-    info.at("height").get_to(height);
-
-  cyl = CylinderGeometry(center, radius, height);
-}
-
 }  // namespace interfaces

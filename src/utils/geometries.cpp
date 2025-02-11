@@ -1,4 +1,22 @@
-#include "region_operations.h"
+#include "geometries.h"
+
+bool WithinBox::operator()(const Vector3R& r)
+{
+  return  //
+    (geom.min[X] <= r[X] && r[X] <= geom.max[X]) &&
+    (geom.min[Y] <= r[Y] && r[Y] <= geom.max[Y]) &&
+    (geom.min[Z] <= r[Z] && r[Z] <= geom.max[Z]);
+}
+
+
+bool WithinCylinder::operator()(const Vector3R& r)
+{
+  PetscReal x = r[X] - geom.center[X];
+  PetscReal y = r[Y] - geom.center[Y];
+  PetscReal z = r[Z] - geom.center[Z];
+  return (std::abs(z) < 0.5 * geom.height) &&
+    ((x * x + y * y) <= POW2(geom.radius));
+}
 
 bool is_point_within_bounds(
   const Vector3I& point, const Vector3I& b_start, const Vector3I& b_size)

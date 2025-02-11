@@ -1,6 +1,6 @@
 #include "distribution_moment.h"
 
-#include "src/utils/region_operations.h"
+#include "src/utils/geometries.h"
 #include "src/utils/shape.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector_utils.h"
