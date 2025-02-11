@@ -40,9 +40,9 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
     std::vector<SetCoilsField::Coil> coils;
     for (auto& coil_info : setter.at("coils")) {
       SetCoilsField::Coil coil{
-        .z0 = coil_info.at("z0").get<PetscReal>(),
-        .R = coil_info.at("R").get<PetscReal>(),
-        .I = coil_info.at("I").get<PetscReal>(),
+        coil_info.at("z0").get<PetscReal>(),
+        coil_info.at("R").get<PetscReal>(),
+        coil_info.at("I").get<PetscReal>(),
       };
       LOG("    Adding magnetic coil, z0: {}, R: {}, I: {}", coil.z0, coil.R, coil.I);
       coils.emplace_back(std::move(coil));
@@ -50,10 +50,8 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
     setup = SetCoilsField(std::move(coils));
   }
 
-  auto&& diag = std::make_unique<SetMagneticField>(
-    simulation_.get_named_vector(field), std::move(setup));
-
-  commands_.emplace_back(std::move(diag));
+  commands_.emplace_back(std::make_unique<SetMagneticField>(
+    simulation_.get_named_vector(field), std::move(setup)));
 
   LOG("  SetMagneticField command is added for {}", field);
   PetscFunctionReturn(PETSC_SUCCESS);

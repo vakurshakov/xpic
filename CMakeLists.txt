@@ -77,7 +77,6 @@ set(utils
   src/utils/operators.cpp
   src/utils/shape.cpp
   src/utils/particles_load.cpp
-  src/utils/geometries.cpp
 )
 
 set(impls_basic

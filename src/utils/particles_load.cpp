@@ -3,21 +3,11 @@
 #include "src/utils/random_generator.h"
 #include "src/utils/utils.h"
 
-PreciseCoordinate::PreciseCoordinate(const DotGeometry& dot)
-  : dot(dot)
-{
-}
-
 Vector3R PreciseCoordinate::operator()()
 {
-  return dot.dot;
+  return dot;
 }
 
-
-CoordinateInBox::CoordinateInBox(const BoxGeometry& box)
-  : box(box)
-{
-}
 
 Vector3R CoordinateInBox::operator()()
 {
@@ -28,11 +18,6 @@ Vector3R CoordinateInBox::operator()()
   };
 }
 
-
-CoordinateInCircle::CoordinateInCircle(PetscReal radius, const Vector3R& center)
-  : radius_(radius), center_(center)
-{
-}
 
 Vector3R CoordinateInCircle::operator()()
 {
@@ -80,11 +65,6 @@ Vector3R CoordinateOnAnnulus::operator()()
 }
 
 
-PreciseMomentum::PreciseMomentum(const Vector3R& value)
-  : value_(value)
-{
-}
-
 Vector3R PreciseMomentum::operator()(const Vector3R& /* coordinate */)
 {
   return value_;
@@ -103,11 +83,6 @@ PetscReal temperature_momentum(PetscReal temperature, PetscReal mass)
   return p;
 }
 
-
-MaxwellianMomentum::MaxwellianMomentum(const SortParameters& params, bool tov)
-  : params_(params), tov_(tov)
-{
-}
 
 Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
 {
@@ -130,12 +105,6 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
   return result;
 }
 
-
-AngularMomentum::AngularMomentum(
-  const SortParameters& params, const Vector3R& center)
-  : params_(params), center_(center)
-{
-}
 
 Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
 {

@@ -3,31 +3,8 @@
 #include "src/utils/configuration.h"
 #include "src/utils/region_operations.h"
 
-class RemoveParticles::RemoveFromBox {
-public:
-  RemoveFromBox(const BoxGeometry& geom);
-  bool operator()(const Point& point);
-  BoxGeometry geom_;
-};
-
-
-class RemoveParticles::RemoveFromCircle {
-public:
-  RemoveFromCircle(const CircleGeometry& geom);
-  bool operator()(const Point& point);
-  CircleGeometry geom_;
-};
-
-
-RemoveParticles::RemoveParticles(
-  interfaces::Particles& particles, const BoxGeometry& geom)
-  : particles_(particles), should_remove_(RemoveFromBox(geom))
-{
-}
-
-RemoveParticles::RemoveParticles(
-  interfaces::Particles& particles, const CircleGeometry& geom)
-  : particles_(particles), should_remove_(RemoveFromCircle(geom))
+RemoveParticles::RemoveParticles(interfaces::Particles& particles, Tester&& test)
+  : particles_(particles), should_remove_(std::move(test))
 {
 }
 
@@ -70,14 +47,8 @@ PetscReal RemoveParticles::get_removed_energy() const
 }
 
 
-RemoveParticles::RemoveFromBox::RemoveFromBox(const BoxGeometry& geom)
-  : geom_(geom)
+bool RemoveFromBox::operator()(const Point& point)
 {
-}
-
-bool RemoveParticles::RemoveFromBox::operator()(const Point& point)
-{
-  /// @todo REUSE region_operations.h AS TEMPLATES
   return  //
     (geom_.min[X] > point.x() || point.x() > geom_.max[X]) ||
     (geom_.min[Y] > point.y() || point.y() > geom_.max[Y]) ||
@@ -85,14 +56,17 @@ bool RemoveParticles::RemoveFromBox::operator()(const Point& point)
 }
 
 
-RemoveParticles::RemoveFromCircle::RemoveFromCircle(const CircleGeometry& geom)
-  : geom_(geom)
-{
-}
-
-bool RemoveParticles::RemoveFromCircle::operator()(const Point& point)
+bool RemoveFromCircle::operator()(const Point& point)
 {
   PetscReal x = point.x() - geom_.center[X];
   PetscReal y = point.y() - geom_.center[Y];
   return (x * x + y * y) > POW2(geom_.radius);
+}
+
+bool RemoveFromCylinder::operator()(const Point& point)
+{
+  PetscReal x = point.x() - geom_.center[X];
+  PetscReal y = point.y() - geom_.center[Y];
+  PetscReal z = point.z() - geom_.center[Z];
+  return std::abs(z) > 0.5 * geom_.height || (x * x + y * y) > POW2(geom_.radius);
 }

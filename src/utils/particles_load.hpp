@@ -12,21 +12,18 @@ using MomentumGenerator =
   std::function<Vector3R(const Vector3R& /* reference */)>;
 
 struct PreciseCoordinate {
-  PreciseCoordinate(const DotGeometry& dot);
   Vector3R operator()();
-  DotGeometry dot;
+  Vector3R dot;
 };
 
 
 struct CoordinateInBox {
-  CoordinateInBox(const BoxGeometry& box);
   Vector3R operator()();
   BoxGeometry box;
 };
 
 
 struct CoordinateInCircle {
-  CoordinateInCircle(PetscReal radius, const Vector3R& center);
   Vector3R operator()();
   PetscReal radius_;
   Vector3R center_;
@@ -52,22 +49,19 @@ struct CoordinateOnAnnulus {
 
 
 struct PreciseMomentum {
-  PreciseMomentum(const Vector3R& value);
   Vector3R operator()(const Vector3R& coordinate);
   Vector3R value_;
 };
 
 
 struct MaxwellianMomentum {
-  MaxwellianMomentum(const SortParameters& params, bool tov = false);
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params_;
-  bool tov_;
+  bool tov_ = false;
 };
 
 
 struct AngularMomentum {
-  AngularMomentum(const SortParameters& params, const Vector3R& center);
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params_;
   Vector3R center_;
