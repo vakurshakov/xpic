@@ -30,10 +30,16 @@ PetscErrorCode FieldsDampingBuilder::build(const Configuration::json_t& info)
     BoxGeometry box;
     load_geometry(geometry, box);
     test = WithinBox(box);
-    damp = DampForBox(std::move(box));
+    damp = DampForBox(std::move(box), damping_coefficient);
+  }
+  else if (name == "CylinderGeometry") {
+    CylinderGeometry cyl;
+    load_geometry(geometry, cyl);
+    test = WithinCylinder(cyl);
+    damp = DampForCylinder(std::move(cyl), damping_coefficient);
   }
   else {
-    throw std::runtime_error("Unknown coordinate generator name " + name);
+    throw std::runtime_error("Unknown geometry name " + name);
   }
 
   commands_.emplace_back(std::make_unique<FieldsDamping>(

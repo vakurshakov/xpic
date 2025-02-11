@@ -63,12 +63,24 @@
 
   "StepPresets": [
     {
+      "command": "FieldsDamping",
+      "E": "E",
+      "B": "B",
+      "B0": "B0",
+      "geometry": {
+        "name": "CylinderGeometry",
+        "radius": 14,
+        "height": 28
+      },
+      "damping_coefficient": 0.8
+    },
+    {
       "command": "RemoveParticles",
       "particles": "ions",
       "geometry": {
         "name": "CylinderGeometry",
-        "radius": 10,
-        "height": 10
+        "radius": 14,
+        "height": 28
       }
     },
     {
@@ -76,8 +88,8 @@
       "particles": "electrons",
       "geometry": {
         "name": "CylinderGeometry",
-        "radius": 10,
-        "height": 10
+        "radius": 14,
+        "height": 28
       }
     },
     {

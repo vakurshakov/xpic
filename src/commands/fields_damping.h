@@ -9,7 +9,7 @@
 class FieldsDamping : public interfaces::Command {
 public:
   using Tester = std::function<bool(const Vector3R&)>;
-  using Damping = std::function<void(const Vector3R&, Vector3R&, PetscReal&)>;
+  using Damping = std::function<PetscReal(const Vector3R&)>;
   FieldsDamping(DM da, Vec E, Vec B, Vec B0, Tester&& test, Damping&& damp);
 
   PetscErrorCode execute(timestep_t t) override;
@@ -29,10 +29,15 @@ private:
   PetscReal damped_energy_ = 0.0;
 };
 
-class DampForBox {
-public:
-  void operator()(const Vector3R& g, Vector3R& f, PetscReal& energy);
+struct DampForBox {
+  PetscReal operator()(const Vector3R& g);
   BoxGeometry geom;
+  PetscReal coefficient;
+};
+
+struct DampForCylinder {
+  PetscReal operator()(const Vector3R& g);
+  CylinderGeometry geom;
   PetscReal coefficient;
 };
 

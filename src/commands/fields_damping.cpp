@@ -35,19 +35,26 @@ PetscErrorCode FieldsDamping::damping_implementation(Vec f)
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
 
   Vector3R*** arr;
-  PetscCall(DMDAVecGetArrayWrite(da_, f, reinterpret_cast<void*>(&arr)));
+  PetscCall(DMDAVecGetArrayWrite(da_, f, &arr));
 
+#pragma omp parallel for reduction(+ : damped_energy_)
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
-    const Vector3R r{x * dx, y * dy, z * dz};
+    Vector3R r{x * dx, y * dy, z * dz};
 
-    if (!within_geom_(r))
-      damp_(r, arr[z][y][x], damped_energy_);
+    if (within_geom_(r))
+      continue;
+
+    PetscReal damping = damp_(r);
+    Vector3R& f = arr[z][y][x];
+
+    damped_energy_ += FieldsEnergy::get(f) * (1.0 - POW2(damping));
+    f *= damping;
   }
 
-  PetscCall(DMDAVecRestoreArrayWrite(da_, f, reinterpret_cast<void*>(&arr)));
+  PetscCall(DMDAVecRestoreArrayWrite(da_, f, &arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -57,26 +64,47 @@ PetscReal FieldsDamping::get_damped_energy() const
 }
 
 
-void DampForBox::operator()(const Vector3R& r, Vector3R& f, PetscReal& energy)
+PetscReal DampForBox::operator()(const Vector3R& g)
 {
+  PetscReal damping = 1.0;
+
   for (PetscInt i = 0; i < 3; ++i) {
     PetscReal width = 0.0;
     PetscReal delta = 0.0;
 
-    if (r[i] > geom.max[i]) {
+    if (g[i] > geom.max[i]) {
       width = Geom[i] - geom.max[i];
-      delta = r[i] - geom.max[i];
+      delta = g[i] - geom.max[i];
     }
-    else if (r[i] < geom.min[i]) {
+    else if (g[i] < geom.min[i]) {
       width = geom.min[i] - 0;
-      delta = r[i] - 0;
+      delta = g[i] - 0;
     }
     else
       continue;
 
-    PetscReal damping = 1.0 - coefficient * POW2(delta / width - 1.0);
-
-    energy += FieldsEnergy::get(f) * (1.0 - POW2(damping));
-    f *= damping;
+    damping *= 1.0 - coefficient * POW2(delta / width - 1.0);
   }
+  return damping;
+}
+
+PetscReal DampForCylinder::operator()(const Vector3R& g)
+{
+  PetscReal r = std::hypot(g[X] - geom.center[X], g[Y] - geom.center[Y]);
+
+  /// @todo Why without it, we are producing `damping < 0.0`? Didn't we just tested against `geom`?
+  if (r < geom.radius)
+    return 1.0;
+
+  PetscReal width = geom.center[X] - geom.radius;
+  PetscReal delta = r - geom.radius;
+  PetscReal delta0 = width * (1.0 + 1.0 / std::sqrt(coefficient));
+
+  /// @note To avoid negative damping coefficients, we check against `delta0`.
+  PetscReal damping = 0.0;
+
+  if (delta < delta0)
+    damping = 1.0 - coefficient * POW2(delta / width - 1.0);
+
+  return damping;
 }

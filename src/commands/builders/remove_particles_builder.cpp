@@ -32,7 +32,7 @@ PetscErrorCode RemoveParticlesBuilder::build(const Configuration::json_t& info)
     test = WithinCylinder(std::move(cyl));
   }
   else {
-    throw std::runtime_error("Unknown coordinate geometry name " + name);
+    throw std::runtime_error("Unknown geometry name " + name);
   }
 
   commands_.emplace_back(
