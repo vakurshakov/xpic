@@ -37,10 +37,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
-  diagnostics_.emplace_back(
-    std::make_unique<MatDump>(CONFIG().out_dir + "/ecsim/matL/", matL,
-      "./results/performance-test/mpi-parallelization/"
-      "MatSetValuesBlockedStencil/ecsim/matL"));
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
