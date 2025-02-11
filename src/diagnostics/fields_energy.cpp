@@ -17,7 +17,7 @@ FieldsEnergy::FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B)
 {
 }
 
-PetscErrorCode FieldsEnergy::diagnose(timestep_t t)
+PetscErrorCode FieldsEnergy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   PetscCall(calculate_energies());

@@ -42,7 +42,7 @@ public:
 
 private:
   PetscErrorCode initialize_implementation() override;
-  PetscErrorCode timestep_implementation(timestep_t t) override;
+  PetscErrorCode timestep_implementation(PetscInt t) override;
 
   PetscErrorCode init_vectors();
   PetscErrorCode init_matrices();

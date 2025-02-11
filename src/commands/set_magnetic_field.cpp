@@ -7,7 +7,7 @@ SetMagneticField::SetMagneticField(Vec storage, Setter&& setup)
 {
 }
 
-PetscErrorCode SetMagneticField::execute(timestep_t /* t */)
+PetscErrorCode SetMagneticField::execute(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   PetscCall(setup_(storage_));

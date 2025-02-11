@@ -11,10 +11,10 @@ class MatDump : public interfaces::Diagnostic {
 public:
   MatDump(const std::string& out_dir, Mat mat, const std::string& comp_dir = "");
 
-  PetscErrorCode diagnose(timestep_t t) override;
+  PetscErrorCode diagnose(PetscInt t) override;
 
 private:
-  PetscErrorCode compare(timestep_t t);
+  PetscErrorCode compare(PetscInt t);
 
   Mat mat_;
   PetscViewer viewer_;

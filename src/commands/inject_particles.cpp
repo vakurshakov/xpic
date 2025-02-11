@@ -7,8 +7,8 @@
 InjectParticles::InjectParticles(                  //
   interfaces::Particles& ionized,                  //
   interfaces::Particles& ejected,                  //
-  timestep_t injection_start,                      //
-  timestep_t injection_end,                        //
+  PetscInt injection_start,                      //
+  PetscInt injection_end,                        //
   PetscInt per_step_particles_num,                 //
   const CoordinateGenerator& generate_coordinate,  //
   const MomentumGenerator& generate_momentum_i,    //
@@ -24,7 +24,7 @@ InjectParticles::InjectParticles(                  //
 {
 }
 
-PetscErrorCode InjectParticles::execute(timestep_t t)
+PetscErrorCode InjectParticles::execute(PetscInt t)
 {
   energy_i_ = 0.0;
   energy_e_ = 0.0;

@@ -14,7 +14,7 @@ public:
   FieldsEnergy(DM da, Vec E, Vec B);
   FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B);
 
-  PetscErrorCode diagnose(timestep_t t) override;
+  PetscErrorCode diagnose(PetscInt t) override;
 
   PetscErrorCode calculate_energies();
   PetscReal get_electric_energy() const;

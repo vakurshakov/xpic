@@ -28,7 +28,7 @@ public:
 
   ~DistributionMoment() override;
 
-  PetscErrorCode diagnose(timestep_t t) override;
+  PetscErrorCode diagnose(PetscInt t) override;
 
 private:
   DistributionMoment(const std::string& out_dir,

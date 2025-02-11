@@ -12,7 +12,7 @@ public:
   using Tester = std::function<bool(const Vector3R& g)>;
   RemoveParticles(interfaces::Particles& particles, Tester&& test);
 
-  PetscErrorCode execute(timestep_t t) override;
+  PetscErrorCode execute(PetscInt t) override;
 
   std::string get_particles_name() const;
   PetscReal get_removed_energy() const;

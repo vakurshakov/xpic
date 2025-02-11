@@ -220,8 +220,8 @@ Particles_up prepare_electron(const Point& point)
 {
   World world;
   SortParameters parameters;
-  parameters.q = physical_constants::e * (-1.0);
-  parameters.m = physical_constants::me;
+  parameters.q = -1.0;
+  parameters.m = 1.0;
 
   auto particles = std::make_unique<interfaces::Particles>(world, parameters);
   particles->add_particle(point);

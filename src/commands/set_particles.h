@@ -14,7 +14,7 @@ public:
     const CoordinateGenerator& generate_coordinate, //
     const MomentumGenerator& generate_momentum);
 
-  PetscErrorCode execute(timestep_t t) override;
+  PetscErrorCode execute(PetscInt t) override;
 
 private:
   using Particles = interfaces::Particles;

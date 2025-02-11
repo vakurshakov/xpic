@@ -11,7 +11,7 @@ class SetMagneticField : public interfaces::Command {
 public:
   using Setter = std::function<PetscErrorCode(Vec /* storage */)>;
   SetMagneticField(Vec storage, Setter&& setup);
-  PetscErrorCode execute(timestep_t t) override;
+  PetscErrorCode execute(PetscInt t) override;
 
 private:
   Vec storage_;

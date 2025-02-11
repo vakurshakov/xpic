@@ -16,7 +16,7 @@ SetParticles::SetParticles(                       //
 {
 }
 
-PetscErrorCode SetParticles::execute(timestep_t /* t */)
+PetscErrorCode SetParticles::execute(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   PetscReal energy = 0.0;

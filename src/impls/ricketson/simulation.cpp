@@ -127,7 +127,7 @@ PetscErrorCode Simulation::setup_norm_gradient()
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
+PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
 {
   PetscFunctionBeginUser;
 

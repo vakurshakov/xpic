@@ -13,7 +13,7 @@ FieldsDamping::FieldsDamping(
 {
 }
 
-PetscErrorCode FieldsDamping::execute(timestep_t /* t */)
+PetscErrorCode FieldsDamping::execute(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   damped_energy_ = 0.0;

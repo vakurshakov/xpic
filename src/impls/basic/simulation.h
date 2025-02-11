@@ -23,7 +23,7 @@ public:
 
 private:
   PetscErrorCode initialize_implementation() override;
-  PetscErrorCode timestep_implementation(timestep_t timestep) override;
+  PetscErrorCode timestep_implementation(PetscInt timestep) override;
 
   Mat rot_dt_p;
   Mat rot_dt_m;

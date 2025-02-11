@@ -29,7 +29,7 @@ ChargeConservation::ChargeConservation(const Simulation& simulation)
   PetscCallVoid(divergence.create_negative(&divE));
 }
 
-PetscErrorCode ChargeConservation::diagnose(timestep_t t)
+PetscErrorCode ChargeConservation::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   if (t == 0) {

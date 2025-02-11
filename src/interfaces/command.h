@@ -19,7 +19,7 @@ public:
   virtual ~Command() = default;
 
   /// @param timestep Outer time step, optional.
-  virtual PetscErrorCode execute(timestep_t timestep) = 0;
+  virtual PetscErrorCode execute(PetscInt timestep) = 0;
 
   /**
    * @brief Checks whether command needs to be
@@ -30,7 +30,7 @@ public:
    * @return True if command must be removed from the
    * list (false otherwise). By default returns false.
    */
-  virtual bool needs_to_be_removed(timestep_t /* timestep */) const
+  virtual bool needs_to_be_removed(PetscInt /* timestep */) const
   {
     return false;
   }

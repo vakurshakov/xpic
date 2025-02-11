@@ -6,7 +6,7 @@ MatDump::MatDump(const std::string& out_dir, Mat mat, const std::string& comp_di
 {
 }
 
-PetscErrorCode MatDump::diagnose(timestep_t t)
+PetscErrorCode MatDump::diagnose(PetscInt t)
 {
   /// @note Skipping `t == 0` in case matrix hasn't been assembled yet
   if (t == 0 || t % diagnose_period != 0)
@@ -27,7 +27,7 @@ PetscErrorCode MatDump::diagnose(timestep_t t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MatDump::compare(timestep_t t)
+PetscErrorCode MatDump::compare(PetscInt t)
 {
   PetscFunctionBeginUser;
   Mat comp_mat;

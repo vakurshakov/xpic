@@ -19,10 +19,10 @@ public:
 
   virtual ~Diagnostic() = default;
 
-  virtual PetscErrorCode diagnose(timestep_t t) = 0;
+  virtual PetscErrorCode diagnose(PetscInt t) = 0;
 
 protected:
-  std::string format_time(timestep_t t)
+  std::string format_time(PetscInt t)
   {
     auto time_width = (PetscInt)std::to_string(geom_nt).size();
     std::stringstream ss;

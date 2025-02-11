@@ -86,7 +86,7 @@ PetscErrorCode FieldView::set_data_views(const Region& region)
 }
 
 
-PetscErrorCode FieldView::diagnose(timestep_t t)
+PetscErrorCode FieldView::diagnose(PetscInt t)
 {
   if (t % diagnose_period != 0)
     PetscFunctionReturn(PETSC_SUCCESS);

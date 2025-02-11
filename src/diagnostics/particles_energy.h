@@ -17,7 +17,7 @@ public:
   ParticlesEnergy(ParticlesPointersVector particles);
   ParticlesEnergy(const std::string& out_dir, ParticlesPointersVector particles);
 
-  PetscErrorCode diagnose(timestep_t t) override;
+  PetscErrorCode diagnose(PetscInt t) override;
   PetscErrorCode calculate_energies();
   std::vector<PetscReal> get_energies() const;
 

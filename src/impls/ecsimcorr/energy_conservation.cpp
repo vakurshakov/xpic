@@ -27,7 +27,7 @@ EnergyConservation::EnergyConservation(const Simulation& simulation)
   particles_energy = std::make_unique<ParticlesEnergy>(storage);
 }
 
-PetscErrorCode EnergyConservation::diagnose(timestep_t t)
+PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   PetscCall(VecAXPY(B, -1.0, B0));

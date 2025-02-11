@@ -11,14 +11,14 @@ public:
   InjectParticles( //
     interfaces::Particles& ionized,                 //
     interfaces::Particles& ejected,                 //
-    timestep_t injection_start,                     //
-    timestep_t injection_end,                       //
+    PetscInt injection_start,                     //
+    PetscInt injection_end,                       //
     PetscInt per_step_particles_num,                //
     const CoordinateGenerator& generate_coordinate, //
     const MomentumGenerator& generate_momentum_i,   //
     const MomentumGenerator& generate_momentum_e);
 
-  PetscErrorCode execute(timestep_t t) override;
+  PetscErrorCode execute(PetscInt t) override;
 
   std::string get_ionized_name() const;
   std::string get_ejected_name() const;
@@ -30,8 +30,8 @@ private:
   Particles& ionized_;
   Particles& ejected_;
 
-  timestep_t injection_start_;
-  timestep_t injection_end_;
+  PetscInt injection_start_;
+  PetscInt injection_end_;
   PetscInt per_step_particles_num_;
 
   CoordinateGenerator generate_coordinate_;

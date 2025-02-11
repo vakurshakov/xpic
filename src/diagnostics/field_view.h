@@ -27,7 +27,7 @@ public:
   static std::unique_ptr<FieldView> create(
     const std::string& out_dir, DM da, Vec field, const Region& region);
 
-  PetscErrorCode diagnose(timestep_t t) override;
+  PetscErrorCode diagnose(PetscInt t) override;
 
 protected:
   static PetscErrorCode get_local_communicator(

@@ -35,7 +35,7 @@ PetscErrorCode Simulation::initialize_implementation()
 }
 
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t /* timestep */)
+PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
 {
   PetscFunctionBeginUser;
 

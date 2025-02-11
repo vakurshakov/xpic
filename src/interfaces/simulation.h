@@ -28,9 +28,9 @@ protected:
   virtual PetscErrorCode initialize_implementation() = 0;
   virtual PetscErrorCode log_information() const;
 
-  virtual PetscErrorCode timestep_implementation(timestep_t timestep) = 0;
+  virtual PetscErrorCode timestep_implementation(PetscInt timestep) = 0;
 
-  timestep_t start_ = 0;
+  PetscInt start_ = 0;
 
   std::list<Command_up> step_presets_;
   std::vector<Diagnostic_up> diagnostics_;

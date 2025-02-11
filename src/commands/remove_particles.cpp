@@ -8,7 +8,7 @@ RemoveParticles::RemoveParticles(interfaces::Particles& particles, Tester&& test
 {
 }
 
-PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
+PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   PetscInt removed_particles = 0;

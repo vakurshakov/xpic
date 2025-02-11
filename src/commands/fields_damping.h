@@ -12,7 +12,7 @@ public:
   using Damping = std::function<PetscReal(const Vector3R&)>;
   FieldsDamping(DM da, Vec E, Vec B, Vec B0, Tester&& test, Damping&& damp);
 
-  PetscErrorCode execute(timestep_t t) override;
+  PetscErrorCode execute(PetscInt t) override;
 
   PetscReal get_damped_energy() const;
 

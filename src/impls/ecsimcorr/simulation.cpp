@@ -45,7 +45,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::timestep_implementation(timestep_t /* t */)
+PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   PetscCall(clear_sources());

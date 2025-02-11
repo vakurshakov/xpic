@@ -17,7 +17,7 @@ ParticlesEnergy::ParticlesEnergy(
 {
 }
 
-PetscErrorCode ParticlesEnergy::diagnose(timestep_t t)
+PetscErrorCode ParticlesEnergy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   PetscCall(calculate_energies());

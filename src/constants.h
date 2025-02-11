@@ -6,16 +6,6 @@
 #define LOGGING               true
 
 #include <petscsystypes.h>
-using timestep_t = PetscInt;
-
-namespace physical_constants {
-
-constexpr PetscReal e = 1.0;       // units of e
-constexpr PetscReal me = 1.0;      // units of me
-constexpr PetscReal Mp = 1836.0;   // units of me
-constexpr PetscReal mec2 = 511.0;  // KeV
-
-}
 
 extern PetscReal Dx[3];           // c/w_pe
 extern PetscReal dx;              // c/w_pe

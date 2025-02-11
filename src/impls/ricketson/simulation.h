@@ -25,7 +25,7 @@ public:
 
 private:
   PetscErrorCode initialize_implementation() override;
-  PetscErrorCode timestep_implementation(timestep_t timestep) override;
+  PetscErrorCode timestep_implementation(PetscInt timestep) override;
 
   PetscErrorCode setup_norm_gradient();
 

@@ -14,7 +14,7 @@ public:
 
   ChargeConservation(const Simulation& simulation);
 
-  PetscErrorCode diagnose(timestep_t t) override;
+  PetscErrorCode diagnose(PetscInt t) override;
 
 private:
   PetscErrorCode write_header();

@@ -109,7 +109,7 @@ PetscErrorCode DistributionMoment::set_da(const Region& region)
 }
 
 
-PetscErrorCode DistributionMoment::diagnose(timestep_t t)
+PetscErrorCode DistributionMoment::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   if (t % diagnose_period == 0) {
