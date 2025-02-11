@@ -20,9 +20,8 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 
   PetscClassIdRegister("ecsimcorr::Particles", &classid);
   PetscLogEventRegister("first_push", classid, &events[0]);
-  PetscLogEventRegister("ecsim_curr", classid, &events[1]);
-  PetscLogEventRegister("second_push", classid, &events[2]);
-  PetscLogEventRegister("final_update", classid, &events[3]);
+  PetscLogEventRegister("second_push", classid, &events[1]);
+  PetscLogEventRegister("final_update", classid, &events[2]);
   PetscFunctionReturnVoid();
 }
 
@@ -187,7 +186,7 @@ PetscErrorCode Particles::second_push()
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(world.da, local_currJe, &currJe));
 
-  PetscLogEventBegin(events[2], 0, 0, 0, 0);
+  PetscLogEventBegin(events[1], 0, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& cell : storage) {
@@ -212,7 +211,7 @@ PetscErrorCode Particles::second_push()
     }
   }
 
-  PetscLogEventEnd(events[2], 0, 0, 0, 0);
+  PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
   PetscCall(DMLocalToGlobal(world.da, local_currJe, ADD_VALUES, global_currJe));
   PetscCall(VecAXPY(simulation_.currJe, 1.0, global_currJe));
@@ -228,7 +227,7 @@ PetscErrorCode Particles::final_update()
   PetscCall(VecDot(global_currJe, simulation_.Ec, &corr_w));
 
   PetscReal K0 = energy;
-  PetscLogEventBegin(events[3], 0, 0, 0, 0);
+  PetscLogEventBegin(events[2], 0, 0, 0, 0);
 
   calculate_energy();
   PetscReal K = energy;
@@ -241,7 +240,7 @@ PetscErrorCode Particles::final_update()
     for (auto& point : cell)
       point.p *= lambda;
 
-  PetscLogEventEnd(events[3], 0, 0, 0, 0);
+  PetscLogEventEnd(events[2], 0, 0, 0, 0);
 
   lambda_dK = (lambda2 - 1.0) * K;
   pred_dK = K - K0;

@@ -305,6 +305,8 @@ PetscErrorCode Simulation::fill_ecsim_current(
   PetscInt prev_g = 0;
   PetscInt off = 0;
 
+  PetscLogEventBegin(events[0], local_B, 0, 0, 0);
+
 #pragma omp parallel for firstprivate(prev_g, off) \
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
@@ -325,6 +327,8 @@ PetscErrorCode Simulation::fill_ecsim_current(
       sort->fill_ecsim_current(g, coo_cv);
     }
   }
+
+  PetscLogEventEnd(events[0], local_B, 0, 0, 0);
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
 
@@ -475,6 +479,9 @@ PetscErrorCode Simulation::init_log_stages()
   PetscLogStageRegister("Second push", &stagenums[4]);
   PetscLogStageRegister("Correct fields", &stagenums[5]);
   PetscLogStageRegister("Renormalization", &stagenums[6]);
+
+  PetscClassIdRegister("ecsimcorr::Simulation", &classid);
+  PetscLogEventRegister("fill_ecsim_curr", classid, &events[0]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
