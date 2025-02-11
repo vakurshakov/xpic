@@ -51,3 +51,8 @@ PetscReal FieldsEnergy::get_magnetic_energy() const
 {
   return energy_B_.elements_sum();
 }
+
+/* static */ PetscReal FieldsEnergy::get(const Vector3R& f)
+{
+  return 0.5 * f.squared();
+}

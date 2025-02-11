@@ -1,5 +1,6 @@
 #include "inject_particles.h"
 
+#include "src/diagnostics/particles_energy.h"
 #include "src/utils/configuration.h"
 #include "src/utils/random_generator.h"
 
@@ -43,9 +44,8 @@ PetscErrorCode InjectParticles::execute(timestep_t t)
     Vector3R pi = generate_momentum_i_(shared_coordinate);
     Vector3R pe = generate_momentum_e_(shared_coordinate);
 
-    /// @todo different formula should be used for relativity case
-    energy_i_ += 0.5 * (mi * pi.squared()) * (dx * dy * dz) / Npi;
-    energy_e_ += 0.5 * (me * pe.squared()) * (dx * dy * dz) / Npe;
+    energy_i_ += ParticlesEnergy::get(pi, mi, Npi);
+    energy_e_ += ParticlesEnergy::get(pe, me, Npe);
 
     ionized_.add_particle(Point(shared_coordinate, pi));
     ejected_.add_particle(Point(shared_coordinate, pe));

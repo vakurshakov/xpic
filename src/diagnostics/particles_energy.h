@@ -21,6 +21,8 @@ public:
   PetscErrorCode calculate_energies();
   std::vector<PetscReal> get_energies() const;
 
+  static PetscReal get(const Vector3R& p, PetscReal m, PetscInt Np);
+
 private:
   SyncBinaryFile file_;
 

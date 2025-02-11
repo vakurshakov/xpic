@@ -1,5 +1,6 @@
 #include "remove_particles.h"
 
+#include "src/diagnostics/particles_energy.h"
 #include "src/utils/configuration.h"
 #include "src/utils/region_operations.h"
 
@@ -22,7 +23,7 @@ PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
     cell.remove_if([&](const Point& point) {
       if (should_remove_(point)) {
         removed_particles++;
-        removed_energy_ += 0.5 * (m * point.p.squared()) * (dx * dy * dz) / Np;
+        removed_energy_ += ParticlesEnergy::get(point.p, m, Np);
         return true;
       }
       return false;

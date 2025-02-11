@@ -20,6 +20,8 @@ public:
   PetscReal get_electric_energy() const;
   PetscReal get_magnetic_energy() const;
 
+  static PetscReal get(const Vector3R& f);
+
 private:
   SyncBinaryFile file_;
 

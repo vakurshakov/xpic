@@ -1,5 +1,6 @@
 #include "set_particles.h"
 
+#include "src/diagnostics/particles_energy.h"
 #include "src/utils/configuration.h"
 #include "src/utils/random_generator.h"
 
@@ -27,9 +28,7 @@ PetscErrorCode SetParticles::execute(timestep_t /* t */)
     Vector3R coordinate = generate_coordinate_();
     Vector3R momentum = generate_momentum_(coordinate);
 
-    /// @todo different formula should be used for relativity case
-    energy += 0.5 * (m * momentum.squared()) * (dx * dy * dz) / Np;
-
+    energy += ParticlesEnergy::get(momentum, m, Np);
     particles_.add_particle(Point(coordinate, momentum));
   }
 

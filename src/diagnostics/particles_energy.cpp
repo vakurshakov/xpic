@@ -93,3 +93,9 @@ std::vector<PetscReal> ParticlesEnergy::get_energies() const
 
   return result;
 }
+
+/* static */ PetscReal ParticlesEnergy::get(
+  const Vector3R& p, PetscReal m, PetscInt Np)
+{
+  return 0.5 * (m * p.squared()) / Np;
+}

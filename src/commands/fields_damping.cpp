@@ -1,5 +1,6 @@
 #include "fields_damping.h"
 
+#include "src/diagnostics/fields_energy.h"
 #include "src/utils/configuration.h"
 
 class FieldsDamping::DampForBox {
@@ -92,7 +93,7 @@ void FieldsDamping::DampForBox::operator()(
 
     PetscReal damping = 1.0 - coefficient_ * POW2(delta / width - 1.0);
 
-    energy += 0.5 * f[z][y][x].squared() * (dx * dy * dz) * (1.0 - POW2(damping));
+    energy += FieldsEnergy::get(f[z][y][x]) * (1.0 - POW2(damping));
     f[z][y][x] *= damping;
   }
 }
