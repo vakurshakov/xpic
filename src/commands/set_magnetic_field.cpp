@@ -52,7 +52,7 @@ PetscErrorCode SetCoilsField::operator()(Vec vec)
 #pragma omp parallel for private(sx, sy, sz, r)
   for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
     PetscReal x = (g % geom_nx) * dx /*       */ - center_x;
-    PetscReal y = ((g / geom_nx) / geom_ny) * dy - center_y;
+    PetscReal y = ((g / geom_nx) % geom_ny) * dy - center_y;
     PetscReal z = ((g / geom_nx) / geom_ny) * dz;
 
     sx = x;

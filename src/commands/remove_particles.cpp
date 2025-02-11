@@ -20,7 +20,7 @@ PetscErrorCode RemoveParticles::execute(timestep_t /* t */)
   for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
     const Vector3R r{
       (g % geom_nx) * dx,
-      ((g / geom_nx) / geom_ny) * dy,
+      ((g / geom_nx) % geom_ny) * dy,
       ((g / geom_nx) / geom_ny) * dz,
     };
 
