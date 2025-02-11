@@ -10,15 +10,15 @@
 class CommandBuilder : public interfaces::Builder {
 public:
   CommandBuilder(
-    const interfaces::Simulation& simulation, std::list<Command_up>& result);
+    const interfaces::Simulation& simulation, std::vector<Command_up>& result);
 
 protected:
-  using Commands_list = std::list<Command_up>;
-  Commands_list& commands_;
+  using Commands_vector = std::vector<Command_up>;
+  Commands_vector& commands_;
 };
 
 
 PetscErrorCode build_commands(const interfaces::Simulation& simulation,
-  std::string_view name, std::list<Command_up>& result);
+  std::string_view name, std::vector<Command_up>& result);
 
 #endif  // SRC_BUILDERS_COMMAND_BUILDER_H

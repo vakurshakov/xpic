@@ -6,7 +6,7 @@
 class SetMagneticFieldBuilder : public CommandBuilder {
 public:
   SetMagneticFieldBuilder(
-    const interfaces::Simulation& simulation, std::list<Command_up>& result);
+    const interfaces::Simulation& simulation, std::vector<Command_up>& result);
 
   PetscErrorCode build(const Configuration::json_t& info) override;
 

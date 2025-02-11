@@ -24,7 +24,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_ksp_solvers());
   PetscCall(init_particles());
 
-  std::list<Command_up> presets;
+  std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
   PetscCall(build_commands(*this, "StepPresets", step_presets_));
 

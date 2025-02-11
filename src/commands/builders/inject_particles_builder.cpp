@@ -3,7 +3,7 @@
 #include "src/commands/inject_particles.h"
 
 InjectParticlesBuilder::InjectParticlesBuilder(
-  const interfaces::Simulation& simulation, std::list<Command_up>& result)
+  const interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : interfaces::ParticlesBuilder(simulation, result)
 {
 }

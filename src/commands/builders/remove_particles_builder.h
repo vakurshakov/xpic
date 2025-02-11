@@ -7,7 +7,7 @@
 class RemoveParticlesBuilder : public interfaces::ParticlesBuilder {
 public:
   RemoveParticlesBuilder(
-    const interfaces::Simulation& simulation, std::list<Command_up>& result);
+    const interfaces::Simulation& simulation, std::vector<Command_up>& result);
 
   PetscErrorCode build(const Configuration::json_t& info) override;
 

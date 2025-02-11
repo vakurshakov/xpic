@@ -7,14 +7,14 @@
 #include "src/commands/builders/set_magnetic_field_builder.h"
 
 CommandBuilder::CommandBuilder(
-  const interfaces::Simulation& simulation, std::list<Command_up>& result)
+  const interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : Builder(simulation), commands_(result)
 {
 }
 
 /* static */ PetscErrorCode build_commands(
   const interfaces::Simulation& simulation, std::string_view name,
-  std::list<Command_up>& result)
+  std::vector<Command_up>& result)
 {
   const Configuration::json_t& commands = CONFIG().json.at(name);
 

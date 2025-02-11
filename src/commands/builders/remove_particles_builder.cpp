@@ -3,7 +3,7 @@
 #include "src/commands/remove_particles.h"
 
 RemoveParticlesBuilder::RemoveParticlesBuilder(
-  const interfaces::Simulation& simulation, std::list<Command_up>& result)
+  const interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : interfaces::ParticlesBuilder(simulation, result)
 {
 }
