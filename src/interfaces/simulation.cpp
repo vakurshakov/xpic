@@ -22,26 +22,6 @@ PetscErrorCode Simulation::initialize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::log_information() const
-{
-  PetscFunctionBeginUser;
-  static const PetscReal n0 = sqrt(1e13);
-  LOG("Note: Dimensionless units are used.");
-  LOG("For reference, using density 1e13 cm^(-3):");
-  LOG("  frequency,   w_pe = {} [1/sec]", 5.64e+4 * n0);
-  LOG("  time,      1/w_pe = {} [sec]", 1.77e-5 / n0);
-  LOG("  length,    c/w_pe = {} [cm]", 5.32e+5 / n0);
-  LOG("  electric field, E = {} [MV/cm]", 9.63e-7 * n0);
-  LOG("  magnetic field, B = {} [T]", 3.21e-7 * n0);
-
-  LOG("Geometric constants for the current setup:");
-  LOG("  (length along x axis) = {} [c/w_pe] = {} [dx]", geom_x, geom_nx);
-  LOG("  (length along y axis) = {} [c/w_pe] = {} [dy]", geom_y, geom_ny);
-  LOG("  (length along z axis) = {} [c/w_pe] = {} [dz]", geom_z, geom_nz);
-  LOG("  (simulation time)     = {} [1/w_pe] = {} [dt]", geom_t, geom_nt);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 PetscErrorCode Simulation::calculate()
 {
   PetscFunctionBeginUser;
@@ -60,7 +40,52 @@ PetscErrorCode Simulation::calculate()
     for (const Diagnostic_up& diagnostic : diagnostics_)
       PetscCall(diagnostic->diagnose(t));
     PetscLogStagePop();
+
+    PetscCall(log_view(t));
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/// @todo Make it as separate diagnostic?
+PetscErrorCode Simulation::log_view(PetscInt t) const
+{
+#if PERF_LEVEL == 0
+  return PETSC_SUCCESS;
+#elif PERF_LEVEL == 1
+  PetscFunctionBeginUser;
+
+  std::string filename =
+    CONFIG().out_dir + "/performance/" + Diagnostic::format_time(t);
+  std::filesystem::path path(filename);
+  std::filesystem::create_directories(path.parent_path());
+
+  PetscViewer viewer;
+  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer));
+  PetscCall(PetscLogView(viewer));
+  PetscCall(PetscViewerDestroy(&viewer));
+
+  PetscCall(PetscLogDefaultBegin());
+  PetscFunctionReturn(PETSC_SUCCESS);
+#endif
+}
+
+PetscErrorCode Simulation::log_information() const
+{
+  PetscFunctionBeginUser;
+  const PetscReal n0 = std::sqrt(1e13);
+  LOG("Note: Dimensionless units are used.");
+  LOG("For reference, using density 1e13 cm^(-3):");
+  LOG("  frequency,   w_pe = {} [1/sec]", 5.64e+4 * n0);
+  LOG("  time,      1/w_pe = {} [sec]", 1.77e-5 / n0);
+  LOG("  length,    c/w_pe = {} [cm]", 5.32e+5 / n0);
+  LOG("  electric field, E = {} [MV/cm]", 9.63e-7 * n0);
+  LOG("  magnetic field, B = {} [T]", 3.21e-7 * n0);
+
+  LOG("Geometric constants for the current setup:");
+  LOG("  (length along x axis) = {} [c/w_pe] = {} [dx]", geom_x, geom_nx);
+  LOG("  (length along y axis) = {} [c/w_pe] = {} [dy]", geom_y, geom_ny);
+  LOG("  (length along z axis) = {} [c/w_pe] = {} [dz]", geom_z, geom_nz);
+  LOG("  (simulation time)     = {} [1/w_pe] = {} [dt]", geom_t, geom_nt);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

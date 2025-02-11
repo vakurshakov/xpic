@@ -21,8 +21,7 @@ public:
 
   virtual PetscErrorCode diagnose(PetscInt t) = 0;
 
-protected:
-  std::string format_time(PetscInt t)
+  static std::string format_time(PetscInt t)
   {
     auto time_width = (PetscInt)std::to_string(geom_nt).size();
     std::stringstream ss;
@@ -32,6 +31,7 @@ protected:
     return ss.str();
   }
 
+protected:
   std::string out_dir_;
 };
 

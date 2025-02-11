@@ -26,9 +26,9 @@ public:
 
 protected:
   virtual PetscErrorCode initialize_implementation() = 0;
-  virtual PetscErrorCode log_information() const;
-
   virtual PetscErrorCode timestep_implementation(PetscInt timestep) = 0;
+  PetscErrorCode log_view(PetscInt t) const;
+  PetscErrorCode log_information() const;
 
   PetscInt start_ = 0;
 

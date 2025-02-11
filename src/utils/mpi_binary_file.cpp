@@ -1,7 +1,5 @@
 #include "mpi_binary_file.h"
 
-namespace fs = std::filesystem;
-
 MPI_BinaryFile::MPI_BinaryFile(MPI_Comm comm, const std::string& directory_path,
   const std::string& file_name)
 {
@@ -34,8 +32,8 @@ PetscErrorCode MPI_BinaryFile::open(MPI_Comm comm,
   PetscInt rank;
   PetscCallMPI(MPI_Comm_rank(comm_, &rank));
   if (rank == 0) {
-    fs::create_directories(directory_path);
-    fs::remove(filename);
+    std::filesystem::create_directories(directory_path);
+    std::filesystem::remove(filename);
   }
   PetscCallMPI(MPI_Barrier(comm_));
 
