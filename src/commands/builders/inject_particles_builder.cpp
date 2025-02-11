@@ -16,6 +16,8 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   auto&& ionized = simulation_.get_named_particles(ionized_name);
   auto&& ejected = simulation_.get_named_particles(ejected_name);
 
+  /// @note Since we can use this as a quasi-neutral
+  /// start, we choose t in [0, 1] by default
   PetscInt injection_start = 0;
   PetscInt injection_end = 1;
 
@@ -42,7 +44,12 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   load_coordinate(info.at("coordinate"), //
     ionized, generate_coordinate, per_step_particles_num);
 
-  per_step_particles_num /= (injection_end - injection_start);
+  PetscInt tau = (injection_end - injection_start);
+
+  if (info.contains("tau"))
+    tau = TO_STEP(info.at("tau").get<PetscReal>(), dt);
+
+  per_step_particles_num /= tau;
 
   if (info.contains("per_step_particles_num"))
     info.at("per_step_particles_num").get_to(per_step_particles_num);

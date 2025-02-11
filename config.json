@@ -98,6 +98,7 @@
       "ejected": "electrons",
       "injection_start": 0,
       "injection_end": "geom_t",
+      "tau": 4998,
       "coordinate": {
         "name": "CoordinateInCylinder",
         "radius": 10,
