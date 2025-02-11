@@ -36,6 +36,6 @@ PetscErrorCode FieldsDampingBuilder::build(const Configuration::json_t& info)
 
   commands_.emplace_back(std::move(diag));
 
-  LOG("FieldsDamping command is added");
+  LOG("  FieldsDamping command is added");
   PetscFunctionReturn(PETSC_SUCCESS);
 }

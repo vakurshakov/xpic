@@ -49,7 +49,7 @@ PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& inf
 
   parse_region_start_size(info, region, particles + " " + moment);
 
-  LOG("{} diagnostic is added for {}", moment, particles);
+  LOG("  {} diagnostic is added for {}", moment, particles);
 
   std::string res_dir = CONFIG().out_dir + "/" + particles + "/" + moment;
 

@@ -31,7 +31,7 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
 
   parse_region_start_size(info, region, field + comp);
 
-  LOG("Field view diagnostic is added for {}", field + comp);
+  LOG("  Field view diagnostic is added for {}", field + comp);
 
   std::string res_dir = CONFIG().out_dir + "/" + field + comp + "/";
 

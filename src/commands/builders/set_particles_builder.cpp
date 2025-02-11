@@ -28,6 +28,6 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
 
   commands_.emplace_back(std::move(diag));
 
-  LOG("SetParticles command is added for \"{}\"", particles_name);
+  LOG("  SetParticles command is added for \"{}\"", particles_name);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -37,6 +37,6 @@ PetscErrorCode RemoveParticlesBuilder::build(const Configuration::json_t& info)
   commands_.emplace_back(
     std::make_unique<RemoveParticles>(particles, std::move(test)));
 
-  LOG("RemoveParticles command is added for \"{}\"", particles_name);
+  LOG("  RemoveParticles command is added for \"{}\"", particles_name);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -59,6 +59,6 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
 
   commands_.emplace_back(std::move(diag));
 
-  LOG("InjectParticles command is added with ionized: \"{}\", ejected: \"{}\"", ionized_name, ejected_name);
+  LOG("  InjectParticles command is added with ionized: \"{}\", ejected: \"{}\"", ionized_name, ejected_name);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
