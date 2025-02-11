@@ -47,7 +47,19 @@
     }
   ],
 
-  "Presets": [],
+  "Presets": [
+    {
+      "command": "SetMagneticField",
+      "field": "B0",
+      "setter": {
+        "name": "SetCoilsField",
+        "coils": [
+          { "z0": 10, "R": 10, "I": 2 },
+          { "z0": 20, "R": 10, "I": 2 }
+        ]
+      }
+    }
+  ],
 
   "StepPresets": [
     {
