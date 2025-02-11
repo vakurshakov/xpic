@@ -56,27 +56,21 @@ PetscErrorCode SetCoilsField::operator()(Vec vec)
     PetscReal z = ((g / geom_nx) / geom_ny) * dz;
 
     sx = x;
-    sy = y + 0.5;
-    sz = z + 0.5;
+    sy = y + 0.5 * dy;
+    sz = z + 0.5 * dz;
     r = std::hypot(sx, sy);
-    if (r < denominator_tolerance)
-      r = denominator_tolerance;
     arr[g * 3 + X] += get_Br(sz, r) * sx / r;
 
     sy = y;
-    sx = x + 0.5;
-    sz = z + 0.5;
+    sx = x + 0.5 * dx;
+    sz = z + 0.5 * dz;
     r = std::hypot(sx, sy);
-    if (r < denominator_tolerance)
-      r = denominator_tolerance;
     arr[g * 3 + Y] += get_Br(sz, r) * sy / r;
 
     sz = z;
-    sx = x + 0.5;
-    sy = y + 0.5;
+    sx = x + 0.5 * dx;
+    sy = y + 0.5 * dy;
     r = std::hypot(sx, sy);
-    if (r < denominator_tolerance)
-      r = denominator_tolerance;
     arr[g * 3 + Z] += get_Bz(sz, r);
   }
 
