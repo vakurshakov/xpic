@@ -59,18 +59,24 @@ PetscErrorCode SetCoilsField::operator()(Vec vec)
     sy = y + 0.5;
     sz = z + 0.5;
     r = std::hypot(sx, sy);
+    if (r < denominator_tolerance)
+      r = denominator_tolerance;
     arr[g * 3 + X] += get_Br(sz, r) * sx / r;
 
     sy = y;
     sx = x + 0.5;
     sz = z + 0.5;
     r = std::hypot(sx, sy);
+    if (r < denominator_tolerance)
+      r = denominator_tolerance;
     arr[g * 3 + Y] += get_Br(sz, r) * sy / r;
 
     sz = z;
     sx = x + 0.5;
     sy = y + 0.5;
     r = std::hypot(sx, sy);
+    if (r < denominator_tolerance)
+      r = denominator_tolerance;
     arr[g * 3 + Z] += get_Bz(sz, r);
   }
 
@@ -105,7 +111,7 @@ PetscReal SetCoilsField::get_integ_r(PetscReal z, PetscReal r, PetscReal R)
 
   for (PetscInt i = 0; i < N; ++i) {
     denominator = POW2(z) + POW2(R) + POW2(r) - 2.0 * R * r * cos[i];
-    if (std::fabs(denominator) < denominator_tolerance)
+    if (std::abs(denominator) < denominator_tolerance)
       denominator = denominator_tolerance;
     integral += (cos[i] / (denominator * std::sqrt(denominator)));
   }
@@ -119,7 +125,7 @@ PetscReal SetCoilsField::get_integ_z(PetscReal z, PetscReal r, PetscReal R)
 
   for (PetscInt i = 0; i < N; ++i) {
     denominator = POW2(z) + POW2(R) + POW2(r) - 2.0 * R * r * cos[i];
-    if (std::fabs(denominator) < denominator_tolerance)
+    if (std::abs(denominator) < denominator_tolerance)
       denominator = denominator_tolerance;
     integral += ((R - r * cos[i]) / (denominator * std::sqrt(denominator)));
   }
