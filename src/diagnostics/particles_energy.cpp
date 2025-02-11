@@ -5,8 +5,7 @@
 ParticlesEnergy::ParticlesEnergy(ParticlesPointersVector particles)
   : particles_(std::move(particles))
 {
-  for (const auto& _ : particles_)
-    energies_.emplace_back(Vector3R{});
+  std::fill_n(std::back_inserter(energies_), particles_.size(), 0);
 }
 
 
