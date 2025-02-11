@@ -2,8 +2,8 @@
     "editor.indentSize": 2,
 
     "files.associations": {
-        ".clang-format": "yaml",
-        ".clang-tidy": "yaml",
+      ".clang-format": "yaml",
+      ".clang-tidy": "yaml",
     },
 
     "cSpell.words": [
