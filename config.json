@@ -1,24 +1,24 @@
 {
-  "OutputDirectory": "results/performance-test/mpi-parallelization",
+  "OutputDirectory": "results/mirror-test",
 
   "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "x": 100,
-    "y": 100,
-    "z": 2,
-    "t": 20,
+    "x": 30,
+    "y": 30,
+    "z": 30,
+    "t": 60000,
     "[x]": "c/w_pe",
     "[y]": "c/w_pe",
     "[z]": "c/w_pe",
     "[t]": "1/w_pe",
 
-    "dx": 1.0,
-    "dy": 1.0,
-    "dz": 1.0,
-    "dt": 1.0,
+    "dx": 0.5,
+    "dy": 0.5,
+    "dz": 0.5,
+    "dt": 1.5,
 
-    "diagnose_period": 1.0,
+    "diagnose_period": 1.5,
     "[dp]": "1/w_pe",
 
     "da_boundary_x": "DM_BOUNDARY_GHOSTED",
@@ -29,15 +29,17 @@
   "Particles": [
     {
       "sort_name": "ions",
-      "Np": 100,
+      "Np": 1000,
       "n": 1.0,
       "q": 1.0,
       "m": 100,
-      "T": 1.0
+      "Tx": 10.0,
+      "Ty": 10.0,
+      "Tz": 0.10
     },
     {
       "sort_name": "electrons",
-      "Np": 100,
+      "Np": 1000,
       "n":  1.0,
       "q": -1.0,
       "m":  1.0,
@@ -45,30 +47,25 @@
     }
   ],
 
-  "Presets": [
-    {
-      "command": "SetMagneticField",
-      "field": "B0",
-      "setter": {
-        "name": "SetUniformField",
-        "value": [0, 0, 0.2]
-      }
-    }
-  ],
+  "Presets": [],
 
   "StepPresets": [
     {
       "command": "RemoveParticles",
       "particles": "ions",
       "geometry": {
-        "name": "BoxGeometry"
+        "name": "CylinderGeometry",
+        "radius": 10,
+        "height": 10
       }
     },
     {
       "command": "RemoveParticles",
       "particles": "electrons",
       "geometry": {
-        "name": "BoxGeometry"
+        "name": "CylinderGeometry",
+        "radius": 10,
+        "height": 10
       }
     },
     {
@@ -78,9 +75,9 @@
       "injection_start": 0,
       "injection_end": "geom_t",
       "coordinate": {
-        "name": "CoordinateInBox",
-        "min": [40, 40, 0],
-        "max": [60, 60, "geom_z"]
+        "name": "CoordinateInCylinder",
+        "radius": 10,
+        "height": 10
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",
