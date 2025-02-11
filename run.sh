@@ -1,8 +1,9 @@
 #!/bin/bash
 
+source ./header.sh
+
 usage() { echo "Usage: $0 <config.json>" 1>&2; exit 1; }
 
-export MPI_DIR="/opt/mpich"
 export MPI_NUM_PROC=1
 
 export OMP_PLACES=cores
@@ -21,7 +22,7 @@ fi
 # Clearing shared memory allocated by `PetscShmgetAllocateArray()`
 ipcrm --all
 
-./external/petsc/lib/petsc/bin/petscfreesharedmemory
+$PETSC_DIR/lib/petsc/bin/petscfreesharedmemory
 
 # This can be useful to track down `KSPSolve()` residues
 # -predict_ksp_monitor_true_residual
