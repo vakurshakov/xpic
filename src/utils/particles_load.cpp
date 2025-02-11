@@ -19,55 +19,44 @@ Vector3R CoordinateInBox::operator()()
 }
 
 
-Vector3R CoordinateInCircle::operator()()
+Vector3R CoordinateInCylinder::operator()()
 {
-  PetscReal r = radius_ * std::sqrt(random_01());
+  PetscReal r = cyl.radius * std::sqrt(random_01());
   PetscReal phi = 2.0 * std::numbers::pi * random_01();
 
   return Vector3R{
-    center_[X] + r * std::cos(phi),
-    center_[Y] + r * std::sin(phi),
-    center_[Z] + 0.0,
+    cyl.center[X] + r * std::cos(phi),
+    cyl.center[Y] + r * std::sin(phi),
+    cyl.center[Z] + cyl.height * (random_01() - 0.5),
   };
 }
 
 
-CoordinateInCylinder::CoordinateInCylinder(
-  PetscReal radius, PetscReal height, const Vector3R& center)
-  : gen_(radius, center), height_(height)
-{
-}
-
-Vector3R CoordinateInCylinder::operator()()
-{
-  Vector3R coordinate = gen_();
-  coordinate[Z] += height_ * (random_01() - 0.5);
-  return coordinate;
-}
-
-
-CoordinateOnAnnulus::CoordinateOnAnnulus(
-  PetscReal inner_r, PetscReal outer_r, const Vector3R& center)
-  : inner_r2_(POW2(inner_r)), outer_r2_(POW2(outer_r)), center_(center)
+CoordinateOnAnnulus::CoordinateOnAnnulus(const Vector3R& center,
+  PetscReal inner_r, PetscReal outer_r, PetscReal height)
+  : center(center),
+    inner_r2(POW2(inner_r)),
+    outer_r2(POW2(outer_r)),
+    height(height)
 {
 }
 
 Vector3R CoordinateOnAnnulus::operator()()
 {
-  PetscReal r = std::sqrt(inner_r2_ + (outer_r2_ - inner_r2_) * random_01());
+  PetscReal r = std::sqrt(inner_r2 + (outer_r2 - inner_r2) * random_01());
   PetscReal phi = 2.0 * std::numbers::pi * random_01();
 
   return Vector3R{
-    center_[X] + r * cos(phi),
-    center_[Y] + r * sin(phi),
-    center_[Z] + 0.0,
+    center[X] + r * cos(phi),
+    center[Y] + r * sin(phi),
+    center[Z] + height * (random_01() - 0.5),
   };
 }
 
 
 Vector3R PreciseMomentum::operator()(const Vector3R& /* coordinate */)
 {
-  return value_;
+  return value;
 }
 
 
@@ -87,43 +76,43 @@ PetscReal temperature_momentum(PetscReal temperature, PetscReal mass)
 Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
 {
   Vector3R result{
-    params_.px +
+    params.px +
       std::sin(2.0 * std::numbers::pi * random_01()) *
-        temperature_momentum(params_.Tx, params_.m),
+        temperature_momentum(params.Tx, params.m),
 
-    params_.py +
+    params.py +
       std::sin(2.0 * std::numbers::pi * random_01()) *
-        temperature_momentum(params_.Ty, params_.m),
+        temperature_momentum(params.Ty, params.m),
 
-    params_.pz +
+    params.pz +
       std::sin(2.0 * std::numbers::pi * random_01()) *
-        temperature_momentum(params_.Tz, params_.m),
+        temperature_momentum(params.Tz, params.m),
   };
 
-  if (tov_)
-    result /= sqrt(params_.m * params_.m + result.squared());
+  if (tov)
+    result /= sqrt(params.m * params.m + result.squared());
   return result;
 }
 
 
 Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
 {
-  PetscReal x = coordinate.x() - center_[X];
-  PetscReal y = coordinate.y() - center_[Y];
+  PetscReal x = coordinate.x() - center[X];
+  PetscReal y = coordinate.y() - center[Y];
   PetscReal r = std::hypot(x, y);
 
   Vector3R temperature_moment{
-    temperature_momentum(params_.Tx, params_.m),
-    temperature_momentum(params_.Ty, params_.m),
-    temperature_momentum(params_.Tz, params_.m),
+    temperature_momentum(params.Tx, params.m),
+    temperature_momentum(params.Ty, params.m),
+    temperature_momentum(params.Tz, params.m),
   };
 
   if (std::isinf(1.0 / r))
-    return Vector3R{0.0, 0.0, params_.pz} + temperature_moment;
+    return Vector3R{0.0, 0.0, params.pz} + temperature_moment;
 
   return Vector3R{
-    -params_.px * (y / r) + temperature_moment[X],
-    +params_.py * (x / r) + temperature_moment[Y],
-    +params_.pz + temperature_moment[Z],
+    -params.px * (y / r) + temperature_moment[X],
+    +params.py * (x / r) + temperature_moment[Y],
+    +params.pz + temperature_moment[Z],
   };
 }

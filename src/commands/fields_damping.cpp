@@ -4,32 +4,15 @@
 
 class FieldsDamping::DampForBox {
 public:
-  DampForBox(const BoxGeometry& geom, PetscReal coefficient);
   void operator()(
     PetscInt z, PetscInt y, PetscInt x, Vector3R*** f, PetscReal& energy);
   BoxGeometry geom_;
   PetscReal coefficient_;
 };
 
-class FieldsDamping::DampForCircle {
-public:
-  DampForCircle(const CircleGeometry& geom, PetscReal coefficient);
-  void operator()(
-    PetscInt z, PetscInt y, PetscInt x, Vector3R*** f, PetscReal& energy);
-  CircleGeometry geom_;
-  PetscReal coefficient_;
-};
-
-
 FieldsDamping::FieldsDamping( //
   DM da, Vec E, Vec B, Vec B0, const BoxGeometry& geom, PetscReal coefficient)
   : da_(da), E_(E), B_(B), B0_(B0), damp_(DampForBox(geom, coefficient))
-{
-}
-
-FieldsDamping::FieldsDamping( //
-  DM da, Vec E, Vec B, Vec B0, const CircleGeometry& geom, PetscReal coefficient)
-  : da_(da), E_(E), B_(B), B0_(B0), damp_(DampForCircle(geom, coefficient))
 {
 }
 
@@ -75,12 +58,6 @@ PetscReal FieldsDamping::get_damped_energy() const
 }
 
 
-FieldsDamping::DampForBox::DampForBox(
-  const BoxGeometry& geom, PetscReal coefficient)
-  : geom_(geom), coefficient_(coefficient)
-{
-}
-
 void FieldsDamping::DampForBox::operator()(
   PetscInt z, PetscInt y, PetscInt x, Vector3R*** f, PetscReal& energy)
 {
@@ -118,35 +95,4 @@ void FieldsDamping::DampForBox::operator()(
     energy += 0.5 * f[z][y][x].squared() * (dx * dy * dz) * (1.0 - POW2(damping));
     f[z][y][x] *= damping;
   }
-}
-
-
-FieldsDamping::DampForCircle::DampForCircle(
-  const CircleGeometry& geom, PetscReal coefficient)
-  : geom_(geom), coefficient_(coefficient)
-{
-}
-
-void FieldsDamping::DampForCircle::operator()(
-  PetscInt z, PetscInt y, PetscInt x, Vector3R*** f, PetscReal& energy)
-{
-  PetscInt cx = x * dx - geom_.center[X];
-  PetscInt cy = y * dy - geom_.center[Y];
-  PetscReal r = std::hypot(cx, cy);
-
-  if (r < geom_.radius)
-    return;
-
-  PetscReal width = geom_.center[X] - geom_.radius;
-  PetscReal delta = r - geom_.radius;
-  PetscReal delta0 = width * (1.0 + 1.0 / sqrt(coefficient_));
-
-  /// @note To avoid negative damping coefficients, we check against `delta0`.
-  PetscReal damping = 0.0;
-
-  if (delta < delta0)
-    damping = 1.0 - coefficient_ * POW2(delta / width - 1.0);
-
-  energy += 0.5 * f[z][y][x].squared() * (dx * dy * dz) * (1.0 - POW2(damping));
-  f[z][y][x] *= damping;
 }

@@ -30,11 +30,6 @@ struct RemoveFromBox {
   BoxGeometry geom_;
 };
 
-struct RemoveFromCircle {
-  bool operator()(const Point& point);
-  CircleGeometry geom_;
-};
-
 struct RemoveFromCylinder {
   bool operator()(const Point& point);
   CylinderGeometry geom_;

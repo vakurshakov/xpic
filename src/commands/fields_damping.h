@@ -13,9 +13,6 @@ public:
   FieldsDamping(DM da, Vec E, Vec B, Vec B0, //
     const BoxGeometry& geom, PetscReal coefficient);
 
-  FieldsDamping(DM da, Vec E, Vec B, Vec B0, //
-    const CircleGeometry& geom, PetscReal coefficient);
-
   PetscErrorCode execute(timestep_t t) override;
 
   PetscReal get_damped_energy() const;
@@ -35,7 +32,6 @@ private:
   PetscReal damped_energy_ = 0.0;
 
   class DampForBox;
-  class DampForCircle;
 };
 
 #endif  // SRC_COMMANDS_FIELDS_DAMPING_H

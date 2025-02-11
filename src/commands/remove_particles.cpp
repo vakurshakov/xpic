@@ -56,13 +56,6 @@ bool RemoveFromBox::operator()(const Point& point)
 }
 
 
-bool RemoveFromCircle::operator()(const Point& point)
-{
-  PetscReal x = point.x() - geom_.center[X];
-  PetscReal y = point.y() - geom_.center[Y];
-  return (x * x + y * y) > POW2(geom_.radius);
-}
-
 bool RemoveFromCylinder::operator()(const Point& point)
 {
   PetscReal x = point.x() - geom_.center[X];

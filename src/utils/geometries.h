@@ -9,11 +9,6 @@ struct BoxGeometry {
   Vector3R max;
 };
 
-struct CircleGeometry {
-  Vector3R center;
-  PetscReal radius;
-};
-
 struct CylinderGeometry {
   Vector3R center;
   PetscReal radius;
