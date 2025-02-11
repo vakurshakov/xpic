@@ -14,10 +14,13 @@ public:
 protected:
   void load_coordinate(const Configuration::json_t& info,
     const interfaces::Particles& particles, CoordinateGenerator& gen,
-    PetscInt& per_step_particles_number);
+    PetscInt& number_of_particles);
 
   void load_momentum(const Configuration::json_t& info,
     const interfaces::Particles& particles, MomentumGenerator& gen);
+
+  void load_geometry(const Configuration::json_t& info, BoxGeometry& box);
+  void load_geometry(const Configuration::json_t& info, CylinderGeometry& cyl);
 };
 
 }  // namespace interfaces

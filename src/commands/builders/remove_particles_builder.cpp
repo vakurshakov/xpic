@@ -21,31 +21,14 @@ PetscErrorCode RemoveParticlesBuilder::build(const Configuration::json_t& info)
   geometry.at("name").get_to(name);
 
   if (name == "BoxGeometry") {
-    Vector3R min{0.0};
-    Vector3R max{Geom};
-
-    if (geometry.contains("min"))
-      min = parse_vector(geometry, "min");
-    if (geometry.contains("max"))
-      max = parse_vector(geometry, "max");
-
-    test = RemoveFromBox(BoxGeometry(min, max));
+    BoxGeometry box;
+    load_geometry(geometry, box);
+    test = RemoveFromBox(std::move(box));
   }
   else if (name == "CylinderGeometry") {
-    Vector3R center{0.5 * geom_x, 0.5 * geom_y, 0.5 * geom_z};
-
-    PetscReal s = std::min(geom_x, geom_y);
-    PetscReal radius = 0.5 * std::hypot(s, s);
-    PetscReal height = geom_z;
-
-    if (geometry.contains("center"))
-      center = parse_vector(geometry, "center");
-    if (geometry.contains("radius"))
-      geometry.at("radius").get_to(radius);
-    if (geometry.contains("height"))
-      geometry.at("height").get_to(height);
-
-    test = RemoveFromCylinder(CylinderGeometry(center, radius, height));
+    CylinderGeometry cyl;
+    load_geometry(geometry, cyl);
+    test = RemoveFromCylinder(std::move(cyl));
   }
   else {
     throw std::runtime_error("Unknown coordinate geometry name " + name);
