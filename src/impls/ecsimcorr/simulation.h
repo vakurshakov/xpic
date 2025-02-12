@@ -58,6 +58,7 @@ private:
   PetscErrorCode second_push();
   PetscErrorCode correct_fields();
   PetscErrorCode final_update();
+  PetscErrorCode log_view(PetscInt t);
 
   PetscErrorCode update_cells();
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
@@ -82,6 +83,8 @@ private:
 
   /// @note We start with _unassembled_ state to force first indexes assembly
   bool matL_indices_assembled = false;
+
+  PetscLogHandler log_handler;
 
   PetscClassId classid;
   PetscLogEvent events[1];

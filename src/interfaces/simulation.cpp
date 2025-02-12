@@ -40,33 +40,8 @@ PetscErrorCode Simulation::calculate()
     for (const Diagnostic_up& diagnostic : diagnostics_)
       PetscCall(diagnostic->diagnose(t));
     PetscLogStagePop();
-
-    PetscCall(log_view(t));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/// @todo Make it as separate diagnostic?
-PetscErrorCode Simulation::log_view(PetscInt t) const
-{
-#if PERF_LEVEL == 0
-  return PETSC_SUCCESS;
-#elif PERF_LEVEL == 1
-  PetscFunctionBeginUser;
-
-  std::string filename =
-    CONFIG().out_dir + "/performance/" + Diagnostic::format_time(t);
-  std::filesystem::path path(filename);
-  std::filesystem::create_directories(path.parent_path());
-
-  PetscViewer viewer;
-  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer));
-  PetscCall(PetscLogView(viewer));
-  PetscCall(PetscViewerDestroy(&viewer));
-
-  PetscCall(PetscLogDefaultBegin());
-  PetscFunctionReturn(PETSC_SUCCESS);
-#endif
 }
 
 PetscErrorCode Simulation::log_information() const

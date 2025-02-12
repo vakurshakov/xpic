@@ -17,6 +17,7 @@ PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
   PetscCall(init_log_stages());
+  PetscCall(PetscLogHandlerStart(log_handler));
   PetscLogStagePush(stagenums[0]);
 
   PetscCall(init_vectors());
@@ -45,7 +46,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
+PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 {
   PetscFunctionBeginUser;
   PetscCall(clear_sources());
@@ -54,6 +55,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscCall(second_push());
   PetscCall(correct_fields());
   PetscCall(final_update());
+  PetscCall(log_view(t));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -369,6 +371,32 @@ PetscErrorCode Simulation::mat_set_preallocation_coo(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @todo Make it as separate diagnostic!
+PetscErrorCode Simulation::log_view(PetscInt t)
+{
+#if PERF_LEVEL == 0
+  return PETSC_SUCCESS;
+#elif PERF_LEVEL == 1
+  PetscFunctionBeginUser;
+
+  std::string filename = CONFIG().out_dir + "/performance/" +
+    interfaces::Diagnostic::format_time(t) + ".log";
+
+  std::filesystem::path path(filename);
+  std::filesystem::create_directories(path.parent_path());
+
+  PetscCall(PetscLogHandlerStop(log_handler));
+
+  PetscViewer viewer;
+  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer));
+  PetscCall(PetscLogHandlerView(log_handler, viewer));
+  PetscCall(PetscViewerDestroy(&viewer));
+
+  PetscCall(PetscLogHandlerStart(log_handler));
+  PetscFunctionReturn(PETSC_SUCCESS);
+#endif
+}
+
 
 PetscErrorCode Simulation::init_vectors()
 {
@@ -472,16 +500,19 @@ PetscErrorCode Simulation::init_particles()
 PetscErrorCode Simulation::init_log_stages()
 {
   PetscFunctionBeginUser;
-  PetscLogStageRegister("Initialization", &stagenums[0]);
-  PetscLogStageRegister("Clear sources", &stagenums[1]);
-  PetscLogStageRegister("First push", &stagenums[2]);
-  PetscLogStageRegister("Predict field", &stagenums[3]);
-  PetscLogStageRegister("Second push", &stagenums[4]);
-  PetscLogStageRegister("Correct fields", &stagenums[5]);
-  PetscLogStageRegister("Renormalization", &stagenums[6]);
+  PetscCall(PetscLogHandlerCreate(PETSC_COMM_WORLD, &log_handler));
+  PetscCall(PetscLogHandlerSetType(log_handler, PETSCLOGHANDLERDEFAULT));
 
-  PetscClassIdRegister("ecsimcorr::Simulation", &classid);
-  PetscLogEventRegister("fill_ecsim_curr", classid, &events[0]);
+  PetscCall(PetscClassIdRegister("ecsimcorr::Simulation", &classid));
+  PetscCall(PetscLogEventRegister("fill_ecsim_curr", classid, &events[0]));
+
+  PetscCall(PetscLogStageRegister("Initialization", &stagenums[0]));
+  PetscCall(PetscLogStageRegister("Clear sources", &stagenums[1]));
+  PetscCall(PetscLogStageRegister("First push", &stagenums[2]));
+  PetscCall(PetscLogStageRegister("Predict field", &stagenums[3]));
+  PetscCall(PetscLogStageRegister("Second push", &stagenums[4]));
+  PetscCall(PetscLogStageRegister("Correct fields", &stagenums[5]));
+  PetscCall(PetscLogStageRegister("Renormalization", &stagenums[6]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -506,6 +537,8 @@ Simulation::~Simulation()
 
   PetscCallVoid(VecDestroy(&local_E));
   PetscCallVoid(VecDestroy(&local_B));
+
+  PetscCallVoid(PetscLogHandlerDestroy(&log_handler));
   PetscFunctionReturnVoid();
 }
 
