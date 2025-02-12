@@ -92,7 +92,7 @@ PetscReal DampForCylinder::operator()(const Vector3R& g)
 {
   PetscReal r = std::hypot(g[X] - geom.center[X], g[Y] - geom.center[Y]);
 
-  /// @todo Why without it, we are producing `damping < 0.0`? Didn't we just tested against `geom`?
+  /// @note Here we can be with r > geom.radius, @see `WithinCylinder::operator()`
   if (r < geom.radius)
     return 1.0;
 
