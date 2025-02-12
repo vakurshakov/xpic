@@ -276,7 +276,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
   LOG("  To collect matrix values, temporary storage of size {:4.3f} GB was allocated",
       (PetscReal)size * sizeof(PetscReal) / 1e9);
 
-  fill_ecsim_current(coo_i.data(), coo_j.data(), coo_v.data());
+  PetscCall(fill_ecsim_current(coo_i.data(), coo_j.data(), coo_v.data()));
 
   if (!matL_indices_assembled) {
     PetscCall(mat_set_preallocation_coo(size, coo_i.data(), coo_j.data()));
