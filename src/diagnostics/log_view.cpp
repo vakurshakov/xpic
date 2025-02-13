@@ -17,6 +17,22 @@ PetscErrorCode LogView::diagnose(PetscInt t)
     PetscCall(init());
 
   PetscFunctionBegin;
+  switch (level_) {
+    case EachTimestep:
+      PetscCall(level_0_impl(t));
+      break;
+    case DiagnosePeriodAvg:
+      PetscCall(level_1_impl(t));
+      break;
+    case AllTimestepsSummary:
+      PetscCall(level_2_impl(t));
+      break;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode LogView::level_0_impl(PetscInt t)
+{
   PetscCall(PetscViewerASCIIPrintf(viewer_, "%5d     ", t));
 
   // Collected and printed data
@@ -62,21 +78,49 @@ PetscErrorCode LogView::diagnose(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
+PetscErrorCode LogView::level_1_impl(PetscInt t)
+{
+  if (t % diagnose_period != 0)
+    return PETSC_SUCCESS;
+
+  PetscFunctionBeginUser;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode LogView::level_2_impl(PetscInt t)
+{
+  if (t % diagnose_period != 0)
+    return PETSC_SUCCESS;
+
+  PetscFunctionBeginUser;
+  std::string filename = out_dir_ + "/log-AllTimestepsSummary.dat";
+  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
+  PetscCall(PetscLogView(viewer_));
+  PetscCall(PetscViewerDestroy(&viewer_));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode LogView::init()
 {
   PetscFunctionBeginUser;
   PetscCall(PetscLogDefaultBegin());
-  prev_loc_time_ = petsc_BaseTime;
+
+  if (level_ == AllTimestepsSummary)
+    PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscCall(PetscLogHandlerCreate(PETSC_COMM_WORLD, &handler_));
   PetscCall(PetscLogHandlerSetType(handler_, PETSCLOGHANDLERDEFAULT));
   PetscCall(PetscLogHandlerStart(handler_));
 
-  std::string filename = out_dir_ + "/log_view.dat";
+  if (level_ != EachTimestep)
+    PetscFunctionReturn(PETSC_SUCCESS);
 
-  /// @note Removing in case of overwrite
+  prev_loc_time_ = petsc_BaseTime;
+
+  /// @note Removing previous file in case of overwriting it
+  std::string filename = out_dir_ + "/log-EachTimestep.dat";
   std::filesystem::remove(filename);
-
   PetscCall(PetscViewerCreate(PETSC_COMM_WORLD, &viewer_));
   PetscCall(PetscViewerSetType(viewer_, PETSCVIEWERASCII));
   PetscCall(PetscViewerFileSetMode(viewer_, FILE_MODE_APPEND));

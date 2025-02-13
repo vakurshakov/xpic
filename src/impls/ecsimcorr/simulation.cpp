@@ -38,6 +38,7 @@ PetscErrorCode Simulation::initialize_implementation()
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<LogView>(LogView::EachTimestep));
+  diagnostics_.emplace_back(std::make_unique<LogView>(LogView::AllTimestepsSummary));
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());

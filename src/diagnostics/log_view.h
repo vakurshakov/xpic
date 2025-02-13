@@ -9,16 +9,28 @@
 
 /**
  * @brief Provides the possibility to trace the performance of the application.
- * For that we utilize PETSc logging system, @see `PetscLogHandler`, but since
- * the nature of the application is iterative, there is an option to briefly
- * log the performance of the application at each individual timesteps.
+ * For that we utilize PETSc logging system, but since the nature of the app is
+ * iterative, there are options to briefly log the performance at individual
+ * timesteps.
+ *
+ * @li
+ * - `EachTimestep` - Timestep summary, separated on stages:
+ *   execution time (sec) and a timestep fraction.
+ *
+ * - `DiagnosePeriodAvg` - To be revisited.
+ *
+ * - `AllTimestepsSummary` - Works as a `-log_view` database option,
+ *   but we will dump data each `diagnose_period` to avoid losses.
+ * @li
+ *
+ * @see `PetscLogHandler`
  */
 class LogView : public interfaces::Diagnostic {
 public:
   enum Level {
     EachTimestep,
     DiagnosePeriodAvg,
-    AllTimeSum
+    AllTimestepsSummary
   };
 
   LogView(Level level);
@@ -28,6 +40,9 @@ public:
 
 private:
   PetscErrorCode init();
+  PetscErrorCode level_0_impl(PetscInt t);
+  PetscErrorCode level_1_impl(PetscInt t);
+  PetscErrorCode level_2_impl(PetscInt t);
 
   Level level_;
   PetscLogHandler handler_ = nullptr;
