@@ -11,10 +11,6 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help.data()));
 
-#if PERF_LEVEL > 0
-  PetscCall(PetscLogDefaultBegin());
-#endif
-
   if (argc < 2) {
     LOG(help);
     return EXIT_FAILURE;

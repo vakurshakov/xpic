@@ -5,16 +5,6 @@
 #define RANDOM_SEED           false
 #define LOGGING               true
 
-/**
- * To trace the performance of the application we utilize PETSc logging
- * system `PetscLogView()`. There are four levels of performance tests:
- * `0` - Turns off the calls to logging routine;
- * `1` - Print performance logs each timestep into separate directory;
- * `2` - Print one performance log every `diagnose_period`;
- * `3` - Print only one performance log at the end of the simulation.
- */
-#define PERF_LEVEL 1
-
 #include <petscsystypes.h>
 
 extern PetscReal Dx[3];           // c/w_pe
