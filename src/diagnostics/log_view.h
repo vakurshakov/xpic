@@ -17,13 +17,14 @@
  * - `EachTimestep` - Timestep summary, separated on stages:
  *   execution time (sec) and a timestep fraction.
  *
- * - `DiagnosePeriodAvg` - To be revisited.
+ * - `DiagnosePeriodAvg` - Timings are averaged over
+ *   `diagnose_period` and are written as a separate files.
  *
  * - `AllTimestepsSummary` - Works as a `-log_view` database option,
  *   but we will dump data each `diagnose_period` to avoid losses.
  * @li
  *
- * @see `PetscLogHandler`
+ * @see `PetscLogHandler`, `PetscLogView()`, `PetscLogViewWarnDebugging()`
  */
 class LogView : public interfaces::Diagnostic {
 public:
@@ -39,17 +40,23 @@ public:
   PetscErrorCode diagnose(PetscInt t) override;
 
 private:
-  PetscErrorCode init();
   PetscErrorCode level_0_impl(PetscInt t);
   PetscErrorCode level_1_impl(PetscInt t);
   PetscErrorCode level_2_impl(PetscInt t);
+
+  PetscErrorCode init();
+  PetscErrorCode warn();
+  PetscErrorCode pop_stack();
+  PetscErrorCode push_stack();
 
   Level level_;
   PetscLogHandler handler_ = nullptr;
   PetscViewer viewer_ = nullptr;
 
-  PetscLogDouble prev_loc_time_ = 0.0;
-  std::map<const char*, PetscLogDouble> prev_stage_times_;
+  PetscIntStack temp_stack_;
+
+  PetscLogDouble prev_time_;
+  std::map<std::string, PetscLogDouble> prev_times_;
 };
 
 #endif  // SRC_DIAGNOSTICS_LOG_VIEW_H
