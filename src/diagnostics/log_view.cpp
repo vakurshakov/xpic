@@ -148,7 +148,7 @@ PetscErrorCode LogView::level_1_impl(PetscInt t)
     PetscCall(PetscViewerASCIIPrintf(viewer_, "\n--- Event Stage %d: %s\n\n", stage, stage_name));
 
     PetscCallMPI(MPIU_Allreduce(&stage_info->time, &stage_time, 1, MPIU_PETSCLOGDOUBLE, MPI_SUM, comm));
-    stage_time -= prev_times_.at(stage_name);
+    PetscLogDouble delta_stage_time = stage_time - prev_times_.at(stage_name);
 
     for (PetscLogEvent event = 0; event < num_events; ++event) {
       const char* event_name;
@@ -157,10 +157,9 @@ PetscErrorCode LogView::level_1_impl(PetscInt t)
       PetscCall(PetscLogEventGetName(event, &event_name));
       PetscCall(PetscLogHandlerGetEventPerfInfo(handler_, stage, event, &event_info));
 
-      PetscLogDouble maxt, tott;
       PetscInt maxC;
-      PetscCallMPI(MPIU_Allreduce(&event_info->time, &maxt, 1, MPIU_PETSCLOGDOUBLE, MPI_MAX, comm));
-      PetscCallMPI(MPIU_Allreduce(&event_info->time, &tott, 1, MPIU_PETSCLOGDOUBLE, MPI_SUM, comm));
+      PetscCallMPI(MPIU_Allreduce(&event_info->time, &max, 1, MPIU_PETSCLOGDOUBLE, MPI_MAX, comm));
+      PetscCallMPI(MPIU_Allreduce(&event_info->time, &tot, 1, MPIU_PETSCLOGDOUBLE, MPI_SUM, comm));
       PetscCallMPI(MPIU_Allreduce(&event_info->count, &maxC, 1, MPI_INT, MPI_MAX, comm));
       if (maxC == 0)
         continue;
@@ -174,18 +173,18 @@ PetscErrorCode LogView::level_1_impl(PetscInt t)
       if (!prev_times_.contains(tot_name))
         prev_times_.insert(std::make_pair(tot_name, 0.0));
 
-      delta_time = (tott - prev_times_.at(tot_name));
+      delta_time = (tot - prev_times_.at(tot_name));
       frac_period_time = delta_time / period_time;
 
       if (delta_time <= 0.0 || 100.0 * frac_period_time < 0.1)
         continue;
 
-      frac_stage_time = stage_time > 0.0 ? delta_time / stage_time : 0.0;
-      delta_time = (maxt - prev_times_.at(max_name));
+      frac_stage_time = delta_stage_time > 0.0 ? delta_time / delta_stage_time : 0.0;
+      delta_time = (max - prev_times_.at(max_name));
       PetscCall(PetscViewerASCIIPrintf(viewer_, "%-16s  %5.4e  %5.4e  %5.1f  %5.1f\n", event_name, delta_time, delta_time / diagnose_period, 100.0 * frac_period_time, 100.0 * frac_stage_time));
 
-      prev_times_.insert_or_assign(tot_name, tott);
-      prev_times_.insert_or_assign(max_name, maxt);
+      prev_times_.insert_or_assign(tot_name, tot);
+      prev_times_.insert_or_assign(max_name, max);
     }
 
     prev_times_.at(stage_name) = stage_time;
@@ -218,9 +217,7 @@ PetscErrorCode LogView::init()
   if (level_ == AllTimestepsSummary)
     PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscCall(PetscLogHandlerCreate(PETSC_COMM_WORLD, &handler_));
-  PetscCall(PetscLogHandlerSetType(handler_, PETSCLOGHANDLERDEFAULT));
-  PetscCall(PetscLogHandlerStart(handler_));
+  PetscCall(PetscLogGetDefaultHandler(&handler_));
 
   if (level_ == DiagnosePeriodAvg)
     PetscFunctionReturn(PETSC_SUCCESS);
@@ -310,11 +307,6 @@ PetscErrorCode LogView::warn()
 LogView::~LogView()
 {
   PetscFunctionBeginUser;
-  if (handler_) {
-    PetscCallVoid(PetscLogHandlerStop(handler_));
-    PetscCallVoid(PetscLogHandlerDestroy(&handler_));
-  }
-
   if (viewer_)
     PetscCallVoid(PetscViewerDestroy(&viewer_));
   PetscFunctionReturnVoid();
