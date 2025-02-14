@@ -17,8 +17,8 @@
  * - `EachTimestep` - Timestep summary, separated on stages:
  *   execution time (sec) and a timestep fraction.
  *
- * - `DiagnosePeriodAvg` - Timings are averaged over
- *   `diagnose_period` and are written as a separate files.
+ * - `DiagnosePeriodAvg` - Timings are averaged over `diagnose_period`
+ *   and events are compressed to have period time fraction > 0.1%.
  *
  * - `AllTimestepsSummary` - Works as a `-log_view` database option,
  *   but we will dump data each `diagnose_period` to avoid losses.
@@ -40,6 +40,7 @@ public:
   PetscErrorCode diagnose(PetscInt t) override;
 
 private:
+  PetscErrorCode level_0_init();
   PetscErrorCode level_0_impl(PetscInt t);
   PetscErrorCode level_1_impl(PetscInt t);
   PetscErrorCode level_2_impl(PetscInt t);
