@@ -2,6 +2,7 @@
 
 #include "src/diagnostics/builders/distribution_moment_builder.h"
 #include "src/diagnostics/builders/field_view_builder.h"
+#include "src/diagnostics/builders/log_view_builder.h"
 #include "src/utils/geometries.h"
 
 DiagnosticBuilder::DiagnosticBuilder(const interfaces::Simulation& simulation,
@@ -37,6 +38,9 @@ PetscErrorCode build_diagnostics(
     }
     else if (name == "DistributionMoment") {
       PetscCall(Builder::use_impl<DistributionMomentBuilder>(info, simulation, result));
+    }
+    else if (name == "LogView") {
+      PetscCall(Builder::use_impl<LogViewBuilder>(info, simulation, result));
     }
     else {
       throw std::runtime_error("Unknown diagnostic name " + name);

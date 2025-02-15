@@ -136,6 +136,18 @@
       "diagnostic": "DistributionMoment",
       "particles": "electrons",
       "moment": "Density"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "EachTimestep"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "DiagnosePeriodAvg"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "AllTimestepsSummary"
     }
   ]
 }
