@@ -26,6 +26,6 @@ PetscErrorCode LogViewBuilder::build(const Configuration::json_t& info)
 
   diagnostics_.emplace_back(std::make_unique<LogView>(level));
 
-  LOG("  LogView diagnostic ({}) is added", level_info);
+  LOG("  LogView with {} diagnostic is added", level_info);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
