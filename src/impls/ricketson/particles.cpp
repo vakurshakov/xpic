@@ -224,12 +224,12 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& /* point */)
   PetscReal delta_E = ctx.v_En / Omega * (ctx.DB_pt.length() / B_norm);
 
   PetscReal Omega_dt = alpha *
-    std::min(M_SQRT2 / sqrt(delta_E + delta_p),
+    std::min(M_SQRT2 / std::sqrt(delta_E + delta_p),
       std::min(Omega * t_res, gamma / delta_t));
 
   // (eh) -- estimate of gyration velocity on half time-step.
   PetscReal u_eh =
-    (ctx.v_ht - ctx.v_E).length() / sqrt(1.0 + 0.25 * POW2(Omega_dt));
+    (ctx.v_ht - ctx.v_E).length() / std::sqrt(1.0 + 0.25 * POW2(Omega_dt));
 
   /// @todo Probably, some diagnostic is need here to understand the cases.
   if (ctx.v_En > (1.0 + beta) * u_eh) {
@@ -243,8 +243,8 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& /* point */)
   }
 
   Omega_dt = alpha *
-    std::min(2.0 * sqrt(Omega * t_res / M_PI),
-      2.0 * M_SQRT2 * std::min(1.0 / sqrt(delta_t), 1.0 / sqrt(delta_p)));
+    std::min(2.0 * std::sqrt(Omega * t_res / M_PI),
+      2.0 * M_SQRT2 * std::min(1.0 / std::sqrt(delta_t), 1.0 / std::sqrt(delta_p)));
 
   ctx.dt = Omega_dt / Omega;
   PetscFunctionReturn(PETSC_SUCCESS);

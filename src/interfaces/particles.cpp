@@ -194,7 +194,7 @@ Vector3R Particles::velocity(const Point& point) const
 {
   const Vector3R& p = point.p;
   PetscReal m = mass(point);
-  return p / sqrt(m * m + p.squared());
+  return p / std::sqrt(m * m + p.squared());
 }
 
 void Particles::correct_coordinates(Point& point)

@@ -233,7 +233,7 @@ inline PetscReal get_vr(const Particles& particles, const Point& point)
 {
   PetscReal x = point.x() - 0.5 * geom_x;
   PetscReal y = point.y() - 0.5 * geom_y;
-  PetscReal r = sqrt(x * x + y * y);
+  PetscReal r = std::sqrt(x * x + y * y);
 
   // Particles close to r=0 are not taken into account
   if (std::isinf(1.0 / r))
@@ -246,7 +246,7 @@ inline PetscReal get_vphi(const Particles& particles, const Point& point)
 {
   PetscReal x = point.x() - 0.5 * geom_x;
   PetscReal y = point.y() - 0.5 * geom_y;
-  PetscReal r = sqrt(x * x + y * y);
+  PetscReal r = std::sqrt(x * x + y * y);
 
   // Particles close to r=0 are not taken into account
   if (std::isinf(1.0 / r))

@@ -33,7 +33,7 @@ void BorisPush::update_u(
   Vector3R b = alpha * B_p;
 
   if (need_gamma)
-    b /= sqrt(1.0 + t.squared() / POW2(m));
+    b /= std::sqrt(1.0 + t.squared() / POW2(m));
 
   u = 2.0 * (t + t.cross(b) + b * t.dot(b)) / (1.0 + b.squared()) - u;
 }

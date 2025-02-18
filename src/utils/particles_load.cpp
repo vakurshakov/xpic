@@ -90,7 +90,7 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
   };
 
   if (tov)
-    result /= sqrt(params.m * params.m + result.squared());
+    result /= std::sqrt(params.m * params.m + result.squared());
   return result;
 }
 
