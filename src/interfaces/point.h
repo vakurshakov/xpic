@@ -4,8 +4,7 @@
 #include "src/pch.h"
 #include "src/utils/vector3.h"
 
-class Point {
-public:
+struct Point {
   Vector3R r;
   Vector3R p;
 
