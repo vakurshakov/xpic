@@ -14,14 +14,15 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
   PetscInt removed_particles = 0;
   removed_energy_ = 0.0;
 
+  const World& w = particles_.world;
   const PetscInt Np = particles_.parameters.Np;
   const PetscReal m = particles_.parameters.m;
 
-  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
+  for (PetscInt g = 0; g < w.size.elements_product(); ++g) {
     const Vector3R r{
-      (g % geom_nx) * dx,
-      ((g / geom_nx) % geom_ny) * dy,
-      ((g / geom_nx) / geom_ny) * dz,
+      (g % w.size[X]) * dx,
+      ((g / w.size[X]) % w.size[Y]) * dy,
+      ((g / w.size[X]) / w.size[Y]) * dz,
     };
 
     auto& cell = particles_.storage[g];

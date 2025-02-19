@@ -4,7 +4,7 @@ source ./header.sh
 
 usage() { echo "Usage: $0 <config.json>" 1>&2; exit 1; }
 
-export MPI_NUM_PROC=1
+export MPI_NUM_PROC=2
 
 export OMP_PLACES=cores
 export OMP_PROC_BIND=spread
@@ -30,7 +30,9 @@ $PETSC_DIR/lib/petsc/bin/petscfreesharedmemory
 
 # With `KSPSetReusePreconditioner()` the default "ilu" is usable!
 # -predict_pc_type none
+# -mpi_linear_solver_server
+# -mpi_linear_solver_server_view
 
-$MPI_DIR/bin/mpiexec -np $MPI_NUM_PROC ./build/xpic.out $@ \
-    -mpi_linear_solver_server                              \
-    -mpi_linear_solver_server_view                         \
+$MPI_DIR/bin/mpiexec                \
+    -n $MPI_NUM_PROC                \
+    ./build/xpic.out $@             \

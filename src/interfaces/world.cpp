@@ -2,14 +2,6 @@
 
 #include "src/interfaces/sort_parameters.h"
 #include "src/utils/configuration.h"
-#include "src/utils/utils.h"
-
-void convert(Vector3R& vector, const Vector3I& other)
-{
-  vector.x() = static_cast<PetscReal>(other.x()) * dx;
-  vector.y() = static_cast<PetscReal>(other.y()) * dy;
-  vector.z() = static_cast<PetscReal>(other.z()) * dz;
-}
 
 PetscErrorCode World::initialize()
 {
@@ -25,13 +17,8 @@ PetscErrorCode World::initialize()
 
   PetscCall(DMDAGetNeighbors(da, &neighbors));
 
-  PetscCall(DMDAGetCorners(da, REP3_A(&start_n), REP3_A(&end_n)));
-  end_n.x() += start_n.x();
-  end_n.y() += start_n.y();
-  end_n.z() += start_n.z();
-
-  convert(start, start_n);
-  convert(end, end_n);
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+  end = start + size;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

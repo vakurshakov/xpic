@@ -4,10 +4,10 @@
   "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "x": 70,
-    "y": 70,
-    "z": 200,
-    "t": 10,
+    "x": 20,
+    "y": 20,
+    "z": 20,
+    "t": 100,
     "[x]": "c/w_pe",
     "[y]": "c/w_pe",
     "[z]": "c/w_pe",
@@ -23,23 +23,17 @@
 
     "da_boundary_x": "DM_BOUNDARY_GHOSTED",
     "da_boundary_y": "DM_BOUNDARY_GHOSTED",
-    "da_boundary_z": "DM_BOUNDARY_GHOSTED"
+    "da_boundary_z": "DM_BOUNDARY_GHOSTED",
+
+    "da_processors_x": 2,
+    "da_processors_y": 1,
+    "da_processors_z": 1
   },
 
   "Particles": [
     {
-      "sort_name": "ions",
-      "Np": 1000,
-      "n": 1.0,
-      "q": 1.0,
-      "m": 100,
-      "Tx": 10.0,
-      "Ty": 10.0,
-      "Tz": 0.10
-    },
-    {
       "sort_name": "electrons",
-      "Np": 1000,
+      "Np": 1,
       "n":  1.0,
       "q": -1.0,
       "m":  1.0,
@@ -49,94 +43,23 @@
 
   "Presets": [
     {
-      "command": "SetMagneticField",
-      "field": "B0",
-      "setter": {
-        "name": "SetCoilsField",
-        "coils": [
-          { "z0": 60, "R": 32, "I": 2 },
-          { "z0": 140, "R": 32, "I": 2 }
-        ]
+      "command": "SetParticles",
+      "particles": "electrons",
+      "coordinate": {
+        "name": "PreciseCoordinate",
+        "value": [ 19.2, 19.2, 19.2 ]
+      },
+      "momentum": {
+        "name": "PreciseMomentum",
+        "value": [ -0.5, 0, 0 ]
       }
     }
   ],
 
   "StepPresets": [
-    {
-      "command": "FieldsDamping",
-      "E": "E",
-      "B": "B",
-      "B0": "B0",
-      "geometry": {
-        "name": "CylinderGeometry",
-        "radius": 60
-      },
-      "damping_coefficient": 0.8
-    },
-    {
-      "command": "RemoveParticles",
-      "particles": "ions",
-      "geometry": {
-        "name": "CylinderGeometry",
-        "radius": 60,
-        "height": 194
-      }
-    },
-    {
-      "command": "RemoveParticles",
-      "particles": "electrons",
-      "geometry": {
-        "name": "CylinderGeometry",
-        "radius": 60,
-        "height": 194
-      }
-    },
-    {
-      "command": "InjectParticles",
-      "ionized": "ions",
-      "ejected": "electrons",
-      "injection_start": 0,
-      "injection_end": "geom_t",
-      "tau": 4998,
-      "coordinate": {
-        "name": "CoordinateInCylinder",
-        "radius": 10,
-        "height": 30
-      },
-      "momentum_i": {
-        "name": "MaxwellianMomentum",
-        "tov": true
-      },
-      "momentum_e": {
-        "name": "MaxwellianMomentum",
-        "tov": true
-      }
-    }
   ],
 
   "Diagnostics": [
-    {
-      "diagnostic": "FieldView",
-      "field": "E"
-    },
-    {
-      "diagnostic": "FieldView",
-      "field": "B"
-    },
-    {
-      "diagnostic": "FieldView",
-      "field": "J_esirkepov"
-    },
-    {
-      "diagnostic": "DistributionMoment",
-      "particles": "ions",
-      "moment": "Density"
-    },
-    {
-      "diagnostic": "DistributionMoment",
-      "particles": "electrons",
-      "moment": "Density"
-    },
     {
       "diagnostic": "LogView",
       "level": "EachTimestep"

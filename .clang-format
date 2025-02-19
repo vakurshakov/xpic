@@ -215,3 +215,4 @@ WhitespaceSensitiveMacros:
   - PetscCheck
   - PetscAssert
   - LOG
+  - LOG_IMPL

@@ -2,28 +2,16 @@
 
 namespace interfaces {
 
-#define COMMUNICATION 0
-
-#if COMMUNICATION
 namespace {
 
 constexpr PetscInt dim = 3;
 
-PetscInt to_contiguous_index(PetscInt z, PetscInt y, PetscInt x)
+constexpr PetscInt neighbor_index(PetscInt z, PetscInt y, PetscInt x)
 {
   return indexing::petsc_index(z, y, x, 0, dim, dim, dim, 1);
 }
 
-Vector3I from_contiguous_index(PetscInt index)
-{
-  return Vector3I{
-    (index) % dim,
-    (index / dim) % dim,
-    (index / dim) / dim,
-  };
-}
-
-PetscInt get_index(const Vector3R& r, Axis axis, const World& world)
+constexpr PetscInt get_index(const Vector3I& r, Axis axis, const World& world)
 {
   if (r[axis] < world.start[axis])
     return 0;
@@ -32,46 +20,35 @@ PetscInt get_index(const Vector3R& r, Axis axis, const World& world)
   return 2;
 }
 
+/// @note `PETSC_DEFAULT` isn't identical to `MPI_PROC_NULL`
+constexpr PetscMPIInt get_neighbor(PetscInt i, const World& world)
+{
+  return world.neighbors[i] < 0 ? MPI_PROC_NULL : world.neighbors[i];
+}
+
 }  // namespace
-#endif
 
 
 Particles::Particles(const World& world, const SortParameters& parameters)
-  : world(world), parameters(parameters), storage(geom_nz * geom_ny * geom_nx)
+  : world(world), parameters(parameters), storage(world.size.elements_product())
 {
 }
 
 PetscErrorCode Particles::add_particle(const Point& point)
 {
   PetscFunctionBeginUser;
-  auto x = static_cast<PetscInt>(point.x() / dx);
-  auto y = static_cast<PetscInt>(point.y() / dy);
-  auto z = static_cast<PetscInt>(point.z() / dz);
+  auto x = FLOOR_STEP(point.x(), dx) - world.start[X];
+  auto y = FLOOR_STEP(point.y(), dy) - world.start[Y];
+  auto z = FLOOR_STEP(point.z(), dz) - world.start[Z];
+
+  bool within_bounds = //
+    (0 <= x && x < world.size[X]) && //
+    (0 <= y && y < world.size[Y]) && //
+    (0 <= z && z < world.size[Z]);
+
+  if (within_bounds) {
 #pragma omp critical
-  storage[indexing::s_g(z, y, x)].emplace_back(point);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/// @todo geometry from `world` should be reused for MPI
-PetscErrorCode Particles::update_cells()
-{
-  PetscFunctionBeginUser;
-  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
-    auto it = storage[g].begin();
-    while (it != storage[g].end()) {
-      auto ng = indexing::s_g(               //
-        static_cast<PetscInt>(it->x() / dx), //
-        static_cast<PetscInt>(it->y() / dy), //
-        static_cast<PetscInt>(it->z() / dz));
-
-      if (ng == g) {
-        it = std::next(it);
-        continue;
-      }
-
-      storage[ng].emplace_back(*it);
-      it = storage[g].erase(it);
-    }
+    storage[world.s_g(z, y, x)].emplace_back(point);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -86,37 +63,87 @@ PetscErrorCode Particles::correct_coordinates()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-#if COMMUNICATION
-PetscErrorCode Particles::communicate()
+PetscErrorCode Particles::update_cells()
 {
   PetscFunctionBeginUser;
+  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+    auto it = storage[g].begin();
+    while (it != storage[g].end()) {
+      auto ng = world.s_g(       //
+        FLOOR_STEP(it->x(), dx), //
+        FLOOR_STEP(it->y(), dy), //
+        FLOOR_STEP(it->z(), dz));
+
+      if (ng == g) {
+        it = std::next(it);
+        continue;
+      }
+
+      storage[ng].emplace_back(std::move(*it));
+      it = storage[g].erase(it);
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Particles::update_cells_mpi()
+{
+  PetscFunctionBeginUser;
+  PetscMPIInt rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+
   constexpr PetscInt neighbors_num = POW3(3);
+  constexpr PetscInt center_index = neighbor_index(1, 1, 1);
+
   std::vector<Point> outgoing[neighbors_num];
   std::vector<Point> incoming[neighbors_num];
 
-  PetscInt center_index = to_contiguous_index(1, 1, 1);
+  LOG("  Starting MPI cells update");
+  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+    Vector3I pg{
+      world.start[X] + g % world.size[X],
+      world.start[Y] + (g / world.size[X]) % world.size[Y],
+      world.start[Z] + (g / world.size[X]) / world.size[Y],
+    };
 
-  auto end = storage.end();
-  for (auto it = storage.begin(); it != end; ++it) {
-    const Vector3R& r = it->r;
+    auto it = storage[g].begin();
+    while (it != storage[g].end()) {
+      Vector3I ng{
+        FLOOR_STEP(it->x(), dx),
+        FLOOR_STEP(it->y(), dy),
+        FLOOR_STEP(it->z(), dz),
+      };
 
-    PetscInt index = to_contiguous_index( //
-      get_index(r, Z, world),             //
-      get_index(r, Y, world),             //
-      get_index(r, X, world));
+      // Particle didn't leave the cell
+      if (pg[X] == ng[X] && pg[Y] == ng[Y] && pg[Z] == ng[Z]) {
+        it = std::next(it);
+        continue;
+      }
 
-    // Particle didn't cross local boundaries
-    if (index == center_index)
-      continue;
+      PetscInt i = neighbor_index( //
+        get_index(ng, Z, world),   //
+        get_index(ng, Y, world),   //
+        get_index(ng, X, world));
 
-    correct_coordinates(*it);
+      // Particle didn't cross boundaries, local update cell is needed
+      if (i == center_index) {
+        PetscInt j = world.s_g(   //
+          ng[Z] - world.start[Z], //
+          ng[Y] - world.start[Y], //
+          ng[X] - world.start[X]);
 
-    outgoing[index].emplace_back(*it);
-    std::swap(*it, *(end - 1));
-    --it;
-    --end;
+        storage[j].emplace_back(std::move(*it));
+        it = storage[g].erase(it);
+        continue;
+      }
+
+      // Here, neighbor-wise exchange is needed, cells will be determined after the communication
+      correct_coordinates(*it);
+
+      outgoing[i].emplace_back(std::move(*it));
+      it = storage[g].erase(it);
+    }
   }
-  storage.erase(end, storage.end());
 
   size_t o_num[neighbors_num];
   size_t i_num[neighbors_num];
@@ -128,15 +155,13 @@ PetscErrorCode Particles::communicate()
   MPI_Request reqs[2 * (neighbors_num - 1)];
   PetscInt req = 0;
 
-  /// @note `PETSC_DEFAULT` is identical to `MPI_PROC_NULL`,
-  /// so we can safely send/recv to/from neighbors.
   for (PetscInt s = 0; s < neighbors_num; ++s) {
     if (s == center_index)
       continue;
 
     PetscInt r = (neighbors_num - 1) - s;
-    PetscCallMPI(MPI_Isend(&o_num[s], sizeof(size_t), MPI_BYTE, world.neighbors[s], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, world.neighbors[r], MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscCallMPI(MPI_Isend(&o_num[s], sizeof(size_t), MPI_BYTE, get_neighbor(s, world), MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, get_neighbor(r, world), MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
@@ -147,11 +172,12 @@ PetscErrorCode Particles::communicate()
 
     PetscInt r = (neighbors_num - 1) - s;
     incoming[r].resize(i_num[r]);
-    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, world.neighbors[s], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, world.neighbors[r], MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, get_neighbor(s, world), MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, get_neighbor(r, world), MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
 
     if (o_num[s] > 0)
-      LOG("Sending {} particles to rank {}", o_num[s], world.neighbors[s]);
+      LOG_IMPL("    [{}] Sending {} particles to rank {}", rank, o_num[s],
+        world.neighbors[s]);
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
@@ -159,15 +185,18 @@ PetscErrorCode Particles::communicate()
     if (i == center_index || i_num[i] == 0)
       continue;
 
-    storage.insert(storage.end(),                    //
-      std::make_move_iterator(incoming[i].begin()),  //
-      std::make_move_iterator(incoming[i].end()));
+    for (auto&& point : incoming[i]) {
+      PetscInt g = world.s_g(  //
+        FLOOR_STEP(point.z(), dz) - world.start[Z],  //
+        FLOOR_STEP(point.y(), dy) - world.start[Y],  //
+        FLOOR_STEP(point.x(), dx) - world.start[X]);
 
-    LOG("Receiving {} particles from rank {}", i_num[i], world.neighbors[i]);
+      storage[g].emplace_back(std::move(point));
+    }
+    LOG_IMPL("    [{}] Receiving {} particles from rank {}", rank, i_num[i], world.neighbors[i]);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-#endif
 
 
 PetscInt Particles::particles_number(const Point& /* point */) const

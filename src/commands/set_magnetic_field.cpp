@@ -1,5 +1,7 @@
 #include "set_magnetic_field.h"
 
+#include <petscdmda.h>
+
 #include "src/utils/configuration.h"
 
 SetMagneticField::SetMagneticField(Vec storage, Setter&& setup)
@@ -41,8 +43,14 @@ SetCoilsField::SetCoilsField(std::vector<Coil>&& coils)
 PetscErrorCode SetCoilsField::operator()(Vec vec)
 {
   PetscFunctionBeginUser;
-  PetscReal* arr;
-  PetscCall(VecGetArrayWrite(vec, &arr));
+  DM da;
+  PetscCall(VecGetDM(vec, &da));
+
+  Vector3I start, size;
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+
+  Vector3R*** arr;
+  PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
 
   PetscReal center_x = 0.5 * geom_x;
   PetscReal center_y = 0.5 * geom_y;
@@ -50,29 +58,31 @@ PetscErrorCode SetCoilsField::operator()(Vec vec)
   PetscReal sx, sy, sz, r;
 
 #pragma omp parallel for private(sx, sy, sz, r)
-  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
-    PetscReal x = (g % geom_nx) * dx /*       */ - center_x;
-    PetscReal y = ((g / geom_nx) % geom_ny) * dy - center_y;
-    PetscReal z = ((g / geom_nx) / geom_ny) * dz;
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    PetscInt x = start[X] + g % size[X];
+    PetscInt y = start[Y] + (g / size[X]) % size[Y];
+    PetscInt z = start[Z] + (g / size[X]) / size[Y];
 
-    sx = x;
-    sy = y + 0.5 * dy;
-    sz = z + 0.5 * dz;
+    sx = x * dx /*              */ - center_x;
+    sy = ((PetscReal)y + 0.5) * dy - center_y;
+    sz = ((PetscReal)z + 0.5) * dz;
     r = std::hypot(sx, sy);
-    arr[g * 3 + X] += get_Br(sz, r) * sx / r;
+    arr[z][y][x][X] += get_Br(sz, r) * sx / r;
 
-    sy = y;
-    sx = x + 0.5 * dx;
-    sz = z + 0.5 * dz;
+    sy = y * dy /*              */ - center_y;
+    sx = ((PetscReal)x + 0.5) * dx - center_x;
+    sz = ((PetscReal)z + 0.5) * dz;
     r = std::hypot(sx, sy);
-    arr[g * 3 + Y] += get_Br(sz, r) * sy / r;
+    arr[z][y][x][Y] += get_Br(sz, r) * sy / r;
 
-    sz = z;
-    sx = x + 0.5 * dx;
-    sy = y + 0.5 * dy;
+    sz = z * sz;
+    sx = ((PetscReal)x + 0.5) * dx - center_x;
+    sy = ((PetscReal)y + 0.5) * dy - center_y;
     r = std::hypot(sx, sy);
-    arr[g * 3 + Z] += get_Bz(sz, r);
+    arr[z][y][x][Z] += get_Bz(sz, r);
   }
+
+  PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
 
   LOG("  Coils magnetic field is set!");
   PetscFunctionReturn(PETSC_SUCCESS);

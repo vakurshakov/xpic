@@ -18,13 +18,22 @@ struct World {
   PetscInt procs[3];
   DMBoundaryType bounds[3];
 
+  PetscInt neighbors_num;
   const PetscMPIInt* neighbors;
 
-  Vector3R start;
-  Vector3I start_n;
+  Vector3I start;
+  Vector3I size;
+  Vector3I end;
 
-  Vector3R end;
-  Vector3I end_n;
+  inline PetscInt s_g(PetscInt z, PetscInt y, PetscInt x) const
+  {
+    return indexing::petsc_index(z, y, x, 0, size[Z], size[Y], size[X], 1);
+  }
+
+  inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
+  {
+    return indexing::petsc_index(z, y, x, c, size[Z], size[Y], size[X], 3);
+  }
 };
 
 #endif  // SRC_BASIC_SIMULATION_H

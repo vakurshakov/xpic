@@ -50,10 +50,10 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscFunctionBeginUser;
   PetscCall(clear_sources());
   PetscCall(first_push());
-  PetscCall(predict_fields());
-  PetscCall(second_push());
-  PetscCall(correct_fields());
-  PetscCall(final_update());
+  // PetscCall(predict_fields());
+  // PetscCall(second_push());
+  // PetscCall(correct_fields());
+  // PetscCall(final_update());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -78,13 +78,11 @@ PetscErrorCode Simulation::first_push()
   PetscFunctionBeginUser;
   PetscLogStagePush(stagenums[2]);
 
-  for (auto& sort : particles_) {
+  for (auto& sort : particles_)
     PetscCall(sort->first_push());
-    PetscCall(sort->correct_coordinates());
-  }
 
   PetscCall(update_cells());
-  PetscCall(fill_ecsim_current());
+  // PetscCall(fill_ecsim_current());
 
   PetscLogStagePop();
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -159,12 +157,8 @@ PetscErrorCode Simulation::final_update()
   PetscFunctionBeginUser;
   PetscLogStagePush(stagenums[6]);
 
-  for (auto& sort : particles_) {
+  for (auto& sort : particles_)
     PetscCall(sort->final_update());
-
-    /// @todo Testing petsc as a computational server first
-    /// PetscCall(sort->communicate());
-  }
 
   Vec util;
   PetscReal norm;
@@ -221,12 +215,14 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 PetscErrorCode Simulation::update_cells()
 {
   PetscFunctionBeginUser;
+#define MPI 1
+#if !MPI
   for (auto& sort : particles_) {
-    for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
+    for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
       auto& storage_g = sort->storage[g];
       auto it = storage_g.begin();
       while (it != storage_g.end()) {
-        auto ng = indexing::s_g(  //
+        auto ng = world.s_g(  //
           static_cast<PetscInt>(it->z() / dz),  //
           static_cast<PetscInt>(it->y() / dy),  //
           static_cast<PetscInt>(it->x() / dx));
@@ -250,6 +246,13 @@ PetscErrorCode Simulation::update_cells()
       }
     }
   }
+#else
+  matL_indices_assembled = false;
+  LOG("  Indices assembly control isn't supported with MPI on");
+
+  for (auto& sort : particles_)
+    PetscCall(sort->update_cells_mpi());
+#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -257,7 +260,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
 {
   PetscFunctionBeginUser;
   PetscInt size = 0;
-  get_array_offset(0, geom_nz * geom_ny * geom_nx, size);
+  get_array_offset(0, world.size.elements_product(), size);
 
   std::vector<MatStencil> coo_i;
   std::vector<MatStencil> coo_j;
@@ -309,7 +312,7 @@ PetscErrorCode Simulation::fill_ecsim_current(
 
 #pragma omp parallel for firstprivate(prev_g, off) \
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (PetscInt g = 0; g < geom_nz * geom_ny * geom_nx; ++g) {
+  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     for (const auto& sort : particles_) {
       if (sort->storage[g].empty())
         continue;
