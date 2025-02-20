@@ -75,6 +75,7 @@ set(utils
   src/utils/mpi_binary_file.cpp
   src/utils/sync_file.cpp
   src/utils/sync_binary_file.cpp
+  src/utils/sync_clock.cpp
   src/utils/operators.cpp
   src/utils/shape.cpp
   src/utils/particles_load.cpp

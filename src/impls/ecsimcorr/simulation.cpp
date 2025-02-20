@@ -17,7 +17,8 @@ PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
   PetscCall(init_log_stages());
-  PetscLogStagePush(stagenums[0]);
+  PetscCall(clock.push(stagenums[0]));
+  PetscCall(PetscLogStagePush(stagenums[0]));
 
   PetscCall(init_vectors());
   PetscCall(init_matrices());
@@ -41,7 +42,10 @@ PetscErrorCode Simulation::initialize_implementation()
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
 
-  PetscLogStagePop();
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
+
+  LOG("Initialization took {:6.4e} seconds", clock.get(stagenums[0]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -54,13 +58,15 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscCall(second_push());
   PetscCall(correct_fields());
   PetscCall(final_update());
+  PetscCall(log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[1]);
+  PetscCall(clock.push(stagenums[1]));
+  PetscCall(PetscLogStagePush(stagenums[1]));
 
   PetscCall(VecSet(currI, 0.0));
   PetscCall(VecSet(currJe, 0.0));
@@ -69,14 +75,16 @@ PetscErrorCode Simulation::clear_sources()
   for (auto& sort : particles_)
     PetscCall(sort->clear_sources());
 
-  PetscLogStagePop();
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::first_push()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[2]);
+  PetscCall(clock.push(stagenums[2]));
+  PetscCall(PetscLogStagePush(stagenums[2]));
 
   for (auto& sort : particles_) {
     PetscCall(sort->first_push());
@@ -86,7 +94,8 @@ PetscErrorCode Simulation::first_push()
   PetscCall(update_cells());
   PetscCall(fill_ecsim_current());
 
-  PetscLogStagePop();
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -94,7 +103,8 @@ PetscErrorCode Simulation::first_push()
 PetscErrorCode Simulation::predict_fields()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[3]);
+  PetscCall(clock.push(stagenums[3]));
+  PetscCall(PetscLogStagePush(stagenums[3]));
 
   // Storing `matL` to reuse it for ECSIM current calculation later
   Mat matA;
@@ -108,14 +118,16 @@ PetscErrorCode Simulation::predict_fields()
   PetscCall(advance_fields(predict, currI, Ep));
   PetscCall(MatDestroy(&matA));
 
-  PetscLogStagePop();
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::second_push()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[4]);
+  PetscCall(clock.push(stagenums[4]));
+  PetscCall(PetscLogStagePush(stagenums[4]));
 
   DM da = world.da;
   PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, local_E));
@@ -138,7 +150,8 @@ PetscErrorCode Simulation::second_push()
 
   PetscCall(update_cells());
 
-  PetscLogStagePop();
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -146,18 +159,21 @@ PetscErrorCode Simulation::second_push()
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[5]);
+  PetscCall(clock.push(stagenums[5]));
+  PetscCall(PetscLogStagePush(stagenums[5]));
 
   PetscCall(advance_fields(correct, currJe, Ec));
 
-  PetscLogStagePop();
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::final_update()
 {
   PetscFunctionBeginUser;
-  PetscLogStagePush(stagenums[6]);
+  PetscCall(clock.push(stagenums[6]));
+  PetscCall(PetscLogStagePush(stagenums[6]));
 
   for (auto& sort : particles_) {
     PetscCall(sort->final_update());
@@ -185,7 +201,33 @@ PetscErrorCode Simulation::final_update()
 
   PetscCall(MatMultAdd(rotE, Ec, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
 
-  PetscLogStagePop();
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::log_timings()
+{
+  PetscFunctionBeginUser;
+  PetscInt size = (PetscInt)std::size(stagenums);
+  PetscLogDouble sum = 0.0;
+
+  /// @note We are skipping the "Initialization" and "Clear sources" stages
+  for (PetscInt i = 2; i < size; ++i)
+    sum += clock.get(stagenums[i]);
+
+  LOG("Summary of Stages:  ------- Time -------");
+  LOG("                        Avg         %");
+
+  for (PetscInt i = 2; i < size; ++i) {
+    PetscLogStage id = stagenums[i];
+
+    const char* name;
+    PetscCall(PetscLogStageGetName(id, &name));
+
+    PetscLogDouble time = clock.get(std::string(name));
+    LOG("{:2d}: {:>15s}: {:6.4e}  {:5.1f}%", id, name, time, 100.0 * time / sum);
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

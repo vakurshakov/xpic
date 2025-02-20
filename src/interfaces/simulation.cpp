@@ -12,6 +12,8 @@ PetscErrorCode Simulation::initialize()
   PetscFunctionBeginUser;
   PetscCall(world.initialize());
   PetscCall(log_information());
+
+  LOG("Running initialize implementation");
   PetscCall(initialize_implementation());
 
   PetscLogStageRegister("Commands run", &stagenums[0]);

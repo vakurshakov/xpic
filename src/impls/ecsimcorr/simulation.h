@@ -5,6 +5,7 @@
 
 #include "src/interfaces/simulation.h"
 #include "src/impls/ecsimcorr/particles.h"
+#include "src/utils/sync_clock.h"
 
 namespace ecsimcorr {
 
@@ -70,6 +71,8 @@ private:
   PetscErrorCode mat_set_preallocation_coo(
     PetscInt size, MatStencil* coo_i, MatStencil* coo_j);
 
+  PetscErrorCode log_timings();
+
   Vec local_E;
   Vec local_B;
 
@@ -86,6 +89,8 @@ private:
   PetscClassId classid;
   PetscLogEvent events[1];
   PetscLogStage stagenums[7];
+
+  SyncClock clock;
 
   friend class EnergyConservation;
 };
