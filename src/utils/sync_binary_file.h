@@ -1,5 +1,5 @@
-#ifndef SRC_UTILS_SYNC_BINARY_FILE
-#define SRC_UTILS_SYNC_BINARY_FILE
+#ifndef SRC_UTILS_SYNC_BINARY_FILE_H
+#define SRC_UTILS_SYNC_BINARY_FILE_H
 
 #include "src/utils/sync_file.h"
 
@@ -15,4 +15,4 @@ public:
   PetscErrorCode write_floats(PetscInt size, const PetscReal* data);
 };
 
-#endif  // SRC_UTILS_SYNC_BINARY_FILE
+#endif  // SRC_UTILS_SYNC_BINARY_FILE_H

@@ -1,9 +1,10 @@
-#ifndef SRC_UTILS_SYNC_FILE
-#define SRC_UTILS_SYNC_FILE
+#ifndef SRC_UTILS_SYNC_FILE_H
+#define SRC_UTILS_SYNC_FILE_H
 
 #include "src/pch.h"
 #include "src/utils/utils.h"
 
+/// @todo Rewrite the class as a wrapper around `PetscViewer`
 class SyncFile {
 public:
   /// @warning std::ofstream is not copyable.
@@ -32,4 +33,4 @@ protected:
   std::ofstream file_;
 };
 
-#endif  // SRC_UTILS_SYNC_BINARY_FILE
+#endif  // SRC_UTILS_SYNC_FILE_H
