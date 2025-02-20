@@ -206,14 +206,14 @@ PetscErrorCode Simulation::log_timings()
   PetscInt size = (PetscInt)std::size(stagenums);
   PetscLogDouble sum = 0.0;
 
-  /// @note We are skipping the "Initialization" and "Clear sources" stages
-  for (PetscInt i = 2; i < size; ++i)
+  /// @note We are skipping the initialization stage
+  for (PetscInt i = 1; i < size; ++i)
     sum += clock.get(stagenums[i]);
 
   LOG("Summary of Stages:  ------- Time -------");
   LOG("                        Avg         %");
 
-  for (PetscInt i = 2; i < size; ++i) {
+  for (PetscInt i = 1; i < size; ++i) {
     PetscLogStage id = stagenums[i];
 
     const char* name;

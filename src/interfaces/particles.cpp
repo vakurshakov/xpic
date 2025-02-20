@@ -176,8 +176,7 @@ PetscErrorCode Particles::update_cells_mpi()
     PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, get_neighbor(r, world), MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
 
     if (o_num[s] > 0)
-      LOG_IMPL("    [{}] Sending {} particles to rank {}", rank, o_num[s],
-        world.neighbors[s]);
+      LOG_IMPL("    [{}] Sending {} particles to rank {}", rank, o_num[s], world.neighbors[s]);
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 

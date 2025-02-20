@@ -15,6 +15,8 @@ EsirkepovDecomposition::EsirkepovDecomposition(const Shape& shape, PetscReal alp
 {
 }
 
+/// @todo this can be replaced with the same `VecSetValuesCOO()` approach
+/// @todo there are lots of empty p_j values, they should condensed in some way
 PetscErrorCode EsirkepovDecomposition::process(Context& J) const
 {
   PetscFunctionBeginHot;
@@ -34,7 +36,6 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
 
-    /// @todo there are lots of empty p_j values, they should condensed in some way
     PetscReal p_jx = get_jx(z, y, x, temp_j.data() + j_geom * X);
     PetscReal p_jy = get_jy(z, y, x, temp_j.data() + j_geom * Y);
     PetscReal p_jz = get_jz(z, y, x, temp_j.data() + j_geom * Z);
