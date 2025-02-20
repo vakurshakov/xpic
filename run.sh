@@ -4,11 +4,36 @@ source ./header.sh
 
 usage() { echo "Usage: $0 <config.json>" 1>&2; exit 1; }
 
-export MPI_NUM_PROC=2
+MPI_NUM_PROC=1
+HYDRA_BINDING=none
+HYDRA_MAPPING=none
 
-export OMP_PLACES=cores
-export OMP_PROC_BIND=spread
-export OMP_NUM_THREADS=1
+OMP_NUM_THREADS=1
+OMP_PLACES=cores
+OMP_PROC_BIND=spread
+
+while read -r line; do
+  case $line in
+    *num_threads*)
+      line=${line#*: }
+      line=${line%,}
+      OMP_NUM_THREADS=$line
+      ;;
+    *da_processors*)
+      line=${line#*: }
+      line=${line%,}
+      MPI_NUM_PROC=$(( $MPI_NUM_PROC * $line ))
+      ;;
+  esac
+done < config.json
+
+export MPI_NUM_PROC
+export HYDRA_BINDING
+export HYDRA_MAPPING
+
+export OMP_NUM_THREADS
+export OMP_PLACES
+export OMP_PROC_BIND
 
 # To inspect thread migration
 # export OMP_DISPLAY_ENV=verbose

@@ -64,20 +64,19 @@ PetscErrorCode ParticlesEnergy::calculate_energies()
     calculate(particles_[i], energies_[i]);
   }
 
-  std::vector<PetscReal> sendbuf(3 * energies_.size());
-  std::vector<PetscReal> recvbuf(3 * energies_.size());
+  std::vector<PetscReal> buf(3 * energies_.size());
 
   for (std::size_t i = 0; i < energies_.size(); ++i) {
-    sendbuf[i * 3 + 0] = energies_[i][X];
-    sendbuf[i * 3 + 1] = energies_[i][Y];
-    sendbuf[i * 3 + 2] = energies_[i][Z];
+    buf[i * 3 + 0] = energies_[i][X];
+    buf[i * 3 + 1] = energies_[i][Y];
+    buf[i * 3 + 2] = energies_[i][Z];
   }
-  PetscCallMPI(MPI_Reduce(sendbuf.data(), recvbuf.data(), energies_.size(), MPIU_REAL, MPI_SUM, 0, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, buf.data(), buf.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
 
-  for (std::size_t i = 0; i < recvbuf.size(); i += 3) {
-    energies_[i / 3][X] = sendbuf[i + 0];
-    energies_[i / 3][Y] = sendbuf[i + 1];
-    energies_[i / 3][Z] = sendbuf[i + 2];
+  for (std::size_t i = 0; i < buf.size(); i += 3) {
+    energies_[i / 3][X] = buf[i + 0];
+    energies_[i / 3][Y] = buf[i + 1];
+    energies_[i / 3][Z] = buf[i + 2];
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

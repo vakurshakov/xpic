@@ -4,6 +4,7 @@
 #include "src/algorithms/esirkepov_decomposition.h"
 #include "src/algorithms/simple_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
+#include "src/diagnostics/particles_energy.h"
 #include "src/impls/ecsimcorr/simulation.h"
 
 namespace ecsimcorr {
@@ -74,9 +75,9 @@ void Particles::fill_matrix_indices(
   constexpr PetscInt shw = 3;
 
   const Vector3I vg{
-    g % geom_nx,
-    (g / geom_nx) % geom_ny,
-    (g / geom_nx) / geom_ny,
+    world.start[X] + g % world.size[X],
+    world.start[Y] + (g / world.size[X]) % world.size[Y],
+    world.start[Z] + (g / world.size[X]) / world.size[Y],
   };
 
   for (PetscInt g1 = 0; g1 < POW3(shw); ++g1) {
@@ -282,14 +283,16 @@ PetscErrorCode Particles::calculate_energy()
   PetscFunctionBeginUser;
   energy = 0.0;
 
+  const PetscReal m = parameters.m;
+  const PetscInt Np = parameters.Np;
+
 #pragma omp parallel for reduction(+ : energy), \
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      energy += 0.5 * (mass(point) / particles_number(point)) * point.p.squared();
-    }
-  }
+  for (auto& cell : storage)
+    for (auto& point : cell)
+      energy += ParticlesEnergy::get(point.p, m, Np);
 
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

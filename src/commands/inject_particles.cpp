@@ -51,6 +51,9 @@ PetscErrorCode InjectParticles::execute(PetscInt t)
     ejected_.add_particle(Point(shared_coordinate, pe));
   }
 
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy_i_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy_e_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+
   constexpr auto message =
     "  Particles are added into \"{}\"; particles: {}, energy: {}";
   LOG(message, ionized_.parameters.sort_name, per_step_particles_num_, energy_i_);

@@ -1,76 +1,83 @@
 {
-  "OutputDirectory": "results/mirror-test",
+  "OutputDirectory": "results/energy-test/ecsimcorr-periodic-square/mpi_z2",
 
   "Simulation": "ecsimcorr",
 
   "Geometry": {
-    "x": 20,
-    "y": 20,
-    "z": 20,
-    "t": 100,
+    "x": 5,
+    "y": 5,
+    "z": 5,
+    "t": 10,
+    "dx": 1.0,
+    "dy": 1.0,
+    "dz": 1.0,
+    "dt": 1.0,
+    "diagnose_period": 1.0,
+    "da_boundary_x": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_z": "DM_BOUNDARY_PERIODIC",
     "[x]": "c/w_pe",
     "[y]": "c/w_pe",
     "[z]": "c/w_pe",
     "[t]": "1/w_pe",
+    "[dp]": "1/w_pe"
+  },
 
-    "dx": 0.5,
-    "dy": 0.5,
-    "dz": 0.5,
-    "dt": 1.5,
+  "omp": {
+    "num_threads": 1,
+    "places": "cores",
+    "proc_bind": "spread"
+  },
 
-    "diagnose_period": 1.5,
-    "[dp]": "1/w_pe",
-
-    "da_boundary_x": "DM_BOUNDARY_GHOSTED",
-    "da_boundary_y": "DM_BOUNDARY_GHOSTED",
-    "da_boundary_z": "DM_BOUNDARY_GHOSTED",
-
-    "da_processors_x": 2,
+  "mpi": {
+    "da_processors_x": 1,
     "da_processors_y": 1,
-    "da_processors_z": 1
+    "da_processors_z": 2,
+    "binding": "socket",
+    "mapping": "numa"
   },
 
   "Particles": [
     {
+      "sort_name": "ions",
+      "Np": 100,
+      "n": 1.0,
+      "q": 1.0,
+      "m": 100.0,
+      "T": 1.0
+    },
+    {
       "sort_name": "electrons",
-      "Np": 1,
-      "n":  1.0,
+      "Np": 100,
+      "n": 1.0,
       "q": -1.0,
-      "m":  1.0,
-      "T":  1.0
+      "m": 1.0,
+      "T": 1.0
     }
   ],
 
   "Presets": [
     {
-      "command": "SetParticles",
-      "particles": "electrons",
+      "command": "InjectParticles",
+      "ionized": "ions",
+      "ejected": "electrons",
       "coordinate": {
-        "name": "PreciseCoordinate",
-        "value": [ 19.2, 19.2, 19.2 ]
+        "name": "CoordinateInBox",
+        "min": 0.0,
+        "max": "Geom"
       },
-      "momentum": {
-        "name": "PreciseMomentum",
-        "value": [ -0.5, 0, 0 ]
+      "momentum_i": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      },
+      "momentum_e": {
+        "name": "MaxwellianMomentum",
+        "tov": true
       }
     }
   ],
 
-  "StepPresets": [
-  ],
+  "StepPresets": [],
 
-  "Diagnostics": [
-    {
-      "diagnostic": "LogView",
-      "level": "EachTimestep"
-    },
-    {
-      "diagnostic": "LogView",
-      "level": "DiagnosePeriodAvg"
-    },
-    {
-      "diagnostic": "LogView",
-      "level": "AllTimestepsSummary"
-    }
-  ]
+  "Diagnostics": []
 }

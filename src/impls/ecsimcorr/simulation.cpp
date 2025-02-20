@@ -54,10 +54,10 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscFunctionBeginUser;
   PetscCall(clear_sources());
   PetscCall(first_push());
-  // PetscCall(predict_fields());
-  // PetscCall(second_push());
-  // PetscCall(correct_fields());
-  // PetscCall(final_update());
+  PetscCall(predict_fields());
+  PetscCall(second_push());
+  PetscCall(correct_fields());
+  PetscCall(final_update());
   PetscCall(log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -90,7 +90,7 @@ PetscErrorCode Simulation::first_push()
     PetscCall(sort->first_push());
 
   PetscCall(update_cells());
-  // PetscCall(fill_ecsim_current());
+  PetscCall(fill_ecsim_current());
 
   PetscCall(PetscLogStagePop());
   PetscCall(clock.pop());
@@ -308,16 +308,21 @@ PetscErrorCode Simulation::fill_ecsim_current()
   std::vector<MatStencil> coo_j;
   std::vector<PetscReal> coo_v;
 
+  PetscReal mem, sum;
   if (!matL_indices_assembled) {
     coo_i.resize(size);
     coo_j.resize(size);
-    LOG("  Indices assembly was broken, recollecting them again."
-        " Additional space: {:4.3f} GB", (PetscReal)size * 2 * sizeof(MatStencil) / 1e9);
+
+    mem = (PetscReal)size * 2 * sizeof(MatStencil) / 1e9;
+    PetscCallMPI(MPI_Allreduce(&mem, &sum, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+    LOG("  Indices assembly was broken, recollecting them again. Additional space: {:4.3f} GB", sum);
   }
 
   coo_v.resize(size, 0.0);
-  LOG("  To collect matrix values, temporary storage of size {:4.3f} GB was allocated",
-      (PetscReal)size * sizeof(PetscReal) / 1e9);
+
+  mem = (PetscReal)size * sizeof(PetscReal) / 1e9;
+  PetscCallMPI(MPI_Allreduce(&mem, &sum, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  LOG("  To collect matrix values, temporary storage of size {:4.3f} GB was allocated", sum);
 
   PetscCall(fill_ecsim_current(coo_i.data(), coo_j.data(), coo_v.data()));
 

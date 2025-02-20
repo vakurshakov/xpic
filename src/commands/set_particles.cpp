@@ -32,6 +32,8 @@ PetscErrorCode SetParticles::execute(PetscInt /* t */)
     particles_.add_particle(Point(coordinate, momentum));
   }
 
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+
   constexpr auto message =
     "  Particles are added into \"{}\"; particles: {}, energy: {}";
   LOG(message, particles_.parameters.sort_name, number_of_particles_, energy);
