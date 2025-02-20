@@ -24,6 +24,11 @@
     "prefix": "pcallf",
     "body": "PetscCall($1);",
   },
+  "PetscCallMPI(func -> PetscErrorCode);": {
+    "scope": "c,cpp",
+    "prefix": "pcallmpif",
+    "body": "PetscCallMPI($1);",
+  },
   "PetscCallVoid(func -> PetscErrorCode);": {
     "scope": "c,cpp",
     "prefix": "pcallvf",
@@ -33,5 +38,10 @@
     "scope": "c,cpp",
     "prefix": "perrc",
     "body": "PetscErrorCode",
+  },
+  "GetRank": {
+    "scope": "c,cpp",
+    "prefix": "grank",
+    "body": "PetscMPIInt rank; PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));\n",
   }
 }
