@@ -3,6 +3,20 @@
 
   "Simulation": "ecsimcorr",
 
+  "mpi": {
+    "da_processors_x": 1,
+    "da_processors_y": 1,
+    "da_processors_z": 1,
+    "binding": "socket",
+    "mapping": "numa"
+  },
+
+  "omp": {
+    "num_threads": 5,
+    "places": "cores",
+    "proc_bind": "spread"
+  },
+
   "Geometry": {
     "x": 5,
     "y": 5,
@@ -21,20 +35,6 @@
     "[z]": "c/w_pe",
     "[t]": "1/w_pe",
     "[dp]": "1/w_pe"
-  },
-
-  "omp": {
-    "num_threads": 1,
-    "places": "cores",
-    "proc_bind": "spread"
-  },
-
-  "mpi": {
-    "da_processors_x": 1,
-    "da_processors_y": 1,
-    "da_processors_z": 2,
-    "binding": "socket",
-    "mapping": "numa"
   },
 
   "Particles": [
