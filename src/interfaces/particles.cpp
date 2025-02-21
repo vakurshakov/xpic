@@ -89,16 +89,13 @@ PetscErrorCode Particles::update_cells()
 PetscErrorCode Particles::update_cells_mpi()
 {
   PetscFunctionBeginUser;
-  PetscMPIInt rank;
-  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-
   constexpr PetscInt neighbors_num = POW3(3);
   constexpr PetscInt center_index = neighbor_index(1, 1, 1);
 
   std::vector<Point> outgoing[neighbors_num];
   std::vector<Point> incoming[neighbors_num];
 
-  LOG("  Starting MPI cells update");
+  LOG("  Starting MPI cells update for \"{}\"", parameters.sort_name);
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     Vector3I pg{
       world.start[X] + g % world.size[X],
@@ -152,16 +149,18 @@ PetscErrorCode Particles::update_cells_mpi()
     i_num[i] = 0;
   }
 
-  MPI_Request reqs[2 * (neighbors_num - 1)];
+  MPI_Comm comm = PETSC_COMM_WORLD;
+
   PetscInt req = 0;
+  MPI_Request reqs[2 * (neighbors_num - 1)];
 
   for (PetscInt s = 0; s < neighbors_num; ++s) {
     if (s == center_index)
       continue;
 
     PetscInt r = (neighbors_num - 1) - s;
-    PetscCallMPI(MPI_Isend(&o_num[s], sizeof(size_t), MPI_BYTE, get_neighbor(s, world), MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(&i_num[r], sizeof(size_t), MPI_BYTE, get_neighbor(r, world), MPI_TAG_NUMBERS, PETSC_COMM_WORLD, &reqs[req++]));
+    PetscCallMPI(MPI_Isend(&o_num[s], 1, MPIU_SIZE_T, get_neighbor(s, world), MPI_TAG_NUMBERS, comm, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(&i_num[r], 1, MPIU_SIZE_T, get_neighbor(r, world), MPI_TAG_NUMBERS, comm, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
@@ -172,11 +171,8 @@ PetscErrorCode Particles::update_cells_mpi()
 
     PetscInt r = (neighbors_num - 1) - s;
     incoming[r].resize(i_num[r]);
-    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, get_neighbor(s, world), MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, get_neighbor(r, world), MPI_TAG_POINTS, PETSC_COMM_WORLD, &reqs[req++]));
-
-    if (o_num[s] > 0)
-      LOG_IMPL("    [{}] Sending {} particles to rank {}", rank, o_num[s], world.neighbors[s]);
+    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, get_neighbor(s, world), MPI_TAG_POINTS, comm, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, get_neighbor(r, world), MPI_TAG_POINTS, comm, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
@@ -192,7 +188,27 @@ PetscErrorCode Particles::update_cells_mpi()
 
       storage[g].emplace_back(std::move(point));
     }
-    LOG_IMPL("    [{}] Receiving {} particles from rank {}", rank, i_num[i], world.neighbors[i]);
+  }
+
+  // Statistics of the transferred particles
+  const std::vector<std::pair<std::string, size_t*>> map{
+    {"sent", o_num},
+    {"received", i_num},
+  };
+
+  for (auto&& [op, num] : map) {
+    PetscInt sum = 0;
+
+    for (PetscInt i = 0; i < neighbors_num; ++i)
+      sum += num[i];
+
+    PetscInt tot, min, max;
+    PetscCallMPI(MPI_Allreduce(&sum, &tot, 1, MPIU_INT, MPI_SUM, comm));
+    PetscCallMPI(MPI_Allreduce(&sum, &min, 1, MPIU_INT, MPI_MIN, comm));
+    PetscCallMPI(MPI_Allreduce(&sum, &max, 1, MPIU_INT, MPI_MAX, comm));
+
+    PetscReal rat = (PetscReal)max / min;
+    LOG("    Total of {} particles were {}, min: {}, max: {}, ratio: {:4.3f}", tot, op, min, max, rat);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
