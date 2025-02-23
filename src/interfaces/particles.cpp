@@ -1,5 +1,7 @@
 #include "particles.h"
 
+#include "src/diagnostics/particles_energy.h"
+
 namespace interfaces {
 
 namespace {
@@ -34,22 +36,29 @@ Particles::Particles(const World& world, const SortParameters& parameters)
 {
 }
 
-PetscErrorCode Particles::add_particle(const Point& point)
+PetscErrorCode Particles::add_particle(const Point& point, PetscReal* energy)
 {
   PetscFunctionBeginUser;
-  auto x = FLOOR_STEP(point.x(), dx) - world.start[X];
-  auto y = FLOOR_STEP(point.y(), dy) - world.start[Y];
-  auto z = FLOOR_STEP(point.z(), dz) - world.start[Z];
+  PetscInt x = FLOOR_STEP(point.x(), dx) - world.start[X];
+  PetscInt y = FLOOR_STEP(point.y(), dy) - world.start[Y];
+  PetscInt z = FLOOR_STEP(point.z(), dz) - world.start[Z];
 
   bool within_bounds = //
     (0 <= x && x < world.size[X]) && //
     (0 <= y && y < world.size[Y]) && //
     (0 <= z && z < world.size[Z]);
 
-  if (within_bounds) {
+  if (!within_bounds)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
 #pragma omp critical
-    storage[world.s_g(z, y, x)].emplace_back(point);
-  }
+  storage[world.s_g(z, y, x)].emplace_back(point);
+
+  if (!energy)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
+#pragma omp atomic
+  *energy += ParticlesEnergy::get(point.p, parameters.m, parameters.Np);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -207,7 +216,7 @@ PetscErrorCode Particles::update_cells_mpi()
     PetscCallMPI(MPI_Allreduce(&sum, &min, 1, MPIU_INT, MPI_MIN, comm));
     PetscCallMPI(MPI_Allreduce(&sum, &max, 1, MPIU_INT, MPI_MAX, comm));
 
-    PetscReal rat = (PetscReal)max / min;
+    PetscReal rat = min > 0 ? (PetscReal)max / min : -1.0;
     LOG("    Total of {} particles were {}, min: {}, max: {}, ratio: {:4.3f}", tot, op, min, max, rat);
   }
   PetscFunctionReturn(PETSC_SUCCESS);

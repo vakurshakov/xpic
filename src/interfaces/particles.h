@@ -20,7 +20,15 @@ public:
   const SortParameters parameters;
   std::vector<std::list<Point>> storage;
 
-  PetscErrorCode add_particle(const Point& point);
+  /**
+   * @brief The added `point` coordinate is first tested against local MPI-boundaries.
+   * If it lies within it, the `point` is added to `storage` and added `energy` is accumulated.
+   *
+   * @param point The inserted point to be emplaced into `storage`.
+   * @param energy The energy accumulator, where the added kinetic energy would be added.
+   */
+  PetscErrorCode add_particle(const Point& point, PetscReal* energy = nullptr);
+
   PetscErrorCode correct_coordinates();
   PetscErrorCode update_cells();
   PetscErrorCode update_cells_mpi();

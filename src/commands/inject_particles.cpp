@@ -1,6 +1,5 @@
 #include "inject_particles.h"
 
-#include "src/diagnostics/particles_energy.h"
 #include "src/utils/configuration.h"
 #include "src/utils/random_generator.h"
 
@@ -33,22 +32,13 @@ PetscErrorCode InjectParticles::execute(PetscInt t)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
-  const PetscInt Npi = ionized_.parameters.Np;
-  const PetscReal mi = ionized_.parameters.m;
-
-  const PetscInt Npe = ejected_.parameters.Np;
-  const PetscReal me = ejected_.parameters.m;
-
   for (PetscInt p = 0; p < per_step_particles_num_; ++p) {
     Vector3R shared_coordinate = generate_coordinate_();
     Vector3R pi = generate_momentum_i_(shared_coordinate);
     Vector3R pe = generate_momentum_e_(shared_coordinate);
 
-    energy_i_ += ParticlesEnergy::get(pi, mi, Npi);
-    energy_e_ += ParticlesEnergy::get(pe, me, Npe);
-
-    ionized_.add_particle(Point(shared_coordinate, pi));
-    ejected_.add_particle(Point(shared_coordinate, pe));
+    ionized_.add_particle(Point(shared_coordinate, pi), &energy_i_);
+    ejected_.add_particle(Point(shared_coordinate, pe), &energy_e_);
   }
 
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy_i_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));

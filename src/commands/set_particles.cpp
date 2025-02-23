@@ -18,24 +18,20 @@ SetParticles::SetParticles(                       //
 
 PetscErrorCode SetParticles::execute(PetscInt /* t */)
 {
+  energy_ = 0.0;
+
   PetscFunctionBeginUser;
-  PetscReal energy = 0.0;
-
-  const PetscInt Np = particles_.parameters.Np;
-  const PetscReal m = particles_.parameters.m;
-
   for (PetscInt p = 0; p < number_of_particles_; ++p) {
     Vector3R coordinate = generate_coordinate_();
     Vector3R momentum = generate_momentum_(coordinate);
 
-    energy += ParticlesEnergy::get(momentum, m, Np);
-    particles_.add_particle(Point(coordinate, momentum));
+    particles_.add_particle(Point(coordinate, momentum), &energy_);
   }
 
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
 
   constexpr auto message =
     "  Particles are added into \"{}\"; particles: {}, energy: {}";
-  LOG(message, particles_.parameters.sort_name, number_of_particles_, energy);
+  LOG(message, particles_.parameters.sort_name, number_of_particles_, energy_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

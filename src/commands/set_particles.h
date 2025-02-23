@@ -24,6 +24,8 @@ private:
 
   CoordinateGenerator generate_coordinate_;
   MomentumGenerator generate_momentum_;
+
+  PetscReal energy_ = 0.0;
 };
 
 #endif // SRC_COMMANDS_SET_PARTICLES_H
