@@ -257,13 +257,14 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 PetscErrorCode Simulation::update_cells()
 {
   PetscFunctionBeginUser;
-#define MPI 1
-#if !MPI
+#if UPDATE_CELLS_SEQ
   for (auto& sort : particles_) {
     for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
       auto& storage_g = sort->storage[g];
       auto it = storage_g.begin();
       while (it != storage_g.end()) {
+        PetscCall(sort->correct_coordinates(*it));
+
         auto ng = world.s_g(  //
           static_cast<PetscInt>(it->z() / dz),  //
           static_cast<PetscInt>(it->y() / dy),  //

@@ -250,14 +250,16 @@ Vector3R Particles::velocity(const Point& point) const
   return p / std::sqrt(m * m + p.squared());
 }
 
-void Particles::correct_coordinates(Point& point)
+PetscErrorCode Particles::correct_coordinates(Point& point)
 {
+  PetscFunctionBeginUser;
   if (world.bounds[X] == DM_BOUNDARY_PERIODIC)
     g_bound_periodic(point, X);
   if (world.bounds[Y] == DM_BOUNDARY_PERIODIC)
     g_bound_periodic(point, Y);
   if (world.bounds[Z] == DM_BOUNDARY_PERIODIC)
     g_bound_periodic(point, Z);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 }  // namespace interfaces

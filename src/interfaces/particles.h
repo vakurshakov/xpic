@@ -30,6 +30,8 @@ public:
   PetscErrorCode add_particle(const Point& point, PetscReal* energy = nullptr);
 
   PetscErrorCode correct_coordinates();
+  PetscErrorCode correct_coordinates(Point& point);
+
   PetscErrorCode update_cells();
   PetscErrorCode update_cells_mpi();
 
@@ -45,8 +47,6 @@ protected:
   static constexpr PetscInt MPI_TAG_POINTS = 4;
 
   static constexpr PetscInt OMP_CHUNK_SIZE = 16;
-
-  void correct_coordinates(Point& point);
 };
 
 }  // namespace interfaces

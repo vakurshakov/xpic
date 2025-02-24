@@ -1,6 +1,8 @@
 #ifndef SRC_ECSIMCORR_SIMULATION_H
 #define SRC_ECSIMCORR_SIMULATION_H
 
+#define UPDATE_CELLS_SEQ 0
+
 #include <petscksp.h>
 
 #include "src/interfaces/simulation.h"
