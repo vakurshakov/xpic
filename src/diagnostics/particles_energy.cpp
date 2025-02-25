@@ -39,8 +39,8 @@ PetscErrorCode ParticlesEnergy::diagnose(PetscInt t)
 PetscErrorCode ParticlesEnergy::calculate_energies()
 {
   auto calculate = [&](const interfaces::Particles* particles, Vector3R& result) {
-    const PetscInt Np = particles->parameters.Np;
     const PetscReal m = particles->parameters.m;
+    const PetscInt Np = particles->parameters.Np;
 
     PetscReal wx = 0.0;
     PetscReal wy = 0.0;
@@ -55,7 +55,7 @@ PetscErrorCode ParticlesEnergy::calculate_energies()
       }
     }
 
-    result = 0.5 * m * Vector3R{wx, wy, wz} / Np;
+    result += 0.5 * m * Vector3R{wx, wy, wz} / Np;
   };
 
   PetscFunctionBeginUser;
