@@ -25,9 +25,9 @@ public:
    * If it lies within it, the `point` is added to `storage` and added `energy` is accumulated.
    *
    * @param point The inserted point to be emplaced into `storage`.
-   * @param energy The energy accumulator, where the added kinetic energy would be added.
+   * @param is_added Whether the `point` has been added after the MPI-boundaries test.
    */
-  PetscErrorCode add_particle(const Point& point, PetscReal* energy = nullptr);
+  PetscErrorCode add_particle(const Point& point, bool* is_added = nullptr);
 
   PetscErrorCode correct_coordinates();
   PetscErrorCode correct_coordinates(Point& point);

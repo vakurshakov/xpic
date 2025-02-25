@@ -9,13 +9,13 @@
 class InjectParticles : public interfaces::Command {
 public:
   InjectParticles( //
-    interfaces::Particles& ionized,                 //
-    interfaces::Particles& ejected,                 //
-    PetscInt injection_start,                     //
-    PetscInt injection_end,                       //
-    PetscInt per_step_particles_num,                //
-    const CoordinateGenerator& generate_coordinate, //
-    const MomentumGenerator& generate_momentum_i,   //
+    interfaces::Particles& ionized,                  //
+    interfaces::Particles& ejected,                  //
+    PetscInt injection_start,                        //
+    PetscInt injection_end,                          //
+    PetscInt per_step_particles_num,                 //
+    const CoordinateGenerator& generate_coordinate,  //
+    const MomentumGenerator& generate_momentum_i,    //
     const MomentumGenerator& generate_momentum_e);
 
   PetscErrorCode execute(PetscInt t) override;
@@ -26,6 +26,8 @@ public:
   PetscReal get_ejected_energy() const;
 
 private:
+  PetscErrorCode log_statistics();
+
   using Particles = interfaces::Particles;
   Particles& ionized_;
   Particles& ejected_;
@@ -40,6 +42,7 @@ private:
 
   PetscReal energy_i_ = 0.0;
   PetscReal energy_e_ = 0.0;
+  PetscInt added_particles_ = 0;
 };
 
 #endif // SRC_COMMANDS_INJECT_PARTICLES_H

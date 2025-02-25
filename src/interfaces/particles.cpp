@@ -1,7 +1,5 @@
 #include "particles.h"
 
-#include "src/diagnostics/particles_energy.h"
-
 namespace interfaces {
 
 namespace {
@@ -36,7 +34,7 @@ Particles::Particles(const World& world, const SortParameters& parameters)
 {
 }
 
-PetscErrorCode Particles::add_particle(const Point& point, PetscReal* energy)
+PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
 {
   PetscFunctionBeginUser;
   PetscInt x = FLOOR_STEP(point.x(), dx) - world.start[X];
@@ -54,11 +52,8 @@ PetscErrorCode Particles::add_particle(const Point& point, PetscReal* energy)
 #pragma omp critical
   storage[world.s_g(z, y, x)].emplace_back(point);
 
-  if (!energy)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
-#pragma omp atomic
-  *energy += ParticlesEnergy::get(point.p, parameters.m, parameters.Np);
+  if (is_added)
+    *is_added = true;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

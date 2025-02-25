@@ -18,6 +18,8 @@ public:
   PetscReal get_removed_energy() const;
 
 private:
+  PetscErrorCode log_statistics();
+
   interfaces::Particles& particles_;
 
   Tester within_geom_;

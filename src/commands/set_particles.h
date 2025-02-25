@@ -17,6 +17,8 @@ public:
   PetscErrorCode execute(PetscInt t) override;
 
 private:
+  PetscErrorCode log_statistics();
+
   using Particles = interfaces::Particles;
   Particles& particles_;
 
@@ -26,6 +28,7 @@ private:
   MomentumGenerator generate_momentum_;
 
   PetscReal energy_ = 0.0;
+  PetscInt added_particles_ = 0;
 };
 
 #endif // SRC_COMMANDS_SET_PARTICLES_H

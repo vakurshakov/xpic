@@ -38,13 +38,26 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
     cell.clear();
   }
 
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &removed_energy_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &removed_particles_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCall(log_statistics());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  if (removed_particles_ > 0) {
-    LOG("  Particles are removed from \"{}\", particles: {}, energy: {}",
-      particles_.parameters.sort_name, removed_particles_, removed_energy_);
-  }
+PetscErrorCode RemoveParticles::log_statistics()
+{
+  PetscFunctionBeginUser;
+  LOG("  Particles have been removed from \"{}\"", particles_.parameters.sort_name);
+
+  PetscInt tot, min, max;
+  PetscCallMPI(MPI_Allreduce(&removed_particles_, &tot, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(&removed_particles_, &min, 1, MPIU_INT, MPI_MIN, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(&removed_particles_, &max, 1, MPIU_INT, MPI_MAX, PETSC_COMM_WORLD));
+  removed_particles_ = tot;
+
+  PetscReal rat = min > 0 ? (PetscReal)max / min : -1.0;
+  LOG("    total: {}, min: {}, max: {}, ratio: {:4.3f}", tot, min, max, rat);
+
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &removed_energy_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  LOG("    energy: {:6.4e}", removed_energy_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
