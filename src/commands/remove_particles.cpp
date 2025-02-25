@@ -23,9 +23,9 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
     auto& cell = particles_.storage[g];
 
     const Vector3R r{
-      world.start[X] + (g % world.size[X]) * dx,
-      world.start[Y] + ((g / world.size[X]) % world.size[Y]) * dy,
-      world.start[Z] + ((g / world.size[X]) / world.size[Y]) * dz,
+      (world.start[X] + g % world.size[X]) * dx,
+      (world.start[Y] + (g / world.size[X]) % world.size[Y]) * dy,
+      (world.start[Z] + (g / world.size[X]) / world.size[Y]) * dz,
     };
 
     if (cell.empty() || within_geom_(r))
