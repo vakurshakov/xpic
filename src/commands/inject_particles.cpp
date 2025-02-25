@@ -65,14 +65,8 @@ PetscErrorCode InjectParticles::log_statistics()
   PetscFunctionBeginUser;
   LOG("  Particles have been injected");
 
-  PetscInt tot, min, max;
-  PetscCallMPI(MPI_Allreduce(&added_particles_, &tot, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(&added_particles_, &min, 1, MPIU_INT, MPI_MIN, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(&added_particles_, &max, 1, MPIU_INT, MPI_MAX, PETSC_COMM_WORLD));
-  added_particles_ = tot;
-
-  PetscReal rat = min > 0 ? (PetscReal)max / min : -1.0;
-  LOG("    total: {}, min: {}, max: {}, ratio: {:4.3f}", tot, min, max, rat);
+  PetscCall(MPIUtils::log_statistics("    ", added_particles_, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &added_particles_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
   const std::vector<std::pair<std::string, PetscReal&>> map{
     {ionized_.parameters.sort_name, energy_i_},

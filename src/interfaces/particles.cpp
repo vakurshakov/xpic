@@ -196,8 +196,8 @@ PetscErrorCode Particles::update_cells_mpi()
 
   // Statistics of the transferred particles
   const std::vector<std::pair<std::string, size_t*>> map{
-    {"sent", o_num},
-    {"received", i_num},
+    {"    sent particles ", o_num},
+    {"    received particles ", i_num},
   };
 
   for (auto&& [op, num] : map) {
@@ -206,13 +206,7 @@ PetscErrorCode Particles::update_cells_mpi()
     for (PetscInt i = 0; i < neighbors_num; ++i)
       sum += num[i];
 
-    PetscInt tot, min, max;
-    PetscCallMPI(MPI_Allreduce(&sum, &tot, 1, MPIU_INT, MPI_SUM, comm));
-    PetscCallMPI(MPI_Allreduce(&sum, &min, 1, MPIU_INT, MPI_MIN, comm));
-    PetscCallMPI(MPI_Allreduce(&sum, &max, 1, MPIU_INT, MPI_MAX, comm));
-
-    PetscReal rat = min > 0 ? (PetscReal)max / min : -1.0;
-    LOG("    Total of {} particles were {}, min: {}, max: {}, ratio: {:4.3f}", tot, op, min, max, rat);
+    PetscCall(MPIUtils::log_statistics(op, sum, comm));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

@@ -71,6 +71,7 @@ set(commands
 )
 
 set(utils
+  src/utils/utils.cpp
   src/utils/configuration.cpp
   src/utils/mpi_binary_file.cpp
   src/utils/sync_file.cpp

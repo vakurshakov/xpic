@@ -18,7 +18,7 @@ SetParticles::SetParticles(                       //
 
 PetscErrorCode SetParticles::execute(PetscInt /* t */)
 {
-  energy_ = 0.0;
+  added_energy_ = 0.0;
   added_particles_ = 0;
 
   const PetscReal m = particles_.parameters.m;
@@ -33,7 +33,7 @@ PetscErrorCode SetParticles::execute(PetscInt /* t */)
     particles_.add_particle(Point(coordinate, momentum), &is_added);
 
     if (is_added) {
-      energy_ += ParticlesEnergy::get(momentum, m, Np);
+      added_energy_ += ParticlesEnergy::get(momentum, m, Np);
       added_particles_++;
     }
   }
@@ -46,17 +46,9 @@ PetscErrorCode SetParticles::log_statistics()
 {
   PetscFunctionBeginUser;
   LOG("  Particles have been added into \"{}\"", particles_.parameters.sort_name);
-
-  PetscInt tot, min, max;
-  PetscCallMPI(MPI_Allreduce(&added_particles_, &tot, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(&added_particles_, &min, 1, MPIU_INT, MPI_MIN, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(&added_particles_, &max, 1, MPIU_INT, MPI_MAX, PETSC_COMM_WORLD));
-  added_particles_ = tot;
-
-  PetscReal rat = min > 0 ? (PetscReal)max / min : -1.0;
-  LOG("    total: {}, min: {}, max: {}, ratio: {:4.3f}", tot, min, max, rat);
-
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-  LOG("    energy: {:6.4e}", energy_);
+  PetscCall(MPIUtils::log_statistics("    ", added_particles_, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &added_energy_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &added_particles_ , 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  LOG("    energy: {:6.4e}", added_energy_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

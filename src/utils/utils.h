@@ -34,6 +34,12 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 
 }  // namespace indexing
 
+namespace MPIUtils {
+
+PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
+
+}  // namespace MPIUtils
+
 
 #define REP2(A) A, A
 #define REP3(A) A, A, A
@@ -62,7 +68,7 @@ inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
 #define POW4(A) ((A) * (A) * (A) * (A))
 #define POW5(A) ((A) * (A) * (A) * (A) * (A))
 
-#define TO_STEP(s, ds) static_cast<PetscInt>(std::round((s) / (ds)))
+#define TO_STEP(s, ds)    static_cast<PetscInt>(std::round((s) / (ds)))
 #define FLOOR_STEP(s, ds) static_cast<PetscInt>(std::floor((s) / (ds)))
 
 #define STR_IMPL(x)    #x
