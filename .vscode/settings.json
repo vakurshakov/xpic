@@ -43,6 +43,7 @@
       "mdof",
       "memview",
       "mpiexec",
+      "MPIU",
       "mtune",
       "ndim",
       "ndof",

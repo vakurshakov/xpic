@@ -21,7 +21,9 @@ private:
   interfaces::Particles& particles_;
 
   Tester within_geom_;
+
   PetscReal removed_energy_ = 0.0;
+  PetscInt removed_particles_ = 0;
 };
 
 #endif  // SRC_COMMANDS_REMOVE_PARTICLES_H

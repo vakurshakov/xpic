@@ -1,10 +1,10 @@
 {
-  "OutputDirectory": "results/energy-test/ecsimcorr-periodic-square/mpi_z2",
+  "OutputDirectory": "results/energy-test/mirror/mpi_x2",
 
   "Simulation": "ecsimcorr",
 
   "mpi": {
-    "da_processors_x": 1,
+    "da_processors_x": 2,
     "da_processors_y": 1,
     "da_processors_z": 1,
     "binding": "socket",
@@ -12,15 +12,15 @@
   },
 
   "omp": {
-    "num_threads": 5,
+    "num_threads": 1,
     "places": "cores",
     "proc_bind": "spread"
   },
 
   "Geometry": {
-    "x": 5,
-    "y": 5,
-    "z": 5,
+    "x": 30,
+    "y": 30,
+    "z": 30,
     "t": 10,
     "dx": 1.0,
     "dy": 1.0,
@@ -57,14 +57,38 @@
   ],
 
   "Presets": [
+  ],
+
+  "StepPresets": [
+    {
+      "command": "RemoveParticles",
+      "particles": "ions",
+      "geometry": {
+        "name": "CylinderGeometry",
+        "radius": 14,
+        "height": 28
+      }
+    },
+    {
+      "command": "RemoveParticles",
+      "particles": "electrons",
+      "geometry": {
+        "name": "CylinderGeometry",
+        "radius": 14,
+        "height": 28
+      }
+    },
     {
       "command": "InjectParticles",
       "ionized": "ions",
       "ejected": "electrons",
+      "injection_start": 0,
+      "injection_end": "geom_t",
+      "tau": 2000,
       "coordinate": {
-        "name": "CoordinateInBox",
-        "min": 0.0,
-        "max": "Geom"
+        "name": "CoordinateInCylinder",
+        "radius": 10,
+        "height": 10
       },
       "momentum_i": {
         "name": "MaxwellianMomentum",
@@ -76,8 +100,6 @@
       }
     }
   ],
-
-  "StepPresets": [],
 
   "Diagnostics": []
 }

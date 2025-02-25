@@ -11,34 +11,39 @@ RemoveParticles::RemoveParticles(interfaces::Particles& particles, Tester&& test
 PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
-  PetscInt removed_particles = 0;
   removed_energy_ = 0.0;
+  removed_particles_ = 0;
 
-  const World& w = particles_.world;
-  const PetscInt Np = particles_.parameters.Np;
+  const World& world = particles_.world;
+
   const PetscReal m = particles_.parameters.m;
+  const PetscInt Np = particles_.parameters.Np;
 
-  for (PetscInt g = 0; g < w.size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+    auto& cell = particles_.storage[g];
+
     const Vector3R r{
-      (g % w.size[X]) * dx,
-      ((g / w.size[X]) % w.size[Y]) * dy,
-      ((g / w.size[X]) / w.size[Y]) * dz,
+      world.start[X] + (g % world.size[X]) * dx,
+      world.start[Y] + ((g / world.size[X]) % world.size[Y]) * dy,
+      world.start[Z] + ((g / world.size[X]) / world.size[Y]) * dz,
     };
 
-    auto& cell = particles_.storage[g];
-    if (!cell.empty() && !within_geom_(r)) {
-      removed_particles += cell.size();
+    if (cell.empty() || within_geom_(r))
+      continue;
 
-      for (const auto& [_, p] : cell)
-        removed_energy_ += ParticlesEnergy::get(p, m, Np);
+    for (const auto& [_, p] : cell)
+      removed_energy_ += ParticlesEnergy::get(p, m, Np);
 
-      cell.clear();
-    }
+    removed_particles_ += cell.size();
+    cell.clear();
   }
 
-  if (removed_particles > 0) {
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &removed_energy_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &removed_particles_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+
+  if (removed_particles_ > 0) {
     LOG("  Particles are removed from \"{}\", particles: {}, energy: {}",
-      particles_.parameters.sort_name, removed_particles, removed_energy_);
+      particles_.parameters.sort_name, removed_particles_, removed_energy_);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
