@@ -23,7 +23,8 @@ PetscErrorCode FieldsDamping::execute(PetscInt /* t */)
   PetscCall(damping_implementation(B_));
   PetscCall(VecAXPY(B_, +1.0, B0_));
 
-  LOG("  Fields are damped, additional energy runoff: {}", damped_energy_);
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &damped_energy_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  LOG("  Fields are damped, additional energy runoff: {:6.4e}", damped_energy_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
