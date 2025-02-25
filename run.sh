@@ -35,6 +35,8 @@ while read line; do
   case $line in
     *da_processors*)
       MPI_NUM_PROC=$(( $MPI_NUM_PROC * $(parse "$line") )) ;;
+    *num_proc*)
+      MPI_NUM_PROC=$(parse "$line") ;;
     *binding*)
       HYDRA_BINDING=$(parse "$line") ;;
     *mapping*)
@@ -51,6 +53,13 @@ while read line; do
       OMP_DISPLAY_AFFINITY=$(parse "$line") ;;
   esac
 done < config.json
+
+if (( MPI_NUM_PROC < 0 ))
+then
+  echo "Please, avoid the explicit use of negative 'da_processors*'."
+  echo "If you want to use '-mpi_linear_solver_server', pass a 'num_proc' in your configuration file."
+  exit 1
+fi
 
 export HYDRA_BINDING=$HYDRA_BINDING
 export HYDRA_MAPPING=$HYDRA_MAPPING
