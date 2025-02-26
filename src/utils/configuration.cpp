@@ -20,33 +20,17 @@ void Configuration::init(const std::string& config_path)
   json.at("OutputDirectory").get_to(config.out_dir);
 
   const json_t& geometry = json.at("Geometry");
-  geometry.at("dx").get_to(dx);
-  geometry.at("dy").get_to(dy);
-  geometry.at("dz").get_to(dz);
-  geometry.at("dt").get_to(dt);
-  Dx[0] = dx;
-  Dx[1] = dy;
-  Dx[2] = dz;
 
-  geometry.at("x").get_to(geom_x);
-  geometry.at("y").get_to(geom_y);
-  geometry.at("z").get_to(geom_z);
-  geometry.at("t").get_to(geom_t);
-  Geom[0] = geom_x;
-  Geom[1] = geom_y;
-  Geom[2] = geom_z;
-
-  geom_nx = TO_STEP(geom_x, dx);
-  geom_ny = TO_STEP(geom_y, dy);
-  geom_nz = TO_STEP(geom_z, dz);
-  geom_nt = TO_STEP(geom_t, dt);
-  Geom_n[0] = geom_nx;
-  Geom_n[1] = geom_ny;
-  Geom_n[2] = geom_nz;
-
-  PetscReal diagnose_period_wp;
-  geometry.at("diagnose_period").get_to(diagnose_period_wp);
-  diagnose_period = TO_STEP(diagnose_period_wp, dt);
+  set_world_geometry( //
+    geometry.at("x").get<PetscReal>(), //
+    geometry.at("y").get<PetscReal>(), //
+    geometry.at("z").get<PetscReal>(), //
+    geometry.at("t").get<PetscReal>(), //
+    geometry.at("dx").get<PetscReal>(), //
+    geometry.at("dy").get<PetscReal>(), //
+    geometry.at("dz").get<PetscReal>(), //
+    geometry.at("dt").get<PetscReal>(), //
+    geometry.at("diagnose_period").get<PetscReal>());
 }
 
 
