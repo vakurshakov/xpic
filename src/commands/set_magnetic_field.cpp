@@ -4,15 +4,15 @@
 
 #include "src/utils/configuration.h"
 
-SetMagneticField::SetMagneticField(Vec storage, Setter&& setup)
-  : storage_(storage), setup_(std::move(setup))
+SetMagneticField::SetMagneticField(Vec B, Setter&& setup)
+  : B_(B), setup_(std::move(setup))
 {
 }
 
 PetscErrorCode SetMagneticField::execute(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
-  PetscCall(setup_(storage_));
+  PetscCall(setup_(B_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
