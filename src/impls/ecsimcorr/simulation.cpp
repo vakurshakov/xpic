@@ -2,7 +2,7 @@
 
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
-#include "src/diagnostics/log_view.h"
+#include "src/diagnostics/mat_dump.h"
 #include "src/impls/ecsimcorr/charge_conservation.h"
 #include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/utils/operators.h"
@@ -19,6 +19,8 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_log_stages());
   PetscCall(clock.push(stagenums[0]));
   PetscCall(PetscLogStagePush(stagenums[0]));
+
+  assembly_map.resize(world.size.elements_product());
 
   PetscCall(init_vectors());
   PetscCall(init_matrices());
@@ -38,6 +40,8 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
+  diagnostics_.emplace_back(std::make_unique<MatDump>(CONFIG().out_dir + "/matL",
+    matL, "./results/energy-test/mirror/assembly_control_mpi_1/matL/"));
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
@@ -210,8 +214,8 @@ PetscErrorCode Simulation::log_timings()
   for (PetscInt i = 1; i < size; ++i)
     sum += clock.get(stagenums[i]);
 
-  LOG("Summary of Stages:  ------- Time -------");
-  LOG("                        Avg         %");
+  LOG("  Summary of Stages:  ------- Time -------");
+  LOG("                          Avg         %");
 
   for (PetscInt i = 1; i < size; ++i) {
     PetscLogStage id = stagenums[i];
@@ -220,7 +224,7 @@ PetscErrorCode Simulation::log_timings()
     PetscCall(PetscLogStageGetName(id, &name));
 
     PetscLogDouble time = clock.get(std::string(name));
-    LOG("{:2d}: {:>15s}: {:6.4e}  {:5.1f}%", id, name, time, 100.0 * time / sum);
+    LOG("  {:2d}: {:>15s}: {:6.4e}  {:5.1f}%", id, name, time, 100.0 * time / sum);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -252,50 +256,52 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 }
 
 /// @note Since we use one global Lapenta matrix, test on
-/// `matL_indices_assembled` should include particles of all sorts.
-/// @note This routine _must_ be called before `fill_ecsim_current()`
+/// `indices_assembled` should include particles of all sorts.
+/// @note This routine _must_ be called before `fill_matrix_indices()`
 PetscErrorCode Simulation::update_cells()
 {
   PetscFunctionBeginUser;
 #if UPDATE_CELLS_SEQ
-  for (auto& sort : particles_) {
-    for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-      auto& storage_g = sort->storage[g];
-      auto it = storage_g.begin();
-      while (it != storage_g.end()) {
-        PetscCall(sort->correct_coordinates(*it));
-
-        auto ng = world.s_g(  //
-          static_cast<PetscInt>(it->z() / dz),  //
-          static_cast<PetscInt>(it->y() / dy),  //
-          static_cast<PetscInt>(it->x() / dx));
-
-        if (ng == g) {
-          it = std::next(it);
-          continue;
-        }
-
-        for (const auto& check_sort : particles_) {
-          if (!matL_indices_assembled || !check_sort->storage[ng].empty())
-            continue;
-
-          LOG("  Indices assembly is broken by \"{}\"", sort->parameters.sort_name);
-          matL_indices_assembled = false;
-        }
-
-        auto& storage_ng = sort->storage[ng];
-        storage_ng.emplace_back(*it);
-        it = storage_g.erase(it);
-      }
-    }
-  }
+  for (auto& sort : particles_)
+    PetscCall(sort->update_cells());
 #else
-  matL_indices_assembled = false;
-  LOG("  Indices assembly control isn't supported with MPI on");
-
   for (auto& sort : particles_)
     PetscCall(sort->update_cells_mpi());
 #endif
+
+  for (const auto& sort : particles_) {
+    for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+      if (sort->storage[g].empty() || assembly_map[g])
+        continue;
+
+      if (indices_assembled) {
+        LOG("  Indices assembly has been broken by \"{}\"", sort->parameters.sort_name);
+      }
+      indices_assembled = false;
+
+      for (PetscInt i = 0; i < POW3(assembly_width); ++i) {
+        Vector3I c{
+          world.start[X] + g % world.size[X],
+          world.start[Y] + (g / world.size[X]) % world.size[Y],
+          world.start[Z] + (g / world.size[X]) / world.size[Y],
+        };
+
+        c[X] += -assembly_radius + i % assembly_width;
+        c[Y] += -assembly_radius + (i / assembly_width) % assembly_width;
+        c[Z] += -assembly_radius + (i / assembly_width) / assembly_width;
+
+        if (!is_point_within_bounds(c, world.start, world.size))
+          continue;
+
+        PetscInt j = world.s_g(  //
+          c[Z] - world.start[Z],  //
+          c[Y] - world.start[Y],  //
+          c[X] - world.start[X]);
+
+        assembly_map[j] = true;
+      }
+    }
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -305,40 +311,104 @@ PetscErrorCode Simulation::fill_ecsim_current()
   PetscInt size = 0;
   get_array_offset(0, world.size.elements_product(), size);
 
-  std::vector<MatStencil> coo_i;
-  std::vector<MatStencil> coo_j;
-  std::vector<PetscReal> coo_v;
+  static std::vector<MatStencil> coo_i;
+  static std::vector<MatStencil> coo_j;
+  static std::vector<PetscReal> coo_v;
 
-  PetscReal mem, sum;
-  if (!matL_indices_assembled) {
+  indices_assembled = false;
+
+  if (!indices_assembled) {
+    PetscReal ind_mem, val_mem;
+    ind_mem = (PetscReal)size * 2 * sizeof(MatStencil) / 1e9;
+    val_mem = (PetscReal)size * sizeof(PetscReal) / 1e9;
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &ind_mem, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &val_mem, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+
+    LOG("  Indices assembly was broken, recreating them");
+    LOG("  Additional space for indices: {:4.3f} GB, values: {:4.3f} GB", ind_mem, val_mem);
+
     coo_i.resize(size);
     coo_j.resize(size);
+    coo_v.resize(size);
 
-    mem = (PetscReal)size * 2 * sizeof(MatStencil) / 1e9;
-    PetscCallMPI(MPI_Allreduce(&mem, &sum, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-    LOG("  Indices assembly was broken, recollecting them again. Additional space: {:4.3f} GB", sum);
-  }
-
-  coo_v.resize(size, 0.0);
-
-  mem = (PetscReal)size * sizeof(PetscReal) / 1e9;
-  PetscCallMPI(MPI_Allreduce(&mem, &sum, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-  LOG("  To collect matrix values, temporary storage of size {:4.3f} GB was allocated", sum);
-
-  PetscCall(fill_ecsim_current(coo_i.data(), coo_j.data(), coo_v.data()));
-
-  if (!matL_indices_assembled) {
+    PetscCall(fill_matrix_indices(coo_i.data(), coo_j.data()));
     PetscCall(mat_set_preallocation_coo(size, coo_i.data(), coo_j.data()));
-    matL_indices_assembled = true;
+    indices_assembled = true;
   }
+
+  std::fill(coo_v.begin(), coo_v.end(), 0.0);
+  PetscCall(fill_ecsim_current(coo_v.data()));
 
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
   PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::fill_ecsim_current(
-  MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v)
+constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
+{
+  return g * POW2(3) + (c1 * 3 + c2);
+}
+
+/// @note Indices are assembled on those cells `g`, where `assembly_map[g] == true`
+PetscErrorCode Simulation::fill_matrix_indices(
+  MatStencil* coo_i, MatStencil* coo_j)
+{
+  PetscFunctionBeginUser;
+  constexpr PetscInt shr = 1;
+  constexpr PetscInt shw = 2 * shr + 1;
+
+  PetscInt prev_g = 0;
+  PetscInt off = 0;
+
+#pragma omp parallel for firstprivate(prev_g, off)
+  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+    if (!assembly_map[g])
+      continue;
+
+    get_array_offset(prev_g, g, off);
+    prev_g = g;
+
+    MatStencil* coo_ci = coo_i + off;
+    MatStencil* coo_cj = coo_j + off;
+
+    Vector3I vg{
+      world.start[X] + g % world.size[X],
+      world.start[Y] + (g / world.size[X]) % world.size[Y],
+      world.start[Z] + (g / world.size[X]) / world.size[Y],
+    };
+
+    for (PetscInt g1 = 0; g1 < POW3(shw); ++g1) {
+      for (PetscInt g2 = 0; g2 < POW3(shw); ++g2) {
+        PetscInt gg = g1 * POW3(shw) + g2;
+
+        Vector3I vg1{
+          vg[X] + g1 % shw - shr,
+          vg[Y] + (g1 / shw) % shw - shr,
+          vg[Z] + (g1 / shw) / shw - shr,
+        };
+
+        Vector3I vg2{
+          vg[X] + g2 % shw - shr,
+          vg[Y] + (g2 / shw) % shw - shr,
+          vg[Z] + (g2 / shw) / shw - shr,
+        };
+
+        for (PetscInt c = 0; c < 3; ++c) {
+          coo_ci[ind(gg, X, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], X};
+          coo_ci[ind(gg, Y, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Y};
+          coo_ci[ind(gg, Z, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Z};
+
+          coo_cj[ind(gg, c, X)] = MatStencil{vg2[Z], vg2[Y], vg2[X], X};
+          coo_cj[ind(gg, c, Y)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Y};
+          coo_cj[ind(gg, c, Z)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Z};
+        }
+      }
+    }
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::fill_ecsim_current(PetscReal* coo_v)
 {
   PetscFunctionBeginUser;
   Vector3R*** arr_B;
@@ -352,27 +422,19 @@ PetscErrorCode Simulation::fill_ecsim_current(
     PetscCall(DMDAVecGetArrayWrite(da, sort->local_currI, &sort->currI));
   }
 
-  static constexpr PetscInt OMP_CHUNK_SIZE = 16;
-  PetscInt prev_g = 0;
-  PetscInt off = 0;
-
   PetscLogEventBegin(events[0], local_B, 0, 0, 0);
 
-#pragma omp parallel for firstprivate(prev_g, off) \
-  schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    for (const auto& sort : particles_) {
+  for (const auto& sort : particles_) {
+    PetscInt prev_g = 0;
+    PetscInt off = 0;
+
+#pragma omp parallel for firstprivate(prev_g, off)
+    for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
       if (sort->storage[g].empty())
         continue;
 
       get_array_offset(prev_g, g, off);
       prev_g = g;
-
-      if (!matL_indices_assembled) {
-        MatStencil* coo_ci = coo_i + off;
-        MatStencil* coo_cj = coo_j + off;
-        sort->fill_matrix_indices(g, coo_ci, coo_cj);
-      }
 
       PetscReal* coo_cv = coo_v + off;
       sort->fill_ecsim_current(g, coo_cv);
@@ -395,14 +457,9 @@ PetscErrorCode Simulation::fill_ecsim_current(
 void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off)
 {
   constexpr PetscInt shs = POW2(3 * POW3(3));
-  for (PetscInt i = begin_g; i < end_g; ++i) {
-    for (const auto& sort : particles_) {
-      if (!sort->storage[i].empty()) {
-        off += shs;
-        break;
-      }
-    }
-  }
+  for (PetscInt g = begin_g; g < end_g; ++g)
+    if (assembly_map[g])
+      off += shs;
 }
 
 PetscErrorCode Simulation::mat_set_preallocation_coo(

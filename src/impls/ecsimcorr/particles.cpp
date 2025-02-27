@@ -68,46 +68,9 @@ void Particles::fill_ecsim_current(PetscInt g, PetscReal* coo_v)
   }
 }
 
-void Particles::fill_matrix_indices(
-  PetscInt g, MatStencil* coo_i, MatStencil* coo_j)
+constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
 {
-  PetscFunctionBeginUser;
-  constexpr PetscInt shw = 3;
-
-  const Vector3I vg{
-    world.start[X] + g % world.size[X],
-    world.start[Y] + (g / world.size[X]) % world.size[Y],
-    world.start[Z] + (g / world.size[X]) / world.size[Y],
-  };
-
-  for (PetscInt g1 = 0; g1 < POW3(shw); ++g1) {
-    for (PetscInt g2 = 0; g2 < POW3(shw); ++g2) {
-      PetscInt gg = g1 * POW3(shw) + g2;
-
-      Vector3I vg1{
-        vg[X] + g1 % shw - 1,
-        vg[Y] + (g1 / shw) % shw - 1,
-        vg[Z] + (g1 / shw) / shw - 1,
-      };
-
-      Vector3I vg2{
-        vg[X] + g2 % shw - 1,
-        vg[Y] + (g2 / shw) % shw - 1,
-        vg[Z] + (g2 / shw) / shw - 1,
-      };
-
-      for (PetscInt c = 0; c < 3; ++c) {
-        coo_i[ind(gg, X, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], X};
-        coo_i[ind(gg, Y, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Y};
-        coo_i[ind(gg, Z, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Z};
-
-        coo_j[ind(gg, c, X)] = MatStencil{vg2[Z], vg2[Y], vg2[X], X};
-        coo_j[ind(gg, c, Y)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Y};
-        coo_j[ind(gg, c, Z)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Z};
-      }
-    }
-  }
-  PetscFunctionReturnVoid();
+  return g * POW2(3) + (c1 * 3 + c2);
 }
 
 /// @note Also decomposes `Simulation::matL`
@@ -129,14 +92,15 @@ void Particles::decompose_ecsim_current(
   SimpleDecomposition decomposition(shape, I_p);
   PetscCallVoid(decomposition.process(currI));
 
+  constexpr PetscInt shr = 1;
+  constexpr PetscInt shw = 2 * shr + 1;
   constexpr PetscReal shape_tolerance = 1e-10;
-  constexpr PetscInt shw = 3;
 
   /// @note It is an offset from particle `shape` indexing into `coo_v` one.
   const Vector3I off{
-    shape.start[X] - ((PetscInt)(point.x() / dx) - 1),
-    shape.start[Y] - ((PetscInt)(point.y() / dy) - 1),
-    shape.start[Z] - ((PetscInt)(point.z() / dz) - 1),
+    shape.start[X] - ((PetscInt)(point.x() / dx) - shr),
+    shape.start[Y] - ((PetscInt)(point.y() / dy) - shr),
+    shape.start[Z] - ((PetscInt)(point.z() / dz) - shr),
   };
 
   auto s_gg = [&](PetscInt g1, PetscInt g2) {
@@ -157,7 +121,7 @@ void Particles::decompose_ecsim_current(
       ((vg2[Z] * shw + vg2[Y]) * shw + vg2[X]);
   };
 
-  const PetscReal matB[3][3]{
+  const PetscReal matB[Vector3R::dim][Vector3R::dim]{
     {1.0 + b[X] * b[X], +b[Z] + b[X] * b[Y], -b[Y] + b[X] * b[Z]},
     {-b[Z] + b[Y] * b[X], 1.0 + b[Y] * b[Y], +b[X] + b[Y] * b[Z]},
     {+b[Y] + b[Z] * b[X], -b[X] + b[Z] * b[Y], 1.0 + b[Z] * b[Z]},
@@ -173,8 +137,8 @@ void Particles::decompose_ecsim_current(
 
       PetscInt gg = s_gg(g1, g2);
 
-      for (PetscInt c1 = 0; c1 < 3; ++c1)
-        for (PetscInt c2 = 0; c2 < 3; ++c2)
+      for (PetscInt c1 = 0; c1 < Vector3R::dim; ++c1)
+        for (PetscInt c2 = 0; c2 < Vector3R::dim; ++c2)
           coo_v[ind(gg, c1, c2)] += s1[c1] * s2[c2] * betaL * matB[c1][c2];
     }
   }

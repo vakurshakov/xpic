@@ -1,7 +1,7 @@
 #ifndef SRC_ECSIMCORR_SIMULATION_H
 #define SRC_ECSIMCORR_SIMULATION_H
 
-#define UPDATE_CELLS_SEQ 0
+#define UPDATE_CELLS_SEQ 1
 
 #include <petscksp.h>
 
@@ -67,8 +67,8 @@ private:
 
   void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
 
-  PetscErrorCode fill_ecsim_current(
-    MatStencil* coo_i, MatStencil* coo_j, PetscReal* coo_v);
+  PetscErrorCode fill_matrix_indices(MatStencil* coo_i, MatStencil* coo_j);
+  PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
 
   PetscErrorCode mat_set_preallocation_coo(
     PetscInt size, MatStencil* coo_i, MatStencil* coo_j);
@@ -85,8 +85,16 @@ private:
   KSP predict;
   KSP correct;
 
-  /// @note We start with _unassembled_ state to force first indexes assembly
-  bool matL_indices_assembled = false;
+  /// @brief Cells, where indices have been assembled.
+  /// @note This map and `matL` size can only _grow_ in time.
+  std::vector<bool> assembly_map;
+
+  /// @brief Radius of the cloud, where indices would be assembled.
+  static constexpr PetscInt assembly_radius = 5;
+  static constexpr PetscInt assembly_width = 2 * assembly_radius + 1;
+
+  /// @brief Whether the new cells have been added into `indices_map`.
+  bool indices_assembled = false;
 
   PetscClassId classid;
   PetscLogEvent events[1];

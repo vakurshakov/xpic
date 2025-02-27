@@ -22,7 +22,6 @@ public:
   PetscErrorCode second_push();
   PetscErrorCode final_update();
 
-  void fill_matrix_indices(PetscInt g, MatStencil* coo_i, MatStencil* coo_j);
   void fill_ecsim_current(PetscInt g, PetscReal* coo_v);
 
   Vec local_currI;
@@ -47,11 +46,6 @@ private:
 
   void decompose_ecsim_current(const Shape& shape, const Point& point,
     const Vector3R& B_p, PetscReal* coo_v);
-
-  constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
-  {
-    return g * POW2(3) + (c1 * 3 + c2);
-  }
 
   Simulation& simulation_;
 

@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/energy-test/mirror/mpi_1",
+  "OutputDirectory": "results/energy-test/mirror/assembly_control_mpi_1_new",
 
   "Simulation": "ecsimcorr",
 
