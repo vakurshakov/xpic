@@ -315,8 +315,6 @@ PetscErrorCode Simulation::fill_ecsim_current()
   static std::vector<MatStencil> coo_j;
   static std::vector<PetscReal> coo_v;
 
-  indices_assembled = false;
-
   if (!indices_assembled) {
     PetscReal ind_mem, val_mem;
     ind_mem = (PetscReal)size * 2 * sizeof(MatStencil) / 1e9;
@@ -393,7 +391,7 @@ PetscErrorCode Simulation::fill_matrix_indices(
           vg[Z] + (g2 / shw) / shw - shr,
         };
 
-        for (PetscInt c = 0; c < 3; ++c) {
+        for (PetscInt c = 0; c < Vector3I::dim; ++c) {
           coo_ci[ind(gg, X, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], X};
           coo_ci[ind(gg, Y, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Y};
           coo_ci[ind(gg, Z, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Z};
