@@ -90,7 +90,7 @@ private:
   std::vector<bool> assembly_map;
 
   /// @brief Radius of the cloud, where indices would be assembled.
-  static constexpr PetscInt assembly_radius = 5;
+  static constexpr PetscInt assembly_radius = 1;
   static constexpr PetscInt assembly_width = 2 * assembly_radius + 1;
 
   /// @brief Whether the new cells have been added into `indices_map`.

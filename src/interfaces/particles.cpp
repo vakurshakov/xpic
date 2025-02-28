@@ -83,6 +83,8 @@ PetscErrorCode Particles::update_cells()
         continue;
       }
 
+      PetscCall(correct_coordinates(*it));
+
       storage[ng].emplace_back(std::move(*it));
       it = storage[g].erase(it);
     }
