@@ -68,7 +68,7 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
 #define POW4(A) ((A) * (A) * (A) * (A))
 #define POW5(A) ((A) * (A) * (A) * (A) * (A))
 
-#define TO_STEP(s, ds)    static_cast<PetscInt>(std::round((s) / (ds)))
+#define ROUND_STEP(s, ds) static_cast<PetscInt>(std::round((s) / (ds)))
 #define FLOOR_STEP(s, ds) static_cast<PetscInt>(std::floor((s) / (ds)))
 
 #define STR_IMPL(x)    #x

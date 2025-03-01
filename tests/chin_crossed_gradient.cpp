@@ -22,7 +22,7 @@ int main()
   dt = 2.1 * std::numbers::pi;
 
   geom_t = 1'000;
-  geom_nt = TO_STEP(geom_t, dt);
+  geom_nt = ROUND_STEP(geom_t, dt);
 
   SyncFile output(CHIN_SCHEME_OUTPUT);
   output() << "t       x       y       z       \n";

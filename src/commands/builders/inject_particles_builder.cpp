@@ -22,7 +22,7 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   PetscInt injection_end = 1;
 
   if (info.contains("injection_start"))
-    injection_start = TO_STEP(info.at("injection_start").get<PetscReal>(), dt);
+    injection_start = ROUND_STEP(info.at("injection_start").get<PetscReal>(), dt);
 
   if (info.contains("injection_end")) {
     const Configuration::json_t& value = info.at("injection_end");
@@ -33,7 +33,7 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
           injection_end = geom_nt;
         break;
       default:
-        injection_end = TO_STEP(info.at("injection_end").get<PetscReal>(), dt);
+        injection_end = ROUND_STEP(info.at("injection_end").get<PetscReal>(), dt);
         break;
     }
   }
@@ -47,7 +47,7 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   PetscInt tau = (injection_end - injection_start);
 
   if (info.contains("tau"))
-    tau = TO_STEP(info.at("tau").get<PetscReal>(), dt);
+    tau = ROUND_STEP(info.at("tau").get<PetscReal>(), dt);
 
   per_step_particles_num /= tau;
 

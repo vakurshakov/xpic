@@ -58,8 +58,8 @@ void FieldViewBuilder::parse_region_start_size(const Configuration::json_t& info
     size = parse_vector(info, "size");
 
   for (PetscInt i = 0; i < 3; ++i) {
-    region.start[i] = TO_STEP(start[i], Dx[i]);
-    region.size[i] = TO_STEP(size[i], Dx[i]);
+    region.start[i] = ROUND_STEP(start[i], Dx[i]);
+    region.size[i] = ROUND_STEP(size[i], Dx[i]);
   }
 
   check_region(vector_cast(region.start), vector_cast(region.size), name);

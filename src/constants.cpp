@@ -37,12 +37,12 @@ void set_world_geometry( //
   Geom[2] = geom_z = _gz;
   geom_t = _gt;
 
-  Geom_n[0] = geom_nx = TO_STEP(geom_x, dx);
-  Geom_n[1] = geom_ny = TO_STEP(geom_y, dy);
-  Geom_n[2] = geom_nz = TO_STEP(geom_z, dz);
-  geom_nt = TO_STEP(geom_t, dt);
+  Geom_n[0] = geom_nx = ROUND_STEP(geom_x, dx);
+  Geom_n[1] = geom_ny = ROUND_STEP(geom_y, dy);
+  Geom_n[2] = geom_nz = ROUND_STEP(geom_z, dz);
+  geom_nt = ROUND_STEP(geom_t, dt);
 
-  diagnose_period = TO_STEP(_dtp, dt);
+  diagnose_period = ROUND_STEP(_dtp, dt);
 }
 
 void set_world_geometry( //
