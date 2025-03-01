@@ -53,7 +53,6 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
 #define REP3_X(A) A##x, A##y, A##z
 #define REP4_X(A) A##x, A##y, A##z, A##c
 
-// NOLINTBEGIN(bugprone-macro-parentheses)
 #define REP2_A(A) A[0], A[1]
 #define REP3_A(A) A[0], A[1], A[2]
 #define REP4_A(A) A[0], A[1], A[2], A[3]
@@ -61,15 +60,16 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
 #define REP2_AP(A) A[1], A[0]
 #define REP3_AP(A) A[2], A[1], A[0]
 #define REP4_AP(A) A[2], A[1], A[0], A[3]
-// NOLINTEND
 
 #define POW2(A) ((A) * (A))
 #define POW3(A) ((A) * (A) * (A))
 #define POW4(A) ((A) * (A) * (A) * (A))
 #define POW5(A) ((A) * (A) * (A) * (A) * (A))
 
+
 #define ROUND_STEP(s, ds) static_cast<PetscInt>(std::round((s) / (ds)))
 #define FLOOR_STEP(s, ds) static_cast<PetscInt>(std::floor((s) / (ds)))
+
 
 #define STR_IMPL(x)    #x
 #define CAT_IMPL(a, b) a##b
@@ -78,7 +78,6 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
 #define CAT(a, b) CAT_IMPL(a, b)
 
 
-// NOLINTBEGIN
 #define PetscCallThrow(...)                                      \
   do {                                                           \
     PetscStackUpdateLine;                                        \
@@ -92,6 +91,7 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
   }                                                              \
   while (0)
 
+
 #define DEFAULT_COPYABLE(Class)                   \
   Class(const Class& other) = default;            \
   Class& operator=(const Class& other) = default; \
@@ -103,7 +103,7 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
   Class& operator=(const Class& other) = delete; \
   Class(Class&& other) = default;                \
   Class& operator=(Class&& other) = default
-// NOLINTEND
+
 
 #if LOGGING
   #define LOG_FLUSH()   std::cout.flush()
