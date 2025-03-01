@@ -25,14 +25,14 @@ struct World {
   Vector3I size;
   Vector3I end;
 
-  inline PetscInt s_g(PetscInt z, PetscInt y, PetscInt x) const
+  inline PetscInt s_g(PetscInt x, PetscInt y, PetscInt z) const
   {
-    return indexing::petsc_index(z, y, x, 0, size[Z], size[Y], size[X], 1);
+    return indexing::petsc_index(x, y, z, 0, size[X], size[Y], size[Z], 1);
   }
 
-  inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
+  inline PetscInt v_g(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const
   {
-    return indexing::petsc_index(z, y, x, c, size[Z], size[Y], size[X], 3);
+    return indexing::petsc_index(x, y, z, c, size[X], size[Y], size[Z], 3);
   }
 };
 

@@ -23,8 +23,8 @@ public:
 protected:
   Operator(DM da, PetscInt mdof = 3, PetscInt ndof = 3);
 
-  PetscInt m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
-  PetscInt n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const;
+  PetscInt m_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const;
+  PetscInt n_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const;
 
   DM da_;
   Vector3I start_, size_;
@@ -63,9 +63,9 @@ protected:
   /// passes it to default MatSetPreallocationCOO(), (different dof can be used).
   PetscErrorCode fill_matrix(Mat mat, Yee_shift sh);
 
-  /// @brief Specifies the stencil for each point `(z, y, x)` in space, after
+  /// @brief Specifies the stencil for each point `(x, y, z)` in space, after
   /// that whole chunk of `values` will be inserted into the matrix at once.
-  virtual void fill_stencil(Yee_shift sh, PetscInt z, PetscInt y, PetscInt x,
+  virtual void fill_stencil(Yee_shift sh, PetscInt x, PetscInt y, PetscInt z,
     MatStencil* coo_i, MatStencil* coo_j) const = 0;
 
   inline PetscInt ind(PetscInt c, PetscInt i) const;
@@ -78,7 +78,7 @@ public:
   Rotor(DM da);
 
 private:
-  void fill_stencil(Yee_shift sh, PetscInt z, PetscInt y, PetscInt x,
+  void fill_stencil(Yee_shift sh, PetscInt x, PetscInt y, PetscInt z,
     MatStencil* coo_i, MatStencil* coo_j) const override;
 };
 
@@ -90,7 +90,7 @@ public:
   PetscErrorCode create(Mat* mat);
 
 private:
-  void fill_stencil(Yee_shift, PetscInt z, PetscInt y, PetscInt x,
+  void fill_stencil(Yee_shift, PetscInt x, PetscInt y, PetscInt z,
     MatStencil* coo_i, MatStencil* coo_j) const override;
 
   using FiniteDifferenceOperator::create_negative;
@@ -122,7 +122,7 @@ public:
 
 protected:
   PetscErrorCode set_sizes_and_ltog(Mat mat) const override;
-  void fill_stencil(Yee_shift sh, PetscInt z, PetscInt y, PetscInt x,
+  void fill_stencil(Yee_shift sh, PetscInt x, PetscInt y, PetscInt z,
     MatStencil* coo_i, MatStencil* coo_j) const override;
 };
 
@@ -132,7 +132,7 @@ public:
 
 private:
   PetscErrorCode set_sizes_and_ltog(Mat mat) const override;
-  void fill_stencil(Yee_shift sh, PetscInt z, PetscInt y, PetscInt x,
+  void fill_stencil(Yee_shift sh, PetscInt x, PetscInt y, PetscInt z,
     MatStencil* coo_i, MatStencil* coo_j) const override;
 };
 

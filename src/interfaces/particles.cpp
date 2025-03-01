@@ -6,9 +6,9 @@ namespace {
 
 constexpr PetscInt dim = 3;
 
-constexpr PetscInt neighbor_index(PetscInt z, PetscInt y, PetscInt x)
+constexpr PetscInt neighbor_index(PetscInt x, PetscInt y, PetscInt z)
 {
-  return indexing::petsc_index(z, y, x, 0, dim, dim, dim, 1);
+  return indexing::petsc_index(x, y, z, 0, dim, dim, dim, 1);
 }
 
 constexpr PetscInt get_index(const Vector3I& r, Axis axis, const World& world)
@@ -50,7 +50,7 @@ PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
     PetscFunctionReturn(PETSC_SUCCESS);
 
 #pragma omp critical
-  storage[world.s_g(z, y, x)].emplace_back(point);
+  storage[world.s_g(x, y, z)].emplace_back(point);
 
   if (is_added)
     *is_added = true;
@@ -74,9 +74,9 @@ PetscErrorCode Particles::update_cells()
     auto it = storage[g].begin();
     while (it != storage[g].end()) {
       auto ng = world.s_g(       //
-        FLOOR_STEP(it->z(), dz), //
+        FLOOR_STEP(it->x(), dx), //
         FLOOR_STEP(it->y(), dy), //
-        FLOOR_STEP(it->x(), dx));
+        FLOOR_STEP(it->z(), dz));
 
       if (ng == g) {
         it = std::next(it);
@@ -124,16 +124,16 @@ PetscErrorCode Particles::update_cells_mpi()
       }
 
       PetscInt i = neighbor_index( //
-        get_index(ng, Z, world),   //
+        get_index(ng, X, world),   //
         get_index(ng, Y, world),   //
-        get_index(ng, X, world));
+        get_index(ng, Z, world));
 
       // Particle didn't cross boundaries, local update cell is needed
       if (i == center_index) {
         PetscInt j = world.s_g(   //
-          ng[Z] - world.start[Z], //
+          ng[X] - world.start[X], //
           ng[Y] - world.start[Y], //
-          ng[X] - world.start[X]);
+          ng[Z] - world.start[Z]);
 
         storage[j].emplace_back(std::move(*it));
         it = storage[g].erase(it);
@@ -188,9 +188,9 @@ PetscErrorCode Particles::update_cells_mpi()
 
     for (auto&& point : incoming[i]) {
       PetscInt g = world.s_g(  //
-        FLOOR_STEP(point.z(), dz) - world.start[Z],  //
+        FLOOR_STEP(point.x(), dx) - world.start[X],  //
         FLOOR_STEP(point.y(), dy) - world.start[Y],  //
-        FLOOR_STEP(point.x(), dx) - world.start[X]);
+        FLOOR_STEP(point.z(), dz) - world.start[Z]);
 
       storage[g].emplace_back(std::move(point));
     }

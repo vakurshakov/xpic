@@ -18,9 +18,9 @@ public:
   PetscErrorCode process(Context& J) const;
 
 private:
-  PetscReal get_jx(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jx) const;
-  PetscReal get_jy(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jy) const;
-  PetscReal get_jz(PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jz) const;
+  PetscReal get_jx(PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) const;
+  PetscReal get_jy(PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jy) const;
+  PetscReal get_jz(PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jz) const;
 
   const Shape& shape;
   PetscReal alpha;

@@ -36,9 +36,9 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
 
-    PetscReal p_jx = get_jx(z, y, x, temp_j.data() + j_geom * X);
-    PetscReal p_jy = get_jy(z, y, x, temp_j.data() + j_geom * Y);
-    PetscReal p_jz = get_jz(z, y, x, temp_j.data() + j_geom * Z);
+    PetscReal p_jx = get_jx(x, y, z, temp_j.data() + j_geom * X);
+    PetscReal p_jy = get_jy(x, y, z, temp_j.data() + j_geom * Y);
+    PetscReal p_jz = get_jz(x, y, z, temp_j.data() + j_geom * Z);
 
     if (std::abs(p_jx) < add_tolerance &&  //
       std::abs(p_jy) < add_tolerance &&  //
@@ -59,12 +59,12 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
 
 
 PetscReal EsirkepovDecomposition::get_jx(
-  PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jx) const
+  PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jx) const
 {
   PetscFunctionBeginHot;
   PetscReal qx = alpha * dx;
-  PetscInt i = shape.s_p(z, y, x);
-  PetscInt j = indexing::j_p(z, y);
+  PetscInt i = shape.s_p(x, y, z);
+  PetscInt j = indexing::j_p(y, z);
 
   PetscReal wx_p = -qx * (shape(i, New, X) - shape(i, Old, X)) *
     (shape(i, New, Y) * (2.0 * shape(i, New, Z) + shape(i, Old, Z)) +
@@ -75,12 +75,12 @@ PetscReal EsirkepovDecomposition::get_jx(
 }
 
 PetscReal EsirkepovDecomposition::get_jy(
-  PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jy) const
+  PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jy) const
 {
   PetscFunctionBeginHot;
   PetscReal qy = alpha * dy;
-  PetscInt i = shape.s_p(z, y, x);
-  PetscInt j = indexing::j_p(z, x);
+  PetscInt i = shape.s_p(x, y, z);
+  PetscInt j = indexing::j_p(x, z);
 
   PetscReal wy_p = -qy * (shape(i, New, Y) - shape(i, Old, Y)) *
     (shape(i, New, X) * (2.0 * shape(i, New, Z) + shape(i, Old, Z)) +
@@ -91,12 +91,12 @@ PetscReal EsirkepovDecomposition::get_jy(
 }
 
 PetscReal EsirkepovDecomposition::get_jz(
-  PetscInt z, PetscInt y, PetscInt x, PetscReal* temp_jz) const
+  PetscInt x, PetscInt y, PetscInt z, PetscReal* temp_jz) const
 {
   PetscFunctionBeginHot;
   PetscReal qz = alpha * dz;
-  PetscInt i = shape.s_p(z, y, x);
-  PetscInt j = indexing::j_p(y, x);
+  PetscInt i = shape.s_p(x, y, z);
+  PetscInt j = indexing::j_p(x, y);
 
   PetscReal wz_p = -qz * (shape(i, New, Z) - shape(i, Old, Z)) *
     (shape(i, New, Y) * (2.0 * shape(i, New, X) + shape(i, Old, X)) +

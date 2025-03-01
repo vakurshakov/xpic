@@ -10,26 +10,26 @@ enum Axis : std::uint8_t {
   C = 3,
 };
 
-/// @todo #pragma omp declare simd linear(z, y, x : 1), notinbranch
+/// @todo #pragma omp declare simd linear(x, y, z : 1), notinbranch
 namespace indexing {
 
 /// @brief Standard notation inside PETSc, it's then reused to create aliases
-constexpr PetscInt petsc_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c,
-  PetscInt /* size_z */, PetscInt size_y, PetscInt size_x, PetscInt size_c)
+constexpr PetscInt petsc_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c,
+  PetscInt size_x, PetscInt size_y, PetscInt /* size_z */, PetscInt size_c)
 {
   return ((z * size_y + y) * size_x + x) * size_c + c;
 }
 
 /// @brief Grid indices for scalar fields in PETSc natural ordering
-inline PetscInt s_g(PetscInt z, PetscInt y, PetscInt x)
+inline PetscInt s_g(PetscInt x, PetscInt y, PetscInt z)
 {
-  return petsc_index(z, y, x, 0, geom_nz, geom_ny, geom_nx, 1);
+  return petsc_index(x, y, z, 0, geom_nx, geom_ny, geom_nz, 1);
 }
 
 /// @brief Grid indices for vector fields in PETSc natural ordering
-inline PetscInt v_g(PetscInt z, PetscInt y, PetscInt x, PetscInt c)
+inline PetscInt v_g(PetscInt x, PetscInt y, PetscInt z, PetscInt c)
 {
-  return petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nx, 3);
+  return petsc_index(x, y, z, c, geom_nx, geom_ny, geom_nz, 3);
 }
 
 }  // namespace indexing

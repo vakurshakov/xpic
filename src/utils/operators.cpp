@@ -43,14 +43,14 @@ Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscInt Operator::m_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
+PetscInt Operator::m_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const
 {
-  return indexing::petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nx, mdof_);
+  return indexing::petsc_index(x, y, z, c, geom_nx, geom_ny, geom_nz, mdof_);
 }
 
-PetscInt Operator::n_index(PetscInt z, PetscInt y, PetscInt x, PetscInt c) const
+PetscInt Operator::n_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const
 {
-  return indexing::petsc_index(z, y, x, c, geom_nz, geom_ny, geom_nx, ndof_);
+  return indexing::petsc_index(x, y, z, c, geom_nx, geom_ny, geom_nz, ndof_);
 }
 
 
@@ -116,7 +116,7 @@ PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
 
     MatStencil* coo_ci = coo_i.data() + g * chunk;
     MatStencil* coo_cj = coo_j.data() + g * chunk;
-    fill_stencil(shift, z, y, x, coo_ci, coo_cj);
+    fill_stencil(shift, x, y, z, coo_ci, coo_cj);
 
     std::copy(values_.begin(), values_.end(), std::back_inserter(coo_v));
   }
@@ -159,7 +159,7 @@ Rotor::Rotor(DM da)
 {
 }
 
-void Rotor::fill_stencil(Yee_shift shift, PetscInt zc, PetscInt yc, PetscInt xc,
+void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
   MatStencil* coo_i, MatStencil* coo_j) const
 {
   for (PetscInt i = 0; i < (PetscInt)values_.size() / 3; ++i) {
@@ -240,7 +240,7 @@ PetscErrorCode RotorMult::create(Mat* mat)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void RotorMult::fill_stencil(Yee_shift, PetscInt zc, PetscInt yc, PetscInt xc,
+void RotorMult::fill_stencil(Yee_shift, PetscInt xc, PetscInt yc, PetscInt zc,
   MatStencil* coo_i, MatStencil* coo_j) const
 {
   for (PetscInt i = 0; i < (PetscInt)values_.size() / 3; ++i) {
@@ -366,8 +366,8 @@ Divergence::Divergence(DM da)
 {
 }
 
-void Divergence::fill_stencil(Yee_shift shift, PetscInt zc, PetscInt yc,
-  PetscInt xc, MatStencil* coo_i, MatStencil* coo_j) const
+void Divergence::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
+  PetscInt zc, MatStencil* coo_i, MatStencil* coo_j) const
 {
   for (PetscInt i = 0; i < (PetscInt)values_.size() / 3; ++i) {
     MatStencil s{zc, yc, xc};
@@ -426,8 +426,8 @@ Gradient::Gradient(DM da)
 {
 }
 
-void Gradient::fill_stencil(Yee_shift shift, PetscInt zc, PetscInt yc,
-  PetscInt xc, MatStencil* coo_i, MatStencil* coo_j) const
+void Gradient::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc,
+  PetscInt zc, MatStencil* coo_i, MatStencil* coo_j) const
 {
   for (PetscInt i = 0; i < (PetscInt)values_.size() / 3; ++i) {
     coo_i[ind(X, i)] = {zc, yc, xc, X};

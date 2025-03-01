@@ -299,9 +299,9 @@ PetscErrorCode Simulation::update_cells()
           continue;
 
         PetscInt j = world.s_g(  //
-          vgi[Z] - world.start[Z],  //
+          vgi[X] - world.start[X],  //
           vgi[Y] - world.start[Y],  //
-          vgi[X] - world.start[X]);
+          vgi[Z] - world.start[Z]);
 
         assembly_map[j] = true;
       }
