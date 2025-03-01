@@ -93,7 +93,7 @@ PetscErrorCode Simulation::first_push()
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
 
-  PetscCall(update_cells());
+  PetscCall(update_cells_with_assembly());
   PetscCall(fill_ecsim_current());
 
   PetscCall(PetscLogStagePop());
@@ -150,7 +150,7 @@ PetscErrorCode Simulation::second_push()
   PetscCall(DMDAVecRestoreArrayRead(da, local_E, &arr_E));
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
 
-  PetscCall(update_cells());
+  PetscCall(update_cells_with_assembly());
 
   PetscCall(PetscLogStagePop());
   PetscCall(clock.pop());
@@ -258,16 +258,11 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 /// @note Since we use one global Lapenta matrix, test on
 /// `indices_assembled` should include particles of all sorts.
 /// @note This routine _must_ be called before `fill_matrix_indices()`
-PetscErrorCode Simulation::update_cells()
+PetscErrorCode Simulation::update_cells_with_assembly()
 {
   PetscFunctionBeginUser;
-#if UPDATE_CELLS_SEQ
   for (auto& sort : particles_)
-    PetscCall(sort->update_cells());
-#else
-  for (auto& sort : particles_)
-    PetscCall(sort->update_cells_mpi());
-#endif
+    sort->update_cells();
 
   static std::vector<bool> prev_assembly_map;
   prev_assembly_map = assembly_map;

@@ -1,8 +1,6 @@
 #ifndef SRC_ECSIMCORR_SIMULATION_H
 #define SRC_ECSIMCORR_SIMULATION_H
 
-#define UPDATE_CELLS_SEQ 1
-
 #include <petscksp.h>
 
 #include "src/interfaces/simulation.h"
@@ -62,7 +60,7 @@ private:
   PetscErrorCode correct_fields();
   PetscErrorCode final_update();
 
-  PetscErrorCode update_cells();
+  PetscErrorCode update_cells_with_assembly();
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
 
   void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
@@ -90,7 +88,7 @@ private:
   std::vector<bool> assembly_map;
 
   /// @brief Radius of the cloud, where indices would be assembled.
-  static constexpr PetscInt assembly_radius = 1;
+  static constexpr PetscInt assembly_radius = 3;
   static constexpr PetscInt assembly_width = 2 * assembly_radius + 1;
 
   /// @brief Whether the new cells have been added into `indices_map`.

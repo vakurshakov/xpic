@@ -21,8 +21,9 @@ public:
   std::vector<std::list<Point>> storage;
 
   /**
-   * @brief The added `point` coordinate is first tested against local MPI-boundaries.
-   * If it lies within it, the `point` is added to `storage` and added `energy` is accumulated.
+   * @brief The added `point` coordinate is first tested against
+   * local MPI-boundaries. If it lies within it, the `point` is added
+   * to `storage` and added `energy` is accumulated.
    *
    * @param point The inserted point to be emplaced into `storage`.
    * @param is_added Whether the `point` has been added after the MPI-boundaries test.
@@ -32,7 +33,13 @@ public:
   PetscErrorCode correct_coordinates();
   PetscErrorCode correct_coordinates(Point& point);
 
-  PetscErrorCode update_cells();
+  /**
+   * @brief The following are the particle in cell carrying utils, the
+   * proper one for the context would be set based on `MPI_Comm_size()`
+   * within `Particles` constructor.
+   */
+  std::function<PetscErrorCode()> update_cells;
+  PetscErrorCode update_cells_seq();
   PetscErrorCode update_cells_mpi();
 
   PetscReal mass(const Point& point) const;

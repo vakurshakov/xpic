@@ -32,6 +32,13 @@ constexpr PetscMPIInt get_neighbor(PetscInt i, const World& world)
 Particles::Particles(const World& world, const SortParameters& parameters)
   : world(world), parameters(parameters), storage(world.size.elements_product())
 {
+  PetscFunctionBeginUser;
+  PetscMPIInt size;
+  PetscCallVoid(MPI_Comm_size(PETSC_COMM_WORLD, &size));
+  update_cells = (size == 1) //
+    ? std::bind(std::mem_fn(&Particles::update_cells_seq), this)
+    : std::bind(std::mem_fn(&Particles::update_cells_mpi), this);
+  PetscFunctionReturnVoid();
 }
 
 PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
@@ -69,7 +76,7 @@ PetscErrorCode Particles::correct_coordinates()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Particles::update_cells()
+PetscErrorCode Particles::update_cells_seq()
 {
   PetscFunctionBeginUser;
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
