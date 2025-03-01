@@ -5,7 +5,7 @@
 
 PetscErrorCode World::initialize()
 {
-  PetscFunctionBegin;
+  PetscFunctionBeginUser;
   const PetscInt dof = Vector3R::dim;
   const auto s = static_cast<PetscInt>(std::ceil(shape_radius));
 
