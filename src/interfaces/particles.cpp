@@ -52,8 +52,10 @@ PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
 #pragma omp critical
   storage[world.s_g(x, y, z)].emplace_back(point);
 
-  if (is_added)
+  if (is_added) {
+#pragma omp atomic write
     *is_added = true;
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
