@@ -36,23 +36,23 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
 
-    PetscReal p_jx = get_jx(x, y, z, temp_j + j_geom * X);
-    PetscReal p_jy = get_jy(x, y, z, temp_j + j_geom * Y);
-    PetscReal p_jz = get_jz(x, y, z, temp_j + j_geom * Z);
+    Vector3R j_p{
+      get_jx(x, y, z, temp_j + j_geom * X),
+      get_jy(x, y, z, temp_j + j_geom * Y),
+      get_jz(x, y, z, temp_j + j_geom * Z),
+    };
 
-    if (std::abs(p_jx) < add_tolerance &&  //
-      std::abs(p_jy) < add_tolerance &&  //
-      std::abs(p_jz) < add_tolerance)
+    if (j_p.abs_max() < add_tolerance)
       continue;
 
 #pragma omp atomic update
-    J[g_z][g_y][g_x][X] += p_jx;
+    J[g_z][g_y][g_x][X] += j_p[X];
 
 #pragma omp atomic update
-    J[g_z][g_y][g_x][Y] += p_jy;
+    J[g_z][g_y][g_x][Y] += j_p[Y];
 
 #pragma omp atomic update
-    J[g_z][g_y][g_x][Z] += p_jz;
+    J[g_z][g_y][g_x][Z] += j_p[Z];
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
