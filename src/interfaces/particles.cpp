@@ -74,9 +74,9 @@ PetscErrorCode Particles::update_cells()
     auto it = storage[g].begin();
     while (it != storage[g].end()) {
       auto ng = world.s_g(       //
-        FLOOR_STEP(it->x(), dx), //
+        FLOOR_STEP(it->z(), dz), //
         FLOOR_STEP(it->y(), dy), //
-        FLOOR_STEP(it->z(), dz));
+        FLOOR_STEP(it->x(), dx));
 
       if (ng == g) {
         it = std::next(it);

@@ -271,6 +271,7 @@ PetscErrorCode Simulation::update_cells()
 
   for (const auto& sort : particles_) {
     for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+      /// @note We should test here against previous version of `assembly_map`
       if (sort->storage[g].empty() || assembly_map[g])
         continue;
 
@@ -279,24 +280,26 @@ PetscErrorCode Simulation::update_cells()
       }
       indices_assembled = false;
 
+      Vector3I vg{
+        world.start[X] + g % world.size[X],
+        world.start[Y] + (g / world.size[X]) % world.size[Y],
+        world.start[Z] + (g / world.size[X]) / world.size[Y],
+      };
+
       for (PetscInt i = 0; i < POW3(assembly_width); ++i) {
-        Vector3I c{
-          world.start[X] + g % world.size[X],
-          world.start[Y] + (g / world.size[X]) % world.size[Y],
-          world.start[Z] + (g / world.size[X]) / world.size[Y],
+        Vector3I vgi{
+          vg[X] - assembly_radius + i % assembly_width,
+          vg[Y] - assembly_radius + (i / assembly_width) % assembly_width,
+          vg[Z] - assembly_radius + (i / assembly_width) / assembly_width,
         };
 
-        c[X] += -assembly_radius + i % assembly_width;
-        c[Y] += -assembly_radius + (i / assembly_width) % assembly_width;
-        c[Z] += -assembly_radius + (i / assembly_width) / assembly_width;
-
-        if (!is_point_within_bounds(c, world.start, world.size))
+        if (!is_point_within_bounds(vgi, world.start, world.size))
           continue;
 
         PetscInt j = world.s_g(  //
-          c[Z] - world.start[Z],  //
-          c[Y] - world.start[Y],  //
-          c[X] - world.start[X]);
+          vgi[Z] - world.start[Z],  //
+          vgi[Y] - world.start[Y],  //
+          vgi[X] - world.start[X]);
 
         assembly_map[j] = true;
       }
