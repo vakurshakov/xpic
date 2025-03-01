@@ -269,10 +269,12 @@ PetscErrorCode Simulation::update_cells()
     PetscCall(sort->update_cells_mpi());
 #endif
 
+  static std::vector<bool> prev_assembly_map;
+  prev_assembly_map = assembly_map;
+
   for (const auto& sort : particles_) {
     for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-      /// @note We should test here against previous version of `assembly_map`
-      if (sort->storage[g].empty() || assembly_map[g])
+      if (sort->storage[g].empty() || prev_assembly_map[g])
         continue;
 
       if (indices_assembled) {
