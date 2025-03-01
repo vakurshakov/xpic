@@ -78,7 +78,7 @@ void Particles::decompose_ecsim_current(
   const Shape& shape, const Point& point, const Vector3R& B_p, PetscReal* coo_v)
 {
   PetscFunctionBeginUser;
-  const Vector3R& v = point.p;
+  const auto& [r, v] = point;
 
   Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
 
@@ -98,9 +98,9 @@ void Particles::decompose_ecsim_current(
 
   /// @note It is an offset from particle `shape` indexing into `coo_v` one.
   const Vector3I off{
-    shape.start[X] - ((PetscInt)(point.x() / dx) - shr),
-    shape.start[Y] - ((PetscInt)(point.y() / dy) - shr),
-    shape.start[Z] - ((PetscInt)(point.z() / dz) - shr),
+    shape.start[X] - (FLOOR_STEP(r.x(), dx) - shr),
+    shape.start[Y] - (FLOOR_STEP(r.y(), dy) - shr),
+    shape.start[Z] - (FLOOR_STEP(r.z(), dz) - shr),
   };
 
   auto s_gg = [&](PetscInt g1, PetscInt g2) {
