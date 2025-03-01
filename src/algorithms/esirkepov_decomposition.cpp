@@ -24,8 +24,8 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
   static constexpr PetscInt j_size = Vector3I::dim * j_geom;
   static constexpr PetscReal add_tolerance = 1e-10;
 
-  std::array<PetscReal, j_size> temp_j;
-  temp_j.fill(0.0);
+  PetscReal temp_j[j_size];
+  std::fill_n(temp_j, j_size, 0.0);
 
   for (PetscInt i = 0; i < shape.size.elements_product(); ++i) {
     PetscInt x = i % shape.size[X];
@@ -36,9 +36,9 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
     PetscInt g_y = shape.start[Y] + y;
     PetscInt g_z = shape.start[Z] + z;
 
-    PetscReal p_jx = get_jx(x, y, z, temp_j.data() + j_geom * X);
-    PetscReal p_jy = get_jy(x, y, z, temp_j.data() + j_geom * Y);
-    PetscReal p_jz = get_jz(x, y, z, temp_j.data() + j_geom * Z);
+    PetscReal p_jx = get_jx(x, y, z, temp_j + j_geom * X);
+    PetscReal p_jy = get_jy(x, y, z, temp_j + j_geom * Y);
+    PetscReal p_jz = get_jz(x, y, z, temp_j + j_geom * Z);
 
     if (std::abs(p_jx) < add_tolerance &&  //
       std::abs(p_jy) < add_tolerance &&  //
