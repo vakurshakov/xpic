@@ -8,11 +8,15 @@ MatDump::MatDump(const std::string& out_dir, Mat mat, const std::string& comp_di
 
 PetscErrorCode MatDump::diagnose(PetscInt t)
 {
-  /// @note Skipping `t == 0` in case matrix hasn't been assembled yet
-  if (t == 0 || t % diagnose_period != 0)
+  if (t % diagnose_period != 0)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
+  PetscBool assembled;
+  PetscCall(MatAssembled(mat_, &assembled));
+
+  if (!assembled)
+    PetscFunctionReturn(PETSC_SUCCESS);
 
   const std::string output = out_dir_ + "/" + format_time(t);
   std::filesystem::create_directories(out_dir_);
