@@ -136,10 +136,7 @@ target_link_directories(
 target_link_libraries(
   ${PROJECT_NAME}
   petsc
-  f2clapack
-  f2cblas
   m
-  X11
 )
 
 add_executable(${PROJECT_NAME}.out src/main.cpp)
