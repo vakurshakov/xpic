@@ -4,7 +4,7 @@
 /// @note Since electric field is on, only "EB" algorithms can be used
 #define CHIN_SCHEME_ID      EB2B
 #define CHIN_SCHEME_ID_STR  STR(CHIN_SCHEME_ID)
-#define CHIN_SCHEME_OUTPUT  "./tests/chin_output/chin_crossed_gradient_" CHIN_SCHEME_ID_STR ".txt"
+#define CHIN_SCHEME_OUTPUT  "./tests/chin/output/crossed_gradient_" CHIN_SCHEME_ID_STR ".txt"
 #define CHIN_SCHEME_PROCESS CAT(process_, CHIN_SCHEME_ID)
 // clang-format on
 

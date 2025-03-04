@@ -4,7 +4,7 @@
 /// @note Only "B" schemes can be used since `Omega * dt >> 1.0`.
 #define CHIN_SCHEME_ID     B1B
 #define CHIN_SCHEME_ID_STR STR(CHIN_SCHEME_ID)
-#define CHIN_SCHEME_OUTPUT "./tests/chin_output/chin_curvilinear_b_" CHIN_SCHEME_ID_STR ".txt"
+#define CHIN_SCHEME_OUTPUT "./tests/chin/output/curvilinear_b_" CHIN_SCHEME_ID_STR ".txt"
 #define CHIN_SCHEME_PROCESS CAT(process_, CHIN_SCHEME_ID)
 // clang-format on
 
