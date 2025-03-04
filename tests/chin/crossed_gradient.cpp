@@ -1,4 +1,4 @@
-#include "chin_common.h"
+#include "common.h"
 
 // clang-format off
 /// @note Since electric field is on, only "EB" algorithms can be used

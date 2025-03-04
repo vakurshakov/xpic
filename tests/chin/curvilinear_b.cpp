@@ -1,4 +1,4 @@
-#include "chin_common.h"
+#include "common.h"
 
 // clang-format off
 /// @note Only "B" schemes can be used since `Omega * dt >> 1.0`.

@@ -1,4 +1,4 @@
-#include "chin_common.h"
+#include "common.h"
 
 // clang-format off
 #define CHIN_SCHEME_ID      C2A
