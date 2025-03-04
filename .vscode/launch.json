@@ -55,10 +55,10 @@
             }
         },
         {
-            "name": "tests",
+            "name": "current test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/tests/${fileBasenameNoExtension}.out",
+            "program": "${fileDirname}/${fileBasenameNoExtension}.out",
             "args": [],
             "cwd": "${workspaceFolder}/",
             "environment": [],

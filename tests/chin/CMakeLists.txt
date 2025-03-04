@@ -11,5 +11,6 @@ set(tests
 
 foreach(test ${tests})
   add_executable(${test}.out ${test}.cpp)
+  set_target_properties(${test}.out PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/chin/)
   target_link_libraries(${test}.out ${PROJECT_NAME})
 endforeach()

@@ -7,8 +7,9 @@ doc/build/
 results/
 **/__pycache__/**
 
-(^tests/chin_output)*.txt
-(^tests/chin_output)*.png
+(^tests)*.txt
+(^tests)*.png
+*.out
 *.bin
 *.npy
 *.mp4
