@@ -40,8 +40,8 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
-  diagnostics_.emplace_back(std::make_unique<MatDump>(CONFIG().out_dir + "/matL",
-    matL, "./results/energy-test/mirror/assembly_control_mpi_1/matL/"));
+  // diagnostics_.emplace_back(std::make_unique<MatDump>(CONFIG().out_dir + "/matL",
+  //   matL, "./results/assembly-test/electrons-2-new-mpi-1/matL"));
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
@@ -210,7 +210,7 @@ PetscErrorCode Simulation::log_timings()
   PetscInt size = (PetscInt)std::size(stagenums);
   PetscLogDouble sum = 0.0;
 
-  /// @note We are skipping the initialization stage
+  // We are skipping the initialization stage
   for (PetscInt i = 1; i < size; ++i)
     sum += clock.get(stagenums[i]);
 
@@ -264,12 +264,9 @@ PetscErrorCode Simulation::update_cells_with_assembly()
   for (auto& sort : particles_)
     sort->update_cells();
 
-  static std::vector<bool> prev_assembly_map;
-  prev_assembly_map = assembly_map;
-
   for (const auto& sort : particles_) {
     for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-      if (sort->storage[g].empty() || prev_assembly_map[g])
+      if (sort->storage[g].empty() || (indices_assembled && assembly_map[g]))
         continue;
 
       if (indices_assembled) {
@@ -314,6 +311,9 @@ PetscErrorCode Simulation::fill_ecsim_current()
   static std::vector<MatStencil> coo_i;
   static std::vector<MatStencil> coo_j;
   static std::vector<PetscReal> coo_v;
+
+  // Because matrix setup is collective, we must call it on all mpi ranks
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &indices_assembled, 1, MPIU_BOOL, MPI_BAND, PETSC_COMM_WORLD));
 
   if (!indices_assembled) {
     PetscReal ind_mem, val_mem;
