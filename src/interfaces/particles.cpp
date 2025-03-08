@@ -1,5 +1,7 @@
 #include "particles.h"
 
+#include "src/utils/geometries.h"
+
 namespace interfaces {
 
 namespace {
@@ -44,20 +46,17 @@ Particles::Particles(const World& world, const SortParameters& parameters)
 PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
 {
   PetscFunctionBeginUser;
-  PetscInt x = FLOOR_STEP(point.x(), dx) - world.start[X];
-  PetscInt y = FLOOR_STEP(point.y(), dy) - world.start[Y];
-  PetscInt z = FLOOR_STEP(point.z(), dz) - world.start[Z];
+  Vector3I vg{
+    FLOOR_STEP(point.x(), dx) - world.start[X],
+    FLOOR_STEP(point.y(), dy) - world.start[Y],
+    FLOOR_STEP(point.z(), dz) - world.start[Z],
+  };
 
-  bool within_bounds = //
-    (0 <= x && x < world.size[X]) && //
-    (0 <= y && y < world.size[Y]) && //
-    (0 <= z && z < world.size[Z]);
-
-  if (!within_bounds)
+  if (!is_point_within_bounds(vg, 0, world.size))
     PetscFunctionReturn(PETSC_SUCCESS);
 
 #pragma omp critical
-  storage[world.s_g(x, y, z)].emplace_back(point);
+  storage[world.s_g(REP3_A(vg))].emplace_back(point);
 
   if (is_added) {
 #pragma omp atomic write
@@ -82,19 +81,23 @@ PetscErrorCode Particles::update_cells_seq()
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto it = storage[g].begin();
     while (it != storage[g].end()) {
-      auto ng = world.s_g(       //
-        FLOOR_STEP(it->x(), dx), //
-        FLOOR_STEP(it->y(), dy), //
-        FLOOR_STEP(it->z(), dz));
+      PetscCall(correct_coordinates(*it));
 
+      Vector3I vng{
+        FLOOR_STEP(it->x(), dx),
+        FLOOR_STEP(it->y(), dy),
+        FLOOR_STEP(it->z(), dz),
+      };
+
+      auto ng = world.s_g(REP3_A(vng));
       if (ng == g) {
         it = std::next(it);
         continue;
       }
 
-      PetscCall(correct_coordinates(*it));
+      if (is_point_within_bounds(vng, world.start, world.size))
+        storage[ng].emplace_back(std::move(*it));
 
-      storage[ng].emplace_back(std::move(*it));
       it = storage[g].erase(it);
     }
   }
@@ -150,7 +153,7 @@ PetscErrorCode Particles::update_cells_mpi()
       }
 
       // Here, neighbor-wise exchange is needed, cells will be determined after the communication
-      correct_coordinates(*it);
+      PetscCall(correct_coordinates(*it));
 
       outgoing[i].emplace_back(std::move(*it));
       it = storage[g].erase(it);

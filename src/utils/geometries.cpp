@@ -3,9 +3,9 @@
 bool WithinBox::operator()(const Vector3R& r)
 {
   return  //
-    (geom.min[X] <= r[X] && r[X] <= geom.max[X]) &&
-    (geom.min[Y] <= r[Y] && r[Y] <= geom.max[Y]) &&
-    (geom.min[Z] <= r[Z] && r[Z] <= geom.max[Z]);
+    (geom.min[X] <= r[X] && r[X] < geom.max[X]) &&
+    (geom.min[Y] <= r[Y] && r[Y] < geom.max[Y]) &&
+    (geom.min[Z] <= r[Z] && r[Z] < geom.max[Z]);
 }
 
 
@@ -23,9 +23,9 @@ bool is_point_within_bounds(
 {
   Vector3I b_end = b_start + b_size;
   return  //
-    (b_start[X] <= point[X] && point[X] <= b_end[X]) &&
-    (b_start[Y] <= point[Y] && point[Y] <= b_end[Y]) &&
-    (b_start[Z] <= point[Z] && point[Z] <= b_end[Z]);
+    (b_start[X] <= point[X] && point[X] < b_end[X]) &&
+    (b_start[Y] <= point[Y] && point[Y] < b_end[Y]) &&
+    (b_start[Z] <= point[Z] && point[Z] < b_end[Z]);
 }
 
 
