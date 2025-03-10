@@ -1,3 +1,20 @@
+## Clone the repository
+
+Repository is containing the plotting library `xplot` as a submodule, so one should use the following command to clone the submodule too
+
+```sh
+git clone --recurse-submodules https://github.com/vakurshakov/xpic.git
+```
+
+To update the plotting submodule use one of the following
+
+```sh
+git submodule update --init --remote xplot
+```
+```sh
+git pull --recurse-submodules=check
+```
+
 ## Installation guide
 
 #### 1. Install [nlohmann::json](https://github.com/nlohmann/json)
