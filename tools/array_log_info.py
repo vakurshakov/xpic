@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 
 plt.rcParams.update({"text.usetex": True, "axes.formatter.use_mathtext": True})
 
-# from configuration import config
-
 def plot_evolution(t, data):
     plt.plot(t, data)
 
