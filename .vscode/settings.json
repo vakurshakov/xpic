@@ -1,5 +1,11 @@
 {
-    "editor.indentSize": 2,
+    "[cpp]": {
+      "editor.indentSize": 2,
+    },
+
+    "[python]": {
+      "editor.indentSize": 4,
+    },
 
     "files.associations": {
       ".clang-format": "yaml",
@@ -21,6 +27,8 @@
       "ecsimcorr",
       "Esirkepov",
       "evals",
+      "fftshift",
+      "fftfreq",
       "fileview",
       "firstprivate",
       "fopenmp",
@@ -29,6 +37,8 @@
       "hicpp",
       "idxm",
       "idxn",
+      "ifft",
+      "ifftshift",
       "IMPLS",
       "Irecv",
       "jdxm",
