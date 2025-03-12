@@ -41,8 +41,8 @@ public:
 protected:
   static Axis get_component(const std::string& name);
 
-  Vector3R parse_vector(
-    const Configuration::json_t& info, const std::string& name) const;
+  Vector3R parse_vector(const Configuration::json_t& info,
+    const std::string& name, PetscInt dim = 3) const;
 
   void check_region(
     const Vector3I& start, const Vector3I& size, const std::string& name) const;

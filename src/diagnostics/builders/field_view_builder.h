@@ -16,7 +16,7 @@ public:
     std::string_view help =
       "\nStructure of the FieldView diagnostic description:\n"
       "{\n"
-      "  \"diagnostic\": \"FieldView\", -- Name of the diagnostic, constant."
+      "  \"diagnostic\": \"FieldView\", -- Name of the diagnostic, constant.\n"
       "  \"field\": \"E\", -- Field name set by `PetscObjectSetName()`.\n"
       "  \"comp\":  \"x\", -- Diagnosed field component. Optional, with empty\n"
       "                       value it will print three components at once.\n"
@@ -34,6 +34,9 @@ public:
 protected:
   void parse_region_start_size(const Configuration::json_t& info,
     FieldView::Region& region, const std::string& name);
+
+  void parse_res_dir_suffix(
+    const Configuration::json_t& info, std::string& suffix);
 };
 
 #endif  // SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H

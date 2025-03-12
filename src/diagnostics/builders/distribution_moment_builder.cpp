@@ -49,9 +49,13 @@ PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& inf
 
   parse_region_start_size(info, region, particles + " " + moment);
 
+  std::string suffix;
+  parse_res_dir_suffix(info.at("region"), suffix);
+
   LOG("  {} diagnostic is added for {}", moment, particles);
 
-  std::string res_dir = CONFIG().out_dir + "/" + particles + "/" + moment;
+  std::string res_dir =
+    CONFIG().out_dir + "/" + particles + "/" + moment + suffix;
 
   auto&& diagnostic = DistributionMoment::create(res_dir,
     simulation_.get_named_particles(particles), moment_from_string(moment),
