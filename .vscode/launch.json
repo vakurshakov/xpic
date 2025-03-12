@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "consequetive",
+            "name": "cpp: consequetive",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/xpic.out",
@@ -55,7 +55,7 @@
             }
         },
         {
-            "name": "current test",
+            "name": "cpp: current test",
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}.out",
@@ -77,6 +77,17 @@
                     "editorPath": "/home/kurshakov/code/xpic",
                     "useForBreakpoints": true
                 }
+            }
+        },
+        {
+            "name": "python: current file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${fileBasename}",
+            "cwd": "${fileDirname}",
+            "console": "integratedTerminal",
+            "autoReload": {
+              "enable": true
             }
         }
     ]
