@@ -83,7 +83,7 @@ PetscErrorCode LogView::level_0_impl(PetscInt t)
 PetscErrorCode LogView::level_0_init()
 {
   PetscFunctionBeginUser;
-  std::string filename = out_dir_ + "/log-EachTimestep.dat";
+  std::string filename = out_dir_ + "/log-EachTimestep.txt";
   PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
   PetscCall(warn());
 
@@ -115,7 +115,7 @@ PetscErrorCode LogView::level_1_impl(PetscInt t)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
-  std::string filename = out_dir_ + "/log-DiagnosePeriodAvg.dat";
+  std::string filename = out_dir_ + "/log-DiagnosePeriodAvg.txt";
   PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
   PetscCall(pop_stack());
   PetscCall(warn());
@@ -242,7 +242,7 @@ PetscErrorCode LogView::level_2_impl(PetscInt t)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
-  std::string filename = out_dir_ + "/log-AllTimestepsSummary.dat";
+  std::string filename = out_dir_ + "/log-AllTimestepsSummary.txt";
   PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
   PetscCall(PetscLogView(viewer_));
   PetscCall(PetscViewerDestroy(&viewer_));
