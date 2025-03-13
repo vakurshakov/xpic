@@ -136,8 +136,11 @@ PetscErrorCode DistributionMoment::collect()
   PetscReal*** arr;
   PetscCall(DMDAVecGetArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
 
-  const Vector3I start = vector_cast(region_.start);
-  const Vector3I size = vector_cast(region_.size);
+  Vector3I start, size;
+  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
+
+  const Vector3I gstart = vector_cast(region_.start);
+  const Vector3I gsize = vector_cast(region_.size);
 
 #pragma omp parallel for
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
@@ -147,7 +150,7 @@ PetscErrorCode DistributionMoment::collect()
       start[Z] + (g / size[X]) / size[Y],
     };
 
-    if (!is_point_within_bounds(vg, start, size))
+    if (!is_point_within_bounds(vg, gstart, gsize))
       continue;
 
     /// @todo We can reuse `Simple_decomposition` algorithm here
