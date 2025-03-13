@@ -27,8 +27,8 @@
       "ecsimcorr",
       "Esirkepov",
       "evals",
-      "fftshift",
       "fftfreq",
+      "fftshift",
       "fileview",
       "firstprivate",
       "fopenmp",
@@ -91,7 +91,8 @@
       "Werror",
       "Wextra",
       "Wpedantic",
-      "xpic"
+      "xpic",
+      "xplot"
     ],
     "cSpell.enabled": true,
 }
