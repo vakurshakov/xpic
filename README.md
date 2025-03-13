@@ -12,7 +12,7 @@ To update the plotting submodule use one of the following
 git submodule update --init --remote xplot
 ```
 ```sh
-git pull --recurse-submodules=check
+git pull --recurse-submodules
 ```
 
 ## Installation guide
