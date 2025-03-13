@@ -4,7 +4,7 @@ namespace indexing {
 
 constexpr PetscInt j_p(PetscInt x1, PetscInt x2)
 {
-  return x1 * shape_width + x2;
+  return x2 * shape_width + x1;
 }
 
 }  // namespace indexing

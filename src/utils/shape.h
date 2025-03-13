@@ -24,12 +24,6 @@ public:
 
   Vector3I start, size;
 
-  static Vector3R make_r(const Vector3R& r);
-  static Vector3I make_g(const Vector3R& p_r);
-
-  static Vector3I make_start(const Vector3R& p_r, PetscReal radius);
-  static Vector3I make_end(const Vector3R& p_r, PetscReal radius);
-
   constexpr PetscInt s_p(PetscInt x, PetscInt y, PetscInt z) const
   {
     return indexing::petsc_index(x, y, z, 0, size[X], size[Y], size[Z], 1);
@@ -85,6 +79,12 @@ public:
   }
 
 private:
+  static Vector3R make_r(const Vector3R& r);
+  static Vector3I make_g(const Vector3R& p_r);
+
+  static Vector3I make_start(const Vector3R& p_r, PetscReal radius);
+  static Vector3I make_end(const Vector3R& p_r, PetscReal radius);
+
   void fill(const Vector3R& p_r1, const Vector3R& p_r2, ShapeType t1,
     ShapeType t2, PetscReal (&sfunc)(PetscReal));
 
