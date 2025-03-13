@@ -52,9 +52,6 @@ PetscErrorCode DistributionMoment::set_data_views(const Region& region)
   PetscCall(DMCreateGlobalVector(da_, &field_));
 
   PetscCall(FieldView::set_data_views(region));
-
-  // Later we'll use `Node` structure that uses shifted coordinates
-  region_.start -= static_cast<PetscInt>(std::ceil(shape_radius));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -139,30 +136,34 @@ PetscErrorCode DistributionMoment::collect()
   PetscReal*** arr;
   PetscCall(DMDAVecGetArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
 
-#pragma omp parallel for
-  for (auto&& cell : particles_.storage) {
-    for (auto&& point : cell) {
-      /// @todo We can reuse `Simple_decomposition` algorithm here and make `Shape::make*()` private
-      const Vector3R p_r = Shape::make_r(point.r);
-      const Vector3I start = Shape::make_start(p_r, shape_radius);
-      const Vector3I size = Shape::make_end(p_r, shape_radius) - start;
+  const Vector3I start = vector_cast(region_.start);
+  const Vector3I size = vector_cast(region_.size);
 
-      if (!is_point_within_bounds(
-            start, vector_cast(region_.start), vector_cast(region_.size)))
-        continue;
+#pragma omp parallel for
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    Vector3I vg{
+      start[X] + g % size[X],
+      start[Y] + (g / size[X]) % size[Y],
+      start[Z] + (g / size[X]) / size[Y],
+    };
+
+    if (!is_point_within_bounds(vg, start, size))
+      continue;
+
+    /// @todo We can reuse `Simple_decomposition` algorithm here
+    for (auto&& point : particles_.storage[g]) {
+      Shape shape;
+      shape.setup(point.r);
 
       PetscReal moment =
         moment_(particles_, point) / particles_.particles_number(point);
 
-      for (PetscInt g = 0; g < size.elements_product(); ++g) {
-        PetscInt g_x = start[X] + g % size[X];
-        PetscInt g_y = start[Y] + (g / size[X]) % size[Y];
-        PetscInt g_z = start[Z] + (g / size[X]) / size[Y];
+      for (PetscInt i = 0; i < shape.size.elements_product(); ++i) {
+        PetscInt g_x = shape.start[X] + i % shape.size[X];
+        PetscInt g_y = shape.start[Y] + (i / shape.size[X]) % shape.size[Y];
+        PetscInt g_z = shape.start[Z] + (i / shape.size[X]) / shape.size[Y];
 
-        PetscReal value = moment *  //
-          shape_function(p_r[X] - g_x) *  //
-          shape_function(p_r[Y] - g_y) *  //
-          shape_function(p_r[Z] - g_z);
+        PetscReal value = moment * shape.density(i);
 
         if (std::abs(value) < add_tolerance)
           continue;

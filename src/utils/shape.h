@@ -49,6 +49,13 @@ public:
   void setup(const Vector3R& old_r, const Vector3R& new_r, PetscReal radius,
     PetscReal (&sfunc)(PetscReal));
 
+  /// @returns Shape products corresponding to particles density.
+  /// @note No check is performed to see if the `ShapeType::No/Sh` type pair is set.
+  constexpr PetscReal density(PetscInt i) const
+  {
+    return shape[i_p(i, No, Z)] * shape[i_p(i, No, Y)] * shape[i_p(i, No, X)];
+  }
+
   /// @returns Vector of shape products corresponding to electric fields.
   /// @note No check is performed to see if the `ShapeType::No/Sh` type pair is set.
   constexpr Vector3R electric(PetscInt i) const
