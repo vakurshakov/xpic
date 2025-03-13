@@ -101,6 +101,12 @@ PetscErrorCode Particles::update_cells_seq()
       it = storage[g].erase(it);
     }
   }
+
+  PetscInt sum = 0;
+  for (const auto& cell : storage)
+    sum += cell.size();
+
+  LOG("  Cells have been updated, total number of particles: {}", sum);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -222,6 +228,13 @@ PetscErrorCode Particles::update_cells_mpi()
 
     PetscCall(MPIUtils::log_statistics(op, sum, comm));
   }
+
+  PetscInt sum = 0;
+  for (const auto& cell : storage)
+    sum += cell.size();
+
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPIU_INT, MPI_SUM, comm));
+  LOG("  Cells have been updated, total number of particles: {}", sum);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
