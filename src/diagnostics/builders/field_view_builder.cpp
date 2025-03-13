@@ -35,7 +35,7 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
   std::string suffix;
   parse_res_dir_suffix(region_info, suffix);
 
-  LOG("  Field view diagnostic is added for {}", field + comp);
+  LOG("  Field view diagnostic is added for {}, suffix: {}", field + comp, suffix);
 
   std::string res_dir = CONFIG().out_dir + "/" + field + comp + suffix + "/";
 

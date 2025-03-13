@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
 
+import os
 import json
 
-config_path = "../config.json"
+xpic_dir = os.path.join(os.path.dirname(__file__), "../")
+
+config_path = os.path.join(xpic_dir, "config.json")
 config = None
 
 with open(config_path, "r") as file:
     config = json.load(file)
     file.close()
 
+
 # Common information in any case
-params_path = config["OutputDirectory"]
+params_path = os.path.join(xpic_dir, config["OutputDirectory"])
 
 prefixes =  [
-  config["OutputDirectory"]
+    os.path.join(xpic_dir, config["OutputDirectory"])
 ]
 
-restart_timesteps = [  # in dts units
+restarts = [  # in dts units
 ]
 
 prefix = prefixes[0]
+
 
 # Setting up geometry information
 geometry = config["Geometry"]
@@ -35,6 +40,7 @@ time = geometry["t"]     # 1 / wpe, (number of files) * dts
 Nt   = round(time / dt)  # cells
 
 dts  = geometry["diagnose_period"]  # 1 / wpe
+
 
 # Setting up particles information
 sorts = []
@@ -55,22 +61,67 @@ if "Particles" in config:
     elif name == "electrons":
       T_e = sort["T"] / mec2
 
+
 # Setting up information from commands (presets)
 def get(d: dict, path: str):
-  result = None
-  for p in path.split("."):
-    if p in d:
-      result = d.get(p)
-      d = result
-    else:
-      return None
-  return result
+    result = None
+
+    # Can only read top-level arrays
+    def get_from_array(p: str):
+        id, val = p.split(":")
+
+        arrays = [
+            "Particles",
+            "Presets",
+            "StepPresets",
+            "Diagnostics",
+        ]
+
+        for arr in arrays:
+            if not arr in config:
+                continue
+
+            for item in config[arr]:
+                if id in item and val == item[id]:
+                    return item
+
+        return None
+
+    for p in path.split("."):
+        if ":" in p:
+            result = get_from_array(p)
+        elif p in d:
+            result = d.get(p)
+        else:
+            return None
+        d = result
+
+    return result
 
 # Buffer cells used to offset diagnostic [cells]
-buff = None
+buff = 0
 
 # Reference value of the magnetic field [mecwpe/e]
-B0 = get(config, "Presets.SetMagneticField.setter.reference")
+B0 = get(config, "command:SetMagneticField.setter.reference")
 
 # Particles injection rate [1 / wpe]
-tau = get(config, "StepPresets.InjectParticles.tau")
+tau = get(config, "command:InjectParticles.tau")
+
+
+# Some utilities that would be used in `xplot`
+def find_diag(name: str):
+    names = name.split(".")
+
+    for diag in get(config, "Diagnostics"):
+        if get(diag, "diagnostic") != names[0]:
+            continue
+
+        if get(diag, "field") == names[1]:
+            if get(diag, "region.type") == "3D":
+                return diag
+            elif get(diag, "region.type") == "2D" and get(diag, "region.plane") == names[2]:
+                return diag
+
+        if get(diag, "moment") == names[1] and get(diag, "particles") == names[2]:
+            return diag
+    return None

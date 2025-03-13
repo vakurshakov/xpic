@@ -89,43 +89,19 @@
   "StepPresets": [],
 
   "Diagnostics": [
-    {
-      "diagnostic": "FieldView",
-      "field": "E",
-      "region": {
-        "type": "2D",
-        "plane": "Z",
-        "position": 5
-      }
-    },
-    {
-      "diagnostic": "FieldView",
-      "field": "B",
-      "region": {
-        "type": "2D",
-        "plane": "Z",
-        "position": 5
-      }
-    },
-    {
-      "diagnostic": "DistributionMoment",
-      "particles": "ions",
-      "moment": "Density",
-      "region": {
-        "type": "2D",
-        "plane": "Z",
-        "position": 5
-      }
-    },
-    {
-      "diagnostic": "DistributionMoment",
-      "particles": "electrons",
-      "moment": "Density",
-      "region": {
-        "type": "2D",
-        "plane": "Z",
-        "position": 5
-      }
-    }
+    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "X", "position": 5 } },
+
+    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "Y", "position": 5 } },
+    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "Y", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "Y", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "Y", "position": 5 } },
+
+    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } }
   ]
 }
