@@ -9,10 +9,11 @@
 struct World {
   DEFAULT_MOVABLE(World);
 
-  World() = default;
+  World();
   ~World();
 
   PetscErrorCode initialize();
+  PetscErrorCode finalize();
 
   DM da = nullptr;
   PetscInt procs[3];
@@ -34,6 +35,16 @@ struct World {
   {
     return indexing::petsc_index(x, y, z, c, size[X], size[Y], size[Z], 3);
   }
+
+  static void set_geometry( //
+    PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
+    PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
+    PetscReal _dtp);
+
+  static void set_geometry( //
+    PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
+    PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
+    PetscReal _dtp);
 };
 
 #endif  // SRC_BASIC_SIMULATION_H

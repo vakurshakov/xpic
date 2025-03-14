@@ -1,6 +1,7 @@
 #include "configuration.h"
 
 #include "src/utils/utils.h"
+#include "src/utils/world.h"
 
 Configuration Configuration::config;
 
@@ -21,7 +22,7 @@ void Configuration::init(const std::string& config_path)
 
   const json_t& geometry = json.at("Geometry");
 
-  set_world_geometry( //
+  World::set_geometry( //
     geometry.at("x").get<PetscReal>(), //
     geometry.at("y").get<PetscReal>(), //
     geometry.at("z").get<PetscReal>(), //

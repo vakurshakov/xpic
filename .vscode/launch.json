@@ -58,7 +58,7 @@
             "name": "cpp: current test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${fileDirname}/${fileBasenameNoExtension}.out",
+            "program": "${workspaceFolder}/build/${relativeFileDirname}/${fileBasenameNoExtension}.out",
             "args": [],
             "cwd": "${workspaceFolder}/",
             "environment": [],
