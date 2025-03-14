@@ -11,7 +11,7 @@ static char help[] =
 constexpr Vector3R E0(0, 0, 1);
 constexpr Vector3R B0(250, 0, 0);
 
-InterpolationResult get_interpolated_fields(const Vector3R& r);
+InterpolationResult interpolated_fields(const Vector3R& r);
 
 int main(int argc, char** argv)
 {
@@ -20,8 +20,6 @@ int main(int argc, char** argv)
 
   std::string chin_scheme_id;
   PetscCall(get_id(chin_scheme_id));
-
-  LOG("{}", chin_scheme_id);
 
   constexpr Vector3R r0(0.0, 0.0, 0.0);
   constexpr Vector3R v0(0.1, 0.0, 0.4);
@@ -43,14 +41,14 @@ int main(int argc, char** argv)
 
   for (PetscInt t = 0; t < geom_nt; ++t) {
     output() << t * dt << " " << point.r << "\n";
-    process_impl(chin_scheme_id, push, point, *particles, get_interpolated_fields);
+    process_impl(chin_scheme_id, push, point, *particles, interpolated_fields);
   }
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-InterpolationResult get_interpolated_fields(const Vector3R& /* r */)
+InterpolationResult interpolated_fields(const Vector3R& /* r */)
 {
   return std::make_pair(E0, B0);
 }
