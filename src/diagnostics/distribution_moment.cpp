@@ -134,7 +134,7 @@ PetscErrorCode DistributionMoment::collect()
   PetscCall(VecSet(field_, 0.0));
 
   PetscReal*** arr;
-  PetscCall(DMDAVecGetArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
+  PetscCall(DMDAVecGetArrayWrite(da_, local_, &arr));
 
   Vector3I start, size;
   PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
@@ -176,7 +176,7 @@ PetscErrorCode DistributionMoment::collect()
       }
     }
   }
-  PetscCall(DMDAVecRestoreArrayWrite(da_, local_, reinterpret_cast<void*>(&arr)));
+  PetscCall(DMDAVecRestoreArrayWrite(da_, local_, &arr));
   PetscCall(DMLocalToGlobal(da_, local_, ADD_VALUES, field_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

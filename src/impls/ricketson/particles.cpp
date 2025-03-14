@@ -94,17 +94,17 @@ PetscErrorCode Particles::push()
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
   PetscCall(DMGlobalToLocal(da, simulation_.DB_, INSERT_VALUES, local_DB));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, reinterpret_cast<void*>(&ctx.E)));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));
-  PetscCall(DMDAVecGetArrayRead(da, local_DB, reinterpret_cast<void*>(&ctx.DB)));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &ctx.E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &ctx.B));
+  PetscCall(DMDAVecGetArrayRead(da, local_DB, &ctx.DB));
 
   for (auto& cell : storage)
     for (auto& point : cell)
       PetscCall(push(point));
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&ctx.E)));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&ctx.B)));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_DB, reinterpret_cast<void*>(&ctx.DB)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &ctx.E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &ctx.B));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_DB, &ctx.DB));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));

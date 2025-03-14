@@ -37,9 +37,9 @@ PetscErrorCode Particles::push()
   PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
   PetscCall(VecSet(local_J, 0.0));
 
-  PetscCall(DMDAVecGetArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
-  PetscCall(DMDAVecGetArrayWrite(da, local_J, reinterpret_cast<void*>(&J)));
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecGetArrayWrite(da, local_J, &J));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& cell : storage) {
@@ -60,9 +60,9 @@ PetscErrorCode Particles::push()
     }
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, reinterpret_cast<void*>(&E)));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, reinterpret_cast<void*>(&B)));
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_J, reinterpret_cast<void*>(&J)));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
+  PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
 
   PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J_));
 
