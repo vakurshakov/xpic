@@ -1,11 +1,11 @@
 #ifndef SRC_UTILS_SYNC_CLOCK_H
 #define SRC_UTILS_SYNC_CLOCK_H
 
-#include "src/pch.h"
-#include "src/utils/utils.h"
-#include "src/utils/sync_file.h"
-
 #include <stack>
+
+#include "src/pch.h"
+#include "src/utils/sync_file.h"
+#include "src/utils/utils.h"
 
 class SyncClock {
 public:

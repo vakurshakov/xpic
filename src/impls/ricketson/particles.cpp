@@ -244,7 +244,8 @@ PetscErrorCode Particles::adaptive_time_stepping(const Point& /* point */)
 
   Omega_dt = alpha *
     std::min(2.0 * std::sqrt(Omega * t_res / M_PI),
-      2.0 * M_SQRT2 * std::min(1.0 / std::sqrt(delta_t), 1.0 / std::sqrt(delta_p)));
+      2.0 * M_SQRT2 *
+        std::min(1.0 / std::sqrt(delta_t), 1.0 / std::sqrt(delta_p)));
 
   ctx.dt = Omega_dt / Omega;
   PetscFunctionReturn(PETSC_SUCCESS);
