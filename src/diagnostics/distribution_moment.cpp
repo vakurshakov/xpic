@@ -109,7 +109,7 @@ PetscErrorCode DistributionMoment::set_da(const Region& region)
 PetscErrorCode DistributionMoment::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t % diagnose_period == 0) {
+  if (t % diagnose_period_ == 0) {
     PetscCall(collect());
     PetscCall(FieldView::diagnose(t));
   }

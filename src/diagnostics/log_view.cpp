@@ -111,7 +111,7 @@ PetscErrorCode LogView::level_0_init()
 
 PetscErrorCode LogView::level_1_impl(PetscInt t)
 {
-  if (t % diagnose_period != 0)
+  if (t % diagnose_period_ != 0)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
@@ -238,7 +238,7 @@ PetscErrorCode LogView::level_1_impl(PetscInt t)
 
 PetscErrorCode LogView::level_2_impl(PetscInt t)
 {
-  if (t % diagnose_period != 0)
+  if (t % diagnose_period_ != 0)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;

@@ -10,29 +10,20 @@ class Diagnostic {
 public:
   DEFAULT_MOVABLE(Diagnostic);
 
-  Diagnostic() = default;
-
-  Diagnostic(const std::string& out_dir)
-    : out_dir_(out_dir)
-  {
-  }
+  Diagnostic();
+  Diagnostic(const std::string& out_dir);
 
   virtual ~Diagnostic() = default;
 
+  /// @brief The main method to override
   virtual PetscErrorCode diagnose(PetscInt t) = 0;
 
-  static std::string format_time(PetscInt t)
-  {
-    auto time_width = (PetscInt)std::to_string(geom_nt).size();
-    std::stringstream ss;
-    ss.width(time_width);
-    ss.fill('0');
-    ss << t;
-    return ss.str();
-  }
+  /// @returns The string padded with the zeros of `geom_nt` width
+  static std::string format_time(PetscInt t);
 
 protected:
   std::string out_dir_;
+  PetscInt diagnose_period_ ;
 };
 
 }  // namespace interfaces

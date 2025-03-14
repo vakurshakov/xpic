@@ -91,7 +91,7 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 
   file_() << "\n";
 
-  if (t % diagnose_period == 0)
+  if (t % diagnose_period_ == 0)
     file_.flush();
 
   PetscCall(VecAXPY(B, +1.0, B0));

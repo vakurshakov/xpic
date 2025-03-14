@@ -80,7 +80,7 @@ PetscErrorCode ChargeConservation::diagnose(PetscInt t)
 
   file_() << "\n";
 
-  if (t % diagnose_period == 0)
+  if (t % diagnose_period_ == 0)
     file_.flush();
 
   PetscFunctionReturn(PETSC_SUCCESS);

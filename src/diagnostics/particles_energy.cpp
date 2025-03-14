@@ -31,7 +31,7 @@ PetscErrorCode ParticlesEnergy::diagnose(PetscInt t)
 
   PetscCall(file_.write_floats(1, &total));
 
-  if (t % diagnose_period == 0)
+  if (t % diagnose_period_ == 0)
     file_.flush();
   PetscFunctionReturn(PETSC_SUCCESS);
 }

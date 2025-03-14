@@ -88,7 +88,7 @@ PetscErrorCode FieldView::set_data_views(const Region& region)
 
 PetscErrorCode FieldView::diagnose(PetscInt t)
 {
-  if (t % diagnose_period != 0)
+  if (t % diagnose_period_ != 0)
     PetscFunctionReturn(PETSC_SUCCESS);
   PetscFunctionBeginUser;
 

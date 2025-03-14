@@ -27,7 +27,7 @@ PetscErrorCode FieldsEnergy::diagnose(PetscInt t)
   PetscReal total = get_electric_energy() + get_magnetic_energy();
   PetscCall(file_.write_floats(1, &total));
 
-  if (t % diagnose_period == 0)
+  if (t % diagnose_period_ == 0)
     file_.flush();
   PetscFunctionReturn(PETSC_SUCCESS);
 }

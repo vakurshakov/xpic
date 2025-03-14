@@ -29,6 +29,7 @@ set(interfaces
   src/interfaces/sort_parameters.cpp
   src/interfaces/particles.cpp
   src/interfaces/builder.cpp
+  src/interfaces/diagnostic.cpp
 )
 
 set(algorithms
