@@ -1,23 +1,30 @@
 #include "common.h"
 
 // clang-format off
-/// @note Only "B" schemes can be used since `Omega * dt >> 1.0`.
-#define CHIN_SCHEME_ID     B1B
-#define CHIN_SCHEME_ID_STR STR(CHIN_SCHEME_ID)
-#define CHIN_SCHEME_OUTPUT "./tests/chin/output/curvilinear_b_" CHIN_SCHEME_ID_STR ".txt"
-#define CHIN_SCHEME_PROCESS CAT(process_, CHIN_SCHEME_ID)
+static char help[] =
+  "Recreation of published results, see https://doi.org/10.1016/j.jcp.2022.111422    \n"
+  "Here we are testing the electron drift in a curvilinear magnetic field created    \n"
+  "by the line current flowing along z-axis. It is described by B_coeff and B_center \n"
+  "parameters. Different process algorithms are tested. None that only \"B\" schemes \n"
+  "can be used since `Omega * dt >> 1.0`.\n";
 // clang-format on
-
-constexpr Vector3R r0(0, 10, 0);
-constexpr Vector3R v0(0.16, 1, 0);
 
 constexpr PetscReal B_coeff = 800;
 constexpr Vector3R B_center(10, 10, 0);
 
 InterpolationResult get_magnetic_field(const Vector3R& r);
 
-int main()
+int main(int argc, char** argv)
 {
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
+
+  std::string chin_scheme_id;
+  PetscCall(get_id(chin_scheme_id));
+
+  constexpr Vector3R r0(0, 10, 0);
+  constexpr Vector3R v0(0.16, 1, 0);
+
   Point point{r0, v0};
   Particles_up particles = prepare_electron(point);
 
@@ -26,18 +33,18 @@ int main()
 
   Vector3R check_mean_v;
 
-  SyncFile output(CHIN_SCHEME_OUTPUT);
+  SyncFile output(get_outputfile(__FILE__, chin_scheme_id));
   output() << "t       x       y       z       \n";
   output() << "[1/wpe] [c/wpe] [c/wpe] [c/wpe] \n";
 
   BorisPush push;
 
-  if (std::string(CHIN_SCHEME_ID_STR).ends_with("LF"))
+  if (chin_scheme_id.ends_with("LF"))
     point.r -= (dt / 2.0) * point.p;
 
   for (PetscInt t = 0; t < geom_nt; ++t) {
     output() << t * dt << " " << point.r << "\n";
-    CHIN_SCHEME_PROCESS(push, point, *particles, get_magnetic_field);
+    process_impl(chin_scheme_id, push, point, *particles, get_magnetic_field);
 
     check_mean_v += point.p / static_cast<PetscReal>(geom_nt);
   }
@@ -51,7 +58,11 @@ int main()
     (2.0 * particles->charge(point) * B_p.length()) * B_p.cross(B_grad) /
     B_p.squared();
 
-  assert(check_mean_v.dot(v_drift) > 0.0);
+  PetscCheck(check_mean_v.dot(v_drift) > 0.0, PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Particle should drift along theoretical prediction, having mean: (%f, %f, %f), theory: (%f, %f, %f)", REP3_A(check_mean_v), REP3_A(v_drift));
+
+  PetscCall(PetscFinalize());
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 InterpolationResult get_magnetic_field(const Vector3R& r)

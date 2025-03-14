@@ -8,8 +8,6 @@ static char help[] =
 // clang-format on
 
 constexpr Vector3R B0(0.0, 0.0, 2.0);
-constexpr Vector3R r0(0.5, 0.0, 0.0);
-constexpr Vector3R v0(0.0, 1.0, 0.0);
 
 InterpolationResult get_magnetic_field(const Vector3R& r);
 
@@ -20,6 +18,9 @@ int main(int argc, char** argv)
 
   std::string chin_scheme_id;
   PetscCall(get_id(chin_scheme_id));
+
+  constexpr Vector3R r0(0.5, 0.0, 0.0);
+  constexpr Vector3R v0(0.0, 1.0, 0.0);
 
   Point point{r0, v0};
   Particles_up particles = prepare_electron(point);
