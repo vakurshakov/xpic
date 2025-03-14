@@ -1,5 +1,5 @@
-#ifndef SRC_INTERFACES_WORLD_H
-#define SRC_INTERFACES_WORLD_H
+#ifndef SRC_UTILS_WORLD_H
+#define SRC_UTILS_WORLD_H
 
 #include <petscdmda.h>
 
@@ -47,4 +47,4 @@ struct World {
     PetscReal _dtp);
 };
 
-#endif  // SRC_BASIC_SIMULATION_H
+#endif  // SRC_UTILS_WORLD_H
