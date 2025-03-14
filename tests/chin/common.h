@@ -1,6 +1,3 @@
-#include <cassert>
-#include <cmath>
-
 #include "src/interfaces/particles.h"
 #include "src/algorithms/boris_push.h"
 #include "src/utils/sync_file.h"
@@ -25,6 +22,26 @@ bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
     std::abs(a[Z] - b[Z]) < tol;
 }
 
+PetscErrorCode get_id(std::string& id)
+{
+  PetscFunctionBeginUser;
+  PetscBool flg;
+  char id_c_str[4];
+  PetscCall(PetscOptionsGetString(nullptr, nullptr, "-id", id_c_str, 4, &flg));
+  PetscCheck(flg, PETSC_COMM_WORLD, PETSC_ERR_USER, "Must specify the Chin scheme id with '-id' option");
+  id = std::move(id_c_str);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+std::filesystem::path get_outputfile(std::string_view file, std::string_view id)
+{
+  std::filesystem::path outputfile(file);
+  outputfile.replace_extension("");
+
+  outputfile = std::format("{}/output/{}_{}.txt", //
+    outputfile.parent_path().c_str(), outputfile.filename().c_str(), id);
+  return outputfile;
+}
 
 using InterpolationResult = std::pair<REP2(Vector3R)>;
 using Interpolator = std::function<InterpolationResult(const Vector3R& r)>;
@@ -213,6 +230,36 @@ void process_EB2B(BorisPush& push, Point& point,
 
   // r_{1/2} + (dt / 2) * v_1 -> r_1
   push.update_r((dt / 2.0), point, particles);
+}
+
+
+void process_impl(std::string_view id, BorisPush& push, Point& point,
+  interfaces::Particles& particles, const Interpolator& interpolate)
+{
+  using process_func = void (*)(BorisPush& push, Point& point,
+    interfaces::Particles& particles, const Interpolator& interpolate);
+
+  static const std::map<std::string_view, process_func> map{
+    {"M1A", process_M1A},
+    {"M1B", process_M1B},
+    {"MLF", process_MLF},
+    {"B1A", process_B1A},
+    {"B1B", process_B1B},
+    {"BLF", process_BLF},
+    {"C1A", process_C1A},
+    {"C1B", process_C1B},
+    {"CLF", process_CLF},
+    {"M2A", process_M2A},
+    {"M2B", process_M2B},
+    {"C2A", process_C2A},
+    {"B2B", process_B2B},
+    {"EB1A", process_EB1A},
+    {"EB1B", process_EB1B},
+    {"EBLF", process_EBLF},
+    {"EB2B", process_EB2B},
+  };
+
+  (*map.at(id))(push, point, particles, interpolate);
 }
 
 

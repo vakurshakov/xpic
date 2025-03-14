@@ -16,9 +16,6 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
-# enables clang-tidy in the `build` directory
-set(CMAKE_EXPORT_COMPILE_COMMANDS true)
-
 project(xpic VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_FLAGS "-fpic -fopenmp -pthread")
@@ -142,4 +139,5 @@ target_link_libraries(
 add_executable(${PROJECT_NAME}.out src/main.cpp)
 target_link_libraries(${PROJECT_NAME}.out ${PROJECT_NAME})
 
+enable_testing()
 add_subdirectory(tests)
