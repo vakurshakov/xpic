@@ -52,11 +52,11 @@ PetscErrorCode Simulation::log_information() const
   const PetscReal n0 = std::sqrt(1e13);
   LOG("Note: Dimensionless units are used.");
   LOG("For reference, using density 1e13 cm^(-3):");
-  LOG("  frequency,   w_pe = {} [1/sec]", 5.64e+4 * n0);
-  LOG("  time,      1/w_pe = {} [sec]", 1.77e-5 / n0);
-  LOG("  length,    c/w_pe = {} [cm]", 5.32e+5 / n0);
-  LOG("  electric field, E = {} [MV/cm]", 9.63e-7 * n0);
-  LOG("  magnetic field, B = {} [T]", 3.21e-7 * n0);
+  LOG("  frequency,   w_pe = {:4e} [1/sec]", 5.64e+4 * n0);
+  LOG("  time,      1/w_pe = {:4e} [sec]", 1.77e-5 / n0);
+  LOG("  length,    c/w_pe = {:4e} [cm]", 5.32e+5 / n0);
+  LOG("  electric field, E = {:4e} [MV/cm]", 9.63e-7 * n0);
+  LOG("  magnetic field, B = {:4e} [T]", 3.21e-7 * n0);
 
   LOG("Geometric constants for the current setup:");
   LOG("  (length along x axis) = {} [c/w_pe] = {} [dx]", geom_x, geom_nx);

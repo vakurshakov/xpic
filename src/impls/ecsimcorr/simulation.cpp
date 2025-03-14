@@ -547,6 +547,8 @@ PetscErrorCode Simulation::init_ksp_solvers()
 PetscErrorCode Simulation::init_particles()
 {
   PetscFunctionBeginUser;
+  LOG("Configuring particles");
+
   const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
   for (auto&& info : particles_info) {
     SortParameters parameters;
@@ -570,6 +572,15 @@ PetscErrorCode Simulation::init_particles()
     }
 
     particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
+
+    PetscReal T = std::hypot(parameters.Tx, parameters.Ty, parameters.Tz);
+    PetscReal V = std::sqrt(T / (parameters.m * 511.0));
+    PetscReal H = std::hypot(Dx[X] / V, Dx[Y] / V, Dx[Z] / V);
+
+    LOG("  {} are added:", parameters.sort_name);
+    LOG("    temperature,         T = {:.3e} [KeV]", T);
+    LOG("    thermal velocity, v_th = {:.3e} [c]", V);
+    LOG("    cell-heating, Dx / L_d = {:.3e} [unit]", H);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
