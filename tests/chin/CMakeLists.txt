@@ -4,9 +4,9 @@ set(tests
   uniform_b
   linear_b
   curvilinear_b
-  # crossed_fields
-  # polarization
-  # crossed_gradient
+  crossed_fields
+  polarization
+  crossed_gradient
 )
 
 set(uniform_b_ids

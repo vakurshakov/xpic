@@ -26,8 +26,8 @@ PetscErrorCode get_id(std::string& id)
 {
   PetscFunctionBeginUser;
   PetscBool flg;
-  char id_c_str[4];
-  PetscCall(PetscOptionsGetString(nullptr, nullptr, "-id", id_c_str, 4, &flg));
+  char id_c_str[5];
+  PetscCall(PetscOptionsGetString(nullptr, nullptr, "-id", id_c_str, 5, &flg));
   PetscCheck(flg, PETSC_COMM_WORLD, PETSC_ERR_USER, "Must specify the Chin scheme id with '-id' option");
   id = std::move(id_c_str);
   PetscFunctionReturn(PETSC_SUCCESS);

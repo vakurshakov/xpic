@@ -1,49 +1,58 @@
 #include "common.h"
 
 // clang-format off
-/// @note Since electric field is on, only "EB" algorithms can be used
-#define CHIN_SCHEME_ID      EB2B
-#define CHIN_SCHEME_ID_STR  STR(CHIN_SCHEME_ID)
-#define CHIN_SCHEME_OUTPUT  "./tests/chin/output/crossed_gradient_" CHIN_SCHEME_ID_STR ".txt"
-#define CHIN_SCHEME_PROCESS CAT(process_, CHIN_SCHEME_ID)
+static char help[] =
+  "Recreation of published results, see https://doi.org/10.1016/j.jcp.2022.111422       \n"
+  "Here we are testing the electron drift in a fields, where both electric and magnetic \n"
+  "has the curvature (described by E_coeff and B_coeff). Different process algorithms   \n"
+  "are used. None that since electric field is on, only \"EB\" algorithms can be used.  \n";
 // clang-format on
 
-constexpr Vector3R r0(0.0, -1.0, 0.0);
-constexpr Vector3R v0(0.1, 0.01, 0.0);
+constexpr PetscReal E_coeff = 0.1;
+constexpr PetscReal B_coeff = 1.0;
 
-InterpolationResult get_interpolated_fields(const Vector3R& r);
+InterpolationResult interpolated_fields(const Vector3R& r);
 
-int main()
+int main(int argc, char** argv)
 {
+  PetscFunctionBeginUser;
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
+
+  std::string chin_scheme_id;
+  PetscCall(get_id(chin_scheme_id));
+
+  constexpr Vector3R r0(0.0, -1.0, 0.0);
+  constexpr Vector3R v0(0.1, 0.01, 0.0);
+
   Point point{r0, v0};
   Particles_up particles = prepare_electron(point);
 
   // dt = 2.0 * std::numbers::pi / 20.0;
   dt = 2.1 * std::numbers::pi;
 
-  geom_t = 1'000;
+  geom_t = 1000;
   geom_nt = ROUND_STEP(geom_t, dt);
 
-  SyncFile output(CHIN_SCHEME_OUTPUT);
+  SyncFile output(get_outputfile(__FILE__, chin_scheme_id));
   output() << "t       x       y       z       \n";
   output() << "[1/wpe] [c/wpe] [c/wpe] [c/wpe] \n";
 
   BorisPush push;
 
-  if (std::string(CHIN_SCHEME_ID_STR).ends_with("LF"))
+  if (chin_scheme_id.ends_with("LF"))
     point.r -= (dt / 2.0) * point.p;
 
   for (PetscInt t = 0; t < geom_nt; ++t) {
     output() << t * dt << " " << point.r << "\n";
-    CHIN_SCHEME_PROCESS(push, point, *particles, get_interpolated_fields);
+    process_impl(chin_scheme_id, push, point, *particles, interpolated_fields);
   }
+
+  PetscCall(PetscFinalize());
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-InterpolationResult get_interpolated_fields(const Vector3R& r)
+InterpolationResult interpolated_fields(const Vector3R& r)
 {
-  static constexpr PetscReal E_coeff = 0.1;
-  static constexpr PetscReal B_coeff = 1.0;
-
   PetscReal rr = r.length();
 
   return std::make_pair(
