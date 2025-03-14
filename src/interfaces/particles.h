@@ -4,7 +4,7 @@
 #include "src/pch.h"
 #include "src/interfaces/point.h"
 #include "src/interfaces/sort_parameters.h"
-#include "src/interfaces/world.h"
+#include "src/utils/world.h"
 
 namespace interfaces {
 

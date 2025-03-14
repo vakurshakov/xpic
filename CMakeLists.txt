@@ -28,7 +28,6 @@ set(interfaces
   src/interfaces/point.cpp
   src/interfaces/sort_parameters.cpp
   src/interfaces/particles.cpp
-  src/interfaces/world.cpp
   src/interfaces/builder.cpp
 )
 
@@ -78,6 +77,7 @@ set(utils
   src/utils/shape.cpp
   src/utils/particles_load.cpp
   src/utils/geometries.cpp
+  src/utils/world.cpp
 )
 
 set(impls_basic

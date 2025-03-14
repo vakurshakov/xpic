@@ -5,7 +5,7 @@
 #include "src/interfaces/command.h"
 #include "src/interfaces/diagnostic.h"
 #include "src/interfaces/particles.h"
-#include "src/interfaces/world.h"
+#include "src/utils/world.h"
 
 namespace interfaces {
 
