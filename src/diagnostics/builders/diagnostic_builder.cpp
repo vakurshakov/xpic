@@ -15,9 +15,10 @@ DiagnosticBuilder::DiagnosticBuilder(const interfaces::Simulation& simulation,
 PetscErrorCode build_diagnostics(
   const interfaces::Simulation& simulation, std::vector<Diagnostic_up>& result)
 {
-  const Configuration::json_t& diagnostics = CONFIG().json.at("Diagnostics");
+  const Configuration::json_t& config = CONFIG().json;
 
-  if (diagnostics.empty())
+  auto&& it = config.find("Diagnostics");
+  if (it == config.end() || it->empty())
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
@@ -25,7 +26,7 @@ PetscErrorCode build_diagnostics(
 
   using namespace interfaces;
 
-  for (auto&& info : diagnostics) {
+  for (auto&& info : *it) {
     std::string name;
     info.at("diagnostic").get_to(name);
 

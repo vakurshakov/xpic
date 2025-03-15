@@ -16,9 +16,10 @@ CommandBuilder::CommandBuilder(
   const interfaces::Simulation& simulation, std::string_view name,
   std::vector<Command_up>& result)
 {
-  const Configuration::json_t& commands = CONFIG().json.at(name);
+  const Configuration::json_t& config = CONFIG().json;
 
-  if (commands.empty())
+  auto&& it = config.find(name);
+  if (it == config.end() || it->empty())
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
@@ -26,7 +27,7 @@ CommandBuilder::CommandBuilder(
 
   using namespace interfaces;
 
-  for (auto&& info : commands) {
+  for (auto&& info : *it) {
     std::string name;
     info.at("command").get_to(name);
 
