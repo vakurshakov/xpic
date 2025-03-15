@@ -89,10 +89,9 @@ PetscErrorCode FieldView::set_data_views(const Region& region)
 PetscErrorCode FieldView::diagnose(PetscInt t)
 {
   if (t % diagnose_period_ != 0)
-    PetscFunctionReturn(PETSC_SUCCESS);
+    return PETSC_SUCCESS;
   PetscFunctionBeginUser;
-
-  PetscCall(file_.open(comm_, out_dir_, format_time(t)));
+  PetscCall(file_.open(comm_, out_dir_ + "/" + format_time(t)));
 
   const PetscReal* arr;
   PetscCall(VecGetArrayRead(field_, &arr));

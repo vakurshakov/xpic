@@ -1,9 +1,8 @@
 #include "mpi_binary_file.h"
 
-MPI_BinaryFile::MPI_BinaryFile(MPI_Comm comm, const std::string& directory_path,
-  const std::string& file_name)
+MPI_BinaryFile::MPI_BinaryFile(MPI_Comm comm, const std::string& filename)
 {
-  PetscCallVoid(open(comm, directory_path, file_name));
+  PetscCallVoid(open(comm, filename));
 }
 
 MPI_BinaryFile::~MPI_BinaryFile()
@@ -21,23 +20,22 @@ MPI_BinaryFile::~MPI_BinaryFile()
     MPI_Comm_free(&comm_);
 }
 
-PetscErrorCode MPI_BinaryFile::open(MPI_Comm comm,
-  const std::string& directory_path, const std::string& file_name)
+PetscErrorCode MPI_BinaryFile::open(MPI_Comm comm, const std::string& filename)
 {
   PetscFunctionBeginHot;
   comm_ = comm;
 
-  std::string filename = directory_path + "/" + file_name + ".bin";
+  std::filesystem::path fname(filename);
 
   PetscInt rank;
   PetscCallMPI(MPI_Comm_rank(comm_, &rank));
   if (rank == 0) {
-    std::filesystem::create_directories(directory_path);
+    std::filesystem::create_directories(fname.parent_path());
     std::filesystem::remove(filename);
   }
   PetscCallMPI(MPI_Barrier(comm_));
 
-  PetscCallMPI(MPI_File_open(comm_, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file_));
+  PetscCallMPI(MPI_File_open(comm_, fname.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file_));
   PetscCallMPI(MPI_File_set_view(file_, 0, MPI_FLOAT, fileview_, "native", MPI_INFO_NULL));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
