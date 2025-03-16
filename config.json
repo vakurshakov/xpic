@@ -1,5 +1,5 @@
 {
-  "OutputDirectory": "results/visual-test/mpi_x1y1",
+  "OutputDirectory": "results/simulation-backup-test/mpi_x1y1",
 
   "Simulation": "ecsimcorr",
 
@@ -21,7 +21,7 @@
     "x": 10,
     "y": 10,
     "z": 10,
-    "t": 10,
+    "t": 1,
     "dx": 1.0,
     "dy": 1.0,
     "dz": 1.0,
@@ -40,7 +40,7 @@
   "Particles": [
     {
       "sort_name": "ions",
-      "Np": 100,
+      "Np": 1,
       "n": 1.0,
       "q": 1.0,
       "m": 100.0,
@@ -48,7 +48,7 @@
     },
     {
       "sort_name": "electrons",
-      "Np": 100,
+      "Np": 1,
       "n": 1.0,
       "q": -1.0,
       "m": 1.0,

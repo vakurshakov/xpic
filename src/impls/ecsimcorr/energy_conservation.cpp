@@ -12,7 +12,7 @@ namespace ecsimcorr {
 EnergyConservation::EnergyConservation(const Simulation& simulation)
   : simulation(simulation)
 {
-  file_ = SyncFile(CONFIG().out_dir + "/energy_conservation.txt");
+  file_ = SyncFile(CONFIG().out_dir + "/temporal/energy_conservation.txt");
 
   E = simulation.E;
   B = simulation.B;

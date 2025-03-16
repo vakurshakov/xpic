@@ -3,6 +3,7 @@
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/diagnostics/mat_dump.h"
+#include "src/diagnostics/simulation_backup.h"
 #include "src/impls/ecsimcorr/charge_conservation.h"
 #include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/utils/operators.h"
@@ -40,8 +41,18 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
-  // diagnostics_.emplace_back(std::make_unique<MatDump>(CONFIG().out_dir + "/matL",
-  //   matL, "./results/assembly-test/electrons-2-new-mpi-1/matL"));
+
+  /// @todo How to load it compatible with "Presets"
+  std::map<std::string, Vec> fields{{"E", E}, {"B", B}};
+  std::map<std::string, interfaces::Particles*> particles;
+
+  for (auto&& sort : particles_)
+    particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
+
+  auto&& d = std::make_unique<SimulationBackup>(diagnose_period, fields, particles);
+  // d->load(0);
+
+  diagnostics_.emplace_back(std::move(d));
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());

@@ -46,6 +46,7 @@ set(diagnostics
   src/diagnostics/distribution_moment.cpp
   src/diagnostics/mat_dump.cpp
   src/diagnostics/log_view.cpp
+  src/diagnostics/simulation_backup.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp

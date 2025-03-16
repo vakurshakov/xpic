@@ -11,7 +11,7 @@ namespace ecsimcorr {
 ChargeConservation::ChargeConservation(const Simulation& simulation)
   : simulation(simulation)
 {
-  file_ = SyncFile(CONFIG().out_dir + "/charge_conservation.txt");
+  file_ = SyncFile(CONFIG().out_dir + "/temporal/charge_conservation.txt");
 
   FieldView::Region region{
     .dim = 3,

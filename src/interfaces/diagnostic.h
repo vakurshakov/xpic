@@ -12,6 +12,7 @@ public:
 
   Diagnostic();
   Diagnostic(const std::string& out_dir);
+  Diagnostic(const std::string& out_dir, PetscInt diagnose_period);
 
   virtual ~Diagnostic() = default;
 
@@ -23,7 +24,7 @@ public:
 
 protected:
   std::string out_dir_;
-  PetscInt diagnose_period_ ;
+  PetscInt diagnose_period_;
 };
 
 }  // namespace interfaces
