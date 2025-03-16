@@ -30,7 +30,7 @@
                 // "-malloc_debug",
                 // "-malloc_dump",
             ],
-            "cwd": "${workspaceFolder}/",
+            "cwd": "${workspaceFolder}",
             "environment": [
                 {
                     "name": "OMP_NUM_THREADS",
@@ -48,8 +48,8 @@
             "preLaunchTask": "${defaultBuildTask}",
             "miDebuggerPath": "/usr/bin/gdb",
             "sourceFileMap": {
-                "/home/kurshakov/Code/xpic": {
-                    "editorPath": "/home/kurshakov/Code/xpic",
+                "${workspaceFolder}": {
+                    "editorPath": "${workspaceFolder}",
                     "useForBreakpoints": true
                 }
             }
@@ -60,7 +60,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/build/${relativeFileDirname}/${fileBasenameNoExtension}.out",
             "args": [],
-            "cwd": "${workspaceFolder}/",
+            "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
@@ -73,8 +73,8 @@
             "preLaunchTask": "${defaultBuildTask}",
             "miDebuggerPath": "/usr/bin/gdb",
             "sourceFileMap": {
-                "/home/kurshakov/code/xpic": {
-                    "editorPath": "/home/kurshakov/code/xpic",
+                "${workspaceFolder}": {
+                    "editorPath": "${workspaceFolder}",
                     "useForBreakpoints": true
                 }
             }
