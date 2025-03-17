@@ -39,7 +39,7 @@ int main(int argc, char** argv)
     PetscCall(diag->diagnose(0));
   }
 
-  auto size = std::filesystem::file_size(out_dir.concat("/0.bin"));
+  auto size = std::filesystem::file_size(out_dir.concat("/0"));
   PetscCheck(size == sizeof(float) * region.size.elements_product(), PETSC_COMM_WORLD, PETSC_ERR_USER, "Result file size should match the selected region");
 
   PetscCall(VecDestroy(&v));
