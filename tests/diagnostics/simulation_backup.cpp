@@ -21,7 +21,13 @@ int main(int argc, char** argv)
 
   Vec v;
   PetscCall(DMCreateGlobalVector(world.da, &v));
-  PetscCall(VecSetRandom(v, nullptr));
+
+  PetscRandom rnd;
+  PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rnd));
+  PetscCall(PetscRandomSetType(rnd, PETSCRAND48));
+  PetscCall(PetscRandomSetSeed(rnd, 0));
+  PetscCall(VecSetRandom(v, rnd));
+  PetscCall(PetscRandomDestroy(&rnd));
 
   static const Vector3R p0{0.0};
   static const std::vector<Point> prepared_points{
