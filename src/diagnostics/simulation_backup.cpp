@@ -3,12 +3,10 @@
 #include "src/utils/configuration.h"
 #include "src/utils/mpi_binary_file.h"
 
-SimulationBackup::SimulationBackup(PetscInt diagnose_period,
-  std::map<std::string, Vec> fields,
+SimulationBackup::SimulationBackup(const std::string& out_dir,
+  PetscInt diagnose_period, std::map<std::string, Vec> fields,
   std::map<std::string, interfaces::Particles*> particles)
-  : Diagnostic(CONFIG().out_dir + "/simulation_backup/", diagnose_period),
-    fields_(fields),
-    particles_(particles)
+  : Diagnostic(out_dir, diagnose_period), fields_(fields), particles_(particles)
 {
 }
 
@@ -19,6 +17,14 @@ PetscErrorCode SimulationBackup::diagnose(PetscInt t)
   PetscCall(save(t));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode SimulationBackup::execute(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  PetscCall(load(t));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 PetscErrorCode SimulationBackup::save(PetscInt t) const
 {

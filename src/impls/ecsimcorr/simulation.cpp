@@ -49,7 +49,8 @@ PetscErrorCode Simulation::initialize_implementation()
   for (auto&& sort : particles_)
     particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
 
-  auto&& d = std::make_unique<SimulationBackup>(diagnose_period, fields, particles);
+  auto&& d = std::make_unique<SimulationBackup>(
+    CONFIG().out_dir + "/simulation_backup/", diagnose_period, fields, particles);
   // d->load(0);
 
   diagnostics_.emplace_back(std::move(d));

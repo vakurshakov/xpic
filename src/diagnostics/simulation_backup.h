@@ -2,20 +2,29 @@
 #define SRC_DIAGNOSTICS_SIMULATION_BACKUP_H
 
 #include "src/pch.h"
+#include "src/interfaces/command.h"
 #include "src/interfaces/diagnostic.h"
 #include "src/interfaces/particles.h"
 
-class SimulationBackup : public interfaces::Diagnostic {
+/**
+ * @brief This class is used to save and load simulation backups.
+ * It is derived from two interfaces because of the following reasons:
+ * `Diagnostic` - is used to embed its `save()` into common diagnostics pipeline.
+ * `Command` - is used to alter the "Presets" behavior and call `load()`.
+ */
+class SimulationBackup : public interfaces::Diagnostic, interfaces::Command {
 public:
-  SimulationBackup(PetscInt diagnose_period, std::map<std::string, Vec> fields,
+  SimulationBackup(const std::string& out_dir,  //
+    PetscInt diagnose_period, std::map<std::string, Vec> fields,
     std::map<std::string, interfaces::Particles*> particles);
-
-  PetscErrorCode diagnose(PetscInt t) override;
 
   PetscErrorCode save(PetscInt t) const;
   PetscErrorCode load(PetscInt t);
 
 private:
+  PetscErrorCode diagnose(PetscInt t) override;
+  PetscErrorCode execute(PetscInt t) override;
+
   PetscErrorCode save_fields(PetscInt t) const;
   PetscErrorCode save_particles(PetscInt t) const;
   PetscErrorCode save_temporal_diagnostics(PetscInt t) const;
