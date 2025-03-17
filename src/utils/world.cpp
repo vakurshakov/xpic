@@ -20,6 +20,7 @@ PetscErrorCode World::initialize()
   }
 
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da));
+  PetscCall(DMSetFromOptions(da));
   PetscCall(DMSetUp(da));
 
 

@@ -47,7 +47,7 @@ PetscErrorCode SimulationBackup::save_fields(PetscInt t) const
 
   for (const auto& [name, field] : fields_) {
     std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, name);
-    PetscCall(create_viewer(fname, PETSCVIEWERBINARY, FILE_MODE_WRITE, &viewer));
+    PetscCall(create_viewer(fname, PETSC_FALSE, FILE_MODE_WRITE, &viewer));
     PetscCall(VecView(field, viewer));
     PetscCall(PetscViewerDestroy(&viewer));
   }
@@ -67,11 +67,11 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
       numparts += (PetscInt)cell.size();
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &numparts, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
 
-    PetscCall(create_viewer(fname.string() + ".numparts", PETSCVIEWERASCII, FILE_MODE_WRITE, &viewer));
-    PetscCall(PetscViewerASCIIPrintf(viewer, "%" PetscInt_FMT, numparts));
+    PetscCall(create_viewer(fname.string() + ".numparts", PETSC_TRUE, FILE_MODE_WRITE, &viewer));
+    PetscCall(PetscViewerBinaryWrite(viewer, &numparts, 1, PETSC_INT));
     PetscCall(PetscViewerDestroy(&viewer));
 
-    PetscCall(create_viewer(fname, PETSCVIEWERBINARY, FILE_MODE_WRITE, &viewer));
+    PetscCall(create_viewer(fname, PETSC_TRUE, FILE_MODE_WRITE, &viewer));
     for (const auto& cell : container->storage) {
       std::vector<Point> copy(cell.begin(), cell.end());
       PetscCall(PetscViewerBinaryWriteAll(viewer, copy.data(), 6 * (PetscInt)copy.size(), PETSC_DETERMINE, PETSC_DETERMINE, PETSC_REAL));
@@ -111,7 +111,7 @@ PetscErrorCode SimulationBackup::load_fields(PetscInt t)
 
   for (auto& [name, field] : fields_) {
     std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, name);
-    PetscCall(create_viewer(fname, PETSCVIEWERBINARY, FILE_MODE_READ, &viewer));
+    PetscCall(create_viewer(fname, PETSC_FALSE, FILE_MODE_READ, &viewer));
     PetscCall(VecLoad(field, viewer));
     PetscCall(PetscViewerDestroy(&viewer));
   }
@@ -129,15 +129,17 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
   for (auto& [name, container] : particles_) {
     std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, name);
 
-    PetscCall(create_viewer(fname.string() + ".numparts", PETSCVIEWERASCII, FILE_MODE_READ, &viewer));
-    PetscCall(PetscViewerASCIIRead(viewer, &numparts, 1, &count, PETSC_INT));
+    PetscCall(create_viewer(fname.string() + ".numparts", PETSC_TRUE, FILE_MODE_READ, &viewer));
+    PetscCall(PetscViewerBinaryRead(viewer, &numparts, 1, &count, PETSC_INT));
     PetscCall(PetscViewerDestroy(&viewer));
-    PetscCheck(count == 1, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED, "Number of particles to read should be specified");
+    PetscCheck(count == 1, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED,
+      "Incorrect number of particles to read is specified");
 
-    PetscCall(create_viewer(fname, PETSCVIEWERBINARY, FILE_MODE_READ, &viewer));
+    PetscCall(create_viewer(fname, PETSC_TRUE, FILE_MODE_READ, &viewer));
     for (PetscInt i = 0; i < numparts; ++i) {
       PetscCall(PetscViewerBinaryRead(viewer, &point, 6, &count, PETSC_REAL));
-      PetscCheck(count == 6, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED, "Point structure consists of 6 PetscReal values, read: %" PetscInt_FMT, count);
+      PetscCheck(count == 6, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED,
+        "Point structure consists of 6 PetscReal values, read: %" PetscInt_FMT, count);
       PetscCall(container->add_particle(point));
     }
     PetscCall(PetscViewerDestroy(&viewer));
@@ -156,22 +158,21 @@ PetscErrorCode SimulationBackup::load_temporal_diagnostics(PetscInt t)
 
 
 PetscErrorCode SimulationBackup::create_viewer(const std::filesystem::path& fname,
-  PetscViewerType type, PetscFileMode mode, PetscViewer* viewer) const
+  PetscBool skip, PetscFileMode mode, PetscViewer* viewer) const
 {
   PetscFunctionBeginUser;
-  if (mode != FILE_MODE_READ)
+  PetscMPIInt rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+
+  if (rank == 0 && mode != FILE_MODE_READ)
     std::filesystem::create_directories(fname.parent_path());
 
   PetscCall(PetscViewerCreate(PETSC_COMM_WORLD, viewer));
-  PetscCall(PetscViewerSetType(*viewer, type));
+  PetscCall(PetscViewerSetType(*viewer, PETSCVIEWERBINARY));
   PetscCall(PetscViewerFileSetMode(*viewer, mode));
-
-  PetscBool isbinary;
-  PetscCall(PetscObjectTypeCompare((PetscObject)*viewer, PETSCVIEWERBINARY, &isbinary));
-
-  if (isbinary)
-    PetscCall(PetscViewerBinarySetUseMPIIO(*viewer, PETSC_TRUE));
-
+  PetscCall(PetscViewerBinarySetUseMPIIO(*viewer, PETSC_TRUE));
+  PetscCall(PetscViewerBinarySetSkipInfo(*viewer, skip));
+  PetscCall(PetscViewerBinarySetSkipHeader(*viewer, skip));
   PetscCall(PetscViewerFileSetName(*viewer, fname.c_str()));
   PetscCall(PetscViewerSetUp(*viewer));
   PetscFunctionReturn(PETSC_SUCCESS);

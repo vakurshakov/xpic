@@ -34,7 +34,7 @@ private:
   PetscErrorCode load_temporal_diagnostics(PetscInt t);
 
   PetscErrorCode create_viewer(const std::filesystem::path& name,
-    PetscViewerType type, PetscFileMode mode, PetscViewer* viewer) const;
+    PetscBool skip, PetscFileMode mode, PetscViewer* viewer) const;
 
   PetscErrorCode saveload_temporal_diagnostics(
     const std::filesystem::path& from, const std::filesystem::path& to) const;

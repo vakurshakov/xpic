@@ -1,6 +1,7 @@
 #include "src/diagnostics/simulation_backup.h"
 
 #include "src/interfaces/particles.h"
+#include "src/utils/geometries.h"
 #include "src/utils/world.h"
 #include "tests/diagnostics/common.h"
 
@@ -80,11 +81,16 @@ int main(int argc, char** argv)
       "Field data is loaded incorrectly, norm2 error: %f", norm);
 
     for (const auto& point : prepared_points) {
-      PetscInt g = world.s_g(  //
+      Vector3I vg{
         FLOOR_STEP(point.x(), dx) - world.start[X],
         FLOOR_STEP(point.y(), dy) - world.start[Y],
-        FLOOR_STEP(point.z(), dz) - world.start[Z]);
+        FLOOR_STEP(point.z(), dz) - world.start[Z],
+      };
 
+      if (!is_point_within_bounds(vg, 0, world.size))
+        continue;
+
+      PetscInt g = world.s_g(REP3_A(vg));
       const auto& cell = particles->storage[g];
 
       PetscCheck(cell.size() == 1, PETSC_COMM_WORLD, PETSC_ERR_USER,
@@ -96,9 +102,6 @@ int main(int argc, char** argv)
 
     PetscCall(VecDestroy(&tmp));
   }
-
-  PetscMPIInt rank; PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-  LOG_IMPL("[] hello", rank);
 
   PetscCall(VecDestroy(&v));
   PetscCall(world.finalize());
