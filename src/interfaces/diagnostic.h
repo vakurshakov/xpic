@@ -19,10 +19,10 @@ public:
   /// @brief The main method to override
   virtual PetscErrorCode diagnose(PetscInt t) = 0;
 
+protected:
   /// @returns The string padded with the zeros of `geom_nt` width
   static std::string format_time(PetscInt t);
 
-protected:
   std::string out_dir_;
   PetscInt diagnose_period_;
 };
