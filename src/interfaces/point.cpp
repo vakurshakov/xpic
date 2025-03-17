@@ -1,10 +1,5 @@
 #include "point.h"
 
-Point::Point(const Vector3R& r, const Vector3R& p)
-  : r(r), p(p)
-{
-}
-
 void g_bound_reflective(Point& point, Axis axis)
 {
   PetscReal& s = point.r[axis];

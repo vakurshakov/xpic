@@ -8,8 +8,12 @@ struct Point {
   Vector3R r;
   Vector3R p;
 
-  Point() = default;
-  Point(const Vector3R& r, const Vector3R& p);
+  constexpr Point() = default;
+
+  constexpr Point(const Vector3R& r, const Vector3R& p)
+    : r(r), p(p)
+  {
+  }
 
   // clang-format off: access modifiers
   PetscReal& x() { return r.x(); }
