@@ -60,19 +60,6 @@ Vector3R Builder::parse_vector(
   return Vector3R{};
 }
 
-
-void Builder::check_region(
-  const Vector3I& start, const Vector3I& size, const std::string& name) const
-{
-  if (bool success = is_region_within_bounds(start, size, 0, Geom_n); !success) {
-    throw std::runtime_error(
-      "Region is not in global boundaries for " + name + " diagnostic.");
-  }
-
-  if (bool success = (size[X] > 0) && (size[Y] > 0) && (size[Z] > 0); !success)
-    throw std::runtime_error("Sizes are invalid for " + name + " diagnostic.");
-}
-
 void Builder::load_geometry(const Configuration::json_t& info, BoxGeometry& box)
 {
   Vector3R min{0.0};

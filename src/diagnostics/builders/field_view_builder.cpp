@@ -13,22 +13,26 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
   FieldView::Region region;
+  region.start = Vector4I(0);
+  region.size = Vector4I(geom_nx, geom_ny, geom_nz, 3);
   region.dim = 4;
   region.dof = 3;
 
   std::string field;
   info.at("field").get_to(field);
 
+  std::string suffix;
   region.start[3] = 0;
   region.size[3] = 3;
 
-  const Configuration::json_t& region_info = info.at("region");
-  parse_region_start_size(region_info, region, field);
+  if (auto it = info.find("region"); it != info.end()) {
+    parse_region_start_size(*it, region, field);
+    parse_res_dir_suffix(*it, suffix);
+  }
 
-  std::string suffix;
-  parse_res_dir_suffix(region_info, suffix);
+  check_region(region, field);
 
-  LOG("  Field view diagnostic is added for {}, suffix: {}", field, suffix);
+  LOG("  Field view diagnostic is added for {}, suffix: {}", field, suffix.empty() ? "<empty>" : suffix);
 
   std::string res_dir = CONFIG().out_dir + "/" + field + suffix + "/";
 
@@ -50,8 +54,8 @@ void FieldViewBuilder::parse_region_start_size(const Configuration::json_t& info
 
   std::string type = "3D";
 
-  if (info.contains("type"))
-    info.at("type").get_to(type);
+  if (auto it = info.find("type"); it != info.end())
+    it->get_to(type);
 
   PetscInt dim = (type == "3D") ? 3 : (type == "2D") ? 2 : -1;
 
@@ -86,8 +90,6 @@ void FieldViewBuilder::parse_region_start_size(const Configuration::json_t& info
     region.start[i] = ROUND_STEP(start[i], Dx[i]);
     region.size[i] = ROUND_STEP(size[i], Dx[i]);
   }
-
-  check_region(vector_cast(region.start), vector_cast(region.size), name);
 }
 
 void FieldViewBuilder::parse_res_dir_suffix(
@@ -119,4 +121,19 @@ void FieldViewBuilder::parse_res_dir_suffix(
 
     parse(get_component(plane));
   }
+}
+
+void FieldViewBuilder::check_region(
+  const FieldView::Region& region, const std::string& name) const
+{
+  Vector3I start = vector_cast(region.start);
+  Vector3I size = vector_cast(region.size);
+
+  if (bool success = is_region_within_bounds(start, size, 0, Geom_n); !success) {
+    throw std::runtime_error(
+      "Region is not in global boundaries for " + name + " diagnostic.");
+  }
+
+  if (bool success = (size[X] > 0) && (size[Y] > 0) && (size[Z] > 0); !success)
+    throw std::runtime_error("Sizes are invalid for " + name + " diagnostic.");
 }

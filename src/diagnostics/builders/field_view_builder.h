@@ -35,6 +35,9 @@ protected:
 
   void parse_res_dir_suffix(
     const Configuration::json_t& info, std::string& suffix);
+
+  void check_region(
+    const FieldView::Region& region, const std::string& name) const;
 };
 
 #endif  // SRC_DIAGNOSTICS_BUILDERS_FIELD_VIEW_BUILDER_H

@@ -44,9 +44,6 @@ protected:
   Vector3R parse_vector(
     const Configuration::json_t& info, const std::string& name) const;
 
-  void check_region(
-    const Vector3I& start, const Vector3I& size, const std::string& name) const;
-
   void load_geometry(const Configuration::json_t& info, BoxGeometry& box);
   void load_geometry(const Configuration::json_t& info, CylinderGeometry& cyl);
 

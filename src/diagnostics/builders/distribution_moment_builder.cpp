@@ -44,15 +44,21 @@ PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& inf
       "Unknown moment name " + moment + " for particles " + particles);
 
   FieldView::Region region;
+  region.start = Vector4I(0);
+  region.size = Vector4I(geom_nx, geom_ny, geom_nz, 1);
   region.dim = 3;
   region.dof = 1;
 
-  parse_region_start_size(info, region, particles + " " + moment);
-
   std::string suffix;
-  parse_res_dir_suffix(info.at("region"), suffix);
 
-  LOG("  {} diagnostic is added for {}, suffix: {}", moment, particles, suffix);
+  if (auto it = info.find("region"); it != info.end()) {
+    parse_region_start_size(*it, region, particles + " " + moment);
+    parse_res_dir_suffix(*it, suffix);
+  }
+
+  check_region(region, particles + " " + moment);
+
+  LOG("  {} diagnostic is added for {}, suffix: {}", moment, particles, suffix.empty() ? "<empty>" : suffix);
 
   std::string res_dir =
     CONFIG().out_dir + "/" + particles + "/" + moment + suffix;
