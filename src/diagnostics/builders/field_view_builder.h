@@ -18,8 +18,6 @@ public:
       "{\n"
       "  \"diagnostic\": \"FieldView\", -- Name of the diagnostic, constant.\n"
       "  \"field\": \"E\", -- Field name set by `PetscObjectSetName()`.\n"
-      "  \"comp\":  \"x\", -- Diagnosed field component. Optional, with empty\n"
-      "                       value it will print three components at once.\n"
       "  \"start\": [ox, oy, oz], -- Starting point of a diagnosed region, in\n"
       "                              global coordinates of c/w_pe units.\n"
       "                              Optional, zeros will be used if empty.\n"

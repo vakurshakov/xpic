@@ -19,25 +19,18 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
   std::string field;
   info.at("field").get_to(field);
 
-  std::string comp;
   region.start[3] = 0;
   region.size[3] = 3;
 
-  if (info.contains("comp")) {
-    info.at("comp").get_to(comp);
-    region.start[3] = get_component(comp);
-    region.size[3] = 1;
-  }
-
   const Configuration::json_t& region_info = info.at("region");
-  parse_region_start_size(region_info, region, field + comp);
+  parse_region_start_size(region_info, region, field);
 
   std::string suffix;
   parse_res_dir_suffix(region_info, suffix);
 
-  LOG("  Field view diagnostic is added for {}, suffix: {}", field + comp, suffix);
+  LOG("  Field view diagnostic is added for {}, suffix: {}", field, suffix);
 
-  std::string res_dir = CONFIG().out_dir + "/" + field + comp + suffix + "/";
+  std::string res_dir = CONFIG().out_dir + "/" + field + suffix + "/";
 
   auto&& diagnostic = FieldView::create(
     res_dir, simulation_.world.da, simulation_.get_named_vector(field), region);
