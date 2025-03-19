@@ -45,6 +45,11 @@ struct World {
     PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
     PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
     PetscReal _dtp);
+
+  static void set_geometry( //
+    PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
+    PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
+    PetscReal _dtp);
 };
 
 #endif  // SRC_UTILS_WORLD_H

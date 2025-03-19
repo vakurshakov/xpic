@@ -14,7 +14,7 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  World::set_geometry(REP3(10), 1, REP3(1), 1, 1);
+  World::set_geometry(REP3(10.0), 1.0, REP3(1.0), 1.0, 1.0);
 
   World world;
   PetscCall(world.initialize());

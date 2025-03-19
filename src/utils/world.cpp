@@ -79,3 +79,17 @@ World::~World()
     static_cast<PetscReal>(_gnt) * _dt, //
     _dx, _dy, _dz, _dt, _dtp);
 }
+
+/* static */ void World::set_geometry( //
+  PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
+  PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
+  PetscReal _dtp)
+{
+  set_geometry( //
+    _gx, _gy, _gz, _gt, //
+    _gx / static_cast<PetscReal>(_gnx), //
+    _gy / static_cast<PetscReal>(_gny), //
+    _gz / static_cast<PetscReal>(_gnz), //
+    _gt / static_cast<PetscReal>(_gnt), //
+    _dtp);
+}

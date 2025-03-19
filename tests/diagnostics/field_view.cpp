@@ -11,7 +11,7 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  World::set_geometry(10, 10, 10, 1, 0.5, 0.5, 0.5, 1.0, 1.0);
+  World::set_geometry(REP3(5.0), 1.0, REP3(0.5), 1.0, 1.0);
 
   /// @todo different boundary conditions should be tested
   World world;
