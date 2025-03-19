@@ -66,22 +66,22 @@ void FieldViewBuilder::parse_region_start_size(const Configuration::json_t& info
     throw std::runtime_error("Incorrect type is used for " + name + " .");
 
   if (info.contains("start"))
-    start = parse_vector(info, "start", dim);
+    start = parse_vector(info, "start");
 
   if (info.contains("size"))
-    size = parse_vector(info, "size", dim);
+    size = parse_vector(info, "size");
 
   if (type == "2D") {
     std::string plane;
     info.at("plane").get_to(plane);
 
     if (plane == "X") {
-      start = Vector3R{info.at("position"), start[X], start[Y]};
-      size = Vector3R{dx, size[X], size[Y]};
+      start = Vector3R{info.at("position"), start[Y], start[Z]};
+      size = Vector3R{dx, size[Y], size[Z]};
     }
     else if (plane == "Y") {
-      start = Vector3R{start[X], info.at("position"), start[Y]};
-      size = Vector3R{size[X], dy, size[Y]};
+      start = Vector3R{start[X], info.at("position"), start[Z]};
+      size = Vector3R{size[X], dy, size[Z]};
     }
     else if (plane == "Z") {
       start = Vector3R{start[X], start[Y], info.at("position")};
@@ -116,19 +116,14 @@ void FieldViewBuilder::parse_res_dir_suffix(
 
     auto parse = [&](Axis dir) {
       // Analogous to `interfaces::Diagnostics::format_time()`
-      auto width = (PetscInt)std::to_string((PetscInt)Geom[dir]).size();
+      auto width = (PetscInt)std::to_string(Geom_n[dir]).size();
       std::stringstream ss;
       ss.width(width);
       ss.fill('0');
       ss << std::to_string(ROUND_STEP(position, Dx[dir]));
-      suffix += "_" + ss.str() + "cwpe";
+      suffix += "_" + ss.str();
     };
 
-    if (plane == "X")
-      parse(X);
-    else if (plane == "Y")
-      parse(Y);
-    else if (plane == "Z")
-      parse(Z);
+    parse(get_component(plane));
   }
 }

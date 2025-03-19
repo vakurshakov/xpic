@@ -10,17 +10,17 @@ Builder::Builder(Simulation& simulation)
 
 /* static */ Axis Builder::get_component(const std::string& name)
 {
-  if (name == "x")
+  if (name == "x" || name == "X")
     return X;
-  if (name == "y")
+  if (name == "y" || name == "Y")
     return Y;
-  if (name == "z")
+  if (name == "z" || name == "Z")
     return Z;
   throw std::runtime_error("Unknown component name " + name);
 }
 
-Vector3R Builder::parse_vector(const Configuration::json_t& info,
-  const std::string& name, PetscInt dim) const
+Vector3R Builder::parse_vector(
+  const Configuration::json_t& info, const std::string& name) const
 {
   const Configuration::json_t value = info.at(name);
 
@@ -28,15 +28,13 @@ Vector3R Builder::parse_vector(const Configuration::json_t& info,
     case nlohmann::json::value_t::array: {
       const Configuration::array_t& arr = value;
 
-      if ((PetscInt)arr.size() != dim) {
-        throw std::runtime_error(
-          name + " vector should be of size " + std::to_string(dim) + ".");
-      }
+      if ((PetscInt)arr.size() != 3)
+        throw std::runtime_error(name + " vector should be of size 3.");
 
       static const std::vector<char> geom_map{'x', 'y', 'z'};
 
       Vector3R result;
-      for (PetscInt i = 0; i < dim; ++i)
+      for (PetscInt i = 0; i < 3; ++i)
         if (arr[i].type() == nlohmann::json::value_t::string &&
           arr[i].get<std::string>() == std::string("geom_") + geom_map.at(i)) {
           result[i] = Geom[i];
