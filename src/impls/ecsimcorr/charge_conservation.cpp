@@ -11,8 +11,6 @@ namespace ecsimcorr {
 ChargeConservation::ChargeConservation(const Simulation& simulation)
   : simulation(simulation)
 {
-  file_ = SyncFile(CONFIG().out_dir + "/temporal/charge_conservation.txt");
-
   FieldView::Region region{
     .dim = 3,
     .dof = 1,
@@ -32,7 +30,8 @@ ChargeConservation::ChargeConservation(const Simulation& simulation)
 PetscErrorCode ChargeConservation::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t == 0) {
+  if (t == simulation.start) {
+    file_ = SyncFile(CONFIG().out_dir + "/temporal/charge_conservation.txt");
     PetscCall(write_header());
 
     for (auto& charge_density : charge_densities)

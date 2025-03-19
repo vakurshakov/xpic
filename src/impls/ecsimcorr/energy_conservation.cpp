@@ -12,8 +12,6 @@ namespace ecsimcorr {
 EnergyConservation::EnergyConservation(const Simulation& simulation)
   : simulation(simulation)
 {
-  file_ = SyncFile(CONFIG().out_dir + "/temporal/energy_conservation.txt");
-
   E = simulation.E;
   B = simulation.B;
   B0 = simulation.B0;
@@ -32,8 +30,10 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
   PetscFunctionBeginUser;
   PetscCall(VecAXPY(B, -1.0, B0));
 
-  if (t == 0) {
+  if (t == simulation.start) {
+    file_ = SyncFile(CONFIG().out_dir + "/temporal/energy_conservation.txt");
     PetscCall(write_header());
+
     fields_energy->calculate_energies();
     particles_energy->calculate_energies();
   }
