@@ -32,10 +32,10 @@ public:
   static void init(const std::string& config_path);
 
   /// @brief Stores the configuration json file. Overwrites the existing one, if present.
-  static void save();
+  static void save(const std::string& out_dir);
 
   /// @brief Stores the entire `src/` directory. Overwrites the existing one, if present.
-  static void save_sources();
+  static void save_sources(const std::string& out_dir);
 
   static bool is_loaded_from_backup();
 
@@ -48,8 +48,8 @@ public:
 private:
   std::string config_path_;
 
-  static void save(
-    const std::string& from, std::filesystem::copy_options options);
+  static void save(const std::string& from, const std::string& our_dir,
+    std::filesystem::copy_options options);
 
   Configuration() = default;
   static Configuration config;

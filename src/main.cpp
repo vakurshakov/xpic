@@ -18,7 +18,7 @@ int main(int argc, char** argv)
 
   try {
     Configuration::init(argv[1]);
-    Configuration::save();
+    Configuration::save(CONFIG().out_dir);
 
     Simulation_up simulation = build_simulation();
     PetscCall(simulation->initialize());

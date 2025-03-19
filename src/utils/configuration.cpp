@@ -35,22 +35,27 @@ void Configuration::init(const std::string& config_path)
 }
 
 
-/* static */ void Configuration::save()
+/* static */ void Configuration::save(const std::string& out_dir)
 {
-  save(config.config_path_, std::filesystem::copy_options::overwrite_existing);
+  save(config.config_path_, out_dir,
+    std::filesystem::copy_options::overwrite_existing);
 }
 
 
-/* static */ void Configuration::save_sources()
+/* static */ void Configuration::save_sources(const std::string& out_dir)
 {
-  save("src/",
+  std::filesystem::path src_dir = __FILE__;
+  src_dir = src_dir.parent_path();
+  src_dir = src_dir.parent_path();
+
+  save(src_dir, out_dir,
     std::filesystem::copy_options::overwrite_existing |
       std::filesystem::copy_options::recursive);
 }
 
 
-/* static */ void Configuration::save(
-  const std::string& from, std::filesystem::copy_options options)
+/* static */ void Configuration::save(const std::string& from,
+  const std::string& to, std::filesystem::copy_options options)
 {
   PetscInt rank;
   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
@@ -58,8 +63,8 @@ void Configuration::init(const std::string& config_path)
     return;
 
   try {
-    std::filesystem::create_directories(config.out_dir + "/");
-    std::filesystem::copy(from, config.out_dir + "/", options);
+    std::filesystem::create_directories(to);
+    std::filesystem::copy(from, to, options);
   }
   catch (const std::filesystem::filesystem_error& ex) {
     std::stringstream ss;

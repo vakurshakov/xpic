@@ -10,17 +10,20 @@ namespace {
 std::string_view help =
   "\nStructure of the SimulationBackup description:\n"
   "{\n"
-  "  \"diagnose_period\": X, -- Period between consecutive backups in\n"
-  "                          _1/w_pe_ units, this parameter is required.\n"
-  "  \"load_from\": Y -- Timestep in _dt_ units to load backups from.\n"
-  "                      Optional as it is needed only to force load.\n"
+  "  \"diagnose_period\": real, -- Period between consecutive backups in\n"
+  "                             _1/w_pe_ units, this parameter is required.\n"
+  "  \"load_from\": int -- Timestep in _dt_ units to load backups from.\n"
+  "                     Optional as it is needed only to force load.\n"
+  "  \"save_sources\": bool -- Optional boolean, triggers the\n"
+  "                         'Configuration::save_sources()'.\n"
   "}";
 
 }
 
 class SimulationBackupDiagBuilder : public DiagnosticBuilder {
 public:
-  SimulationBackupDiagBuilder(interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics);
+  SimulationBackupDiagBuilder(interfaces::Simulation& simulation,
+    std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& info) override;
 

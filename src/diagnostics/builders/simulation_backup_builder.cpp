@@ -33,6 +33,12 @@ PetscErrorCode SimulationBackupDiagBuilder::build(
   PetscInt dp = ROUND_STEP(dp_wp, dt);
   LOG("  Simulation backup diagnostic is added, diagnose period: {:.1f} [1/w_pe], {} [dt]", dp_wp, dp);
 
+  auto res_dir = CONFIG().out_dir + "/simulation_backup";
+  CONFIG().save(res_dir);
+
+  if (info.contains("save_sources") && (bool)info.at("save_sources"))
+    CONFIG().save_sources(res_dir + "/src");
+
   diagnostics_.emplace_back(make_simulation_backup(simulation_, dp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
