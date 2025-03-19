@@ -53,16 +53,16 @@ PetscErrorCode Simulation::log_information() const
   LOG("Note: Dimensionless units are used.");
   LOG("For reference, using density 1e13 cm^(-3):");
   LOG("  frequency,   w_pe = {:4e} [1/sec]", 5.64e+4 * n0);
-  LOG("  time,      1/w_pe = {:4e} [sec]", 1.77e-5 / n0);
-  LOG("  length,    c/w_pe = {:4e} [cm]", 5.32e+5 / n0);
+  LOG("  time,      1/w_pe = {:4e} [sec]",   1.77e-5 / n0);
+  LOG("  length,    c/w_pe = {:4e} [cm]",    5.32e+5 / n0);
   LOG("  electric field, E = {:4e} [MV/cm]", 9.63e-7 * n0);
-  LOG("  magnetic field, B = {:4e} [T]", 3.21e-7 * n0);
+  LOG("  magnetic field, B = {:4e} [T]",     3.21e-7 * n0);
 
   LOG("Geometric constants for the current setup:");
-  LOG("  (length along x axis) = {} [c/w_pe] = {} [dx]", geom_x, geom_nx);
-  LOG("  (length along y axis) = {} [c/w_pe] = {} [dy]", geom_y, geom_ny);
-  LOG("  (length along z axis) = {} [c/w_pe] = {} [dz]", geom_z, geom_nz);
-  LOG("  (simulation time)     = {} [1/w_pe] = {} [dt]", geom_t, geom_nt);
+  LOG("  Lx = {:.2f} [c/w_pe], Nx = {} [dx], dx = {:.2f}", geom_x, geom_nx, dx);
+  LOG("  Ly = {:.2f} [c/w_pe], Ny = {} [dy], dy = {:.2f}", geom_y, geom_ny, dy);
+  LOG("  Lz = {:.2f} [c/w_pe], Nz = {} [dz], dz = {:.2f}", geom_z, geom_nz, dz);
+  LOG("  Lt = {:.2f} [1/w_pe], Nt = {} [dt], dt = {:.2f}", geom_t, geom_nt, dt);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
