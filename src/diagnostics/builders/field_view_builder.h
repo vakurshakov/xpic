@@ -1,5 +1,5 @@
-#ifndef SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H
-#define SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H
+#ifndef SRC_DIAGNOSTICS_BUILDERS_FIELD_VIEW_BUILDER_H
+#define SRC_DIAGNOSTICS_BUILDERS_FIELD_VIEW_BUILDER_H
 
 #include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/diagnostics/field_view.h"
@@ -39,4 +39,4 @@ protected:
     const Configuration::json_t& info, std::string& suffix);
 };
 
-#endif  // SRC_BASIC_BUILDERS_FIELD_VIEW_BUILDER_H
+#endif  // SRC_DIAGNOSTICS_BUILDERS_FIELD_VIEW_BUILDER_H

@@ -1,5 +1,5 @@
-#ifndef SRC_BUILDERS_COMMAND_BUILDER_H
-#define SRC_BUILDERS_COMMAND_BUILDER_H
+#ifndef SRC_COMMANDS_BUILDERS_COMMAND_BUILDER_H
+#define SRC_COMMANDS_BUILDERS_COMMAND_BUILDER_H
 
 #include "src/pch.h"
 #include "src/interfaces/builder.h"
@@ -21,4 +21,4 @@ protected:
 PetscErrorCode build_commands(const interfaces::Simulation& simulation,
   std::string_view name, std::vector<Command_up>& result);
 
-#endif  // SRC_BUILDERS_COMMAND_BUILDER_H
+#endif  // SRC_COMMANDS_BUILDERS_COMMAND_BUILDER_H
