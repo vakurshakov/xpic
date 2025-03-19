@@ -20,14 +20,14 @@ PetscErrorCode Simulation::initialize()
   PetscLogStageRegister("Diagnostics run", &stagenums[1]);
 
   for (const Diagnostic_up& diagnostic : diagnostics_)
-    PetscCall(diagnostic->diagnose(0));
+    PetscCall(diagnostic->diagnose(start));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::calculate()
 {
   PetscFunctionBeginUser;
-  for (PetscInt t = start_ + 1; t <= geom_nt; ++t) {
+  for (PetscInt t = start + 1; t <= geom_nt; ++t) {
     LOG_FLUSH();
     LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
 

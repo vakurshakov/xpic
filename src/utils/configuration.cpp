@@ -75,6 +75,18 @@ void Configuration::init(const std::string& config_path)
   }
 }
 
+bool Configuration::is_loaded_from_backup()
+{
+  const json_t& json = config.json;
+
+  auto&& it = json.find("SimulationBackup");
+  if (it == json.end())
+    return false;
+
+  auto&& load_it = it->find("load_from");
+  return load_it != it->end() && load_it->is_number_integer();
+}
+
 
 void Configuration::get_boundaries_type(
   DMBoundaryType& bx, DMBoundaryType& by, DMBoundaryType& bz)
@@ -120,4 +132,3 @@ void Configuration::get_processors(PetscInt& px, PetscInt& py, PetscInt& pz)
   get("da_processors_y", py);
   get("da_processors_z", pz);
 }
-

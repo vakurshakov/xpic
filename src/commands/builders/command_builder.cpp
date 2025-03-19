@@ -5,6 +5,7 @@
 #include "src/commands/builders/remove_particles_builder.h"
 #include "src/commands/builders/set_magnetic_field_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
+#include "src/diagnostics/builders/simulation_backup_builder.h"
 
 CommandBuilder::CommandBuilder(
   interfaces::Simulation& simulation, std::vector<Command_up>& result)
@@ -15,16 +16,21 @@ CommandBuilder::CommandBuilder(
 PetscErrorCode build_commands(interfaces::Simulation& simulation,
   std::string_view name, std::vector<Command_up>& result)
 {
+  PetscFunctionBeginUser;
+  using namespace interfaces;
+
   const Configuration::json_t& config = CONFIG().json;
+
+  if (name == "Presets" && CONFIG().is_loaded_from_backup()) {
+    PetscCall(Builder::use_impl<SimulationBackupCommBuilder>(config.at("SimulationBackup"), simulation, result));
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
 
   auto&& it = config.find(name);
   if (it == config.end() || it->empty())
-    return PETSC_SUCCESS;
+    PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscFunctionBeginUser;
   LOG("Building commands from \"{}\"", name);
-
-  using namespace interfaces;
 
   for (auto&& info : *it) {
     std::string name;

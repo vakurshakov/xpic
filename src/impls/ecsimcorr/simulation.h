@@ -41,6 +41,9 @@ public:
   Vec get_named_vector(std::string_view name) override;
   Particles& get_named_particles(std::string_view name) override;
 
+  NamedValues<Vec> get_backup_fields() override;
+  NamedValues<interfaces::Particles*> get_backup_particles() override;
+
 private:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt t) override;

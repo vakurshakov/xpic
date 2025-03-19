@@ -17,6 +17,7 @@ public:
   virtual ~Simulation() = default;
 
   World world;
+  PetscInt start = 0;
 
   PetscErrorCode initialize();
   PetscErrorCode calculate();
@@ -24,12 +25,23 @@ public:
   virtual Vec get_named_vector(std::string_view name) = 0;
   virtual Particles& get_named_particles(std::string_view name) = 0;
 
+  template<typename T>
+  using NamedValues = std::map<std::string, T>;
+
+  virtual NamedValues<Vec> get_backup_fields()
+  {
+    return NamedValues<Vec>{};
+  }
+
+  virtual NamedValues<Particles*> get_backup_particles()
+  {
+    return NamedValues<Particles*>{};
+  }
+
 protected:
   virtual PetscErrorCode initialize_implementation() = 0;
   virtual PetscErrorCode timestep_implementation(PetscInt timestep) = 0;
   PetscErrorCode log_information() const;
-
-  PetscInt start_ = 0;
 
   std::vector<Command_up> step_presets_;
   std::vector<Diagnostic_up> diagnostics_;

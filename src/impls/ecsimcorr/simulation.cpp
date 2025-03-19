@@ -34,26 +34,14 @@ PetscErrorCode Simulation::initialize_implementation()
 
   LOG("Executing presets");
   for (auto&& preset : presets)
-    preset->execute(0);
+    preset->execute(start);
 
-  PetscCall(VecAXPY(B, 1.0, B0));
+  if (!CONFIG().is_loaded_from_backup())
+    PetscCall(VecAXPY(B, 1.0, B0));
 
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
-
-  /// @todo How to load it compatible with "Presets"
-  std::map<std::string, Vec> fields{{"E", E}, {"B", B}};
-  std::map<std::string, interfaces::Particles*> particles;
-
-  for (auto&& sort : particles_)
-    particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
-
-  auto&& d = std::make_unique<SimulationBackup>(
-    CONFIG().out_dir + "/simulation_backup/", diagnose_period, fields, particles);
-  // d->load(0);
-
-  diagnostics_.emplace_back(std::move(d));
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
@@ -667,6 +655,19 @@ Particles& Simulation::get_named_particles(std::string_view name)
   if (it == particles_.end())
     throw std::runtime_error("No particles with name " + std::string(name));
   return **it;
+}
+
+Simulation::NamedValues<Vec> Simulation::get_backup_fields()
+{
+  return NamedValues<Vec>{{"E", E}, {"B", B}, {"B0", B0}};
+}
+
+Simulation::NamedValues<interfaces::Particles*> Simulation::get_backup_particles()
+{
+  NamedValues<interfaces::Particles*> particles;
+  for (auto&& sort : particles_)
+    particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
+  return particles;
 }
 
 }  // namespace ecsimcorr

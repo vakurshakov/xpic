@@ -37,8 +37,8 @@ public:
   /// @brief Stores the entire `src/` directory. Overwrites the existing one, if present.
   static void save_sources();
 
-  /// @brief Getter of boundaries type, reads the config at
-  /// Geometry.da_boundary_{x, y, z}.
+  static bool is_loaded_from_backup();
+
   static void get_boundaries_type(
     DMBoundaryType& bx, DMBoundaryType& by, DMBoundaryType& bz);
 

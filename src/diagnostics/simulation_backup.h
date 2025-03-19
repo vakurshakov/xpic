@@ -12,7 +12,8 @@
  * `Diagnostic` - is used to embed its `save()` into common diagnostics pipeline.
  * `Command` - is used to alter the "Presets" behavior and call `load()`.
  */
-class SimulationBackup : public interfaces::Diagnostic, interfaces::Command {
+class SimulationBackup : public interfaces::Diagnostic,
+                         public interfaces::Command {
 public:
   SimulationBackup(const std::string& out_dir,  //
     PetscInt diagnose_period, std::map<std::string, Vec> fields,

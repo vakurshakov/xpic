@@ -3,6 +3,7 @@
 #include "src/diagnostics/builders/distribution_moment_builder.h"
 #include "src/diagnostics/builders/field_view_builder.h"
 #include "src/diagnostics/builders/log_view_builder.h"
+#include "src/diagnostics/builders/simulation_backup_builder.h"
 #include "src/utils/geometries.h"
 
 DiagnosticBuilder::DiagnosticBuilder(
@@ -15,16 +16,20 @@ DiagnosticBuilder::DiagnosticBuilder(
 PetscErrorCode build_diagnostics(
   interfaces::Simulation& simulation, std::vector<Diagnostic_up>& result)
 {
+  PetscFunctionBeginUser;
+  using namespace interfaces;
+
   const Configuration::json_t& config = CONFIG().json;
 
-  auto&& it = config.find("Diagnostics");
-  if (it == config.end() || it->empty())
-    return PETSC_SUCCESS;
-
-  PetscFunctionBeginUser;
   LOG("Building diagnostics");
 
-  using namespace interfaces;
+  auto&& it = config.find("SimulationBackup");
+  if (it != config.end() && !it->empty())
+    PetscCall(Builder::use_impl<SimulationBackupDiagBuilder>(*it, simulation, result));
+
+  it = config.find("Diagnostics");
+  if (it == config.end() || it->empty())
+    PetscFunctionReturn(PETSC_SUCCESS);
 
   for (auto&& info : *it) {
     std::string name;

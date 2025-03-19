@@ -101,6 +101,7 @@ PetscErrorCode SimulationBackup::load(PetscInt t)
   PetscCall(load_fields(t));
   PetscCall(load_particles(t));
   PetscCall(load_temporal_diagnostics(t));
+  LOG("  Simulation is successfully loaded from {:.1f} [1/w_pe], {} [dt]", t * dt, t);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
