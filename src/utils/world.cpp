@@ -11,13 +11,26 @@ World::World()
 PetscErrorCode World::initialize()
 {
   PetscFunctionBeginUser;
-  const PetscInt dof = Vector3R::dim;
-  const auto s = static_cast<PetscInt>(std::ceil(shape_radius));
-
   if (!CONFIG().json.empty()) {
+    const Configuration::json_t& geometry = CONFIG().json.at("Geometry");
+
+    set_geometry( //
+      geometry.at("x").get<PetscReal>(), //
+      geometry.at("y").get<PetscReal>(), //
+      geometry.at("z").get<PetscReal>(), //
+      geometry.at("t").get<PetscReal>(), //
+      geometry.at("dx").get<PetscReal>(), //
+      geometry.at("dy").get<PetscReal>(), //
+      geometry.at("dz").get<PetscReal>(), //
+      geometry.at("dt").get<PetscReal>(), //
+      geometry.at("diagnose_period").get<PetscReal>());
+
     Configuration::get_processors(REP3_A(procs));
     Configuration::get_boundaries_type(REP3_A(bounds));
   }
+
+  const PetscInt dof = Vector3R::dim;
+  const auto s = static_cast<PetscInt>(std::ceil(shape_radius));
 
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da));
   PetscCall(DMSetFromOptions(da));

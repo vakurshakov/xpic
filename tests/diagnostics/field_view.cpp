@@ -1,7 +1,7 @@
 #include "src/diagnostics/field_view.h"
 
 #include "src/utils/world.h"
-#include "tests/diagnostics/common.h"
+#include "tests/common.h"
 
 static char help[] =
   "Testing \'FieldView\' diagnostics: write, mpi-write, comparisons\n.";

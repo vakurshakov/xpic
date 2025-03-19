@@ -22,6 +22,7 @@
       "concat",
       "Constexpr",
       "cppcoreguidelines",
+      "cwpe",
       "DMDA",
       "EBLF",
       "ecsim",

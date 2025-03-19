@@ -3,7 +3,7 @@
 #include "src/interfaces/particles.h"
 #include "src/utils/geometries.h"
 #include "src/utils/world.h"
-#include "tests/diagnostics/common.h"
+#include "tests/common.h"
 
 static char help[] = "Testing save and load of simulation backup\n.";
 

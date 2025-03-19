@@ -10,28 +10,17 @@ const Configuration& Configuration::get()
   return config;
 }
 
+void Configuration::overwrite(json_t&& json)
+{
+  config.json = std::move(json);
+  config.json.at("OutputDirectory").get_to(config.out_dir);
+}
+
 void Configuration::init(const std::string& config_path)
 {
   config.config_path_ = config_path;
-
   std::ifstream file(config_path);
-  config.json = json_t::parse(file);
-
-  const json_t& json = config.json;
-  json.at("OutputDirectory").get_to(config.out_dir);
-
-  const json_t& geometry = json.at("Geometry");
-
-  World::set_geometry( //
-    geometry.at("x").get<PetscReal>(), //
-    geometry.at("y").get<PetscReal>(), //
-    geometry.at("z").get<PetscReal>(), //
-    geometry.at("t").get<PetscReal>(), //
-    geometry.at("dx").get<PetscReal>(), //
-    geometry.at("dy").get<PetscReal>(), //
-    geometry.at("dz").get<PetscReal>(), //
-    geometry.at("dt").get<PetscReal>(), //
-    geometry.at("diagnose_period").get<PetscReal>());
+  overwrite(json_t::parse(file));
 }
 
 

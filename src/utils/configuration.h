@@ -21,9 +21,15 @@ public:
 
   /**
    * @brief Retrieves the only instance (process local) of the Configuration class.
-   * @return Read only reference to `Configuration`.
+   * @returns Read only reference to `Configuration`.
    */
   static const Configuration& get();
+
+  /**
+   * @brief Overwrites underlying `json` and `out_dir`, should be called before `init()`.
+   * @warning This is mostly a utility to set up tests, we recommended to avoid it's direct usage.
+   */
+  static void overwrite(Configuration::json_t&& json);
 
   /**
    * @brief Initializes configuration class instance. Should be used before any get/save operations.
