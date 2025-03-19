@@ -75,7 +75,7 @@ PetscErrorCode SetCoilsField::operator()(Vec vec)
     r = std::hypot(sx, sy);
     arr[z][y][x][Y] += get_Br(sz, r) * sy / r;
 
-    sz = z * sz;
+    sz = z * dz;
     sx = ((PetscReal)x + 0.5) * dx - center_x;
     sy = ((PetscReal)y + 0.5) * dy - center_y;
     r = std::hypot(sx, sy);
