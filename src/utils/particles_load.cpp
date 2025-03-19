@@ -22,7 +22,7 @@ Vector3R CoordinateInBox::operator()()
 Vector3R CoordinateInCylinder::operator()()
 {
   PetscReal r = cyl.radius * std::sqrt(random_01());
-  PetscReal phi = 2.0 * std::numbers::pi * random_01();
+  PetscReal phi = 2.0 * M_PI * random_01();
 
   return Vector3R{
     cyl.center[X] + r * std::cos(phi),
@@ -44,7 +44,7 @@ CoordinateOnAnnulus::CoordinateOnAnnulus(const Vector3R& center,
 Vector3R CoordinateOnAnnulus::operator()()
 {
   PetscReal r = std::sqrt(inner_r2 + (outer_r2 - inner_r2) * random_01());
-  PetscReal phi = 2.0 * std::numbers::pi * random_01();
+  PetscReal phi = 2.0 * M_PI * random_01();
 
   return Vector3R{
     center[X] + r * cos(phi),
@@ -77,15 +77,15 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
 {
   Vector3R result{
     params.px +
-      std::sin(2.0 * std::numbers::pi * random_01()) *
+      std::sin(2.0 * M_PI * random_01()) *
         temperature_momentum(params.Tx, params.m),
 
     params.py +
-      std::sin(2.0 * std::numbers::pi * random_01()) *
+      std::sin(2.0 * M_PI * random_01()) *
         temperature_momentum(params.Ty, params.m),
 
     params.pz +
-      std::sin(2.0 * std::numbers::pi * random_01()) *
+      std::sin(2.0 * M_PI * random_01()) *
         temperature_momentum(params.Tz, params.m),
   };
 

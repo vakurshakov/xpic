@@ -27,8 +27,8 @@ int main(int argc, char** argv)
   Point point{r0, v0};
   Particles_up particles = prepare_electron(point);
 
-  // dt = 2.0 * std::numbers::pi / 20.0;
-  dt = 2.1 * std::numbers::pi;
+  // dt = 2.0 * M_PI / 20.0;
+  dt = 2.1 * M_PI;
 
   geom_t = 1000;
   geom_nt = ROUND_STEP(geom_t, dt);

@@ -25,7 +25,7 @@ int main(int argc, char** argv)
   Point point{r0, v0};
   Particles_up particles = prepare_electron(point);
 
-  dt = std::numbers::pi / 4.0;
+  dt = M_PI / 4.0;
   geom_nt = 100'000;
 
   PetscReal check_counter_clockwise = 0.0;

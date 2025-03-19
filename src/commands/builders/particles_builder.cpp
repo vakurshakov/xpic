@@ -31,7 +31,7 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
   else if (name == "CoordinateInCylinder") {
     CylinderGeometry cyl;
     load_geometry(info, cyl);
-    number_of_particles = std::numbers::pi * POW2(cyl.radius) * cyl.height * frac;
+    number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
     gen = CoordinateInCylinder(std::move(cyl));
   }
   else {
