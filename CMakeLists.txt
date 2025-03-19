@@ -51,6 +51,7 @@ set(diagnostics
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
   src/diagnostics/builders/log_view_builder.cpp
+  src/diagnostics/builders/simulation_backup_builder.cpp
 )
 
 set(commands

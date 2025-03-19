@@ -21,7 +21,7 @@
     "x": 10,
     "y": 10,
     "z": 10,
-    "t": 1,
+    "t": 10,
     "dx": 1.0,
     "dy": 1.0,
     "dz": 1.0,
@@ -40,7 +40,7 @@
   "Particles": [
     {
       "sort_name": "ions",
-      "Np": 1,
+      "Np": 100,
       "n": 1.0,
       "q": 1.0,
       "m": 100.0,
@@ -48,7 +48,7 @@
     },
     {
       "sort_name": "electrons",
-      "Np": 1,
+      "Np": 100,
       "n": 1.0,
       "q": -1.0,
       "m": 1.0,
@@ -103,5 +103,10 @@
     { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "Z", "position": 5 } },
     { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } },
     { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } }
-  ]
+  ],
+
+  "SimulationBackup": {
+    "diagnose_period": 3.0,
+    "load_from": 6
+  }
 }
