@@ -33,6 +33,7 @@ int main(int argc, char** argv)
     PetscCallMPI(MPI_Abort(PETSC_COMM_WORLD, EXIT_FAILURE));
   }
 
+  LOG_FLUSH();
   PetscCall(PetscFinalize());
   return EXIT_SUCCESS;
 }
