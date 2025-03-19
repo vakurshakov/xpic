@@ -34,8 +34,13 @@ PetscErrorCode SimulationBackup::save(PetscInt t) const
     PetscCall(save_particles(t));
     PetscCall(save_temporal_diagnostics(t));
 
-    t -= num_periods_being_kept * diagnose_period_;
-    std::filesystem::remove_all(std::format("{}/{}", out_dir_, t));
+    PetscMPIInt rank;
+    PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+
+    if (rank == 0) {
+      t -= num_periods_being_kept * diagnose_period_;
+      std::filesystem::remove_all(std::format("{}/{}", out_dir_, t));
+    }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -186,8 +191,13 @@ PetscErrorCode SimulationBackup::saveload_temporal_diagnostics(
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
-  std::filesystem::copy(from, to,
-    std::filesystem::copy_options::overwrite_existing |
-      std::filesystem::copy_options::recursive);
+  PetscMPIInt rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+
+  if (rank == 0)  {
+    std::filesystem::copy(from, to,
+      std::filesystem::copy_options::overwrite_existing |
+        std::filesystem::copy_options::recursive);
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

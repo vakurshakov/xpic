@@ -42,6 +42,6 @@
   "GetRank": {
     "scope": "c,cpp",
     "prefix": "grank",
-    "body": "PetscMPIInt rank; PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));\n",
+    "body": "PetscMPIInt rank;\nPetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));\n",
   }
 }

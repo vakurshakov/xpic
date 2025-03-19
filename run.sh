@@ -52,7 +52,7 @@ while read line; do
     *display_affinity*)
       OMP_DISPLAY_AFFINITY=$(parse "$line") ;;
   esac
-done < config.json
+done < $1  # config.json
 
 if (( MPI_NUM_PROC < 0 ))
 then
