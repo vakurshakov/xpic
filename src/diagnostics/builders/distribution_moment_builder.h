@@ -6,7 +6,7 @@
 
 class DistributionMomentBuilder : public FieldViewBuilder {
 public:
-  DistributionMomentBuilder(const interfaces::Simulation& simulation,
+  DistributionMomentBuilder(interfaces::Simulation& simulation,
     std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& info) override;

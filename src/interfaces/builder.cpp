@@ -3,8 +3,8 @@
 
 namespace interfaces {
 
-Builder::Builder(const Simulation& simulation)
-  : simulation_(const_cast<Simulation&>(simulation))
+Builder::Builder(Simulation& simulation)
+  : simulation_(simulation)
 {
 }
 

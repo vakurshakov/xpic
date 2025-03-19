@@ -5,7 +5,7 @@
 
 class LogViewBuilder : public DiagnosticBuilder {
 public:
-  LogViewBuilder(const interfaces::Simulation& simulation,
+  LogViewBuilder(interfaces::Simulation& simulation,
     std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& info) override;

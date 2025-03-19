@@ -7,14 +7,13 @@
 #include "src/commands/builders/set_particles_builder.h"
 
 CommandBuilder::CommandBuilder(
-  const interfaces::Simulation& simulation, std::vector<Command_up>& result)
+  interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : Builder(simulation), commands_(result)
 {
 }
 
-/* static */ PetscErrorCode build_commands(
-  const interfaces::Simulation& simulation, std::string_view name,
-  std::vector<Command_up>& result)
+PetscErrorCode build_commands(interfaces::Simulation& simulation,
+  std::string_view name, std::vector<Command_up>& result)
 {
   const Configuration::json_t& config = CONFIG().json;
 

@@ -6,7 +6,7 @@
 
 class FieldViewBuilder : public DiagnosticBuilder {
 public:
-  FieldViewBuilder(const interfaces::Simulation& simulation,
+  FieldViewBuilder(interfaces::Simulation& simulation,
     std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& info) override;

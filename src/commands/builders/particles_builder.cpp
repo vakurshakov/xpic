@@ -3,7 +3,7 @@
 namespace interfaces {
 
 ParticlesBuilder::ParticlesBuilder(
-  const interfaces::Simulation& simulation, std::vector<Command_up>& result)
+  interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : CommandBuilder(simulation, result)
 {
 }

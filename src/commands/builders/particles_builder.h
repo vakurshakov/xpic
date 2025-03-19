@@ -9,7 +9,7 @@ namespace interfaces {
 class ParticlesBuilder : public CommandBuilder {
 public:
   ParticlesBuilder(
-    const interfaces::Simulation& simulation, std::vector<Command_up>& result);
+    interfaces::Simulation& simulation, std::vector<Command_up>& result);
 
 protected:
   void load_coordinate(const Configuration::json_t& info,

@@ -2,7 +2,7 @@
 #define SRC_INTERFACES_BUILDER_H
 
 #include "src/pch.h"
-#include "src/impls/basic/simulation.h"
+#include "src/interfaces/simulation.h"
 #include "src/utils/configuration.h"
 #include "src/utils/geometries.h"
 
@@ -13,14 +13,14 @@ class Builder {
 public:
   DEFAULT_MOVABLE(Builder);
 
-  Builder(const Simulation& simulation);
+  Builder(Simulation& simulation);
   virtual ~Builder() = default;
 
   virtual PetscErrorCode build(const Configuration::json_t& info) = 0;
 
   template<class InheritedBuilder, class Container>
   static PetscErrorCode use_impl(const Configuration::json_t& info,
-    const interfaces::Simulation& simulation, Container& result)
+    interfaces::Simulation& simulation, Container& result)
   {
     PetscFunctionBeginUser;
     auto&& builder = std::make_unique<InheritedBuilder>(simulation, result);

@@ -3,7 +3,7 @@
 #include "src/utils/configuration.h"
 #include "src/utils/vector_utils.h"
 
-FieldViewBuilder::FieldViewBuilder(const interfaces::Simulation& simulation,
+FieldViewBuilder::FieldViewBuilder(interfaces::Simulation& simulation,
   std::vector<Diagnostic_up>& diagnostics)
   : DiagnosticBuilder(simulation, diagnostics)
 {

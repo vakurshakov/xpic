@@ -11,8 +11,8 @@ class DiagnosticBuilder : public interfaces::Builder {
 public:
   DEFAULT_MOVABLE(DiagnosticBuilder);
 
-  DiagnosticBuilder(const interfaces::Simulation& simulation,
-    std::vector<Diagnostic_up>& result);
+  DiagnosticBuilder(
+    interfaces::Simulation& simulation, std::vector<Diagnostic_up>& result);
 
 protected:
   using Diagnostics_vector = std::vector<Diagnostic_up>;
@@ -21,6 +21,6 @@ protected:
 
 
 PetscErrorCode build_diagnostics(
-  const interfaces::Simulation& simulation, std::vector<Diagnostic_up>& result);
+  interfaces::Simulation& simulation, std::vector<Diagnostic_up>& result);
 
 #endif  // SRC_DIAGNOSTICS_BUILDERS_DIAGNOSTIC_BUILDER_H

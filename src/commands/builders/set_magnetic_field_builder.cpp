@@ -3,7 +3,7 @@
 #include "src/commands/set_magnetic_field.h"
 
 SetMagneticFieldBuilder::SetMagneticFieldBuilder(
-  const interfaces::Simulation& simulation, std::vector<Command_up>& result)
+  interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : CommandBuilder(simulation, result)
 {
 }

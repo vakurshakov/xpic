@@ -5,15 +5,15 @@
 #include "src/diagnostics/builders/log_view_builder.h"
 #include "src/utils/geometries.h"
 
-DiagnosticBuilder::DiagnosticBuilder(const interfaces::Simulation& simulation,
-  std::vector<Diagnostic_up>& diagnostics)
+DiagnosticBuilder::DiagnosticBuilder(
+  interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
   : Builder(simulation), diagnostics_(diagnostics)
 {
 }
 
 
 PetscErrorCode build_diagnostics(
-  const interfaces::Simulation& simulation, std::vector<Diagnostic_up>& result)
+  interfaces::Simulation& simulation, std::vector<Diagnostic_up>& result)
 {
   const Configuration::json_t& config = CONFIG().json;
 
