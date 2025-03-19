@@ -3,8 +3,8 @@
 #include "src/diagnostics/log_view.h"
 #include "src/utils/configuration.h"
 
-LogViewBuilder::LogViewBuilder(interfaces::Simulation& simulation,
-  std::vector<Diagnostic_up>& diagnostics)
+LogViewBuilder::LogViewBuilder(
+  interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
   : DiagnosticBuilder(simulation, diagnostics)
 {
 }

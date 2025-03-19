@@ -194,7 +194,7 @@ PetscErrorCode SimulationBackup::saveload_temporal_diagnostics(
   PetscMPIInt rank;
   PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
 
-  if (rank == 0)  {
+  if (rank == 0) {
     std::filesystem::copy(from, to,
       std::filesystem::copy_options::overwrite_existing |
         std::filesystem::copy_options::recursive);

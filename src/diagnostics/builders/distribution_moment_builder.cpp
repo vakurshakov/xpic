@@ -4,8 +4,7 @@
 #include "src/utils/vector_utils.h"
 
 DistributionMomentBuilder::DistributionMomentBuilder(
-  interfaces::Simulation& simulation,
-  std::vector<Diagnostic_up>& diagnostics)
+  interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
   : FieldViewBuilder(simulation, diagnostics)
 {
 }
