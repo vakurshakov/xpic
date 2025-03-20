@@ -525,15 +525,15 @@ PetscErrorCode Simulation::init_ksp_solvers()
     {"correct", correct},
   };
 
-  static constexpr PetscReal atol = 1e-10;
-  static constexpr PetscReal rtol = 1e-10;
+  /// @note The default tolerances are following
+  // static constexpr PetscReal atol = 1e-50;
+  // static constexpr PetscReal rtol = 1e-05;
 
   for (auto&& [name, ksp] : map) {
     PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
     PetscCall(PetscObjectSetName((PetscObject)ksp, name.c_str()));
     PetscCall(KSPSetOptionsPrefix(ksp, (name + "_").c_str()));
 
-    PetscCall(KSPSetTolerances(ksp, atol, rtol, PETSC_CURRENT, PETSC_CURRENT));
     PetscCall(KSPSetErrorIfNotConverged(ksp, PETSC_TRUE));
     PetscCall(KSPSetReusePreconditioner(ksp, PETSC_TRUE));
     PetscCall(KSPSetFromOptions(ksp));
