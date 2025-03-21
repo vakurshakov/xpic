@@ -18,8 +18,10 @@ PetscErrorCode Simulation::initialize_implementation()
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rot_dt_p));
   PetscCall(rotor.create_negative(&rot_dt_m));
-  PetscCall(MatScale(rot_dt_p, -dt));
-  PetscCall(MatScale(rot_dt_m, +dt));
+
+  // For the reasoning see `timestep_implementation()`
+  PetscCall(MatScale(rot_dt_p, -(0.5 * dt)));
+  PetscCall(MatScale(rot_dt_m, +(1.0 * dt)));
 
   PetscCall(init_particles());
 
@@ -34,11 +36,48 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(build_diagnostics(*this, diagnostics_));
   // diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   // diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
+{
+  PetscFunctionBeginUser;
+  PetscCall(VecSet(J_, 0.0));
+
+  // B^{n} = B^{n-1/2} - rot(E^{n}) * (0.5 * dt)
+  PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));
+
+  for (auto& sort : particles_) {
+    PetscCall(sort->push());
+    PetscCall(sort->update_cells());
+  }
+
+  Vec util;
+  PetscReal norm;
+  PetscCall(DMGetGlobalVector(world.da, &util));
+
+  PetscCall(VecSet(util, 0.0));
+  PetscCall(VecCopy(E_, util));
+
+  // B^{n+1/2} = B^{n} - rot(E^{n}) * (0.5 * dt)
+  PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));
+
+  // E'^{n+1} = E^{n} + rot(B^{n+1/2}) * dt
+  PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));
+
+  // E^{n+1} = E'^{n+1} - J
+  PetscCall(VecAXPY(E_, -1, J_));
+
+  PetscCall(VecAXPY(util, -1, E_));
+  PetscCall(VecNorm(util, NORM_2, &norm));
+  LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
+
+  PetscCall(DMRestoreGlobalVector(world.da, &util));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
+/// @todo Is it a `Command`? Where it should be placed?
 PetscErrorCode Simulation::init_particles()
 {
   PetscFunctionBeginUser;
@@ -77,36 +116,6 @@ PetscErrorCode Simulation::init_particles()
     LOG("    thermal velocity, v_th = {:.3e} [c]", V);
     LOG("    cell-heating, Dx / L_d = {:.3e} [unit]", H);
   }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
-{
-  PetscFunctionBeginUser;
-  PetscCall(VecSet(J_, 0.0));
-
-  for (auto& sort : particles_) {
-    PetscCall(sort->push());
-    PetscCall(sort->update_cells());
-  }
-
-  Vec util;
-  PetscReal norm;
-  PetscCall(DMGetGlobalVector(world.da, &util));
-
-  PetscCall(VecSet(util, 0.0));
-  PetscCall(VecCopy(E_, util));
-
-  PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));  // B^{n+1} = B^{n} - rot(E) * dt
-  PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));  // E'^{n+1} = E^{n} + rot(B) * dt
-  PetscCall(VecAXPY(E_, -1, J_));  // E^{n+1} = E'^{n+1} - J
-
-  PetscCall(VecAXPY(util, -1, E_));
-  PetscCall(VecNorm(util, NORM_2, &norm));
-  LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
-
-  PetscCall(DMRestoreGlobalVector(world.da, &util));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
