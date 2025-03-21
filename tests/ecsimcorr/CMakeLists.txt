@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(tests
-  ex1
+  ecsimcorr_ex1
 )
 
 foreach(test ${tests})
