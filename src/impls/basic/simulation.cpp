@@ -11,9 +11,9 @@ PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
   DM da = world.da;
-  PetscCall(DMCreateGlobalVector(da, &E_));
-  PetscCall(DMCreateGlobalVector(da, &B_));
-  PetscCall(DMCreateGlobalVector(da, &J_));
+  PetscCall(DMCreateGlobalVector(da, &E));
+  PetscCall(DMCreateGlobalVector(da, &B));
+  PetscCall(DMCreateGlobalVector(da, &J));
 
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rot_dt_p));
@@ -42,10 +42,10 @@ PetscErrorCode Simulation::initialize_implementation()
 PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
 {
   PetscFunctionBeginUser;
-  PetscCall(VecSet(J_, 0.0));
+  PetscCall(VecSet(J, 0.0));
 
   // B^{n} = B^{n-1/2} - rot(E^{n}) * (0.5 * dt)
-  PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));
+  PetscCall(MatMultAdd(rot_dt_p, E, B, B));
 
   for (auto& sort : particles_) {
     PetscCall(sort->push());
@@ -57,18 +57,18 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
   PetscCall(DMGetGlobalVector(world.da, &util));
 
   PetscCall(VecSet(util, 0.0));
-  PetscCall(VecCopy(E_, util));
+  PetscCall(VecCopy(E, util));
 
   // B^{n+1/2} = B^{n} - rot(E^{n}) * (0.5 * dt)
-  PetscCall(MatMultAdd(rot_dt_p, E_, B_, B_));
+  PetscCall(MatMultAdd(rot_dt_p, E, B, B));
 
   // E'^{n+1} = E^{n} + rot(B^{n+1/2}) * dt
-  PetscCall(MatMultAdd(rot_dt_m, B_, E_, E_));
+  PetscCall(MatMultAdd(rot_dt_m, B, E, E));
 
   // E^{n+1} = E'^{n+1} - J
-  PetscCall(VecAXPY(E_, -1, J_));
+  PetscCall(VecAXPY(E, -1, J));
 
-  PetscCall(VecAXPY(util, -1, E_));
+  PetscCall(VecAXPY(util, -1, E));
   PetscCall(VecNorm(util, NORM_2, &norm));
   LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
 
@@ -122,11 +122,11 @@ PetscErrorCode Simulation::init_particles()
 Vec Simulation::get_named_vector(std::string_view name)
 {
   if (name == "E")
-    return E_;
+    return E;
   if (name == "B")
-    return B_;
+    return B;
   if (name == "J")
-    return J_;
+    return J;
   throw std::runtime_error("Unknown vector name " + std::string(name));
 }
 
@@ -139,9 +139,9 @@ Particles& Simulation::get_named_particles(std::string_view name)
 Simulation::~Simulation()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&E_));
-  PetscCallVoid(VecDestroy(&B_));
-  PetscCallVoid(VecDestroy(&J_));
+  PetscCallVoid(VecDestroy(&E));
+  PetscCallVoid(VecDestroy(&B));
+  PetscCallVoid(VecDestroy(&J));
   PetscCallVoid(MatDestroy(&rot_dt_p));
   PetscCallVoid(MatDestroy(&rot_dt_m));
   PetscFunctionReturnVoid();

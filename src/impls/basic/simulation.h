@@ -13,9 +13,9 @@ public:
   Simulation() = default;
   ~Simulation() override;
 
-  Vec E_;
-  Vec B_;
-  Vec J_;
+  Vec E;
+  Vec B;
+  Vec J;
   std::vector<std::unique_ptr<Particles>> particles_;
 
   Vec get_named_vector(std::string_view name) override;

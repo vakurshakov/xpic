@@ -23,6 +23,7 @@ Particles::~Particles()
 }
 
 
+/// @todo `DMGlobalToLocal()` should be made once on `Simulation` level
 PetscErrorCode Particles::push()
 {
   PetscFunctionBeginUser;
@@ -30,8 +31,8 @@ PetscErrorCode Particles::push()
   PetscCall(DMGetLocalVector(da, &local_E));
   PetscCall(DMGetLocalVector(da, &local_B));
 
-  PetscCall(DMGlobalToLocal(da, simulation_.E_, INSERT_VALUES, local_E));
-  PetscCall(DMGlobalToLocal(da, simulation_.B_, INSERT_VALUES, local_B));
+  PetscCall(DMGlobalToLocal(da, simulation_.E, INSERT_VALUES, local_E));
+  PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
   PetscCall(VecSet(local_J, 0.0));
 
   PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
@@ -61,7 +62,7 @@ PetscErrorCode Particles::push()
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
   PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
 
-  PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J_));
+  PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J));
 
   PetscCall(DMRestoreLocalVector(da, &local_E));
   PetscCall(DMRestoreLocalVector(da, &local_B));
