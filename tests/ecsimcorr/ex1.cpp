@@ -1,12 +1,16 @@
 #include "src/impls/ecsimcorr/simulation.h"
 #include "src/utils/configuration.h"
-#include "src/utils/world.h"
 #include "tests/common.h"
 
 static char help[] =
-  "Test of energy and charge conservation for ecsimcorr implementation.\n"
-  "Cube of size L=pi [c/w_pe] (N=32) is modeled in periodic boundaries\n"
-  "for 1000 cycles (dt=0.1 [1/w_pe]).\n";
+  "Test of energy and charge conservation for \"ecsimcorr\" implementation. \n"
+  "The simplest case is tested: plasma cube of size L=5.0 (N=10) is modeled \n"
+  "in periodic boundaries for 100 cycles (dt=1.5). There are only maxwellian\n"
+  "electrons with the temperature T=100 eV, ions are stationary background. \n";
+
+/// @todo Create `interfaces::Simulation::finalize()`, where we can destroy all petsc objects
+/// @todo At least parse the charge- and energy-conservation files to see the discrepancies
+/// @todo Create a binary files comparator to be able to tell where is the difference
 
 void overwrite_config();
 
@@ -15,7 +19,6 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  /// @todo Create `interfaces::Simulation::finalize()`, where we can destroy all petsc objects
   {
     overwrite_config();
 
@@ -30,41 +33,43 @@ int main(int argc, char** argv)
 
 void overwrite_config()
 {
-  static constexpr PetscReal size_cwpe = M_PI;
-  static constexpr PetscInt size_cell = 32;
+  dx = 0.5;
+  geom_nx = 10;
+  geom_x = geom_nx * dx;
 
-  static constexpr PetscReal cell_size =
-    size_cwpe / static_cast<PetscReal>(size_cell);
+  dt = 1.5;
+  geom_nt = 100;
+  geom_t = geom_nt * dt;
 
   Configuration::overwrite({
+    {"Simulation", "ecsimcorr"},
     {"OutputDirectory", get_out_dir(__FILE__)},
     {
       "Geometry",
       {
-        {"x", size_cwpe},
-        {"y", size_cwpe},
-        {"z", size_cwpe},
-        {"t", 3.0},
-        {"dx", cell_size},
-        {"dy", cell_size},
-        {"dz", cell_size},
-        {"dt", 0.1},
-        {"diagnose_period", 1.5},
+        {"x", geom_x},
+        {"y", geom_x},
+        {"z", geom_x},
+        {"t", geom_t},
+        {"dx", dx},
+        {"dy", dx},
+        {"dz", dx},
+        {"dt", dt},
+        {"diagnose_period", geom_t / 2},
         {"da_boundary_x", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_y", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_z", "DM_BOUNDARY_PERIODIC"},
       },
     },
     {
-      /// @note Ions are stationary background in this example
       "Particles",
       {{
         {"sort_name", "electrons"},
-        {"Np", 10},
+        {"Np", 100},
         {"n", +1.0},
         {"q", -1.0},
         {"m", +1.0},
-        {"T", +1.0},
+        {"T", +0.1},
       }},
     },
     {
@@ -77,7 +82,6 @@ void overwrite_config()
       }},
     },
     {
-      /// @todo Create a binary files comparator to be able to tell where is the difference
       "Diagnostics",
       {
         {{"diagnostic", "FieldView"}, {"field", "E"}},
