@@ -71,19 +71,22 @@ PetscErrorCode Simulation::log_information() const
 
 Simulation_up build_simulation()
 {
-  Simulation_up simulation = nullptr;
+  const Configuration::json_t& json = CONFIG().json;
 
   std::string simulation_str;
+  json.at("Simulation").get_to(simulation_str);
 
-  const Configuration& config = CONFIG();
-  config.json.at("Simulation").get_to(simulation_str);
+  Simulation_up simulation = nullptr;
 
   if (simulation_str == "basic")
-    return std::make_unique<basic::Simulation>();
-  if (simulation_str == "ricketson")
-    return std::make_unique<ricketson::Simulation>();
-  if (simulation_str == "ecsimcorr")
-    return std::make_unique<ecsimcorr::Simulation>();
+    simulation = std::make_unique<basic::Simulation>();
+  else if (simulation_str == "ricketson")
+    simulation = std::make_unique<ricketson::Simulation>();
+  else if (simulation_str == "ecsimcorr")
+    simulation = std::make_unique<ecsimcorr::Simulation>();
+  else
+    throw std::runtime_error("Unkown simulation is used: " + simulation_str);
 
-  throw std::runtime_error("Unkown simulation is used: " + simulation_str);
+  LOG("Simulation is built, scheme {}", simulation_str);
+  return simulation;
 }
