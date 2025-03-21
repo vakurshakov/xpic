@@ -239,7 +239,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 
   PetscCall(VecCopy(curr, rhs));  // rhs = curr
   PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * rhs)
-  PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + rotB(B^{n})
+  PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + dt * rotB(B^{n})
 
   PetscCall(KSPSolve(ksp, rhs, out));
   PetscCall(KSPGetSolution(ksp, &out));
@@ -506,8 +506,17 @@ PetscErrorCode Simulation::init_matrices()
   PetscCall(rotor.create_positive(&rotE));
   PetscCall(rotor.create_negative(&rotB));
 
-  RotorMult rotor_mult(da);
-  PetscCall(rotor_mult.create(&matM));  // matM = rotB(rotE())
+#if 0
+  /// @note I goofed up with this... Multiplication is implemented incorrectly
+  // RotorMult rotor_mult(da);
+  // PetscCall(rotor_mult.create(&matM));  // matM = rotB(rotE())
+#else
+  PetscCall(MatProductCreate(rotB, rotE, nullptr, &matM));
+  PetscCall(MatProductSetType(matM, MATPRODUCT_AB));
+  PetscCall(MatProductSetFromOptions(matM));
+  PetscCall(MatProductSymbolic(matM));
+  PetscCall(MatProductNumeric(matM));  // matM = rotB(rotE())
+#endif
   PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
   PetscCall(MatShift(matM, 2.0));  // matM = 2 * I + matM
 
