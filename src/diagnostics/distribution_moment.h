@@ -14,10 +14,7 @@ namespace ecsimcorr {
 class ChargeConservation;
 }
 
-/**
- * @brief Diagnostic of particles _coordinate_ distribution moment
- * @todo Collect more possible diagnostics (components) at once as for FieldView (?)
- */
+/// @brief Diagnostic of particles _coordinate_ distribution moment
 class DistributionMoment : public FieldView {
 public:
   DEFAULT_MOVABLE(DistributionMoment);
