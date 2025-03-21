@@ -82,21 +82,6 @@ private:
     MatStencil* coo_i, MatStencil* coo_j) const override;
 };
 
-class RotorMult final : public FiniteDifferenceOperator {
-public:
-  RotorMult(DM da);
-
-  /// @note Implements only `negative * positive` product
-  PetscErrorCode create(Mat* mat);
-
-private:
-  void fill_stencil(Yee_shift, PetscInt x, PetscInt y, PetscInt z,
-    MatStencil* coo_i, MatStencil* coo_j) const override;
-
-  using FiniteDifferenceOperator::create_negative;
-  using FiniteDifferenceOperator::create_positive;
-};
-
 class NonRectangularOperator : public FiniteDifferenceOperator {
 public:
   DEFAULT_MOVABLE(NonRectangularOperator);
