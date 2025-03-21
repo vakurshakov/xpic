@@ -9,7 +9,9 @@
 
 namespace interfaces {
 
-class Simulation {
+/// @todo Try to use a CRTP for Simulation and stub the default
+/// implementation of particles to `interfaces::Particles`
+ class Simulation {
 public:
   DEFAULT_MOVABLE(Simulation);
 

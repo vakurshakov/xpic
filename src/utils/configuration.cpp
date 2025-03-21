@@ -24,6 +24,7 @@ void Configuration::init(const std::string& config_path)
 }
 
 
+/// @todo Change this copy mechanism to _write_ config from `Configuration::json`
 /* static */ void Configuration::save(const std::string& out_dir)
 {
   save(config.config_path_, out_dir,

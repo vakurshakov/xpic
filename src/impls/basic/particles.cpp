@@ -11,10 +11,7 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
-  /// @note This local current is local to each particle!
-  /// It's can be useful for diagnosing it.
-  DM da = world.da;
-  PetscCallVoid(DMCreateLocalVector(da, &local_J));
+  PetscCallVoid(DMCreateLocalVector(world.da, &local_J));
   PetscFunctionReturnVoid();
 }
 
