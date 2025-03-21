@@ -15,6 +15,8 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &B));
   PetscCall(DMCreateGlobalVector(da, &J));
+  PetscCall(DMCreateLocalVector(da, &local_E));
+  PetscCall(DMCreateLocalVector(da, &local_B));
 
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rot_dt_p));
@@ -44,7 +46,7 @@ PetscErrorCode Simulation::initialize_implementation()
   auto&& f_diag = std::make_unique<FieldsEnergy>(world.da, E, B);
   auto&& p_diag = std::make_unique<ParticlesEnergy>(sorts);
 
-  diagnostics_.emplace_back(std::make_unique<ParticlesEnergy>(CONFIG().out_dir, sorts));
+  // diagnostics_.emplace_back(std::make_unique<ParticlesEnergy>(CONFIG().out_dir, sorts));
 
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(
     *this, std::move(f_diag), std::move(p_diag)));
@@ -57,15 +59,41 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
 {
   PetscFunctionBeginUser;
   PetscCall(VecSet(J, 0.0));
+  PetscCall(push_particles());
+  PetscCall(push_fields());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+PetscErrorCode Simulation::push_particles()
+{
+  PetscFunctionBeginUser;
   // B^{n} = B^{n-1/2} - rot(E^{n}) * (0.5 * dt)
   PetscCall(MatMultAdd(rot_dt_p, E, B, B));
 
+  DM da = world.da;
+  PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, local_E));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, local_B));
+
+  Vector3R*** arr_E;
+  Vector3R*** arr_B;
+  PetscCall(DMDAVecGetArrayRead(da, local_E, &arr_E));
+  PetscCall(DMDAVecGetArrayRead(da, local_B, &arr_B));
+
   for (auto& sort : particles_) {
+    sort->E = arr_E;
+    sort->B = arr_B;
     PetscCall(sort->push());
     PetscCall(sort->update_cells());
   }
 
+  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &arr_E));
+  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::push_fields()
+{
+  PetscFunctionBeginUser;
   Vec util;
   PetscReal norm;
   PetscCall(DMGetGlobalVector(world.da, &util));
@@ -89,7 +117,6 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
   PetscCall(DMRestoreGlobalVector(world.da, &util));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 /// @todo Is it a `Command`? Where it should be placed?
 PetscErrorCode Simulation::init_particles()
@@ -156,6 +183,8 @@ Simulation::~Simulation()
   PetscCallVoid(VecDestroy(&E));
   PetscCallVoid(VecDestroy(&B));
   PetscCallVoid(VecDestroy(&J));
+  PetscCallVoid(VecDestroy(&local_E));
+  PetscCallVoid(VecDestroy(&local_B));
   PetscCallVoid(MatDestroy(&rot_dt_p));
   PetscCallVoid(MatDestroy(&rot_dt_m));
   PetscFunctionReturnVoid();

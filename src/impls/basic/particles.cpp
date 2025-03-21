@@ -15,28 +15,11 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   PetscFunctionReturnVoid();
 }
 
-Particles::~Particles()
-{
-  PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&local_J));
-  PetscFunctionReturnVoid();
-}
-
-
-/// @todo `DMGlobalToLocal()` should be made once on `Simulation` level
 PetscErrorCode Particles::push()
 {
   PetscFunctionBeginUser;
   DM da = world.da;
-  PetscCall(DMGetLocalVector(da, &local_E));
-  PetscCall(DMGetLocalVector(da, &local_B));
-
-  PetscCall(DMGlobalToLocal(da, simulation_.E, INSERT_VALUES, local_E));
-  PetscCall(DMGlobalToLocal(da, simulation_.B, INSERT_VALUES, local_B));
   PetscCall(VecSet(local_J, 0.0));
-
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &B));
   PetscCall(DMDAVecGetArrayWrite(da, local_J, &J));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
@@ -58,17 +41,10 @@ PetscErrorCode Particles::push()
     }
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &B));
   PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
-
   PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J));
-
-  PetscCall(DMRestoreLocalVector(da, &local_E));
-  PetscCall(DMRestoreLocalVector(da, &local_B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 void Particles::interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const
 {
@@ -76,13 +52,11 @@ void Particles::interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) co
   interpolation.process({{E_p, E}}, {{B_p, B}});
 }
 
-
 void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const
 {
   BorisPush push(dt, E_p, B_p);
   push.process_rel(point, *this);
 }
-
 
 void Particles::decompose(const Shape& shape, const Point& point)
 {
@@ -91,6 +65,13 @@ void Particles::decompose(const Shape& shape, const Point& point)
 
   EsirkepovDecomposition decomposition(shape, alpha);
   decomposition.process(J);
+}
+
+Particles::~Particles()
+{
+  PetscFunctionBeginUser;
+  PetscCallVoid(VecDestroy(&local_J));
+  PetscFunctionReturnVoid();
 }
 
 }  // namespace basic

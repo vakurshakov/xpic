@@ -24,15 +24,15 @@ public:
 
   void fill_ecsim_current(PetscInt g, PetscReal* coo_v);
 
+  Vector3R*** E;
+  Vector3R*** B;
+
   Vec local_currI;
   Vec local_currJe;
   Vec global_currI;
   Vec global_currJe;
   Vector3R*** currI;
   Vector3R*** currJe;
-
-  Vector3R*** E;
-  Vector3R*** B;
 
 private:
 #if (PARTICLES_FORM_FACTOR == 2)
