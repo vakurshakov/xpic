@@ -1,4 +1,4 @@
-#include "src/impls/ecsimcorr/energy_conservation.h"
+#include "energy_conservation.h"
 
 #include <iomanip>
 
@@ -7,33 +7,24 @@
 #include "src/commands/remove_particles.h"
 #include "src/utils/configuration.h"
 
-namespace ecsimcorr {
-
-EnergyConservation::EnergyConservation(const Simulation& simulation)
-  : simulation(simulation)
+EnergyConservation::EnergyConservation( //
+  const interfaces::Simulation& simulation,
+  std::shared_ptr<FieldsEnergy> fields_energy,
+  std::shared_ptr<ParticlesEnergy> particles_energy)
+  : file_(SyncFile(CONFIG().out_dir + "/temporal/energy_conservation.txt")),
+    simulation(simulation),
+    fields_energy(fields_energy),
+    particles_energy(particles_energy)
 {
-  E = simulation.E;
-  B = simulation.B;
-  B0 = simulation.B0;
-
-  fields_energy = std::make_unique<FieldsEnergy>(simulation.world.da, E, B);
-
-  std::vector<const interfaces::Particles*> storage;
-  for (const auto& particles : simulation.particles_)
-    storage.push_back(particles.get());
-
-  particles_energy = std::make_unique<ParticlesEnergy>(storage);
 }
 
 PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  PetscCall(VecAXPY(B, -1.0, B0));
+  // PetscCall(VecAXPY(B, -1.0, B0));
 
   if (t == simulation.start) {
-    file_ = SyncFile(CONFIG().out_dir + "/temporal/energy_conservation.txt");
     PetscCall(write_header());
-
     fields_energy->calculate_energies();
     particles_energy->calculate_energies();
   }
@@ -59,9 +50,6 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
   for (PetscInt i = 0; i < (PetscInt)K.size(); ++i) {
     output(K[i] - K0[i]);
     dK += K[i] - K0[i];
-
-    const auto& particles = simulation.particles_[i];
-    output(particles->lambda_dK);
   }
 
   for (const auto& command : simulation.step_presets_) {
@@ -80,21 +68,13 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
     }
   }
 
-  /// @note Esirkepov current finally created electric field, so its work should be used
-  PetscReal corr_w = 0.0;
-  for (const auto& particles : simulation.particles_)
-    corr_w += dt * particles->corr_w;
-
   output(dF + dK);
-  output(dF + corr_w);
-  output(std::abs(dK - corr_w));
-
   file_() << "\n";
 
   if (t % diagnose_period_ == 0)
     file_.flush();
 
-  PetscCall(VecAXPY(B, +1.0, B0));
+  // PetscCall(VecAXPY(B, +1.0, B0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -103,12 +83,10 @@ PetscErrorCode EnergyConservation::write_header()
   PetscFunctionBeginUser;
   file_() << "Delta(E)\tDelta(B)\t";
 
-  for (const auto& particles : simulation.particles_) {
+  for (const auto& particles : particles_energy->particles_) {
     auto&& name = particles->parameters.sort_name;
     file_() << "Delta(K_" << name << ")\t";
-    file_() << "Lambda(dK_" << name << ")\t";
   }
-
 
   for (const auto& command : simulation.step_presets_) {
     if (dynamic_cast<FieldsDamping*>(command.get()))
@@ -122,11 +100,6 @@ PetscErrorCode EnergyConservation::write_header()
   }
 
   file_() << "Total(dE+dB+dK)\t";
-  file_() << "Total(dE+dB+dt*JE)\t";
-  file_() << "Work(|dK-dt*JE|)\t";
-
   file_() << "\n";
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-}  // namespace ecsimcorr

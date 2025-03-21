@@ -1,21 +1,20 @@
 #ifndef SRC_DIAGNOSTICS_PARTICLES_ENERGY_H
 #define SRC_DIAGNOSTICS_PARTICLES_ENERGY_H
 
-#include <petscdmda.h>
-#include <petscvec.h>
-
 #include "src/pch.h"
 #include "src/interfaces/diagnostic.h"
 #include "src/interfaces/particles.h"
-#include "src/utils/sync_binary_file.h"
-#include "src/utils/vector3.h"
+#include "src/utils/sync_file.h"
 
 class ParticlesEnergy : public interfaces::Diagnostic {
-public:
-  using ParticlesPointersVector = std::vector<const interfaces::Particles*>;
+  friend class EnergyConservation;
 
-  ParticlesEnergy(ParticlesPointersVector particles);
-  ParticlesEnergy(const std::string& out_dir, ParticlesPointersVector particles);
+public:
+  ParticlesEnergy(std::vector<const interfaces::Particles*> particles);
+
+  ParticlesEnergy( //
+    const std::string& out_dir, //
+    std::vector<const interfaces::Particles*> particles);
 
   PetscErrorCode diagnose(PetscInt t) override;
   PetscErrorCode calculate_energies();
@@ -24,9 +23,9 @@ public:
   static PetscReal get(const Vector3R& p, PetscReal m, PetscInt Np);
 
 private:
-  SyncBinaryFile file_;
+  SyncFile file_;
 
-  ParticlesPointersVector particles_;
+  std::vector<const interfaces::Particles*> particles_;
   std::vector<Vector3R> energies_;
 };
 

@@ -2,34 +2,48 @@
 
 #include "src/utils/utils.h"
 
-ParticlesEnergy::ParticlesEnergy(ParticlesPointersVector particles)
+ParticlesEnergy::ParticlesEnergy(
+  std::vector<const interfaces::Particles*> particles)
   : particles_(std::move(particles))
 {
   std::fill_n(std::back_inserter(energies_), particles_.size(), 0);
 }
 
 
-ParticlesEnergy::ParticlesEnergy(
-  const std::string& out_dir, ParticlesPointersVector particles)
+ParticlesEnergy::ParticlesEnergy(const std::string& out_dir,
+  std::vector<const interfaces::Particles*> particles)
   : interfaces::Diagnostic(out_dir),
-    file_(SyncBinaryFile(out_dir_ + "/fields_energy.bin")),
+    file_(SyncFile(out_dir_ + "/temporal/particles_energy.txt")),
     particles_(std::move(particles))
 {
+  std::fill_n(std::back_inserter(energies_), particles_.size(), 0);
 }
 
 PetscErrorCode ParticlesEnergy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
+  if (t == 0) {
+    for (const auto& particles : particles_) {
+      const auto& name = particles->parameters.sort_name;
+      file_() << std::format("{:>14s}  ", "Kx_" + name);
+      file_() << std::format("{:>14s}  ", "Ky_" + name);
+      file_() << std::format("{:>14s}  ", "Kz_" + name);
+      file_() << std::format("{:>14s}  ", "K_" + name);
+    }
+    file_() << std::format("{:>14s}", "Total(K)") << "\n";
+  }
+
   PetscCall(calculate_energies());
 
   PetscReal total = 0.0;
-
   for (const auto& energy : energies_) {
-    PetscCall(file_.write_floats(3, energy.data));
+    file_() << std::format("{:.8e}  ", energy[X]);
+    file_() << std::format("{:.8e}  ", energy[Y]);
+    file_() << std::format("{:.8e}  ", energy[Z]);
+    file_() << std::format("{:.8e}  ", energy.elements_sum());
     total += energy.elements_sum();
   }
-
-  PetscCall(file_.write_floats(1, &total));
+  file_() << std::format("{:.8e}", total) << "\n";
 
   if (t % diagnose_period_ == 0)
     file_.flush();

@@ -7,11 +7,15 @@
 #include "src/interfaces/particles.h"
 #include "src/utils/world.h"
 
+class EnergyConservation;
+
 namespace interfaces {
 
 /// @todo Try to use a CRTP for Simulation and stub the default
 /// implementation of particles to `interfaces::Particles`
- class Simulation {
+class Simulation {
+  friend class ::EnergyConservation;
+
 public:
   DEFAULT_MOVABLE(Simulation);
 

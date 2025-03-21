@@ -161,7 +161,7 @@ PPIndentWidth: 2
 QualifierAlignment: Left
 ReferenceAlignment: Pointer
 ReflowComments: true
-RemoveBracesLLVM: true
+RemoveBracesLLVM: false
 RemoveParentheses: MultipleParentheses
 RemoveSemicolon: true
 RequiresClausePosition: OwnLine
