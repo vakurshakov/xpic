@@ -647,16 +647,10 @@ Vec Simulation::get_named_vector(std::string_view name)
 
 Particles& Simulation::get_named_particles(std::string_view name)
 {
-  auto it = std::find_if(particles_.begin(), particles_.end(),  //
-    [&](const auto& sort) {
-      return sort->parameters.sort_name == name;
-    });
-
-  if (it == particles_.end())
-    throw std::runtime_error("No particles with name " + std::string(name));
-  return **it;
+  return interfaces::Simulation::get_named_particles(name, particles_);
 }
 
+/// @todo Replace it with `std::vector<Vec>` and `PetscObjectSetName()`
 Simulation::NamedValues<Vec> Simulation::get_backup_fields()
 {
   return NamedValues<Vec>{{"E", E}, {"B", B}, {"B0", B0}};

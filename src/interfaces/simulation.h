@@ -54,14 +54,13 @@ protected:
   static auto&& get_named_particles(
     std::string_view name, ParticlesContainer& storage)
   {
-    auto it = std::find_if(storage.begin(), storage.end(),  //
-      [&](const auto& sort) {
-        return sort.parameters.sort_name == name;
-      });
+    auto it = std::find_if(storage.begin(), storage.end(), [&](const auto& sort) {
+      return sort->parameters.sort_name == name;
+    });
 
     if (it == storage.end())
       throw std::runtime_error("No particles with name " + std::string(name));
-    return *it;
+    return **it;
   }
 };
 

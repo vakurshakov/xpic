@@ -16,7 +16,7 @@ public:
   Vec E_;
   Vec B_;
   Vec DB_;
-  std::vector<Particles> particles_;
+  std::vector<std::unique_ptr<Particles>> particles_;
 
   PetscErrorCode calculate_b_norm_gradient();
 

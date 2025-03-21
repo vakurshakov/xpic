@@ -16,12 +16,14 @@ public:
   Vec E_;
   Vec B_;
   Vec J_;
-  std::vector<Particles> particles_;
+  std::vector<std::unique_ptr<Particles>> particles_;
 
   Vec get_named_vector(std::string_view name) override;
   Particles& get_named_particles(std::string_view name) override;
 
 private:
+  PetscErrorCode init_particles();
+
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt timestep) override;
 

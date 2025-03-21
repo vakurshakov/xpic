@@ -58,7 +58,7 @@ PetscErrorCode Simulation::initialize_implementation()
     .q = +1.0,
     .m = +1.0,
   };
-  auto& sort = particles_.emplace_back(*this, parameters);
+  auto& sort = particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
 
   const PetscReal v_crit = std::sqrt(9.8342 - 1);
   const PetscReal factor = 0.3;
@@ -66,7 +66,7 @@ PetscErrorCode Simulation::initialize_implementation()
   Vector3R r = {0, 0.02, 0};
   Vector3R v = {1, 0, factor * v_crit};
 
-  sort.add_particle(Point{r, v});
+  sort->add_particle(Point{r, v});
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -134,7 +134,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
   PetscCall(calculate_b_norm_gradient());
 
   for (auto& sort : particles_)
-    PetscCall(sort.push());
+    PetscCall(sort->push());
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
