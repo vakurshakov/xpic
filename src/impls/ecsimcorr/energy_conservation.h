@@ -1,35 +1,27 @@
 #ifndef SRC_ECSIMCORR_ENERGY_CONSERVATION_H
 #define SRC_ECSIMCORR_ENERGY_CONSERVATION_H
 
-#include "src/interfaces/diagnostic.h"
-#include "src/diagnostics/fields_energy.h"
-#include "src/diagnostics/particles_energy.h"
+#include "src/diagnostics/energy_conservation.h"
 #include "src/impls/ecsimcorr/simulation.h"
-#include "src/utils/sync_file.h"
 
 namespace ecsimcorr {
 
-class EnergyConservation : public interfaces::Diagnostic {
+class EnergyConservation : public ::EnergyConservation {
 public:
   DEFAULT_MOVABLE(EnergyConservation);
 
-  EnergyConservation(const Simulation& simulation);
+  EnergyConservation(const ecsimcorr::Simulation& simulation);
 
-  PetscErrorCode diagnose(PetscInt t) override;
+  EnergyConservation( //
+    const interfaces::Simulation& simulation,
+    std::shared_ptr<FieldsEnergy> fields_energy,
+    std::shared_ptr<ParticlesEnergy> particles_energy);
 
 private:
-  PetscErrorCode write_header();
+  PetscErrorCode add_titles() override;
+  PetscErrorCode add_args() override;
 
-  const Simulation& simulation;
-
-  SyncFile file_;
-
-  Vec E;
-  Vec B;
-  Vec B0;
-
-  std::unique_ptr<FieldsEnergy> fields_energy;
-  std::unique_ptr<ParticlesEnergy> particles_energy;
+  Vec B, B0;
 };
 
 }  // namespace ecsimcorr

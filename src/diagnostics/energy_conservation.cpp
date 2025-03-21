@@ -9,10 +9,15 @@ EnergyConservation::EnergyConservation( //
   const interfaces::Simulation& simulation,
   std::shared_ptr<FieldsEnergy> fields_energy,
   std::shared_ptr<ParticlesEnergy> particles_energy)
-  : file_(SyncFile(CONFIG().out_dir + "/temporal/energy_conservation.txt")),
+  : file_(SyncFile(CONFIG().out_dir + "/" + filename_)),
     simulation(simulation),
     fields_energy(fields_energy),
     particles_energy(particles_energy)
+{
+}
+
+EnergyConservation::EnergyConservation(const interfaces::Simulation& simulation)
+  : simulation(simulation)
 {
 }
 
@@ -42,8 +47,7 @@ PetscErrorCode EnergyConservation::add_titles()
   add_title("dB");
 
   for (const auto& particles : particles_energy->particles_) {
-    auto&& name = particles->parameters.sort_name;
-    add_title("dK_" + name);
+    add_title("dK_" + particles->parameters.sort_name);
   }
 
   for (const auto& command : simulation.step_presets_) {
@@ -59,7 +63,7 @@ PetscErrorCode EnergyConservation::add_titles()
     }
   }
 
-  add_title("Tot(dE+dB+dK)");
+  add_title("dE+dB+dK");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

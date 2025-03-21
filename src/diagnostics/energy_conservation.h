@@ -16,14 +16,17 @@ public:
     std::shared_ptr<FieldsEnergy> fields_energy,
     std::shared_ptr<ParticlesEnergy> particles_energy);
 
-  PetscErrorCode diagnose(PetscInt t) override;
+  PetscErrorCode diagnose(PetscInt t) final;
 
-private:
-  PetscErrorCode add_titles();
-  PetscErrorCode add_args();
+protected:
+  EnergyConservation(const interfaces::Simulation&);
+
+  virtual PetscErrorCode add_titles();
+  virtual PetscErrorCode add_args();
 
   template<typename T>
-  PetscErrorCode write_formatted(std::format_string<const T&> fmt, std::vector<T>& container)
+  PetscErrorCode write_formatted(
+    std::format_string<const T&> fmt, std::vector<T>& container)
   {
     PetscFunctionBeginUser;
     for (const auto& value : container) {
@@ -49,6 +52,9 @@ private:
       container.push_back(value);
     }
   }
+
+  const std::string filename_ = //
+    "temporal/energy_conservation.txt";
 
   SyncFile file_;
   std::vector<PetscReal> args_;

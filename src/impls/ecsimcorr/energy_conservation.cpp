@@ -1,131 +1,74 @@
-#include "src/impls/ecsimcorr/energy_conservation.h"
+#include "energy_conservation.h"
 
-#include <iomanip>
-
-#include "src/commands/fields_damping.h"
-#include "src/commands/inject_particles.h"
-#include "src/commands/remove_particles.h"
 #include "src/utils/configuration.h"
 
 namespace ecsimcorr {
 
 EnergyConservation::EnergyConservation(const Simulation& simulation)
-  : simulation(simulation)
+  : ::EnergyConservation(simulation)
+
 {
-  E = simulation.E;
+  PetscCallVoid(file_.open(CONFIG().out_dir + "/" + filename_));
   B = simulation.B;
   B0 = simulation.B0;
 
-  fields_energy = std::make_unique<FieldsEnergy>(simulation.world.da, E, B);
+  fields_energy = std::make_unique<FieldsEnergy>(
+    simulation.world.da, simulation.E, simulation.B);
 
   std::vector<const interfaces::Particles*> storage;
   for (const auto& particles : simulation.particles_)
     storage.push_back(particles.get());
-
   particles_energy = std::make_unique<ParticlesEnergy>(storage);
 }
 
-PetscErrorCode EnergyConservation::diagnose(PetscInt t)
+EnergyConservation::EnergyConservation( //
+  const interfaces::Simulation& simulation,
+  std::shared_ptr<FieldsEnergy> fields_energy,
+  std::shared_ptr<ParticlesEnergy> particles_energy)
+  : ::EnergyConservation(simulation, fields_energy, particles_energy)
+{
+  auto&& _simulation = dynamic_cast<const ecsimcorr::Simulation&>(simulation);
+  B = _simulation.B;
+  B0 = _simulation.B0;
+}
+
+PetscErrorCode EnergyConservation::add_titles()
+{
+  PetscFunctionBeginUser;
+  PetscCall(::EnergyConservation::add_titles());
+
+  PetscInt off = 2;
+  for (const auto& particles : particles_energy->particles_) {
+    off++;
+    add_title("λdK_" + particles->parameters.sort_name, off);
+  }
+
+  add_title("dE+dB+dt*JE");
+  add_title("|dK-dt*JE|");
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode EnergyConservation::add_args()
 {
   PetscFunctionBeginUser;
   PetscCall(VecAXPY(B, -1.0, B0));
+  PetscCall(::EnergyConservation::add_args());
 
-  if (t == simulation.start) {
-    file_ = SyncFile(CONFIG().out_dir + "/temporal/energy_conservation.txt");
-    PetscCall(write_header());
-
-    fields_energy->calculate_energies();
-    particles_energy->calculate_energies();
-  }
-
-  auto output = [&](PetscReal x) {
-    file_() << std::setw(14) << x;
-  };
-
-  PetscReal prev_E = fields_energy->get_electric_energy();
-  PetscReal prev_B = fields_energy->get_magnetic_energy();
-  fields_energy->calculate_energies();
-  PetscReal dE = fields_energy->get_electric_energy() - prev_E;
-  PetscReal dB = fields_energy->get_magnetic_energy() - prev_B;
-  PetscReal dF = dE + dB;
-  output(dE);
-  output(dB);
-
-  PetscReal dK = 0.0;
-  auto&& K0 = particles_energy->get_energies();
-  particles_energy->calculate_energies();
-  auto&& K = particles_energy->get_energies();
-
-  for (PetscInt i = 0; i < (PetscInt)K.size(); ++i) {
-    output(K[i] - K0[i]);
-    dK += K[i] - K0[i];
-
-    const auto& particles = simulation.particles_[i];
-    output(particles->lambda_dK);
-  }
-
-  for (const auto& command : simulation.step_presets_) {
-    if (auto&& damp = dynamic_cast<FieldsDamping*>(command.get())) {
-      output(damp->get_damped_energy());
-      dF += damp->get_damped_energy();
-    }
-    if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
-      output(injection->get_ionized_energy());
-      output(injection->get_ejected_energy());
-      dK -= injection->get_ionized_energy() + injection->get_ejected_energy();
-    }
-    if (auto&& remove = dynamic_cast<RemoveParticles*>(command.get())) {
-      output(remove->get_removed_energy());
-      dK += remove->get_removed_energy();
-    }
+  PetscInt off = 2;
+  for (const auto& particles : particles_energy->particles_) {
+    off++;
+    add_arg(dynamic_cast<const ecsimcorr::Particles*>(particles)->lambda_dK, off);
   }
 
   /// @note Esirkepov current finally created electric field, so its work should be used
   PetscReal corr_w = 0.0;
-  for (const auto& particles : simulation.particles_)
-    corr_w += dt * particles->corr_w;
+  for (const auto& particles : particles_energy->particles_) {
+    corr_w += dt * dynamic_cast<const ecsimcorr::Particles*>(particles)->corr_w;
+  }
 
-  output(dF + dK);
-  output(dF + corr_w);
-  output(std::abs(dK - corr_w));
-
-  file_() << "\n";
-
-  if (t % diagnose_period_ == 0)
-    file_.flush();
-
+  add_arg(dF + corr_w);
+  add_arg(std::abs(dK - corr_w));
   PetscCall(VecAXPY(B, +1.0, B0));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode EnergyConservation::write_header()
-{
-  PetscFunctionBeginUser;
-  file_() << "Delta(E)\tDelta(B)\t";
-
-  for (const auto& particles : simulation.particles_) {
-    auto&& name = particles->parameters.sort_name;
-    file_() << "Delta(K_" << name << ")\t";
-    file_() << "Lambda(dK_" << name << ")\t";
-  }
-
-
-  for (const auto& command : simulation.step_presets_) {
-    if (dynamic_cast<FieldsDamping*>(command.get()))
-      file_() << "Damped(dE+dB)\t";
-    if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
-      file_() << "Inj_" << injection->get_ionized_name() << "\t";
-      file_() << "Inj_" << injection->get_ejected_name() << "\t";
-    }
-    if (auto&& remove = dynamic_cast<RemoveParticles*>(command.get()))
-      file_() << "Rm_" << remove->get_particles_name() << "\t";
-  }
-
-  file_() << "Total(dE+dB+dK)\t";
-  file_() << "Total(dE+dB+dt*JE)\t";
-  file_() << "Work(|dK-dt*JE|)\t";
-
-  file_() << "\n";
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
