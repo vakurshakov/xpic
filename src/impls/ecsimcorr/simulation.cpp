@@ -2,9 +2,7 @@
 
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
-#include "src/diagnostics/mat_dump.h"
-#include "src/diagnostics/simulation_backup.h"
-#include "src/impls/ecsimcorr/charge_conservation.h"
+#include "src/diagnostics/charge_conservation.h"
 #include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/utils/operators.h"
 #include "src/utils/particles_load.hpp"
@@ -39,9 +37,19 @@ PetscErrorCode Simulation::initialize_implementation()
   if (!CONFIG().is_loaded_from_backup())
     PetscCall(VecAXPY(B, 1.0, B0));
 
+  std::vector<Vec> currents;
+  std::vector<const interfaces::Particles*> particles;
+  for (const auto& sort : particles_) {
+    currents.emplace_back(sort->global_currJe);
+    particles.emplace_back(sort.get());
+  }
+  currents.emplace_back(currJe);
+
+  // clang-format off
   PetscCall(build_diagnostics(*this, diagnostics_));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
-  diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
+  diagnostics_.emplace_back(std::make_unique<ChargeConservation>(world.da, currents, particles));
+  // clang-format on
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());

@@ -9,7 +9,7 @@ EnergyConservation::EnergyConservation( //
   const interfaces::Simulation& simulation,
   std::shared_ptr<FieldsEnergy> fields_energy,
   std::shared_ptr<ParticlesEnergy> particles_energy)
-  : file_(SyncFile(CONFIG().out_dir + "/" + filename_)),
+  : TableDiagnostic(CONFIG().out_dir + "/temporal/energy_conservation.txt"),
     simulation(simulation),
     fields_energy(fields_energy),
     particles_energy(particles_energy)
@@ -17,42 +17,31 @@ EnergyConservation::EnergyConservation( //
 }
 
 EnergyConservation::EnergyConservation(const interfaces::Simulation& simulation)
-  : simulation(simulation)
+  : TableDiagnostic(CONFIG().out_dir + "/temporal/energy_conservation.txt"), simulation(simulation)
 {
 }
 
-PetscErrorCode EnergyConservation::diagnose(PetscInt t)
+PetscErrorCode EnergyConservation::initialize()
 {
   PetscFunctionBeginUser;
-  if (t == 0) {
-    PetscCall(add_titles());
-    PetscCall(write_formatted("{:^13s}  ", titles_));
-
-    fields_energy->calculate_energies();
-    particles_energy->calculate_energies();
-  }
-
-  PetscCall(add_args());
-  PetscCall(write_formatted("{: .6e}  ", args_));
-
-  if (t % diagnose_period_ == 0)
-    PetscCall(file_.flush());
+  PetscCall(fields_energy->calculate_energies());
+  PetscCall(particles_energy->calculate_energies());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode EnergyConservation::add_titles()
 {
   PetscFunctionBeginUser;
-  add_title("dE");
-  add_title("dB");
+  add_title("δE");
+  add_title("δB");
 
   for (const auto& particles : particles_energy->particles_) {
-    add_title("dK_" + particles->parameters.sort_name);
+    add_title("δK_" + particles->parameters.sort_name);
   }
 
   for (const auto& command : simulation.step_presets_) {
     if (dynamic_cast<FieldsDamping*>(command.get())) {
-      add_title("Damped(dE+dB)");
+      add_title("Damped(δE+δB)");
     }
     if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
       add_title("Inj_" + injection->get_ionized_name());
@@ -63,7 +52,7 @@ PetscErrorCode EnergyConservation::add_titles()
     }
   }
 
-  add_title("dE+dB+dK");
+  add_title("δE+δB+δK");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -108,14 +97,4 @@ PetscErrorCode EnergyConservation::add_args()
 
   add_arg(dF + dK);
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-void EnergyConservation::add_arg(PetscReal arg, PetscInt pos)
-{
-  add(arg, args_, pos);
-}
-
-void EnergyConservation::add_title(std::string title, PetscInt pos)
-{
-  add(title, titles_, pos);
 }

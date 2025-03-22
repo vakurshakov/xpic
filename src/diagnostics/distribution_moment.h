@@ -10,12 +10,10 @@ using Moment = PetscReal (*)(const interfaces::Particles&, const Point&);
 Moment moment_from_string(const std::string& name);
 
 
-namespace ecsimcorr {
-class ChargeConservation;
-}
-
 /// @brief Diagnostic of particles _coordinate_ distribution moment
 class DistributionMoment : public FieldView {
+  friend class ChargeConservation;
+
 public:
   DEFAULT_MOVABLE(DistributionMoment);
 
@@ -42,8 +40,6 @@ private:
 
   const interfaces::Particles& particles_;
   Moment moment_;
-
-  friend class ecsimcorr::ChargeConservation;
 };
 
 #endif  // SRC_DIAGNOSTICS_DISTRIBUTION_MOMENT_H

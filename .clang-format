@@ -213,6 +213,7 @@ WhitespaceSensitiveMacros:
   - PetscCallMPI
   - PetscCallVoid
   - PetscCheck
+  - PetscCheckAbort
   - PetscAssert
   - LOG
   - LOG_IMPL

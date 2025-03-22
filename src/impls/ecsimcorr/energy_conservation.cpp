@@ -8,7 +8,6 @@ EnergyConservation::EnergyConservation(const Simulation& simulation)
   : ::EnergyConservation(simulation)
 
 {
-  PetscCallVoid(file_.open(CONFIG().out_dir + "/" + filename_));
   B = simulation.B;
   B0 = simulation.B0;
 
@@ -40,11 +39,11 @@ PetscErrorCode EnergyConservation::add_titles()
   PetscInt off = 2;
   for (const auto& particles : particles_energy->particles_) {
     off++;
-    add_title("λdK_" + particles->parameters.sort_name, off);
+    add_title("λδK_" + particles->parameters.sort_name, off);
   }
 
-  add_title("dE+dB+dt*JE");
-  add_title("|dK-dt*JE|");
+  add_title("δE+δB+ΔtJE");
+  add_title("|δK-ΔtJE|");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -48,6 +48,8 @@ set(diagnostics
   src/diagnostics/log_view.cpp
   src/diagnostics/simulation_backup.cpp
   src/diagnostics/energy_conservation.cpp
+  src/diagnostics/charge_conservation.cpp
+  src/diagnostics/utils/table_diagnostic.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
@@ -93,7 +95,6 @@ set(impls_ecsimcorr
   src/impls/ecsimcorr/simulation.cpp
   src/impls/ecsimcorr/particles.cpp
   src/impls/ecsimcorr/energy_conservation.cpp
-  src/impls/ecsimcorr/charge_conservation.cpp
 )
 
 set(impls_ricketson
