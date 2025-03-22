@@ -4,10 +4,15 @@ source ./header.sh
 
 source ./build.sh RELEASE
 
+if [[ $? != 0 ]]; then
+  echo "Build was unsuccessful, exiting the $0"
+  exit 1
+fi
+
 if [[ $# == 0 ]]; then
   echo "Empty argument list, at least configuration file is required"
-  echo "Usage: $0 <config.json>" 1>&2;
-  exit 1;
+  echo "Usage: $0 <config.json>" 1>&2
+  exit 1
 fi
 
 MPI_NUM_PROC=1
