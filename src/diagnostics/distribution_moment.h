@@ -33,10 +33,11 @@ private:
     MPI_Comm newcomm);
 
   PetscErrorCode set_data_views(const Region& region);
-  PetscErrorCode set_da(const Region& region);
+  PetscErrorCode set_local_da(const Region& region);
 
   PetscErrorCode collect();
 
+  DM global_da_;
   Vec local_;
 
   const interfaces::Particles& particles_;

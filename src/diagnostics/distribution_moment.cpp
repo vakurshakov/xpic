@@ -47,7 +47,7 @@ DistributionMoment::~DistributionMoment()
 PetscErrorCode DistributionMoment::set_data_views(const Region& region)
 {
   PetscFunctionBeginUser;
-  PetscCall(set_da(region));
+  PetscCall(set_local_da(region));
   PetscCall(DMCreateLocalVector(da_, &local_));
   PetscCall(DMCreateGlobalVector(da_, &field_));
 
@@ -56,9 +56,11 @@ PetscErrorCode DistributionMoment::set_data_views(const Region& region)
 }
 
 
-PetscErrorCode DistributionMoment::set_da(const Region& region)
+PetscErrorCode DistributionMoment::set_local_da(const Region& region)
 {
   PetscFunctionBeginUser;
+  global_da_ = da_;
+
   Vector3I g_start = vector_cast(region.start);
   Vector3I g_size = vector_cast(region.size);
   Vector3I g_end = g_start + g_size;
@@ -68,10 +70,10 @@ PetscErrorCode DistributionMoment::set_da(const Region& region)
   PetscInt size[3];
   PetscInt proc[3];
   DMBoundaryType bound[3];
-  PetscCall(DMDAGetInfo(da_, nullptr, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
+  PetscCall(DMDAGetInfo(global_da_, nullptr, REP3_A(&size), REP3_A(&proc), nullptr, &s, REP3_A(&bound), &st));
 
   const PetscInt* ownership[3];
-  PetscCall(DMDAGetOwnershipRanges(da_, REP3_A(&ownership)));
+  PetscCall(DMDAGetOwnershipRanges(global_da_, REP3_A(&ownership)));
 
   PetscInt l_proc[3];
   DMBoundaryType l_bound[3];
@@ -100,7 +102,7 @@ PetscErrorCode DistributionMoment::set_da(const Region& region)
   }
 
   PetscCall(DMDACreate3d(comm_, REP3_A(l_bound), st, REP3_A(g_size), REP3_A(l_proc), 1, s, l_ownership[X].data(), l_ownership[Y].data(), l_ownership[Z].data(), &da_));
-  PetscCall(DMDASetOffset(da_, REP3_A(g_start), 0, 0, 0));
+  PetscCall(DMDASetOffset(da_, REP3_A(g_start), REP3(0)));
   PetscCall(DMSetUp(da_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -137,7 +139,7 @@ PetscErrorCode DistributionMoment::collect()
   PetscCall(DMDAVecGetArrayWrite(da_, local_, &arr));
 
   Vector3I start, size;
-  PetscCall(DMDAGetCorners(da_, REP3_A(&start), REP3_A(&size)));
+  PetscCall(DMDAGetCorners(global_da_, REP3_A(&start), REP3_A(&size)));
 
   const Vector3I gstart = vector_cast(region_.start);
   const Vector3I gsize = vector_cast(region_.size);
