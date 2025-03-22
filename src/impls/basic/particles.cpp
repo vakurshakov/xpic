@@ -11,7 +11,9 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(DMCreateLocalVector(world.da, &local_J));
+  DM da = world.da;
+  PetscCallVoid(DMCreateGlobalVector(da, &global_J));
+  PetscCallVoid(DMCreateLocalVector(da, &local_J));
   PetscFunctionReturnVoid();
 }
 
@@ -19,7 +21,6 @@ PetscErrorCode Particles::push()
 {
   PetscFunctionBeginUser;
   DM da = world.da;
-  PetscCall(VecSet(local_J, 0.0));
   PetscCall(DMDAVecGetArrayWrite(da, local_J, &J));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
@@ -42,7 +43,8 @@ PetscErrorCode Particles::push()
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
-  PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, simulation_.J));
+  PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, global_J));
+  PetscCall(VecAXPY(simulation_.J, 1.0, global_J));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -70,6 +72,7 @@ void Particles::decompose(const Shape& shape, const Point& point)
 Particles::~Particles()
 {
   PetscFunctionBeginUser;
+  PetscCallVoid(VecDestroy(&global_J));
   PetscCallVoid(VecDestroy(&local_J));
   PetscFunctionReturnVoid();
 }

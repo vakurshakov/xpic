@@ -2,6 +2,7 @@
 
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
+#include "src/diagnostics/charge_conservation.h"
 #include "src/diagnostics/energy_conservation.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
@@ -38,20 +39,22 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCall(build_diagnostics(*this, diagnostics_));
 
+  std::vector<Vec> currents;
   std::vector<const interfaces::Particles*> sorts;
   for (const auto& sort : particles_) {
+    currents.emplace_back(sort->global_J);
     sorts.emplace_back(sort.get());
   }
+  currents.emplace_back(J);
 
   auto&& f_diag = std::make_unique<FieldsEnergy>(world.da, E, B);
   auto&& p_diag = std::make_unique<ParticlesEnergy>(sorts);
 
-  // diagnostics_.emplace_back(std::make_unique<ParticlesEnergy>(CONFIG().out_dir, sorts));
-
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(
     *this, std::move(f_diag), std::move(p_diag)));
 
-  // diagnostics_.emplace_back(std::make_unique<ChargeConservation>(*this));
+  diagnostics_.emplace_back(
+    std::make_unique<ChargeConservation>(world.da, currents, sorts));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -59,6 +62,12 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
 {
   PetscFunctionBeginUser;
   PetscCall(VecSet(J, 0.0));
+
+  for (auto& sort : particles_) {
+    PetscCall(VecSet(sort->global_J, 0.0));
+    PetscCall(VecSet(sort->local_J, 0.0));
+  }
+
   PetscCall(push_particles());
   PetscCall(push_fields());
   PetscFunctionReturn(PETSC_SUCCESS);
