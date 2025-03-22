@@ -23,16 +23,13 @@ void Configuration::init(const std::string& config_path)
   overwrite(json_t::parse(file));
 }
 
-
-/// @todo Change this copy mechanism to _write_ config from `Configuration::json`
-/* static */ void Configuration::save(const std::string& out_dir)
+void Configuration::save(const std::string& out_dir)
 {
   save(config.config_path_, out_dir,
     std::filesystem::copy_options::overwrite_existing);
 }
 
-
-/* static */ void Configuration::save_sources(const std::string& out_dir)
+void Configuration::save_sources(const std::string& out_dir)
 {
   std::filesystem::path src_dir = __FILE__;
   src_dir = src_dir.parent_path();
@@ -43,8 +40,7 @@ void Configuration::init(const std::string& config_path)
       std::filesystem::copy_options::recursive);
 }
 
-
-/* static */ void Configuration::save(const std::string& from,
+void Configuration::save(const std::string& from,
   const std::string& to, std::filesystem::copy_options options)
 {
   PetscInt rank;
@@ -70,6 +66,7 @@ void Configuration::init(const std::string& config_path)
   }
 }
 
+
 bool Configuration::is_loaded_from_backup()
 {
   const json_t& json = config.json;
@@ -81,7 +78,6 @@ bool Configuration::is_loaded_from_backup()
   auto&& load_it = it->find("load_from");
   return load_it != it->end() && load_it->is_number_integer();
 }
-
 
 void Configuration::get_boundaries_type(
   DMBoundaryType& bx, DMBoundaryType& by, DMBoundaryType& bz)
@@ -105,7 +101,6 @@ void Configuration::get_boundaries_type(
   by = to_boundary_type(boundary_type_str[Y]);
   bz = to_boundary_type(boundary_type_str[Z]);
 }
-
 
 void Configuration::get_processors(PetscInt& px, PetscInt& py, PetscInt& pz)
 {

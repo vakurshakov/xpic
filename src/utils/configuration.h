@@ -3,7 +3,8 @@
 
 #include <filesystem>
 
-#include <petscdmtypes.h>  // For DMBoundaryType
+#include <petscdmtypes.h>  // for DMBoundaryType
+#include <petscsystypes.h>  // for PetscInt
 
 #include <nlohmann/json.hpp>
 
@@ -26,13 +27,13 @@ public:
   static const Configuration& get();
 
   /**
-   * @brief Overwrites underlying `json` and `out_dir`, should be called before `init()`.
+   * @brief Overwrites underlying `json` and `out_dir`. Should be used before any manipulations.
    * @warning This is mostly a utility to set up tests, we recommended to avoid it's direct usage.
    */
   static void overwrite(Configuration::json_t&& json);
 
   /**
-   * @brief Initializes configuration class instance. Should be used before any get/save operations.
+   * @brief Initializes configuration class instance. Should be used before any manipulations.
    * @param config_path Location of json file, provided by argv[1].
    */
   static void init(const std::string& config_path);
