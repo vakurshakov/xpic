@@ -108,7 +108,7 @@
 
   "SimulationBackup": {
     "diagnose_period": 3.0,
-    "save_sources": true,
+    "save_sources": false,
     "load_from": null
   }
 }
