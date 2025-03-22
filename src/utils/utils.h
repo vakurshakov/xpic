@@ -78,20 +78,6 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
 #define CAT(a, b) CAT_IMPL(a, b)
 
 
-#define PetscCallThrow(...)                                      \
-  do {                                                           \
-    PetscStackUpdateLine;                                        \
-    PetscErrorCode ierr_petsc_call_ = __VA_ARGS__;               \
-    if (PetscUnlikely(ierr_petsc_call_ != PETSC_SUCCESS)) {      \
-      std::stringstream msg;                                     \
-      msg << "PETSC ERROR: " << PETSC_FUNCTION_NAME_CXX << "() " \
-          << "at " << __FILE__ << ":" << __LINE__ << "\n";       \
-      throw std::runtime_error(msg.str());                       \
-    }                                                            \
-  }                                                              \
-  while (0)
-
-
 #define DEFAULT_COPYABLE(Class)                   \
   Class(const Class& other) = default;            \
   Class& operator=(const Class& other) = default; \

@@ -15,12 +15,12 @@ std::unique_ptr<DistributionMoment> DistributionMoment::create(
 {
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
-  PetscCallThrow(get_local_communicator(particles.world.da, region, &newcomm));
+  PetscCallAbort(PETSC_COMM_WORLD, get_local_communicator(particles.world.da, region, &newcomm));
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
   auto* diagnostic = new DistributionMoment(out_dir, particles, moment, newcomm);
-  PetscCallThrow(diagnostic->set_data_views(region));
+  PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_data_views(region));
   PetscFunctionReturn(std::unique_ptr<DistributionMoment>(diagnostic));
 }
 
