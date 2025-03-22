@@ -15,7 +15,7 @@ PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
   }
 
   PetscCall(add_args());
-  PetscCall(write_formatted("{: .8e}  ", args_));
+  PetscCall(write_formatted("{: .6e}    ", args_));
 
   if (t % diagnose_period_ == 0)
     PetscCall(file_.flush());
