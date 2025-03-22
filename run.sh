@@ -2,6 +2,8 @@
 
 source ./header.sh
 
+source ./build.sh RELEASE
+
 if [[ $# == 0 ]]; then
   echo "Empty argument list, at least configuration file is required"
   echo "Usage: $0 <config.json>" 1>&2;
