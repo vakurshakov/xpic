@@ -8,12 +8,7 @@ static char help[] =
   "in periodic boundaries for 100 cycles (dt=1.5). There are only maxwellian\n"
   "electrons with the temperature T=100 eV, ions are stationary background. \n";
 
-/// @todo Separate it on the two-pass runs:
-/// 1) Run the main `xpic.out` with the configuration described below;
-/// 2) Then run the validation step, where all generated data will be interpreted;
-
 /// @todo Create `interfaces::Simulation::finalize()`, where we can destroy all petsc objects
-/// @todo At least parse the charge- and energy-conservation files to see the discrepancies
 /// @todo Create a binary files comparator to be able to tell where is the difference
 
 void overwrite_config();
@@ -30,6 +25,9 @@ int main(int argc, char** argv)
     PetscCall(simulation.initialize());
     PetscCall(simulation.calculate());
   }
+
+  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
+  PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);

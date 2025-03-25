@@ -23,6 +23,9 @@ int main(int argc, char** argv)
     PetscCall(simulation.calculate());
   }
 
+  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
+  PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));
+
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
