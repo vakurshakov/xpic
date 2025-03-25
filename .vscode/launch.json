@@ -1,94 +1,93 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-    "version": "0.2.0",
-    "configurations": [
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "cpp: consequetive",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/xpic.out",
+      "args": [
+        // Configuration file needed for the simulation
+        "config.json",
+        // PETSc options
+        "-version",
+        "-options_view",
+        "-options_left",
+        "-omp_view",
+        "-fp_trap",
+        // "-info", // [filename]
+        // "-log_view",  // [:filename]
+        // "-log_trace",  // [filename]
+        // "-start_in_debugger",
+        // "-debugger_ranks rank1,rank2,...",
+        //
+        // allocation control should be used with `PetscMallocSetDebug()`
+        // "-malloc_test",
+        // "-malloc_debug",
+        // "-malloc_dump",
+      ],
+      "cwd": "${workspaceFolder}",
+      "environment": [
         {
-            "name": "cpp: consequetive",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/xpic.out",
-            "args": [
-                // Configuration file needed for the simulation
-                "config.json",
-
-                // PETSc options
-                "-version",
-                "-options_view",
-                "-options_left",
-                "-omp_view",
-                "-fp_trap",
-                // "-info", // [filename]
-                // "-log_view",  // [:filename]
-                // "-log_trace",  // [filename]
-                // "-start_in_debugger",
-                // "-debugger_ranks rank1,rank2,...",
-                //
-                // allocation control should be used with `PetscMallocSetDebug()`
-                // "-malloc_test",
-                // "-malloc_debug",
-                // "-malloc_dump",
-            ],
-            "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "OMP_NUM_THREADS",
-                    "value": "1"
-                }
-            ],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "text": "-enable-pretty-printing",
-                    // "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "${defaultBuildTask}",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "sourceFileMap": {
-                "${workspaceFolder}": {
-                    "editorPath": "${workspaceFolder}",
-                    "useForBreakpoints": true
-                }
-            }
-        },
-        {
-            "name": "cpp: current test",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/${relativeFileDirname}/${fileBasenameNoExtension}.out",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "text": "-enable-pretty-printing",
-                    // "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "${defaultBuildTask}",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "sourceFileMap": {
-                "${workspaceFolder}": {
-                    "editorPath": "${workspaceFolder}",
-                    "useForBreakpoints": true
-                }
-            }
-        },
-        {
-            "name": "python: current file",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${fileBasename}",
-            "cwd": "${fileDirname}",
-            "console": "integratedTerminal",
-            "autoReload": {
-              "enable": true
-            }
+          "name": "OMP_NUM_THREADS",
+          "value": "1"
         }
-    ]
+      ],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "text": "-enable-pretty-printing",
+          // "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "${defaultBuildTask}",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "sourceFileMap": {
+        "${workspaceFolder}": {
+          "editorPath": "${workspaceFolder}",
+          "useForBreakpoints": true
+        }
+      }
+    },
+    {
+      "name": "cpp: current test",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/${relativeFileDirname}/${fileBasenameNoExtension}.out",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "gdb",
+      "setupCommands": [
+        {
+          "text": "-enable-pretty-printing",
+          // "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "${defaultBuildTask}",
+      "miDebuggerPath": "/usr/bin/gdb",
+      "sourceFileMap": {
+        "${workspaceFolder}": {
+          "editorPath": "${workspaceFolder}",
+          "useForBreakpoints": true
+        }
+      }
+    },
+    {
+      "name": "python: current file",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${fileBasename}",
+      "cwd": "${fileDirname}",
+      "console": "integratedTerminal",
+      "autoReload": {
+        "enable": true
+      }
+    }
+  ]
 }

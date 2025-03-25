@@ -1,21 +1,23 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "type": "cppbuild",
-            "label": "Project build-script",
-            "command": "./build.sh",
-            "args": [ ],
-            "options": {
-                "cwd": "${workspaceFolder}/"
-            },
-            "problemMatcher": [
-                "$gcc"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-        }
-    ],
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "cppbuild",
+      "label": "Project build-script",
+      "command": "./build.sh",
+      "args": [
+        "DEBUG"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+    }
+  ],
 }
