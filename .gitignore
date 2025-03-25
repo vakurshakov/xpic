@@ -9,6 +9,8 @@ results/
 
 (^tests)*.txt
 (^tests)*.png
+tests/basic/output/**
+tests/ecsimcorr/output/**
 *.out
 *.bin
 *.npy
