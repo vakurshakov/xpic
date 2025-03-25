@@ -1,7 +1,7 @@
 {
-  "OutputDirectory": "results/simulation-backup-test/mpi_x1y1",
-
   "Simulation": "ecsimcorr",
+
+  "OutputDirectory": "results/simulation-backup-test/mpi_x1y1",
 
   "mpi": {
     "da_processors_x": 1,
