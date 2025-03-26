@@ -1,27 +1,26 @@
 {
-    "env": {
-        "PETSC_DIR": "external/petsc",
-        "PETSC_ARCH": "linux-mpi-debug"
-    },
-
-    "configurations": [
-        {
-            "name": "Linux",
-            "includePath": [
-                "${default}",
-                "/opt/mpich/include",
-
-                "${workspaceFolder}",
-                "${workspaceFolder}/external/json/include",
-                "${workspaceFolder}/${PETSC_DIR}/include/",
-                "${workspaceFolder}/${PETSC_DIR}/${PETSC_ARCH}/include/"
-            ],
-            "defines": [],
-            "compilerPath": "/opt/mpich/bin/mpicxx",
-            "cStandard": "c17",
-            "cppStandard": "c++20",
-            "intelliSenseMode": "linux-gcc-x64"
-        }
-    ],
-    "version": 4
+  "env": {
+    "MPI_DIR": "/usr",
+    "PETSC_DIR": "external/petsc",
+    "PETSC_ARCH": "linux-mpi-debug"
+  },
+  "configurations": [
+    {
+      "name": "Linux",
+      "includePath": [
+        "${default}",
+        "${MPI_DIR}/include",
+        "${workspaceFolder}",
+        "${workspaceFolder}/external/json/include",
+        "${workspaceFolder}/${PETSC_DIR}/include/",
+        "${workspaceFolder}/${PETSC_DIR}/${PETSC_ARCH}/include/"
+      ],
+      "defines": [],
+      "compilerPath": "${MPI_DIR}/bin/mpicxx",
+      "cStandard": "c17",
+      "cppStandard": "c++20",
+      "intelliSenseMode": "linux-gcc-x64"
+    }
+  ],
+  "version": 4
 }
