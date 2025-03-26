@@ -63,21 +63,21 @@ PetscErrorCode SetCoilsField::operator()(Vec vec)
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
 
-    sx = x * dx /*              */ - center_x;
-    sy = ((PetscReal)y + 0.5) * dy - center_y;
-    sz = ((PetscReal)z + 0.5) * dz;
+    sx = x * dx /*   */ - center_x;
+    sy = (y + 0.5) * dy - center_y;
+    sz = (z + 0.5) * dz;
     r = std::hypot(sx, sy);
     arr[z][y][x][X] += get_Br(sz, r) * sx / r;
 
-    sy = y * dy /*              */ - center_y;
-    sx = ((PetscReal)x + 0.5) * dx - center_x;
-    sz = ((PetscReal)z + 0.5) * dz;
+    sy = y * dy /*   */ - center_y;
+    sx = (x + 0.5) * dx - center_x;
+    sz = (z + 0.5) * dz;
     r = std::hypot(sx, sy);
     arr[z][y][x][Y] += get_Br(sz, r) * sy / r;
 
     sz = z * dz;
-    sx = ((PetscReal)x + 0.5) * dx - center_x;
-    sy = ((PetscReal)y + 0.5) * dy - center_y;
+    sx = (x + 0.5) * dx - center_x;
+    sy = (y + 0.5) * dy - center_y;
     r = std::hypot(sx, sy);
     arr[z][y][x][Z] += get_Bz(sz, r);
   }
@@ -103,7 +103,7 @@ PetscReal SetCoilsField::get_Bz(PetscReal z, PetscReal r)
   PetscReal Bz = 0.0;
   for (const auto& coil : coils_) {
     PetscReal zc = z - coil.z0;
-    Bz += coil.I * coil.R * hp * get_integ_z(zc, r, coil.R);
+    Bz += coil.I * coil.R * get_integ_z(zc, r, coil.R);
   }
   return Bz;
 }
@@ -119,7 +119,7 @@ PetscReal SetCoilsField::get_integ_r(PetscReal z, PetscReal r, PetscReal R)
       denominator = denominator_tolerance;
     integral += (cos[i] / (denominator * std::sqrt(denominator)));
   }
-  return integral;
+  return hp * integral;
 }
 
 PetscReal SetCoilsField::get_integ_z(PetscReal z, PetscReal r, PetscReal R)
@@ -133,5 +133,5 @@ PetscReal SetCoilsField::get_integ_z(PetscReal z, PetscReal r, PetscReal R)
       denominator = denominator_tolerance;
     integral += ((R - r * cos[i]) / (denominator * std::sqrt(denominator)));
   }
-  return integral;
+  return hp * integral;
 }
