@@ -29,6 +29,7 @@ private:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt timestep) override;
 
+  Vec B0;
   Vec local_E;
   Vec local_B;
 

@@ -15,6 +15,7 @@ PetscErrorCode Simulation::initialize_implementation()
   DM da = world.da;
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &B));
+  PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &J));
   PetscCall(DMCreateLocalVector(da, &local_E));
   PetscCall(DMCreateLocalVector(da, &local_B));
@@ -37,6 +38,8 @@ PetscErrorCode Simulation::initialize_implementation()
   for (auto&& preset : presets)
     preset->execute(start);
 
+  PetscCall(VecAXPY(B, 1.0, B0));
+
   PetscCall(build_diagnostics(*this, diagnostics_));
 
   std::vector<Vec> currents;
@@ -53,8 +56,10 @@ PetscErrorCode Simulation::initialize_implementation()
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(
     *this, std::move(f_diag), std::move(p_diag)));
 
-  diagnostics_.emplace_back(
-    std::make_unique<ChargeConservation>(world.da, currents, sorts));
+  if (!currents.empty() && !sorts.empty()) {
+    diagnostics_.emplace_back(
+      std::make_unique<ChargeConservation>(world.da, currents, sorts));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -76,8 +81,13 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
 PetscErrorCode Simulation::push_particles()
 {
   PetscFunctionBeginUser;
+  PetscCall(VecAXPY(B, -1.0, B0));
   // B^{n} = B^{n-1/2} - rot(E^{n}) * (0.5 * dt)
   PetscCall(MatMultAdd(rot_dt_p, E, B, B));
+  PetscCall(VecAXPY(B, +1.0, B0));
+
+  if (particles_.empty())
+    return PETSC_SUCCESS;
 
   DM da = world.da;
   PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, local_E));
@@ -109,12 +119,14 @@ PetscErrorCode Simulation::push_fields()
 
   PetscCall(VecSet(util, 0.0));
   PetscCall(VecCopy(E, util));
+  PetscCall(VecAXPY(B, -1.0, B0));
 
   // B^{n+1/2} = B^{n} - rot(E^{n}) * (0.5 * dt)
   PetscCall(MatMultAdd(rot_dt_p, E, B, B));
 
   // E'^{n+1} = E^{n} + rot(B^{n+1/2}) * dt
   PetscCall(MatMultAdd(rot_dt_m, B, E, E));
+  PetscCall(VecAXPY(B, +1.0, B0));
 
   // E^{n+1} = E'^{n+1} - J
   PetscCall(VecAXPY(E, -1, J));
@@ -175,6 +187,8 @@ Vec Simulation::get_named_vector(std::string_view name)
     return E;
   if (name == "B")
     return B;
+  if (name == "B0")
+    return B0;
   if (name == "J")
     return J;
   throw std::runtime_error("Unknown vector name " + std::string(name));
@@ -191,6 +205,7 @@ Simulation::~Simulation()
   PetscFunctionBeginUser;
   PetscCallVoid(VecDestroy(&E));
   PetscCallVoid(VecDestroy(&B));
+  PetscCallVoid(VecDestroy(&B0));
   PetscCallVoid(VecDestroy(&J));
   PetscCallVoid(VecDestroy(&local_E));
   PetscCallVoid(VecDestroy(&local_B));
