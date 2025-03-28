@@ -145,8 +145,13 @@ PetscErrorCode Simulation::init_particles()
   PetscFunctionBeginUser;
   LOG("Configuring particles");
 
-  const Configuration::json_t& particles_info = CONFIG().json.at("Particles");
-  for (auto&& info : particles_info) {
+  const Configuration::json_t& json = CONFIG().json;
+  auto it = json.find("Particles");
+
+  if (it == json.end() || it->empty())
+    PetscFunctionReturn(PETSC_SUCCESS);
+
+  for (auto&& info : *it) {
     SortParameters parameters;
     info.at("sort_name").get_to(parameters.sort_name);
     info.at("Np").get_to(parameters.Np);
