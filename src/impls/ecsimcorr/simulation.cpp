@@ -274,6 +274,11 @@ PetscErrorCode Simulation::update_cells_with_assembly()
 
   for (const auto& sort : particles_) {
     for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+      if (assembly_radius < 0) {
+        assembly_map[g] = false;
+        indices_assembled = false;
+      }
+
       if (sort->storage[g].empty() || (indices_assembled && assembly_map[g]))
         continue;
 
@@ -281,6 +286,11 @@ PetscErrorCode Simulation::update_cells_with_assembly()
         LOG("  Indices assembly has been broken by \"{}\"", sort->parameters.sort_name);
       }
       indices_assembled = false;
+
+      if (assembly_radius <= 0) {
+        assembly_map[g] = true;
+        continue;
+      }
 
       Vector3I vg{
         world.start[X] + g % world.size[X],

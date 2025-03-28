@@ -86,13 +86,20 @@ private:
   KSP predict;
   KSP correct;
 
+  /**
+   * @brief Radius of the cloud, where indices should be assembled.
+   * @details The available values are:
+   * 1) radius = 0 -- All cells where _were_ particles are assembled.
+   * 2) radius > 0 -- Adds a `radius` cells along each direction to
+   *                  where the particles _were_ placed.
+   * 3) radius < 0 -- Drop the previous `assembly_map` in this case.
+   */
+  static constexpr PetscInt assembly_radius = -1;
+  static constexpr PetscInt assembly_width = 2 * assembly_radius + 1;
+
   /// @brief Cells, where indices have been assembled.
   /// @note This map and `matL` size can only _grow_ in time.
   std::vector<bool> assembly_map;
-
-  /// @brief Radius of the cloud, where indices would be assembled.
-  static constexpr PetscInt assembly_radius = 3;
-  static constexpr PetscInt assembly_width = 2 * assembly_radius + 1;
 
   /// @brief Whether the new cells have been added into `indices_map`.
   bool indices_assembled = false;
