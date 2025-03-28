@@ -63,8 +63,8 @@ if "Particles" in config:
 
 
 # Setting up information from commands (presets)
-def get(d: dict, path: str):
-    result = None
+def get(d: dict, path: str, default = None):
+    result = default
 
     # Can only read top-level arrays
     def get_from_array(p: str):
@@ -85,15 +85,15 @@ def get(d: dict, path: str):
                 if id in item and val == item[id]:
                     return item
 
-        return None
+        return default
 
     for p in path.split("."):
         if ":" in p:
             result = get_from_array(p)
-        elif p in d:
+        elif d != None and p in d:
             result = d.get(p)
         else:
-            return None
+            return default
         d = result
 
     return result
@@ -102,10 +102,10 @@ def get(d: dict, path: str):
 buff = 0
 
 # Reference value of the magnetic field [mecwpe/e]
-B0 = get(config, "command:SetMagneticField.setter.reference")
+B0 = get(config, "command:SetMagneticField.setter.reference", 0)
 
 # Particles injection rate [1 / wpe]
-tau = get(config, "command:InjectParticles.tau")
+tau = get(config, "command:InjectParticles.tau", 0)
 
 
 # Some utilities that would be used in `xplot`
