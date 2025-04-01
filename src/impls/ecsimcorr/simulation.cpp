@@ -326,16 +326,15 @@ PetscErrorCode Simulation::fill_ecsim_current()
   PetscInt size = 0;
   get_array_offset(0, world.size.elements_product(), size);
 
-  static std::vector<MatStencil> coo_i;
-  static std::vector<MatStencil> coo_j;
-  static std::vector<PetscReal> coo_v;
-
   // Because matrix setup is collective, we must call it on all mpi ranks
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &indices_assembled, 1, MPIU_BOOL, MPI_BAND, PETSC_COMM_WORLD));
 
   if (!indices_assembled) {
+    std::vector<PetscInt> coo_i(size, PETSC_DEFAULT);
+    std::vector<PetscInt> coo_j(size, PETSC_DEFAULT);
+
     PetscReal ind_mem, val_mem;
-    ind_mem = (PetscReal)size * 2 * sizeof(MatStencil) / 1e9;
+    ind_mem = (PetscReal)size * 2 * sizeof(PetscInt) / 1e9;
     val_mem = (PetscReal)size * sizeof(PetscReal) / 1e9;
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &ind_mem, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &val_mem, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
@@ -343,16 +342,12 @@ PetscErrorCode Simulation::fill_ecsim_current()
     LOG("  Indices assembly was broken, recreating them");
     LOG("  Additional space for indices: {:4.3f} GB, values: {:4.3f} GB", ind_mem, val_mem);
 
-    coo_i.resize(size);
-    coo_j.resize(size);
-    coo_v.resize(size);
-
     PetscCall(fill_matrix_indices(coo_i.data(), coo_j.data()));
-    PetscCall(mat_set_preallocation_coo(size, coo_i.data(), coo_j.data()));
+    PetscCall(MatSetPreallocationCOOLocal(matL, size, coo_i.data(), coo_j.data()));
     indices_assembled = true;
   }
 
-  std::fill(coo_v.begin(), coo_v.end(), 0.0);
+  std::vector<PetscReal> coo_v(size, 0.0);
   PetscCall(fill_ecsim_current(coo_v.data()));
 
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
@@ -366,12 +361,28 @@ constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
 }
 
 /// @note Indices are assembled on those cells `g`, where `assembly_map[g] == true`
-PetscErrorCode Simulation::fill_matrix_indices(
-  MatStencil* coo_i, MatStencil* coo_j)
+PetscErrorCode Simulation::fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j)
 {
   PetscFunctionBeginUser;
   constexpr PetscInt shr = 1;
   constexpr PetscInt shw = 2 * shr + 1;
+  constexpr PetscInt m = POW3(shw);
+
+  const PetscInt dims[4]{REP3_AP(world.gsize), 3};
+  const PetscInt start[4]{REP3_AP(world.gstart), 0};
+
+  auto remap_stencil = [&](const MatStencil& s) {
+    auto in = (PetscInt*)&s;
+    PetscInt tmp = *in++ - start[0];
+
+    for (PetscInt j = 0; j < 3; ++j)
+      if ((*in++ - start[j + 1]) < 0 || tmp < 0)
+        tmp = -1;
+      else
+        tmp = tmp * dims[j + 1] + *(in - 1) - start[j + 1];
+
+    return tmp;
+  };
 
   PetscInt prev_g = 0;
   PetscInt off = 0;
@@ -384,8 +395,8 @@ PetscErrorCode Simulation::fill_matrix_indices(
     get_array_offset(prev_g, g, off);
     prev_g = g;
 
-    MatStencil* coo_ci = coo_i + off;
-    MatStencil* coo_cj = coo_j + off;
+    PetscInt* coo_ci = coo_i + off;
+    PetscInt* coo_cj = coo_j + off;
 
     Vector3I vg{
       world.start[X] + g % world.size[X],
@@ -393,15 +404,15 @@ PetscErrorCode Simulation::fill_matrix_indices(
       world.start[Z] + (g / world.size[X]) / world.size[Y],
     };
 
-    for (PetscInt g1 = 0; g1 < POW3(shw); ++g1) {
-      for (PetscInt g2 = 0; g2 < POW3(shw); ++g2) {
-        PetscInt gg = g1 * POW3(shw) + g2;
+    for (PetscInt g1 = 0; g1 < m; ++g1) {
+      Vector3I vg1{
+        vg[X] + g1 % shw - shr,
+        vg[Y] + (g1 / shw) % shw - shr,
+        vg[Z] + (g1 / shw) / shw - shr,
+      };
 
-        Vector3I vg1{
-          vg[X] + g1 % shw - shr,
-          vg[Y] + (g1 / shw) % shw - shr,
-          vg[Z] + (g1 / shw) / shw - shr,
-        };
+      for (PetscInt g2 = 0; g2 < m; ++g2) {
+        PetscInt gg = g1 * m + g2;
 
         Vector3I vg2{
           vg[X] + g2 % shw - shr,
@@ -410,13 +421,13 @@ PetscErrorCode Simulation::fill_matrix_indices(
         };
 
         for (PetscInt c = 0; c < Vector3I::dim; ++c) {
-          coo_ci[ind(gg, X, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], X};
-          coo_ci[ind(gg, Y, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Y};
-          coo_ci[ind(gg, Z, c)] = MatStencil{vg1[Z], vg1[Y], vg1[X], Z};
+          coo_ci[ind(gg, X, c)] = remap_stencil(MatStencil{REP3_AP(vg1), X});
+          coo_ci[ind(gg, Y, c)] = remap_stencil(MatStencil{REP3_AP(vg1), Y});
+          coo_ci[ind(gg, Z, c)] = remap_stencil(MatStencil{REP3_AP(vg1), Z});
 
-          coo_cj[ind(gg, c, X)] = MatStencil{vg2[Z], vg2[Y], vg2[X], X};
-          coo_cj[ind(gg, c, Y)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Y};
-          coo_cj[ind(gg, c, Z)] = MatStencil{vg2[Z], vg2[Y], vg2[X], Z};
+          coo_cj[ind(gg, c, X)] = remap_stencil(MatStencil{REP3_AP(vg2), X});
+          coo_cj[ind(gg, c, Y)] = remap_stencil(MatStencil{REP3_AP(vg2), Y});
+          coo_cj[ind(gg, c, Z)] = remap_stencil(MatStencil{REP3_AP(vg2), Z});
         }
       }
     }
@@ -476,21 +487,6 @@ void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& of
   for (PetscInt g = begin_g; g < end_g; ++g)
     if (assembly_map[g])
       off += shs;
-}
-
-PetscErrorCode Simulation::mat_set_preallocation_coo(
-  PetscInt size, MatStencil* coo_i, MatStencil* coo_j)
-{
-  PetscFunctionBeginUser;
-  auto idxm = (PetscInt*)coo_i;
-  auto idxn = (PetscInt*)coo_j;
-
-  DM da = world.da;
-  Operator::remap_stencil(da, 3, size, idxm);
-  Operator::remap_stencil(da, 3, size, idxn);
-
-  PetscCall(MatSetPreallocationCOOLocal(matL, size, idxm, idxn));
-  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::init_vectors()

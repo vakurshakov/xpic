@@ -68,11 +68,8 @@ private:
 
   void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
 
-  PetscErrorCode fill_matrix_indices(MatStencil* coo_i, MatStencil* coo_j);
+  PetscErrorCode fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j);
   PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
-
-  PetscErrorCode mat_set_preallocation_coo(
-    PetscInt size, MatStencil* coo_i, MatStencil* coo_j);
 
   PetscErrorCode log_timings();
 
@@ -94,7 +91,7 @@ private:
    *                  where the particles _were_ placed.
    * 3) radius < 0 -- Drop the previous `assembly_map` in this case.
    */
-  static constexpr PetscInt assembly_radius = -1;
+  static constexpr PetscInt assembly_radius = +1;
   static constexpr PetscInt assembly_width = 2 * assembly_radius + 1;
 
   /// @brief Cells, where indices have been assembled.

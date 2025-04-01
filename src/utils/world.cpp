@@ -1,6 +1,5 @@
 #include "src/utils/world.h"
 
-#include "src/interfaces/sort_parameters.h"
 #include "src/utils/configuration.h"
 
 World::World()
@@ -29,17 +28,17 @@ PetscErrorCode World::initialize()
     Configuration::get_boundaries_type(REP3_A(bounds));
   }
 
-  const PetscInt dof = Vector3R::dim;
-  const auto s = static_cast<PetscInt>(std::ceil(shape_radius));
-
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da));
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, st, REP3(nullptr), &da));
   PetscCall(DMSetFromOptions(da));
   PetscCall(DMSetUp(da));
 
-
   PetscCall(DMDAGetNeighbors(da, &neighbors));
+
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
   end = start + size;
+
+  PetscCall(DMDAGetGhostCorners(da, REP3_A(&gstart), REP3_A(&gsize)));
+  gend = gstart + gsize;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

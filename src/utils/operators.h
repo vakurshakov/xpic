@@ -18,7 +18,7 @@ public:
 
   /// @note `idxm` will be modified to be an array of local indices!
   static PetscErrorCode remap_stencil(
-    DM da, PetscInt mdof, PetscInt m, PetscInt* idxm);
+    DM da, PetscInt mdof, PetscInt size, MatStencil* idxm, PetscInt* jdxm);
 
 protected:
   Operator(DM da, PetscInt mdof = 3, PetscInt ndof = 3);

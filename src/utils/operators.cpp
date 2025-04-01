@@ -10,7 +10,7 @@ Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
 
 /// @details For reference, see `DMCreateMatrix()`, `MatSetStencil()`, `MatSetValuesStencil()`.
 /* static */ PetscErrorCode Operator::remap_stencil(
-  DM da, PetscInt mdof, PetscInt size, PetscInt* idxm)
+  DM da, PetscInt mdof, PetscInt size, MatStencil* idxm, PetscInt* jdxm)
 {
   PetscFunctionBeginUser;
   PetscInt dims[4];
@@ -24,7 +24,6 @@ Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
   PetscInt dim = 3 + static_cast<PetscInt>(!noc);
 
   auto in = (PetscInt*)idxm;
-  auto out = (PetscInt*)idxm;
 
   for (PetscInt i = 0; i < size; ++i) {
     PetscInt tmp = *in++ - start[0];
@@ -38,7 +37,7 @@ Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
     if (noc)
       in++;
 
-    out[i] = tmp;
+    jdxm[i] = tmp;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -116,6 +115,8 @@ PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
 
     MatStencil* coo_ci = coo_i.data() + g * chunk;
     MatStencil* coo_cj = coo_j.data() + g * chunk;
+
+    // Periodic boundaries are handled by PETSc internally
     fill_stencil(shift, x, y, z, coo_ci, coo_cj);
 
     std::copy(values_.begin(), values_.end(), std::back_inserter(coo_v));
@@ -124,10 +125,9 @@ PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
   auto idxm = (PetscInt*)coo_i.data();
   auto idxn = (PetscInt*)coo_j.data();
 
-  remap_stencil(da_, mdof_, size, idxm);
-  remap_stencil(da_, ndof_, size, idxn);
+  remap_stencil(da_, mdof_, size, coo_i.data(), idxm);
+  remap_stencil(da_, ndof_, size, coo_j.data(), idxn);
 
-  // Periodic boundaries are handled by PETSc internally
   PetscCall(MatSetPreallocationCOOLocal(mat, size, idxm, idxn));
   PetscCall(MatSetValuesCOO(mat, coo_v.data(), ADD_VALUES));
   PetscFunctionReturn(PETSC_SUCCESS);

@@ -4,6 +4,7 @@
 #include <petscdmda.h>
 
 #include "src/pch.h"
+#include "src/interfaces/sort_parameters.h"
 #include "src/utils/vector3.h"
 
 struct World {
@@ -22,9 +23,16 @@ struct World {
   PetscInt neighbors_num;
   const PetscMPIInt* neighbors;
 
+  const PetscInt dof = Vector3R::dim;
+  const PetscInt st = static_cast<PetscInt>(std::ceil(shape_radius));
+
   Vector3I start;
   Vector3I size;
   Vector3I end;
+
+  Vector3I gstart;
+  Vector3I gsize;
+  Vector3I gend;
 
   inline PetscInt s_g(PetscInt x, PetscInt y, PetscInt z) const
   {
