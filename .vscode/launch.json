@@ -8,7 +8,7 @@
       "name": "cpp: consequetive",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/xpic.out",
+      "program": "${workspaceFolder}/build/Debug/xpic.out",
       "args": [
         // Configuration file needed for the simulation
         "config.json",
@@ -57,7 +57,7 @@
       "name": "cpp: current test",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/${relativeFileDirname}/${fileBasenameNoExtension}.out",
+      "program": "${workspaceFolder}/build/Debug/${relativeFileDirname}/${fileBasenameNoExtension}.out",
       "args": [],
       "cwd": "${workspaceFolder}",
       "environment": [],

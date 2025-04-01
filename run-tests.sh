@@ -2,7 +2,7 @@
 
 source ./header.sh
 
-source ./build.sh RELEASE
+build_type=Release
 
 if [[ $? != 0 ]]; then
   echo "Build was unsuccessful, exiting the $0"
@@ -11,4 +11,4 @@ fi
 
 export OMP_NUM_THREADS=4
 
-ctest --test-dir build/ $@
+ctest --test-dir build/$build_type $@

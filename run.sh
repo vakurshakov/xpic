@@ -2,7 +2,7 @@
 
 source ./header.sh
 
-source ./build.sh RELEASE
+build_type=Release
 
 if [[ $? != 0 ]]; then
   echo "Build was unsuccessful, exiting the $0"
@@ -92,5 +92,5 @@ $PETSC_DIR/lib/petsc/bin/petscfreesharedmemory
 # -mpi_linear_solver_server_view
 
 $MPI_DIR/bin/mpiexec                \
-    -n $MPI_NUM_PROC                \
-    ./build/xpic.out $@             \
+  -n $MPI_NUM_PROC                  \
+  ./build/$build_type/xpic.out $@   \

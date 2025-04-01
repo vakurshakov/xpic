@@ -7,21 +7,22 @@ set(PETSC_DIR $ENV{PETSC_DIR})
 set(MPI_CXX_COMPILER "${MPI_DIR}/bin/mpicxx")
 set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 
-if(CMAKE_BUILD_TYPE STREQUAL "RELEASE")
-  set(PETSC_ARCH linux-mpi-opt)
-else()
-  set(PETSC_ARCH linux-mpi-debug)
-endif()
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
 project(xpic VERSION 0.1 LANGUAGES CXX)
 
-set(CMAKE_CXX_FLAGS "-fpic -fopenmp -pthread")
+set(CMAKE_CONFIGURATION_TYPES
+  "Debug"
+  "Release"
+)
 
+set(CMAKE_CXX_FLAGS "-fpic -fopenmp")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
+
+set(PETSC_ARCH_OPT linux-mpi-opt)
+set(PETSC_ARCH_DEBUG linux-mpi-debug)
 
 set(interfaces
   src/interfaces/simulation.cpp
@@ -126,13 +127,13 @@ target_include_directories(
   PUBLIC ${MPI_DIR}/include
   PUBLIC ${JSON_DIR}/include
   PUBLIC ${PETSC_DIR}/include
-  PUBLIC ${PETSC_DIR}/${PETSC_ARCH}/include
+  PUBLIC ${PETSC_DIR}/$<IF:$<CONFIG:Release>,${PETSC_ARCH_OPT},${PETSC_ARCH_DEBUG}>/include
 )
 
 target_link_directories(
   ${PROJECT_NAME}
   PUBLIC ${MPI_DIR}/lib
-  PUBLIC ${PETSC_DIR}/${PETSC_ARCH}/lib
+  PUBLIC ${PETSC_DIR}/$<IF:$<CONFIG:Release>,${PETSC_ARCH_OPT},${PETSC_ARCH_DEBUG}>/lib
 )
 
 target_link_libraries(
