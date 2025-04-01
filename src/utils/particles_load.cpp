@@ -1,4 +1,4 @@
-#include "particles_load.hpp"
+#include "particles_load.h"
 
 #include "src/utils/random_generator.h"
 #include "src/utils/utils.h"

@@ -2,7 +2,7 @@
 #define SRC_COMMANDS_BUILDERS_INJECT_PARTICLES_BUILDER_H
 
 #include "src/commands/builders/particles_builder.h"
-#include "src/utils/particles_load.hpp"
+#include "src/utils/particles_load.h"
 
 class InjectParticlesBuilder : public interfaces::ParticlesBuilder {
 public:

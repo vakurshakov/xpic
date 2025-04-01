@@ -2,7 +2,7 @@
 #define SRC_COMMANDS_BUILDERS_PARTICLES_BUILDER_H
 
 #include "src/commands/builders/command_builder.h"
-#include "src/utils/particles_load.hpp"
+#include "src/utils/particles_load.h"
 
 namespace interfaces {
 

@@ -4,7 +4,7 @@
 #include "src/pch.h"
 #include "src/interfaces/command.h"
 #include "src/interfaces/particles.h"
-#include "src/utils/particles_load.hpp"
+#include "src/utils/particles_load.h"
 
 class InjectParticles : public interfaces::Command {
 public:
