@@ -130,8 +130,6 @@ PetscErrorCode DistributionMoment::diagnose(PetscInt t)
 PetscErrorCode DistributionMoment::collect()
 {
   PetscFunctionBeginUser;
-  static constexpr PetscReal add_tolerance = 1e-10;
-
   PetscCall(VecSet(local_, 0.0));
   PetscCall(VecSet(field_, 0.0));
 
@@ -169,9 +167,6 @@ PetscErrorCode DistributionMoment::collect()
         PetscInt g_z = shape.start[Z] + (i / shape.size[X]) / shape.size[Y];
 
         PetscReal value = moment * shape.density(i);
-
-        if (std::abs(value) < add_tolerance)
-          continue;
 
 #pragma omp atomic update
         arr[g_z][g_y][g_x] += value;

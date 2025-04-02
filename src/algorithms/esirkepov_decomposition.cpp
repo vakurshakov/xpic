@@ -22,7 +22,6 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
   PetscFunctionBeginHot;
   static constexpr PetscInt j_geom = POW2(shape_width);
   static constexpr PetscInt j_size = Vector3I::dim * j_geom;
-  static constexpr PetscReal add_tolerance = 1e-10;
 
   PetscReal temp_j[j_size];
   std::fill_n(temp_j, j_size, 0.0);
@@ -41,9 +40,6 @@ PetscErrorCode EsirkepovDecomposition::process(Context& J) const
       get_jy(x, y, z, temp_j + j_geom * Y),
       get_jz(x, y, z, temp_j + j_geom * Z),
     };
-
-    if (j_p.abs_max() < add_tolerance)
-      continue;
 
 #pragma omp atomic update
     J[g_z][g_y][g_x][X] += j_p[X];
