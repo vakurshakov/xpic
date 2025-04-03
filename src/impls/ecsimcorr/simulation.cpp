@@ -5,8 +5,6 @@
 #include "src/diagnostics/charge_conservation.h"
 #include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/utils/operators.h"
-#include "src/utils/particles_load.h"
-#include "src/utils/random_generator.h"
 #include "src/utils/utils.h"
 
 
