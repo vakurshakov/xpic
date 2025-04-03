@@ -1,6 +1,7 @@
 #include "simulation.h"
 
 #include "src/impls/basic/simulation.h"
+#include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
 #include "src/impls/ricketson/simulation.h"
 #include "src/utils/configuration.h"
@@ -80,10 +81,12 @@ Simulation_up build_simulation()
 
   if (simulation_str == "basic")
     simulation = std::make_unique<basic::Simulation>();
-  else if (simulation_str == "ricketson")
-    simulation = std::make_unique<ricketson::Simulation>();
+  else if (simulation_str == "ecsim")
+    simulation = std::make_unique<ecsim::Simulation>();
   else if (simulation_str == "ecsimcorr")
     simulation = std::make_unique<ecsimcorr::Simulation>();
+  else if (simulation_str == "ricketson")
+    simulation = std::make_unique<ricketson::Simulation>();
   else
     throw std::runtime_error("Unkown simulation is used: " + simulation_str);
 

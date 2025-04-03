@@ -92,6 +92,11 @@ set(impls_basic
   src/impls/basic/particles.cpp
 )
 
+set(impls_ecsim
+  src/impls/ecsim/simulation.cpp
+  src/impls/ecsim/particles.cpp
+)
+
 set(impls_ecsimcorr
   src/impls/ecsimcorr/simulation.cpp
   src/impls/ecsimcorr/particles.cpp
@@ -112,6 +117,7 @@ add_library(
   ${diagnostics}
   ${utils}
   ${impls_basic}
+  ${impls_ecsim}
   ${impls_ecsimcorr}
   ${impls_ricketson}
 )
