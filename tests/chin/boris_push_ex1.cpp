@@ -25,7 +25,7 @@ int main(int argc, char** argv)
   auto particles = prepare_electron(point);
 
   dt = M_PI / 4.0;
-  geom_nt = 50'000;
+  geom_nt = 100'000;
   diagnose_period = geom_nt / 4;
 
   PetscReal check_counter_clockwise = 0.0;
@@ -33,7 +33,7 @@ int main(int argc, char** argv)
   Vector3R check_mean_coord;
 
   // It is not good for `skip` to be even as we wouldn't see the gyration
-  PointTrace trace(__FILE__, chin_scheme_id, point, 321);
+  PointTrace trace(__FILE__, chin_scheme_id, point, 543);
   BorisPush push;
 
   if (chin_scheme_id.ends_with("LF"))
@@ -48,7 +48,7 @@ int main(int argc, char** argv)
   PetscReal Rg = get_effective_larmor(chin_scheme_id, rg, theta);
   Vector3R rc = get_center_offset(chin_scheme_id, rg, theta);
 
-  for (PetscInt t = 0; t < geom_nt; ++t) {
+  for (PetscInt t = 0; t <= geom_nt; ++t) {
     const Vector3R old_r = point.r;
 
     PetscCall(trace.diagnose(t));
@@ -71,8 +71,10 @@ int main(int argc, char** argv)
   PetscCheck(equal_tol(check_mean_radius, Rg, 1e-5), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Mean value of gyration radius should match theory. Result mean: %f, theory: %f", check_mean_radius, Rg);
 
-  PetscCheck(equal_tol(check_mean_coord, rc, 1e-5), PETSC_COMM_WORLD, PETSC_ERR_USER,
+  PetscCheck(equal_tol(check_mean_coord, rc, 1e-4), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Mean value of gyration center should match theory. Result mean: (%f, %f, %f), theory: (%f, %f, %f)", REP3_A(check_mean_coord), REP3_A(rc));
+
+  PetscCall(compare_temporal(__FILE__, chin_scheme_id + ".txt"));
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);

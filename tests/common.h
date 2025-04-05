@@ -7,7 +7,7 @@ std::filesystem::path get_out_dir(std::string_view file)
   std::filesystem::path result(file);
   result.replace_extension("");
 
-  result = std::format("{}/output/{}/", //
+  result = std::format("{}/output/{}/",  //
     result.parent_path().c_str(), result.filename().c_str());
   return result;
 }
@@ -23,8 +23,14 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
       result.parent_path().c_str(), type, result.filename().c_str(), diag);
   };
 
-  std::ifstream expected(get_filepath("expected"));
-  std::ifstream output(get_filepath("output"));
+  std::filesystem::path e_path = get_filepath("expected");
+  std::filesystem::path o_path = get_filepath("output");
+
+  std::ifstream expected(e_path);
+  std::ifstream output(o_path);
+
+  PetscCheck(expected.is_open() == output.is_open(), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Both expected and output files must be open, filepaths:\n   expected: \"%s\"\n   output: \"%s\"", e_path.c_str(), o_path.c_str());
 
   std::string e_header;
   std::string o_header;

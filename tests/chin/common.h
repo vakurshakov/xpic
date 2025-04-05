@@ -3,6 +3,7 @@
 #include "src/diagnostics/utils/table_diagnostic.h"
 #include "src/utils/sync_file.h"
 #include "src/utils/vector3.h"
+#include "tests/common.h"
 
 void update_counter_clockwise(
   const Vector3R& old_r, const Vector3R& new_r, PetscReal& counter_clockwise)
@@ -79,8 +80,7 @@ private:
   {
     std::filesystem::path outputfile(file);
     outputfile.replace_extension("");
-
-    outputfile = std::format("{}/output/{}_{}.txt", //
+    outputfile = std::format("{}/output/{}/temporal/{}.txt",
       outputfile.parent_path().c_str(), outputfile.filename().c_str(), id);
     return outputfile;
   }
