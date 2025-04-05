@@ -20,7 +20,7 @@ protected:
 
   PetscErrorCode initialize() override;
   PetscErrorCode add_titles() override;
-  PetscErrorCode add_args() override;
+  PetscErrorCode add_args(PetscInt t) override;
 
   // Vec B0;
   PetscReal dF = 0.0;

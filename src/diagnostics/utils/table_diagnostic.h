@@ -12,9 +12,9 @@ public:
   PetscErrorCode diagnose(PetscInt t) final;
 
 protected:
-  virtual PetscErrorCode initialize() = 0;
+  virtual PetscErrorCode initialize();
   virtual PetscErrorCode add_titles() = 0;
-  virtual PetscErrorCode add_args() = 0;
+  virtual PetscErrorCode add_args(PetscInt t) = 0;
 
   template<typename T>
   PetscErrorCode write_formatted(

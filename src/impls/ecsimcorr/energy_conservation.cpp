@@ -47,11 +47,11 @@ PetscErrorCode EnergyConservation::add_titles()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode EnergyConservation::add_args()
+PetscErrorCode EnergyConservation::add_args(PetscInt t)
 {
   PetscFunctionBeginUser;
   PetscCall(VecAXPY(B, -1.0, B0));
-  PetscCall(::EnergyConservation::add_args());
+  PetscCall(::EnergyConservation::add_args(t));
 
   PetscInt off = 2;
   for (const auto& particles : simulation.particles_) {

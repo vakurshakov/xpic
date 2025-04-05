@@ -19,7 +19,7 @@ public:
 
 private:
   PetscErrorCode add_titles() override;
-  PetscErrorCode add_args() override;
+  PetscErrorCode add_args(PetscInt t) override;
 
   Vec B, B0;
 };

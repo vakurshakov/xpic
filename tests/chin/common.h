@@ -1,5 +1,6 @@
 #include "src/interfaces/particles.h"
 #include "src/algorithms/boris_push.h"
+#include "src/diagnostics/utils/table_diagnostic.h"
 #include "src/utils/sync_file.h"
 #include "src/utils/vector3.h"
 
@@ -33,15 +34,57 @@ PetscErrorCode get_id(std::string& id)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-std::filesystem::path get_outputfile(std::string_view file, std::string_view id)
-{
-  std::filesystem::path outputfile(file);
-  outputfile.replace_extension("");
+class PointTrace : public TableDiagnostic {
+public:
+  PointTrace(std::string_view file, std::string_view id, //
+    const Point& point, PetscInt skip = 1)
+    : TableDiagnostic(get_outputfile(file, id)), skip(skip), point(point)
+  {
+  }
 
-  outputfile = std::format("{}/output/{}_{}.txt", //
-    outputfile.parent_path().c_str(), outputfile.filename().c_str(), id);
-  return outputfile;
-}
+private:
+  PetscInt skip;
+  const Point& point;
+
+  PetscErrorCode add_titles() override
+  {
+    PetscFunctionBeginUser;
+    add_title("t_[1/wpe]");
+    add_title("x_[c/wpe]");
+    add_title("y_[c/wpe]");
+    add_title("z_[c/wpe]");
+    add_title("vx_[c]");
+    add_title("vy_[c]");
+    add_title("vz_[c]");
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  PetscErrorCode add_args(PetscInt t) override
+  {
+    if (t % skip != 0)
+      return PETSC_SUCCESS;
+
+    PetscFunctionBeginUser;
+    add_arg(t * dt);
+    add_arg(point.x());
+    add_arg(point.y());
+    add_arg(point.z());
+    add_arg(point.px());
+    add_arg(point.py());
+    add_arg(point.pz());
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  std::filesystem::path get_outputfile(std::string_view file, std::string_view id)
+  {
+    std::filesystem::path outputfile(file);
+    outputfile.replace_extension("");
+
+    outputfile = std::format("{}/output/{}_{}.txt", //
+      outputfile.parent_path().c_str(), outputfile.filename().c_str(), id);
+    return outputfile;
+  }
+};
 
 using InterpolationResult = std::pair<REP2(Vector3R)>;
 using Interpolator = std::function<InterpolationResult(const Vector3R& r)>;
@@ -190,7 +233,7 @@ void process_B2B(BorisPush& push, Point& point,
   push.update_r((dt / 2.0), point, particles);
 }
 
-// Electro-magnetic field intergrators
+// Electro-magnetic field integrators
 
 void process_EB1A(BorisPush& push, Point& point,
   interfaces::Particles& particles, const Interpolator& interpolate)

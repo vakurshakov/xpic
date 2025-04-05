@@ -49,7 +49,7 @@ PetscErrorCode ChargeConservation::add_titles()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode ChargeConservation::add_args()
+PetscErrorCode ChargeConservation::add_args(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   // It is important to get `da` from `DistributionMoment` as it is reduced in dof

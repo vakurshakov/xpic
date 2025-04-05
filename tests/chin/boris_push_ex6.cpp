@@ -1,12 +1,11 @@
 #include "common.h"
 
-// clang-format off
 static char help[] =
-  "Recreation of published results, see https://doi.org/10.1016/j.jcp.2022.111422       \n"
-  "Here we are testing the electron drift in a fields, where both electric and magnetic \n"
-  "has the curvature (described by E_coeff and B_coeff). Different process algorithms   \n"
-  "are used. None that since electric field is on, only \"EB\" algorithms can be used.  \n";
-// clang-format on
+  "Here we are testing the electron drift in a fields, where both electric   \n"
+  "and magnetic has the curvature (described by E_coeff and B_coeff).        \n"
+  "Different process algorithms are used. None that since electric field is  \n"
+  "on, only \"EB\" algorithms can be used. This is a recreation of published \n"
+  "results, see https://doi.org/10.1016/j.jcp.2022.111422 \n";
 
 constexpr PetscReal E_coeff = 0.1;
 constexpr PetscReal B_coeff = 1.0;
@@ -24,26 +23,23 @@ int main(int argc, char** argv)
   constexpr Vector3R r0(0.0, -1.0, 0.0);
   constexpr Vector3R v0(0.1, 0.01, 0.0);
 
-  Point point{r0, v0};
+  Point point(r0, v0);
   auto particles = prepare_electron(point);
 
   // dt = 2.0 * M_PI / 20.0;
   dt = 2.1 * M_PI;
-
   geom_t = 1000;
   geom_nt = ROUND_STEP(geom_t, dt);
+  diagnose_period = geom_nt;
 
-  SyncFile output(get_outputfile(__FILE__, chin_scheme_id));
-  output() << "t       x       y       z       \n";
-  output() << "[1/wpe] [c/wpe] [c/wpe] [c/wpe] \n";
-
+  PointTrace trace(__FILE__, chin_scheme_id, point);
   BorisPush push;
 
   if (chin_scheme_id.ends_with("LF"))
-    point.r -= (dt / 2.0) * point.p;
+    push.update_r(-dt / 2.0, point, *particles);
 
   for (PetscInt t = 0; t < geom_nt; ++t) {
-    output() << t * dt << " " << point.r << "\n";
+    PetscCall(trace.diagnose(t));
     process_impl(chin_scheme_id, push, point, *particles, interpolated_fields);
   }
 

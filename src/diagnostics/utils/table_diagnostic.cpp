@@ -14,11 +14,19 @@ PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
     PetscCall(write_formatted("{:^15s}  ", titles_));
   }
 
-  PetscCall(add_args());
-  PetscCall(write_formatted("{: .6e}    ", args_));
+  PetscCall(add_args(t));
+
+  if (!args_.empty())
+    PetscCall(write_formatted("{: .6e}    ", args_));
 
   if (t % diagnose_period_ == 0)
     PetscCall(file_.flush());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode TableDiagnostic::initialize()
+{
+  PetscFunctionBeginUser;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

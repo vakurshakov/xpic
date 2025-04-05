@@ -56,7 +56,7 @@ PetscErrorCode EnergyConservation::add_titles()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode EnergyConservation::add_args()
+PetscErrorCode EnergyConservation::add_args(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   PetscReal prev_E = fields_energy->get_electric_energy();
