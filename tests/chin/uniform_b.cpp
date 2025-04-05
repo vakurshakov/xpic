@@ -23,7 +23,7 @@ int main(int argc, char** argv)
   constexpr Vector3R v0(0.0, 1.0, 0.0);
 
   Point point{r0, v0};
-  Particles_up particles = prepare_electron(point);
+  auto particles = prepare_electron(point);
 
   dt = M_PI / 4.0;
   geom_nt = 100'000;

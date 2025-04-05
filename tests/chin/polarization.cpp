@@ -24,7 +24,7 @@ int main(int argc, char** argv)
   constexpr Vector3R v0(0.0, 0.0, 0.1);
 
   Point point{r0, v0};
-  Particles_up particles = prepare_electron(point);
+  auto particles = prepare_electron(point);
 
   dt = 0.5;
   geom_nt = 200;

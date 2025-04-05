@@ -263,7 +263,7 @@ void process_impl(std::string_view id, BorisPush& push, Point& point,
 }
 
 
-Particles_up prepare_electron(const Point& point)
+auto prepare_electron(const Point& point)
 {
   World world;
   SortParameters parameters;
