@@ -41,14 +41,37 @@ PetscErrorCode Simulation::init_particles(
     container.emplace_back(sort);
     particles_.emplace_back(sort);
 
-    PetscReal T = std::hypot(parameters.Tx, parameters.Ty, parameters.Tz);
-    PetscReal V = std::sqrt(T / (parameters.m * 511.0));
-    PetscReal H = std::hypot(Dx[X] / V, Dx[Y] / V, Dx[Z] / V);
+    PetscReal frac = (parameters.m * 511.0);
+
+    Vector3R T{
+      parameters.Tx,
+      parameters.Ty,
+      parameters.Tz,
+    };
+
+    Vector3R V{
+      std::sqrt(T[X] / frac),
+      std::sqrt(T[Y] / frac),
+      std::sqrt(T[Z] / frac),
+    };
+
+    Vector3R CH{
+      Dx[X] / V[X],
+      Dx[Y] / V[Y],
+      Dx[Z] / V[Z],
+    };
+
+    Vector3R CT{
+      V[X] * dt / Dx[X],
+      V[Y] * dt / Dx[Y],
+      V[Z] * dt / Dx[Z],
+    };
 
     LOG("  {} are added:", parameters.sort_name);
-    LOG("    temperature,         T = {:.3e} [KeV]", T);
-    LOG("    thermal velocity, v_th = {:.3e} [c]", V);
-    LOG("    cell-heating, Dx / L_d = {:.3e} [unit]", H);
+    LOG("    temperature (avg.),  T = {:.3e} [KeV]", T.length());
+    LOG("    thermal velocity, v_th = {:.3e} [c]", V.length());
+    LOG("    cell-heating, Δx / λ_d = {:.3e} [unit]", CH.abs_max());
+    LOG("    cell-traverse, v_th * Δt / Δx = {:.3e} [unit]", CT.abs_max());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

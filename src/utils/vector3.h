@@ -126,7 +126,7 @@ struct Vector3 {
   PetscReal length() const
     requires std::is_floating_point_v<T>
   {
-    return std::sqrt(static_cast<PetscReal>(squared()));
+    return std::hypot(data[X], data[Y], data[Z]);
   }
 
   T elements_product() const
