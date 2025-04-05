@@ -1,31 +1,32 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(tests
-  uniform_b
-  linear_b
-  curvilinear_b
-  crossed_fields
-  polarization
-  crossed_gradient
+  boris_push_ex1
+  boris_push_ex2
+  boris_push_ex3
+  boris_push_ex4
+  boris_push_ex5
+  boris_push_ex6
 )
 
-set(uniform_b_ids
+set(boris_push_ex1_ids
   M1A M1B
   B1A B1B
   C1A C1B
   MLF BLF CLF
-  M2A M2B C2A B2B
+  M2A M2B
+  C2A B2B
 )
 
 set(B_IDS B1A B1B B2B BLF)
 set(EB_IDS EB1A EB1B EB2B EBLF)
 
-set(linear_b_ids ${B_IDS})
-set(curvilinear_b_ids ${B_IDS})
+set(boris_push_ex2 ${B_IDS})
+set(boris_push_ex3 ${B_IDS})
 
-set(crossed_fields_ids ${EB_IDS})
-set(polarization_ids ${EB_IDS})
-set(crossed_gradient_ids ${EB_IDS})
+set(boris_push_ex4 ${EB_IDS})
+set(boris_push_ex5 ${EB_IDS})
+set(boris_push_ex6 ${EB_IDS})
 
 foreach(test ${tests})
   add_executable(${test}.out ${test}.cpp)
@@ -33,6 +34,6 @@ foreach(test ${tests})
 
   foreach(id ${${test}_ids})
     add_test(NAME "${test}_${id}" COMMAND ./${test}.out -id ${id})
-    set_property(TEST "${test}_${id}" PROPERTY LABELS chin)
+    set_property(TEST "${test}_${id}" PROPERTY LABELS chin boris)
   endforeach()
 endforeach()
