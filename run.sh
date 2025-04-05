@@ -2,6 +2,8 @@
 
 source ./header.sh
 
+source ./build.sh
+
 build_type=Release
 
 if [[ $? != 0 ]]; then
