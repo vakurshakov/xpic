@@ -1,100 +1,52 @@
 #ifndef SRC_ECSIMCORR_SIMULATION_H
 #define SRC_ECSIMCORR_SIMULATION_H
 
-#include <petscksp.h>
-
-#include "src/interfaces/simulation.h"
+#include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/particles.h"
 #include "src/utils/sync_clock.h"
 
 namespace ecsimcorr {
 
-class Simulation : public interfaces::Simulation {
+class Simulation : public ecsim::Simulation {
 public:
   DEFAULT_MOVABLE(Simulation);
 
   Simulation() = default;
   ~Simulation() override;
 
-  Vec E;
-  Vec Ep;
-  Vec Ec;
-  Vec B;
-  Vec B0;
-  Vec currI;
-  Vec currJe;
+  using ecsim::Simulation::B;
+  using ecsim::Simulation::B0;
+  using ecsim::Simulation::currI;
+  using ecsim::Simulation::E;
+  using ecsim::Simulation::Ep;
+  using ecsim::Simulation::matL;
 
-  /**
-   * @details Filling up the Lapenta's matrix will be one of the most time
-   * consuming part of the simulation process, so a proper way to do so should
-   * be chosen. In attempts to speed up this process, we use the following steps:
-   *
-   * 1) `MatSetPreallocationCOO()`/`MatSetValuesCOO()` technique is utilized;
-   * 2) Control of matrix indices assembly is added (to avoid reallocation);
-   * 3) Parallel-traversable buffers are used to fill indices and values.
-   */
-  Mat matL;
+  Vec Ec;
+  Vec currJe;
 
   std::vector<std::shared_ptr<Particles>> particles_;
 
   Vec get_named_vector(std::string_view name) const override;
-  NamedValues<Vec> get_backup_fields() const override;
 
 private:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt t) override;
 
-  PetscErrorCode init_vectors();
-  PetscErrorCode init_matrices();
-  PetscErrorCode init_ksp_solvers();
+  PetscErrorCode init_particles() override;
+  PetscErrorCode init_vectors() override;
+  PetscErrorCode init_ksp_solvers() override;
   PetscErrorCode init_log_stages();
 
   // The main simulation steps
   PetscErrorCode clear_sources();
-  PetscErrorCode first_push();
-  PetscErrorCode fill_ecsim_current();
   PetscErrorCode predict_fields();
-  PetscErrorCode second_push();
   PetscErrorCode correct_fields();
   PetscErrorCode final_update();
 
-  PetscErrorCode update_cells_with_assembly();
-  PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
-
-  void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
-
-  PetscErrorCode fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j);
-  PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
-
   PetscErrorCode log_timings();
 
-  Vec local_E;
-  Vec local_B;
-
-  Mat rotE;
-  Mat rotB;
-  Mat matM;
-
-  KSP predict;
+  using ecsim::Simulation::ksp; // prediction KSP
   KSP correct;
-
-  /**
-   * @brief Radius of the cloud, where indices should be assembled.
-   * @details The available values are:
-   * 1) radius = 0 -- All cells where _were_ particles are assembled.
-   * 2) radius > 0 -- Adds a `radius` cells along each direction to
-   *                  where the particles _were_ placed.
-   * 3) radius < 0 -- Drop the previous `assembly_map` in this case.
-   */
-  static constexpr PetscInt assembly_radius = +1;
-  static constexpr PetscInt assembly_width = 2 * assembly_radius + 1;
-
-  /// @brief Cells, where indices have been assembled.
-  /// @note This map and `matL` size can only _grow_ in time.
-  std::vector<bool> assembly_map;
-
-  /// @brief Whether the new cells have been added into `indices_map`.
-  bool indices_assembled = false;
 
   PetscClassId classid;
   PetscLogEvent events[1];

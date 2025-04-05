@@ -10,13 +10,11 @@
 namespace ecsimcorr {
 
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
-  : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
+  : ecsim::Particles(simulation, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
   DM da = world.da;
-  PetscCallVoid(DMCreateLocalVector(da, &local_currI));
   PetscCallVoid(DMCreateLocalVector(da, &local_currJe));
-  PetscCallVoid(DMCreateGlobalVector(da, &global_currI));
   PetscCallVoid(DMCreateGlobalVector(da, &global_currJe));
 
   PetscClassIdRegister("ecsimcorr::Particles", &classid);
@@ -26,11 +24,10 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   PetscFunctionReturnVoid();
 }
 
-
 PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
-  PetscCall(DMDAVecGetArrayWrite(world.da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArray(world.da, local_currJe, &currJe));
 
   PetscLogEventBegin(events[0], local_currJe, 0, 0, 0);
 
@@ -50,106 +47,14 @@ PetscErrorCode Particles::first_push()
 
   PetscLogEventEnd(events[0], local_currJe, 0, 0, 0);
 
-  PetscCall(DMDAVecRestoreArrayWrite(world.da, local_currJe, &currJe));
+  PetscCall(DMDAVecRestoreArray(world.da, local_currJe, &currJe));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-void Particles::fill_ecsim_current(PetscInt g, PetscReal* coo_v)
-{
-  for (const auto& point : storage[g]) {
-    Shape shape;
-    shape.setup(point.r, shape_radius1, shape_func1);
-
-    Vector3R B_p;
-    SimpleInterpolation interpolation(shape);
-    interpolation.process({}, {{B_p, B}});
-
-    decompose_ecsim_current(shape, point, B_p, coo_v);
-  }
-}
-
-constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
-{
-  return g * POW2(3) + (c1 * 3 + c2);
-}
-
-/// @note Also decomposes `Simulation::matL`
-void Particles::decompose_ecsim_current(
-  const Shape& shape, const Point& point, const Vector3R& B_p, PetscReal* coo_v)
-{
-  PetscFunctionBeginUser;
-  const auto& [r, v] = point;
-
-  Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
-
-  PetscReal betaI = density(point) * charge(point) /
-    (particles_number(point) * (1.0 + b.squared()));
-
-  PetscReal betaL = charge(point) / mass(point) * betaI;
-
-  Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
-
-  SimpleDecomposition decomposition(shape, I_p);
-  PetscCallVoid(decomposition.process(currI));
-
-  constexpr PetscInt shr = 1;
-  constexpr PetscInt shw = 2 * shr + 1;
-  constexpr PetscReal shape_tolerance = 1e-10;
-
-  /// @note It is an offset from particle `shape` indexing into `coo_v` one.
-  const Vector3I off{
-    shape.start[X] - (FLOOR_STEP(r.x(), dx) - shr),
-    shape.start[Y] - (FLOOR_STEP(r.y(), dy) - shr),
-    shape.start[Z] - (FLOOR_STEP(r.z(), dz) - shr),
-  };
-
-  auto s_gg = [&](PetscInt g1, PetscInt g2) {
-    Vector3I vg1{
-      off[X] + g1 % shape.size[X],
-      off[Y] + (g1 / shape.size[X]) % shape.size[Y],
-      off[Z] + (g1 / shape.size[X]) / shape.size[Y],
-    };
-
-    Vector3I vg2{
-      off[X] + g2 % shape.size[X],
-      off[Y] + (g2 / shape.size[X]) % shape.size[Y],
-      off[Z] + (g2 / shape.size[X]) / shape.size[Y],
-    };
-
-    return //
-      ((vg1[Z] * shw + vg1[Y]) * shw + vg1[X]) * POW3(shw) +
-      ((vg2[Z] * shw + vg2[Y]) * shw + vg2[X]);
-  };
-
-  const PetscReal matB[Vector3R::dim][Vector3R::dim]{
-    {1.0 + b[X] * b[X], +b[Z] + b[X] * b[Y], -b[Y] + b[X] * b[Z]},
-    {-b[Z] + b[Y] * b[X], 1.0 + b[Y] * b[Y], +b[X] + b[Y] * b[Z]},
-    {+b[Y] + b[Z] * b[X], -b[X] + b[Z] * b[Y], 1.0 + b[Z] * b[Z]},
-  };
-
-  for (PetscInt g1 = 0; g1 < shape.size.elements_product(); ++g1) {
-    for (PetscInt g2 = 0; g2 < shape.size.elements_product(); ++g2) {
-      Vector3R s1 = shape.electric(g1);
-      Vector3R s2 = shape.electric(g2);
-
-      if (s1.abs_max() < shape_tolerance || s2.abs_max() < shape_tolerance)
-        continue;
-
-      PetscInt gg = s_gg(g1, g2);
-
-      for (PetscInt c1 = 0; c1 < Vector3R::dim; ++c1)
-        for (PetscInt c2 = 0; c2 < Vector3R::dim; ++c2)
-          coo_v[ind(gg, c1, c2)] += s1[c1] * s2[c2] * betaL * matB[c1][c2];
-    }
-  }
-  PetscFunctionReturnVoid();
-}
-
 
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
-  PetscCall(DMDAVecGetArrayWrite(world.da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArray(world.da, local_currJe, &currJe));
 
   PetscLogEventBegin(events[1], 0, 0, 0, 0);
 
@@ -178,11 +83,11 @@ PetscErrorCode Particles::second_push()
 
   PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
+  PetscCall(DMDAVecRestoreArray(world.da, local_currJe, &currJe));
   PetscCall(DMLocalToGlobal(world.da, local_currJe, ADD_VALUES, global_currJe));
   PetscCall(VecAXPY(simulation_.currJe, 1.0, global_currJe));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 PetscErrorCode Particles::final_update()
 {
@@ -221,7 +126,6 @@ PetscErrorCode Particles::final_update()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 void Particles::decompose_esirkepov_current(const Shape& shape, const Point& point)
 {
   PetscFunctionBeginUser;
@@ -230,16 +134,6 @@ void Particles::decompose_esirkepov_current(const Shape& shape, const Point& poi
 
   EsirkepovDecomposition decomposition(shape, alpha);
   PetscCallVoid(decomposition.process(currJe));
-}
-
-Particles::~Particles()
-{
-  PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&local_currI));
-  PetscCallVoid(VecDestroy(&local_currJe));
-  PetscCallVoid(VecDestroy(&global_currI));
-  PetscCallVoid(VecDestroy(&global_currJe));
-  PetscFunctionReturnVoid();
 }
 
 PetscErrorCode Particles::calculate_energy()
@@ -263,12 +157,19 @@ PetscErrorCode Particles::calculate_energy()
 PetscErrorCode Particles::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecSet(local_currI, 0.0));
+  PetscCall(ecsim::Particles::clear_sources());
   PetscCall(VecSet(local_currJe, 0.0));
-  PetscCall(VecSet(global_currI, 0.0));
   PetscCall(VecSet(global_currJe, 0.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+Particles::~Particles()
+{
+  PetscFunctionBeginUser;
+  PetscCallVoid(VecDestroy(&local_currJe));
+  PetscCallVoid(VecDestroy(&global_currJe));
+  // ecsim::Particles::~Particles();
+  PetscFunctionReturnVoid();
+}
 
 }  // namespace ecsimcorr

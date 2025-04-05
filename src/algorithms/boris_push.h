@@ -15,8 +15,8 @@ public:
   PetscErrorCode process(Point& point, const Context& particles) const;
   PetscErrorCode process_rel(Point& point, const Context& particles) const;
 
-  /// @note The following is the recreation of the published
-  /// results, @see https://doi.org/10.1016/j.jcp.2022.111422
+  /// @note The following is a recreation of the published results,
+  /// @see https://doi.org/10.1016/j.jcp.2022.111422
   void update_fields(const Vector3R& E_p, const Vector3R& B_p);
   void update_r(PetscReal dt, Point& point, const Context& particles);
 

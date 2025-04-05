@@ -11,13 +11,12 @@ namespace ecsim {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-
   assembly_map.resize(world.size.elements_product());
 
   PetscCall(init_vectors());
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
-  PetscCall(init_particles(*this, particles_));
+  PetscCall(init_particles());
 
   if (!CONFIG().is_loaded_from_backup())
     PetscCall(VecAXPY(B, 1.0, B0));
@@ -35,13 +34,12 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @todo Map one-to-one Appendix D of the article https://doi.org/10.1016/j.jcp.2017.01.002
 PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   PetscCall(clear_sources());
   PetscCall(first_push());
-  PetscCall(predict_fields());
+  PetscCall(advance_fields(matL));
   PetscCall(second_push());
   PetscCall(final_update());
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -69,20 +67,16 @@ PetscErrorCode Simulation::first_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::predict_fields()
+PetscErrorCode Simulation::advance_fields(Mat matA)
 {
   PetscFunctionBeginUser;
-  // Storing `matL` to reuse it for ECSIM current calculation later
-  Mat matA;
-  PetscCall(MatDuplicate(matL, MAT_COPY_VALUES, &matA));  // matA = matL
   PetscCall(MatAYPX(matA, 2.0 * dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + (2 * dt) * matA
 
   // Note that we use `matM` to construct the preconditioning matrix
   PetscCall(KSPSetOperators(ksp, matA, matM));
   PetscCall(KSPSetUp(ksp));
 
-  PetscCall(advance_fields(ksp, currI, Eh));
-  PetscCall(MatDestroy(&matA));
+  PetscCall(advance_fields(ksp, currI, Ep));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -90,7 +84,7 @@ PetscErrorCode Simulation::second_push()
 {
   PetscFunctionBeginUser;
   DM da = world.da;
-  PetscCall(DMGlobalToLocal(da, Eh, INSERT_VALUES, local_E));
+  PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, local_B));
 
   Vector3R*** arr_E;
@@ -120,14 +114,14 @@ PetscErrorCode Simulation::final_update()
   PetscCall(DMGetGlobalVector(world.da, &util));
 
   PetscCall(VecSet(util, 0.0));  // util = 0.0
-  PetscCall(VecAXPBYPCZ(util, 2, -1, 1, Eh, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
+  PetscCall(VecAXPBYPCZ(util, 2, -1, 1, Ep, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
   PetscCall(VecNorm(util, NORM_2, &norm));
   LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
 
   PetscCall(VecSwap(util, E));
   PetscCall(DMRestoreGlobalVector(world.da, &util));
 
-  PetscCall(MatMultAdd(rotE, Eh, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
+  PetscCall(MatMultAdd(rotE, Ep, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -149,11 +143,15 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscCall(DMRestoreGlobalVector(world.da, &rhs));
 
   // Convergence analysis
-  LOG("  KSPSolve() has finished, KSPConvergedReasonView():");
+  const char* name;
+  PetscCall(PetscObjectGetName((PetscObject)ksp, &name));
+  LOG("  KSPSolve() has finished for \"{}\", KSPConvergedReasonView():", name);
   PetscCall(KSPConvergedReasonView(ksp, PETSC_VIEWER_STDOUT_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @note Since we use one global Lapenta matrix, test on `indices_assembled` should include particles of all sorts.
+/// @note This routine _must_ be called before `fill_matrix_indices()`
 PetscErrorCode Simulation::update_cells_with_assembly()
 {
   PetscFunctionBeginUser;
@@ -371,12 +369,20 @@ void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& of
       off += shs;
 }
 
+
+PetscErrorCode Simulation::init_particles()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Simulation::init_particles(*this, particles_));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Simulation::init_vectors()
 {
   PetscFunctionBeginUser;
   DM da = world.da;
   PetscCall(DMCreateGlobalVector(da, &E));
-  PetscCall(DMCreateGlobalVector(da, &Eh));
+  PetscCall(DMCreateGlobalVector(da, &Ep));
   PetscCall(DMCreateGlobalVector(da, &B));
   PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &currI));
@@ -439,7 +445,7 @@ Simulation::~Simulation()
   PetscCallVoid(MatDestroy(&rotB));
 
   PetscCallVoid(VecDestroy(&E));
-  PetscCallVoid(VecDestroy(&Eh));
+  PetscCallVoid(VecDestroy(&Ep));
   PetscCallVoid(VecDestroy(&B));
   PetscCallVoid(VecDestroy(&B0));
   PetscCallVoid(VecDestroy(&currI));

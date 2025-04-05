@@ -9,6 +9,8 @@
 
 namespace ecsim {
 
+/// @note The following is a recreation of the published results,
+/// @see https://doi.org/10.1016/j.jcp.2017.01.002
 class Simulation : public interfaces::Simulation {
 public:
   DEFAULT_MOVABLE(Simulation);
@@ -17,11 +19,20 @@ public:
   ~Simulation() override;
 
   Vec E;
-  Vec Eh;
+  Vec Ep;
   Vec B;
   Vec B0;
   Vec currI;
 
+  /**
+   * @details Filling up the Lapenta's matrix will be one of the most time
+   * consuming part of the simulation process, so a proper way to do so should
+   * be chosen. In attempts to speed up this process, we use the following steps:
+   *
+   * 1) `MatSetPreallocationCOO()`/`MatSetValuesCOO()` technique is utilized;
+   * 2) Control of matrix indices assembly is added (to avoid reallocation);
+   * 3) Parallel-traversable buffers are used to fill indices and values.
+   */
   Mat matL;
 
   std::vector<std::shared_ptr<Particles>> particles_;
@@ -29,19 +40,20 @@ public:
   Vec get_named_vector(std::string_view name) const override;
   NamedValues<Vec> get_backup_fields() const override;
 
-private:
+protected:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt t) override;
 
-  PetscErrorCode init_vectors();
+  virtual PetscErrorCode init_particles();
+  virtual PetscErrorCode init_vectors();
+  virtual PetscErrorCode init_ksp_solvers();
   PetscErrorCode init_matrices();
-  PetscErrorCode init_ksp_solvers();
 
   // The main simulation steps
   PetscErrorCode clear_sources();
   PetscErrorCode first_push();
   PetscErrorCode fill_ecsim_current();
-  PetscErrorCode predict_fields();
+  PetscErrorCode advance_fields(Mat matA);
   PetscErrorCode second_push();
   PetscErrorCode final_update();
 
@@ -62,11 +74,22 @@ private:
 
   KSP ksp;
 
+  /**
+   * @brief Radius of the cloud, where indices should be assembled.
+   * @details The available values are:
+   * 1) radius = 0 -- All cells where _were_ particles are assembled.
+   * 2) radius > 0 -- Adds a `radius` cells along each direction to
+   *                  where the particles _were_ placed.
+   * 3) radius < 0 -- Drop the previous `assembly_map` in this case.
+   */
   static constexpr PetscInt assembly_radius = +1;
   static constexpr PetscInt assembly_width = 2 * assembly_radius + 1;
 
+  /// @brief Cells, where indices have been assembled.
+  /// @note This map and `matL` size can only _grow_ in time.
   std::vector<bool> assembly_map;
 
+  /// @brief Whether the new cells have been added into `indices_map`.
   bool indices_assembled = false;
 
   /// @todo Rework clock, there is a problem if you use e.g. __FUNCTION__

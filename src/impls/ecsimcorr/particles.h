@@ -1,15 +1,13 @@
 #ifndef SRC_ECSIMCORR_PARTICLES_H
 #define SRC_ECSIMCORR_PARTICLES_H
 
-#include "src/pch.h"
-#include "src/interfaces/particles.h"
-#include "src/utils/shape.h"
+#include "src/impls/ecsim/particles.h"
 
 namespace ecsimcorr {
 
 class Simulation;
 
-class Particles : public interfaces::Particles {
+class Particles : public ecsim::Particles {
 public:
   DEFAULT_MOVABLE(Particles);
 
@@ -17,35 +15,28 @@ public:
   ~Particles() override;
 
   PetscErrorCode calculate_energy();
-  PetscErrorCode clear_sources();
-  PetscErrorCode first_push();
-  PetscErrorCode second_push();
+
+  PetscErrorCode clear_sources() override;
+  PetscErrorCode first_push() override;
+  PetscErrorCode second_push() override;
   PetscErrorCode final_update();
 
-  void fill_ecsim_current(PetscInt g, PetscReal* coo_v);
+  using ecsim::Particles::E;
+  using ecsim::Particles::B;
 
-  Vector3R*** E;
-  Vector3R*** B;
+  using ecsim::Particles::local_currI;
+  using ecsim::Particles::global_currI;
+  using ecsim::Particles::currI;
 
-  Vec local_currI;
   Vec local_currJe;
-  Vec global_currI;
   Vec global_currJe;
-  Vector3R*** currI;
   Vector3R*** currJe;
 
 private:
-#if (PARTICLES_FORM_FACTOR == 2)
-  static constexpr auto& shape_func1 = spline_of_1st_order;
   static constexpr auto& shape_func2 = spline_of_2nd_order;
-  static constexpr PetscReal shape_radius1 = 1.0;
   static constexpr PetscReal shape_radius2 = 1.5;
-#endif
 
   void decompose_esirkepov_current(const Shape& shape, const Point& point);
-
-  void decompose_ecsim_current(const Shape& shape, const Point& point,
-    const Vector3R& B_p, PetscReal* coo_v);
 
   Simulation& simulation_;
 

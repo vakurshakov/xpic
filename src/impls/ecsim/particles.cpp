@@ -36,7 +36,7 @@ void Particles::fill_ecsim_current(PetscInt g, PetscReal* coo_v)
 {
   for (const auto& point : storage[g]) {
     Shape shape;
-    shape.setup(point.r, shape_radius, shape_func);
+    shape.setup(point.r, shape_radius1, shape_func1);
 
     Vector3R B_p;
     SimpleInterpolation interpolation(shape);
@@ -130,7 +130,7 @@ PetscErrorCode Particles::second_push()
   for (auto& cell : storage) {
     for (auto& point : cell) {
       Shape shape;
-      shape.setup(point.r, shape_radius, shape_func);
+      shape.setup(point.r, shape_radius1, shape_func1);
 
       Vector3R E_p;
       Vector3R B_p;
@@ -145,20 +145,20 @@ PetscErrorCode Particles::second_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Particles::~Particles()
-{
-  PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&local_currI));
-  PetscCallVoid(VecDestroy(&global_currI));
-  PetscFunctionReturnVoid();
-}
-
 PetscErrorCode Particles::clear_sources()
 {
   PetscFunctionBeginUser;
   PetscCall(VecSet(local_currI, 0.0));
   PetscCall(VecSet(global_currI, 0.0));
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+Particles::~Particles()
+{
+  PetscFunctionBeginUser;
+  PetscCallVoid(VecDestroy(&local_currI));
+  PetscCallVoid(VecDestroy(&global_currI));
+  PetscFunctionReturnVoid();
 }
 
 }  // namespace ecsim
