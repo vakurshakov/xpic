@@ -58,7 +58,9 @@ PetscErrorCode Simulation::initialize_implementation()
     .q = +1.0,
     .m = +1.0,
   };
-  auto& sort = particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
+
+  auto& sort =
+    particles_.emplace_back(std::make_shared<Particles>(*this, parameters));
 
   const PetscReal v_crit = std::sqrt(9.8342 - 1);
   const PetscReal factor = 0.3;
@@ -140,20 +142,19 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
 }
 
 
-Vec Simulation::get_named_vector(std::string_view name)
+Vec Simulation::get_named_vector(std::string_view name) const
 {
-  if (name == "E")
-    return E_;
-  if (name == "B")
-    return B_;
-  if (name == "DB")
-    return DB_;
-  throw std::runtime_error("Unknown vector name " + std::string(name));
+  static const std::unordered_map<std::string_view, Vec> map{
+    {"E", E_},
+    {"B", B_},
+    {"DB", DB_},
+  };
+  return map.at(name);
 }
 
-Particles& Simulation::get_named_particles(std::string_view name)
+Simulation::NamedValues<Vec> Simulation::get_backup_fields() const
 {
-  return interfaces::Simulation::get_named_particles(name, particles_);
+  return {{"E", E_}, {"B", B_}};
 }
 
 

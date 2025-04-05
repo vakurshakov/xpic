@@ -8,7 +8,6 @@
 
 namespace interfaces {
 
-/// @note Points are stored in a contiguous 3d array of cells
 class Particles {
 public:
   DEFAULT_MOVABLE(Particles);
@@ -16,14 +15,19 @@ public:
   Particles(const World& world, const SortParameters& parameters);
   virtual ~Particles() = default;
 
+  /// @brief Reference to outer `interfaces::Simulation::world`.
   const World& world;
+
+  /// @brief Particles parameters, constant throughout the whole simulation run.
   const SortParameters parameters;
+
+  /// @brief Points are stored in a contiguous 3d array of cells.
   std::vector<std::list<Point>> storage;
 
   /**
-   * @brief The added `point` coordinate is first tested against
-   * local MPI-boundaries. If it lies within it, the `point` is added
-   * to `storage` and added `energy` is accumulated.
+   * @brief The added `point` coordinate is first tested against local
+   * MPI-boundaries. If it lies within it, the `point` is added to `storage`
+   * and added `energy` is accumulated.
    *
    * @param point The inserted point to be emplaced into `storage`.
    * @param is_added Whether the `point` has been added after the MPI-boundaries test.

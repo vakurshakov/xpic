@@ -16,12 +16,12 @@ public:
   Vec E_;
   Vec B_;
   Vec DB_;
-  std::vector<std::unique_ptr<Particles>> particles_;
+  std::vector<std::shared_ptr<Particles>> particles_;
 
   PetscErrorCode calculate_b_norm_gradient();
 
-  Vec get_named_vector(std::string_view name) override;
-  Particles& get_named_particles(std::string_view name) override;
+  Vec get_named_vector(std::string_view name) const override;
+  NamedValues<Vec> get_backup_fields() const override;
 
 private:
   PetscErrorCode initialize_implementation() override;

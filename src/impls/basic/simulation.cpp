@@ -28,7 +28,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(MatScale(rot_dt_p, -(0.5 * dt)));
   PetscCall(MatScale(rot_dt_m, +(1.0 * dt)));
 
-  PetscCall(init_particles());
+  PetscCall(init_particles(*this, particles_));
 
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
@@ -139,71 +139,21 @@ PetscErrorCode Simulation::push_fields()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @todo Is it a `Command`? Where it should be placed?
-PetscErrorCode Simulation::init_particles()
+Vec Simulation::get_named_vector(std::string_view name) const
 {
-  PetscFunctionBeginUser;
-  LOG("Configuring particles");
-
-  const Configuration::json_t& json = CONFIG().json;
-  auto it = json.find("Particles");
-
-  if (it == json.end() || it->empty())
-    PetscFunctionReturn(PETSC_SUCCESS);
-
-  for (auto&& info : *it) {
-    SortParameters parameters;
-    info.at("sort_name").get_to(parameters.sort_name);
-    info.at("Np").get_to(parameters.Np);
-    info.at("n").get_to(parameters.n);
-    info.at("q").get_to(parameters.q);
-    info.at("m").get_to(parameters.m);
-
-    if (info.contains("T")) {
-      PetscReal T;
-      info.at("T").get_to(T);
-      parameters.Tx = T;
-      parameters.Ty = T;
-      parameters.Tz = T;
-    }
-    else {
-      info.at("Tx").get_to(parameters.Tx);
-      info.at("Ty").get_to(parameters.Ty);
-      info.at("Tz").get_to(parameters.Tz);
-    }
-
-    particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
-
-    PetscReal T = std::hypot(parameters.Tx, parameters.Ty, parameters.Tz);
-    PetscReal V = std::sqrt(T / (parameters.m * 511.0));
-    PetscReal H = std::hypot(Dx[X] / V, Dx[Y] / V, Dx[Z] / V);
-
-    LOG("  {} are added:", parameters.sort_name);
-    LOG("    temperature,         T = {:.3e} [KeV]", T);
-    LOG("    thermal velocity, v_th = {:.3e} [c]", V);
-    LOG("    cell-heating, Dx / L_d = {:.3e} [unit]", H);
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
+  static const std::unordered_map<std::string_view, Vec> map{
+    {"E", E},
+    {"B", B},
+    {"B0", B0},
+    {"J", J},
+  };
+  return map.at(name);
 }
 
-Vec Simulation::get_named_vector(std::string_view name)
+Simulation::NamedValues<Vec> Simulation::get_backup_fields() const
 {
-  if (name == "E")
-    return E;
-  if (name == "B")
-    return B;
-  if (name == "B0")
-    return B0;
-  if (name == "J")
-    return J;
-  throw std::runtime_error("Unknown vector name " + std::string(name));
+  return {{"E", E}, {"B", B}, {"B0", B0}};
 }
-
-Particles& Simulation::get_named_particles(std::string_view name)
-{
-  return interfaces::Simulation::get_named_particles(name, particles_);
-}
-
 
 Simulation::~Simulation()
 {

@@ -20,7 +20,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_ksp_solvers());
 
   /// @todo The problem with simulation setup is growing, should be moved into interfaces!
-  PetscCall(init_particles());
+  PetscCall(init_particles(*this, particles_));
 
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
@@ -443,52 +443,6 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::init_particles()
-{
-  PetscFunctionBeginUser;
-  LOG("Configuring particles");
-
-  const Configuration::json_t& json = CONFIG().json;
-  auto it = json.find("Particles");
-
-  if (it == json.end() || it->empty())
-    PetscFunctionReturn(PETSC_SUCCESS);
-
-  for (auto&& info : *it) {
-    SortParameters parameters;
-    info.at("sort_name").get_to(parameters.sort_name);
-    info.at("Np").get_to(parameters.Np);
-    info.at("n").get_to(parameters.n);
-    info.at("q").get_to(parameters.q);
-    info.at("m").get_to(parameters.m);
-
-    if (info.contains("T")) {
-      PetscReal T;
-      info.at("T").get_to(T);
-      parameters.Tx = T;
-      parameters.Ty = T;
-      parameters.Tz = T;
-    }
-    else {
-      info.at("Tx").get_to(parameters.Tx);
-      info.at("Ty").get_to(parameters.Ty);
-      info.at("Tz").get_to(parameters.Tz);
-    }
-
-    particles_.emplace_back(std::make_unique<Particles>(*this, parameters));
-
-    PetscReal T = std::hypot(parameters.Tx, parameters.Ty, parameters.Tz);
-    PetscReal V = std::sqrt(T / (parameters.m * 511.0));
-    PetscReal H = std::hypot(Dx[X] / V, Dx[Y] / V, Dx[Z] / V);
-
-    LOG("  {} are added:", parameters.sort_name);
-    LOG("    temperature,         T = {:.3e} [KeV]", T);
-    LOG("    thermal velocity, v_th = {:.3e} [c]", V);
-    LOG("    cell-heating, Dx / L_d = {:.3e} [unit]", H);
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 Simulation::~Simulation()
 {
   PetscFunctionBeginUser;
@@ -511,35 +465,20 @@ Simulation::~Simulation()
 }
 
 
-Vec Simulation::get_named_vector(std::string_view name)
+Vec Simulation::get_named_vector(std::string_view name) const
 {
-  if (name == "E")
-    return E;
-  if (name == "B")
-    return B;
-  if (name == "B0")
-    return B0;
-  if (name == "J")
-    return currI;
-  throw std::runtime_error("Unknown vector name " + std::string(name));
+  static const std::unordered_map<std::string_view, Vec> map{
+    {"E", E},
+    {"B", B},
+    {"B0", B0},
+    {"J", currI},
+  };
+  return map.at(name);
 }
 
-Particles& Simulation::get_named_particles(std::string_view name)
+Simulation::NamedValues<Vec> Simulation::get_backup_fields() const
 {
-  return interfaces::Simulation::get_named_particles(name, particles_);
-}
-
-Simulation::NamedValues<Vec> Simulation::get_backup_fields()
-{
-  return NamedValues<Vec>{{"E", E}, {"B", B}, {"B0", B0}};
-}
-
-Simulation::NamedValues<interfaces::Particles*> Simulation::get_backup_particles()
-{
-  NamedValues<interfaces::Particles*> particles;
-  for (auto&& sort : particles_)
-    particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
-  return particles;
+  return {{"E", E}, {"B", B}, {"B0", B0}};
 }
 
 }  // namespace ecsim

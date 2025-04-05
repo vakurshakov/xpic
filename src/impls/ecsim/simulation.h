@@ -24,13 +24,10 @@ public:
 
   Mat matL;
 
-  std::vector<std::unique_ptr<Particles>> particles_;
+  std::vector<std::shared_ptr<Particles>> particles_;
 
-  Vec get_named_vector(std::string_view name) override;
-  Particles& get_named_particles(std::string_view name) override;
-
-  NamedValues<Vec> get_backup_fields() override;
-  NamedValues<interfaces::Particles*> get_backup_particles() override;
+  Vec get_named_vector(std::string_view name) const override;
+  NamedValues<Vec> get_backup_fields() const override;
 
 private:
   PetscErrorCode initialize_implementation() override;
@@ -39,7 +36,6 @@ private:
   PetscErrorCode init_vectors();
   PetscErrorCode init_matrices();
   PetscErrorCode init_ksp_solvers();
-  PetscErrorCode init_particles();
 
   // The main simulation steps
   PetscErrorCode clear_sources();

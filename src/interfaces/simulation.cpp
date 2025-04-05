@@ -67,6 +67,26 @@ PetscErrorCode Simulation::log_information() const
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+Particles& Simulation::get_named_particles(std::string_view name) const
+{
+  auto it =
+    std::find_if(particles_.begin(), particles_.end(), [&](const auto& sort) {
+      return sort->parameters.sort_name == name;
+    });
+
+  if (it == particles_.end())
+    throw std::runtime_error("No particles with name " + std::string(name));
+  return **it;
+}
+
+Simulation::NamedValues<Particles*> Simulation::get_backup_particles() const
+{
+  NamedValues<interfaces::Particles*> particles;
+  for (auto&& sort : particles_)
+    particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
+  return particles;
+}
+
 }  // namespace interfaces
 
 
