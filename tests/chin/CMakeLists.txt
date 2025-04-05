@@ -21,12 +21,12 @@ set(boris_push_ex1_ids
 set(B_IDS B1A B1B B2B BLF)
 set(EB_IDS EB1A EB1B EB2B EBLF)
 
-set(boris_push_ex2 ${B_IDS})
-set(boris_push_ex3 ${B_IDS})
+set(boris_push_ex2_ids ${B_IDS})
+set(boris_push_ex3_ids ${B_IDS})
 
-set(boris_push_ex4 ${EB_IDS})
-set(boris_push_ex5 ${EB_IDS})
-set(boris_push_ex6 ${EB_IDS})
+set(boris_push_ex4_ids ${EB_IDS})
+set(boris_push_ex5_ids ${EB_IDS})
+set(boris_push_ex6_ids ${EB_IDS})
 
 foreach(test ${tests})
   add_executable(${test}.out ${test}.cpp)
