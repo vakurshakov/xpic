@@ -6,14 +6,8 @@
 #include "src/interfaces/particles.h"
 #include "src/utils/sync_file.h"
 
-/// @todo This is happening due to lack of particles array at `EnergyConservation`
-namespace ecsimcorr {
-class EnergyConservation;
-}
-
 class ParticlesEnergy : public interfaces::Diagnostic {
   friend class EnergyConservation;
-  friend class ecsimcorr::EnergyConservation;
 
 public:
   ParticlesEnergy(std::vector<const interfaces::Particles*> particles);
