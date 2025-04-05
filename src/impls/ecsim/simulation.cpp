@@ -1,8 +1,7 @@
 #include "simulation.h"
 
-#include "src/commands/builders/command_builder.h"
-#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/diagnostics/energy_conservation.h"
+#include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
@@ -18,22 +17,10 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_vectors());
   PetscCall(init_matrices());
   PetscCall(init_ksp_solvers());
-
-  /// @todo The problem with simulation setup is growing, should be moved into interfaces!
   PetscCall(init_particles(*this, particles_));
-
-  std::vector<Command_up> presets;
-  PetscCall(build_commands(*this, "Presets", presets));
-  PetscCall(build_commands(*this, "StepPresets", step_presets_));
-
-  LOG("Executing presets");
-  for (auto&& preset : presets)
-    preset->execute(start);
 
   if (!CONFIG().is_loaded_from_backup())
     PetscCall(VecAXPY(B, 1.0, B0));
-
-  PetscCall(build_diagnostics(*this, diagnostics_));
 
   std::vector<const interfaces::Particles*> sorts;
   for (const auto& sort : particles_) {
@@ -45,8 +32,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(
     *this, std::move(f_diag), std::move(p_diag)));
-  /// @todo all of the in-between code
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

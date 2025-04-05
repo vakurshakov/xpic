@@ -8,6 +8,7 @@
   "files.associations": {
     ".clang-format": "yaml",
     ".clang-tidy": "yaml",
+    "*.tpp": "cpp",
   },
   "cSpell.words": [
     "Allreduce",

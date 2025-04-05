@@ -1,5 +1,7 @@
 #include "simulation.h"
 
+#include "src/commands/builders/command_builder.h"
+#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/impls/basic/simulation.h"
 #include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
@@ -16,6 +18,16 @@ PetscErrorCode Simulation::initialize()
 
   LOG("Running initialize implementation");
   PetscCall(initialize_implementation());
+
+  std::vector<Command_up> presets;
+  PetscCall(build_commands(*this, "Presets", presets));
+  PetscCall(build_commands(*this, "StepPresets", step_presets_));
+
+  LOG("Executing presets");
+  for (auto&& preset : presets)
+    preset->execute(start);
+
+  PetscCall(build_diagnostics(*this, diagnostics_));
 
   PetscLogStageRegister("Commands run", &stagenums[0]);
   PetscLogStageRegister("Diagnostics run", &stagenums[1]);

@@ -1,7 +1,5 @@
 #include "simulation.h"
 
-#include "src/commands/builders/command_builder.h"
-#include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/diagnostics/charge_conservation.h"
 #include "src/diagnostics/energy_conservation.h"
 #include "src/utils/operators.h"
@@ -30,17 +28,8 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCall(init_particles(*this, particles_));
 
-  std::vector<Command_up> presets;
-  PetscCall(build_commands(*this, "Presets", presets));
-  PetscCall(build_commands(*this, "StepPresets", step_presets_));
-
-  LOG("Executing presets");
-  for (auto&& preset : presets)
-    preset->execute(start);
-
-  PetscCall(VecAXPY(B, 1.0, B0));
-
-  PetscCall(build_diagnostics(*this, diagnostics_));
+  if (!CONFIG().is_loaded_from_backup())
+    PetscCall(VecAXPY(B, 1.0, B0));
 
   std::vector<Vec> currents;
   std::vector<const interfaces::Particles*> sorts;
@@ -139,6 +128,20 @@ PetscErrorCode Simulation::push_fields()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+Simulation::~Simulation()
+{
+  PetscFunctionBeginUser;
+  PetscCallVoid(VecDestroy(&E));
+  PetscCallVoid(VecDestroy(&B));
+  PetscCallVoid(VecDestroy(&B0));
+  PetscCallVoid(VecDestroy(&J));
+  PetscCallVoid(VecDestroy(&local_E));
+  PetscCallVoid(VecDestroy(&local_B));
+  PetscCallVoid(MatDestroy(&rot_dt_p));
+  PetscCallVoid(MatDestroy(&rot_dt_m));
+  PetscFunctionReturnVoid();
+}
+
 Vec Simulation::get_named_vector(std::string_view name) const
 {
   static const std::unordered_map<std::string_view, Vec> map{
@@ -153,20 +156,6 @@ Vec Simulation::get_named_vector(std::string_view name) const
 Simulation::NamedValues<Vec> Simulation::get_backup_fields() const
 {
   return {{"E", E}, {"B", B}, {"B0", B0}};
-}
-
-Simulation::~Simulation()
-{
-  PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&E));
-  PetscCallVoid(VecDestroy(&B));
-  PetscCallVoid(VecDestroy(&B0));
-  PetscCallVoid(VecDestroy(&J));
-  PetscCallVoid(VecDestroy(&local_E));
-  PetscCallVoid(VecDestroy(&local_B));
-  PetscCallVoid(MatDestroy(&rot_dt_p));
-  PetscCallVoid(MatDestroy(&rot_dt_m));
-  PetscFunctionReturnVoid();
 }
 
 }  // namespace basic

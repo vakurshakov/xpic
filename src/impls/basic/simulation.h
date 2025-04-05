@@ -22,11 +22,11 @@ public:
   NamedValues<Vec> get_backup_fields() const override;
 
 private:
-  PetscErrorCode push_particles();
-  PetscErrorCode push_fields();
-
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt timestep) override;
+
+  PetscErrorCode push_particles();
+  PetscErrorCode push_fields();
 
   Vec B0;
   Vec local_E;
