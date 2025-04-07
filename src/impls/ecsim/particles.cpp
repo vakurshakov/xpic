@@ -32,18 +32,39 @@ PetscErrorCode Particles::first_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void Particles::fill_ecsim_current(PetscInt g, PetscReal* coo_v)
+PetscErrorCode Particles::fill_ecsim_current(PetscReal* coo_v)
 {
-  for (const auto& point : storage[g]) {
-    Shape shape;
-    shape.setup(point.r, shape_radius1, shape_func1);
+  PetscFunctionBeginUser;
+  PetscCall(DMDAVecGetArrayWrite(world.da, local_currI, &currI));
 
-    Vector3R B_p;
-    SimpleInterpolation interpolation(shape);
-    interpolation.process({}, {{B_p, B}});
+  PetscInt prev_g = 0;
+  PetscInt off = 0;
 
-    decompose_ecsim_current(shape, point, B_p, coo_v);
+#pragma omp parallel for firstprivate(prev_g, off)
+  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+    if (storage[g].empty())
+      continue;
+
+    simulation_.get_array_offset(prev_g, g, off);
+    prev_g = g;
+
+    PetscReal* coo_cv = coo_v + off;
+    for (const auto& point : storage[g]) {
+      Shape shape;
+      shape.setup(point.r, shape_radius1, shape_func1);
+
+      Vector3R B_p;
+      SimpleInterpolation interpolation(shape);
+      interpolation.process({}, {{B_p, B}});
+
+      decompose_ecsim_current(shape, point, B_p, coo_cv);
+    }
   }
+
+  PetscCall(DMDAVecRestoreArrayWrite(world.da, local_currI, &currI));
+  PetscCall(DMLocalToGlobal(world.da, local_currI, ADD_VALUES, global_currI));
+  PetscCall(VecAXPY(simulation_.currI, 1.0, global_currI));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
@@ -60,7 +81,7 @@ void Particles::decompose_ecsim_current(
 
   Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
 
-  PetscReal betaI = density(point) * charge(point) /
+  PetscReal betaI = charge(point) * density(point) /
     (particles_number(point) * (1.0 + b.squared()));
 
   PetscReal betaL = charge(point) / mass(point) * betaI;
@@ -94,7 +115,7 @@ void Particles::decompose_ecsim_current(
       off[Z] + (g2 / shape.size[X]) / shape.size[Y],
     };
 
-    return //
+    return  //
       ((vg1[Z] * shw + vg1[Y]) * shw + vg1[X]) * POW3(shw) +
       ((vg2[Z] * shw + vg2[Y]) * shw + vg2[X]);
   };

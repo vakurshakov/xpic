@@ -20,7 +20,7 @@ public:
   virtual PetscErrorCode first_push();
   virtual PetscErrorCode second_push();
 
-  void fill_ecsim_current(PetscInt g, PetscReal* coo_v);
+  PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
 
   Vector3R*** E;
   Vector3R*** B;

@@ -331,33 +331,10 @@ PetscErrorCode Simulation::fill_ecsim_current(PetscReal* coo_v)
 
   for (auto& sort : particles_) {
     sort->B = arr_B;
-    PetscCall(DMDAVecGetArrayWrite(da, sort->local_currI, &sort->currI));
-  }
-
-  for (const auto& sort : particles_) {
-    PetscInt prev_g = 0;
-    PetscInt off = 0;
-
-#pragma omp parallel for firstprivate(prev_g, off)
-    for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-      if (sort->storage[g].empty())
-        continue;
-
-      get_array_offset(prev_g, g, off);
-      prev_g = g;
-
-      PetscReal* coo_cv = coo_v + off;
-      sort->fill_ecsim_current(g, coo_cv);
-    }
+    PetscCall(sort->fill_ecsim_current(coo_v));
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
-
-  for (auto& sort : particles_) {
-    PetscCall(DMDAVecRestoreArrayWrite(da, sort->local_currI, &sort->currI));
-    PetscCall(DMLocalToGlobal(da, sort->local_currI, ADD_VALUES, sort->global_currI));
-    PetscCall(VecAXPY(currI, 1.0, sort->global_currI));
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

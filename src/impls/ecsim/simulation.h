@@ -40,6 +40,8 @@ public:
   Vec get_named_vector(std::string_view name) const override;
   NamedValues<Vec> get_backup_fields() const override;
 
+  void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
+
 protected:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt t) override;
@@ -59,8 +61,6 @@ protected:
 
   PetscErrorCode update_cells_with_assembly();
   PetscErrorCode advance_fields(KSP ksp, Vec curr, Vec out);
-
-  void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
 
   PetscErrorCode fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j);
   PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
