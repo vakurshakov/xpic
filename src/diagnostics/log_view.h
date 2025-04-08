@@ -35,8 +35,7 @@ public:
   };
 
   LogView(Level level);
-  ~LogView() override;
-
+  PetscErrorCode finalize() override;
   PetscErrorCode diagnose(PetscInt t) override;
 
 private:

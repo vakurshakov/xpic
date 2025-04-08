@@ -16,7 +16,7 @@ public:
   DEFAULT_MOVABLE(Simulation);
 
   Simulation() = default;
-  ~Simulation() override;
+  PetscErrorCode finalize() override;
 
   Vec E;
   Vec Ep;

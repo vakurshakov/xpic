@@ -128,18 +128,19 @@ PetscErrorCode Simulation::push_fields()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Simulation::~Simulation()
+PetscErrorCode Simulation::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&E));
-  PetscCallVoid(VecDestroy(&B));
-  PetscCallVoid(VecDestroy(&B0));
-  PetscCallVoid(VecDestroy(&J));
-  PetscCallVoid(VecDestroy(&local_E));
-  PetscCallVoid(VecDestroy(&local_B));
-  PetscCallVoid(MatDestroy(&rot_dt_p));
-  PetscCallVoid(MatDestroy(&rot_dt_m));
-  PetscFunctionReturnVoid();
+  PetscCall(interfaces::Simulation::finalize());
+  PetscCall(VecDestroy(&E));
+  PetscCall(VecDestroy(&B));
+  PetscCall(VecDestroy(&B0));
+  PetscCall(VecDestroy(&J));
+  PetscCall(VecDestroy(&local_E));
+  PetscCall(VecDestroy(&local_B));
+  PetscCall(MatDestroy(&rot_dt_p));
+  PetscCall(MatDestroy(&rot_dt_m));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 Vec Simulation::get_named_vector(std::string_view name) const

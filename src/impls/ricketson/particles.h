@@ -12,17 +12,12 @@ namespace ricketson {
 
 class Simulation;
 
-class Particles : public interfaces::Particles {
+class Particles final : public interfaces::Particles {
 public:
-  Particles(const Particles& other) = delete;
-  Particles& operator=(const Particles& other) = delete;
-
-  Particles(Particles&& other) noexcept;
-  Particles& operator=(Particles&& other) noexcept = delete;
-
-  ~Particles() final;
+  DEFAULT_MOVABLE(Particles);
 
   Particles(Simulation& simulation, const SortParameters& parameters);
+  PetscErrorCode finalize() override;
 
   PetscErrorCode push();
 
@@ -59,8 +54,6 @@ private:
   SNES snes_;
   Vec solution_;
   Context ctx;
-
-  SyncBinaryFile particle_iterations_log;
 };
 
 }  // namespace ricketson

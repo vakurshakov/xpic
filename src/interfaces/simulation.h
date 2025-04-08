@@ -18,7 +18,6 @@ public:
   DEFAULT_MOVABLE(Simulation);
 
   Simulation() = default;
-  virtual ~Simulation() = default;
 
   /// @brief From what timepoint the simulation starts, see `Simulation::calculate()`.
   PetscInt start = 0;
@@ -43,6 +42,7 @@ public:
 
   PetscErrorCode initialize();
   PetscErrorCode calculate();
+  virtual PetscErrorCode finalize();
 
   virtual Vec get_named_vector(std::string_view name) const = 0;
   Particles& get_named_particles(std::string_view name) const;

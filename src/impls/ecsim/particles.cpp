@@ -174,12 +174,12 @@ PetscErrorCode Particles::clear_sources()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Particles::~Particles()
+PetscErrorCode Particles::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&local_currI));
-  PetscCallVoid(VecDestroy(&global_currI));
-  PetscFunctionReturnVoid();
+  PetscCall(VecDestroy(&local_currI));
+  PetscCall(VecDestroy(&global_currI));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 }  // namespace ecsim

@@ -12,7 +12,7 @@ public:
   DEFAULT_MOVABLE(Particles);
 
   Particles(Simulation& simulation, const SortParameters& parameters);
-  ~Particles() override;
+  PetscErrorCode finalize() override;
 
   PetscErrorCode calculate_energy();
 

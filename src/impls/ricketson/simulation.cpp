@@ -158,15 +158,16 @@ Simulation::NamedValues<Vec> Simulation::get_backup_fields() const
 }
 
 
-Simulation::~Simulation()
+PetscErrorCode Simulation::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&E_));
-  PetscCallVoid(VecDestroy(&B_));
-  PetscCallVoid(VecDestroy(&DB_));
-  PetscCallVoid(VecDestroy(&B_norm_));  // dof = 1
-  PetscCallVoid(MatDestroy(&norm_gradient_));
-  PetscFunctionReturnVoid();
+  PetscCall(interfaces::Simulation::finalize());
+  PetscCall(VecDestroy(&E_));
+  PetscCall(VecDestroy(&B_));
+  PetscCall(VecDestroy(&DB_));
+  PetscCall(VecDestroy(&B_norm_));  // dof = 1
+  PetscCall(MatDestroy(&norm_gradient_));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 }  // namespace ricketson

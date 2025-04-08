@@ -219,14 +219,14 @@ PetscErrorCode Simulation::init_log_stages()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Simulation::~Simulation()
+PetscErrorCode Simulation::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(KSPDestroy(&correct));
-  PetscCallVoid(VecDestroy(&Ec));
-  PetscCallVoid(VecDestroy(&currJe));
-  // ecsim::Simulation::~Simulation();
-  PetscFunctionReturnVoid();
+  PetscCall(ecsim::Simulation::finalize());
+  PetscCall(KSPDestroy(&correct));
+  PetscCall(VecDestroy(&Ec));
+  PetscCall(VecDestroy(&currJe));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 

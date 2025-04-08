@@ -69,12 +69,12 @@ void Particles::decompose(const Shape& shape, const Point& point)
   decomposition.process(J);
 }
 
-Particles::~Particles()
+PetscErrorCode Particles::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(VecDestroy(&global_J));
-  PetscCallVoid(VecDestroy(&local_J));
-  PetscFunctionReturnVoid();
+  PetscCall(VecDestroy(&global_J));
+  PetscCall(VecDestroy(&local_J));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 }  // namespace basic

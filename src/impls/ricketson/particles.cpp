@@ -34,9 +34,6 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
   PetscFunctionBeginUser;
-  particle_iterations_log =
-    SyncBinaryFile(CONFIG().out_dir + "/particle_iterations.bin");
-
   /// @todo It'd be more reusable to place particle mover into separate class
 
   // Nonlinear solver should be created for each process.
@@ -59,27 +56,13 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   PetscFunctionReturnVoid();
 }
 
-
-Particles::Particles(Particles&& other) noexcept
-  : interfaces::Particles(other.world, other.parameters),
-    simulation_(other.simulation_)
-{
-  storage = std::move(other.storage);
-  particle_iterations_log = std::move(other.particle_iterations_log);
-
-  snes_ = other.snes_;
-  solution_ = other.solution_;
-}
-
-
-Particles::~Particles()
+PetscErrorCode Particles::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(SNESDestroy(&snes_));
-  PetscCallVoid(VecDestroy(&solution_));
-  PetscFunctionReturnVoid();
+  PetscCall(SNESDestroy(&snes_));
+  PetscCall(VecDestroy(&solution_));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 PetscErrorCode Particles::push()
 {
@@ -163,17 +146,6 @@ PetscErrorCode Particles::push(Point& point)
     LOG("|dmu| = {}, eps*mu0 = {}, shrink = {}", abs(mu - mu_0), eps * mu_0 , alpha * eps * mu_0 / abs(mu - mu_0));
 
     if (reason >= 0 && abs(mu - mu_0) < eps * mu_0) {
-      PetscReal Omega_dt = (ctx.q * ctx.B_p.length() / ctx.m) * ctx.dt;
-      const PetscInt size = 9;
-      const PetscReal data[size] = {
-        static_cast<PetscReal>(i),
-        Omega_dt,
-        mu,
-        REP3_A(point.r),
-        REP3_A(point.p),
-      };
-
-      PetscCall(particle_iterations_log.write_floats(size, data));
       PetscFunctionReturn(PETSC_SUCCESS);
     }
 

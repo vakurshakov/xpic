@@ -14,7 +14,12 @@ public:
   Diagnostic(const std::string& out_dir);
   Diagnostic(const std::string& out_dir, PetscInt diagnose_period);
 
-  virtual ~Diagnostic() = default;
+  /// @brief Explicit finalize should be called to end up the diagnostic.
+  virtual PetscErrorCode finalize()
+  {
+    PetscFunctionBeginUser;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
 
   /// @brief The main method to override
   virtual PetscErrorCode diagnose(PetscInt t) = 0;

@@ -313,10 +313,10 @@ PetscErrorCode LogView::warn()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-LogView::~LogView()
+PetscErrorCode LogView::finalize()
 {
   PetscFunctionBeginUser;
   if (viewer_)
-    PetscCallVoid(PetscViewerDestroy(&viewer_));
-  PetscFunctionReturnVoid();
+    PetscCall(PetscViewerDestroy(&viewer_));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

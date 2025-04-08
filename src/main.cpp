@@ -23,6 +23,7 @@ int main(int argc, char** argv)
     std::unique_ptr<interfaces::Simulation> simulation = build_simulation();
     PetscCall(simulation->initialize());
     PetscCall(simulation->calculate());
+    PetscCall(simulation->finalize());
   }
   catch (const std::exception& e) {
     LOG("what(): {}", e.what());

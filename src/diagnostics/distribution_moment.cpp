@@ -34,13 +34,13 @@ DistributionMoment::DistributionMoment(const std::string& out_dir,
 }
 
 
-DistributionMoment::~DistributionMoment()
+PetscErrorCode DistributionMoment::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(DMDestroy(&da_));
-  PetscCallVoid(VecDestroy(&local_));
-  PetscCallVoid(VecDestroy(&field_));
-  PetscFunctionReturnVoid();
+  PetscCall(DMDestroy(&da_));
+  PetscCall(VecDestroy(&local_));
+  PetscCall(VecDestroy(&field_));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 

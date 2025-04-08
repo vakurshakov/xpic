@@ -7,12 +7,12 @@
 
 namespace ecsimcorr {
 
-class Simulation : public ecsim::Simulation {
+class Simulation final : public ecsim::Simulation {
 public:
   DEFAULT_MOVABLE(Simulation);
 
   Simulation() = default;
-  ~Simulation() override;
+  PetscErrorCode finalize() override;
 
   using ecsim::Simulation::B;
   using ecsim::Simulation::B0;

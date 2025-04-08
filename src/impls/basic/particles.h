@@ -9,12 +9,12 @@ namespace basic {
 
 class Simulation;
 
-class Particles : public interfaces::Particles {
+class Particles final : public interfaces::Particles {
 public:
   DEFAULT_MOVABLE(Particles);
 
   Particles(Simulation& simulation, const SortParameters& parameters);
-  ~Particles() override;
+  PetscErrorCode finalize() override;
 
   PetscErrorCode push();
 

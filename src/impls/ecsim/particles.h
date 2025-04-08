@@ -14,7 +14,7 @@ public:
   DEFAULT_MOVABLE(Particles);
 
   Particles(Simulation& simulation, const SortParameters& parameters);
-  ~Particles() override;
+  PetscErrorCode finalize() override;
 
   virtual PetscErrorCode clear_sources();
   virtual PetscErrorCode first_push();

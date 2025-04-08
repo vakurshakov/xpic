@@ -13,7 +13,13 @@ public:
   DEFAULT_MOVABLE(Particles);
 
   Particles(const World& world, const SortParameters& parameters);
-  virtual ~Particles() = default;
+
+  /// @brief Inheritors should override this finalize, to clear the internal petsc data
+  virtual PetscErrorCode finalize()
+  {
+    PetscFunctionBeginUser;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
 
   /// @brief Reference to outer `interfaces::Simulation::world`.
   const World& world;
@@ -61,5 +67,7 @@ protected:
 };
 
 }  // namespace interfaces
+
+using Particles_sp = std::shared_ptr<interfaces::Particles>;
 
 #endif  // SRC_INTERFACES_PARTICLES_H

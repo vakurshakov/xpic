@@ -411,25 +411,27 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Simulation::~Simulation()
+PetscErrorCode Simulation::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCallVoid(KSPDestroy(&ksp));
+  PetscCall(interfaces::Simulation::finalize());
 
-  PetscCallVoid(MatDestroy(&matL));
-  PetscCallVoid(MatDestroy(&matM));
-  PetscCallVoid(MatDestroy(&rotE));
-  PetscCallVoid(MatDestroy(&rotB));
+  PetscCall(KSPDestroy(&ksp));
 
-  PetscCallVoid(VecDestroy(&E));
-  PetscCallVoid(VecDestroy(&Ep));
-  PetscCallVoid(VecDestroy(&B));
-  PetscCallVoid(VecDestroy(&B0));
-  PetscCallVoid(VecDestroy(&currI));
+  PetscCall(MatDestroy(&matL));
+  PetscCall(MatDestroy(&matM));
+  PetscCall(MatDestroy(&rotE));
+  PetscCall(MatDestroy(&rotB));
 
-  PetscCallVoid(VecDestroy(&local_E));
-  PetscCallVoid(VecDestroy(&local_B));
-  PetscFunctionReturnVoid();
+  PetscCall(VecDestroy(&E));
+  PetscCall(VecDestroy(&Ep));
+  PetscCall(VecDestroy(&B));
+  PetscCall(VecDestroy(&B0));
+  PetscCall(VecDestroy(&currI));
+
+  PetscCall(VecDestroy(&local_E));
+  PetscCall(VecDestroy(&local_B));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 

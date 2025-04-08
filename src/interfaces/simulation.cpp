@@ -29,8 +29,8 @@ PetscErrorCode Simulation::initialize()
 
   PetscCall(build_diagnostics(*this, diagnostics_));
 
-  PetscLogStageRegister("Commands run", &stagenums[0]);
-  PetscLogStageRegister("Diagnostics run", &stagenums[1]);
+  PetscCall(PetscLogStageRegister("Commands run", &stagenums[0]));
+  PetscCall(PetscLogStageRegister("Diagnostics run", &stagenums[1]));
 
   for (const Diagnostic_up& diagnostic : diagnostics_)
     PetscCall(diagnostic->diagnose(start));
@@ -44,18 +44,34 @@ PetscErrorCode Simulation::calculate()
     LOG_FLUSH();
     LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
 
-    PetscLogStagePush(stagenums[0]);
+    PetscCall(PetscLogStagePush(stagenums[0]));
     for (const Command_up& command : step_presets_)
       PetscCall(command->execute(t));
-    PetscLogStagePop();
+    PetscCall(PetscLogStagePop());
 
     PetscCall(timestep_implementation(t));
 
-    PetscLogStagePush(stagenums[1]);
+    PetscCall(PetscLogStagePush(stagenums[1]));
     for (const Diagnostic_up& diagnostic : diagnostics_)
       PetscCall(diagnostic->diagnose(t));
-    PetscLogStagePop();
+    PetscCall(PetscLogStagePop());
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::finalize()
+{
+  PetscFunctionBeginUser;
+  for (const Command_up& command : step_presets_)
+    PetscCall(command->finalize());
+
+  for (const Diagnostic_up& diagnostic : diagnostics_)
+    PetscCall(diagnostic->finalize());
+
+  for (const Particles_sp& sort : particles_)
+    PetscCall(sort->finalize());
+
+  PetscCall(world.finalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -81,8 +97,8 @@ PetscErrorCode Simulation::log_information() const
 
 Particles& Simulation::get_named_particles(std::string_view name) const
 {
-  auto it =
-    std::find_if(particles_.begin(), particles_.end(), [&](const auto& sort) {
+  auto it = std::find_if(particles_.begin(), particles_.end(), //
+    [&](const Particles_sp& sort) {
       return sort->parameters.sort_name == name;
     });
 
@@ -94,7 +110,7 @@ Particles& Simulation::get_named_particles(std::string_view name) const
 Simulation::NamedValues<Particles*> Simulation::get_backup_particles() const
 {
   NamedValues<interfaces::Particles*> particles;
-  for (auto&& sort : particles_)
+  for (const Particles_sp& sort : particles_)
     particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
   return particles;
 }

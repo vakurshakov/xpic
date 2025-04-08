@@ -6,12 +6,12 @@
 
 namespace basic {
 
-class Simulation : public interfaces::Simulation {
+class Simulation final : public interfaces::Simulation {
 public:
   DEFAULT_MOVABLE(Simulation);
 
   Simulation() = default;
-  ~Simulation() override;
+  PetscErrorCode finalize() override;
 
   Vec E;
   Vec B;

@@ -15,13 +15,12 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  {
-    overwrite_config();
+  overwrite_config();
 
-    basic::Simulation simulation;
-    PetscCall(simulation.initialize());
-    PetscCall(simulation.calculate());
-  }
+  basic::Simulation simulation;
+  PetscCall(simulation.initialize());
+  PetscCall(simulation.calculate());
+  PetscCall(simulation.finalize());
 
   PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
   PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));

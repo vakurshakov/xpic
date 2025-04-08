@@ -21,8 +21,7 @@ public:
     const interfaces::Particles& particles, const Moment& moment,
     const Region& region);
 
-  ~DistributionMoment() override;
-
+  PetscErrorCode finalize() override;
   PetscErrorCode diagnose(PetscInt t) override;
 
 private:
