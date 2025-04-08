@@ -32,9 +32,6 @@ PetscErrorCode Simulation::initialize_implementation()
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(world.da, currents, particles));
   // clang-format on
 
-  for (auto& sort : particles_)
-    PetscCall(sort->calculate_energy());
-
   PetscCall(PetscLogStagePop());
   PetscCall(clock.pop());
 
@@ -63,6 +60,9 @@ PetscErrorCode Simulation::clear_sources()
 
   PetscCall(ecsim::Simulation::clear_sources());
   PetscCall(VecSet(currJe, 0.0));
+
+  for (auto& sort : particles_)
+    PetscCall(sort->calculate_energy());
 
   PetscCall(PetscLogStagePop());
   PetscCall(clock.pop());
@@ -184,8 +184,8 @@ PetscErrorCode Simulation::init_ksp_solvers()
     {"correct", correct},
   };
 
-  // static constexpr PetscReal atol = 1e-16;
-  // static constexpr PetscReal rtol = 1e-16;
+  static constexpr PetscReal atol = 1e-10;
+  static constexpr PetscReal rtol = 1e-10;
 
   for (auto&& [name, ksp] : map) {
     PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
@@ -194,7 +194,7 @@ PetscErrorCode Simulation::init_ksp_solvers()
 
     PetscCall(KSPSetErrorIfNotConverged(ksp, PETSC_TRUE));
     PetscCall(KSPSetReusePreconditioner(ksp, PETSC_TRUE));
-    // PetscCall(KSPSetTolerances(ksp, rtol, atol, PETSC_DEFAULT, PETSC_DEFAULT));
+    PetscCall(KSPSetTolerances(ksp, rtol, atol, PETSC_DEFAULT, PETSC_DEFAULT));
     PetscCall(KSPSetFromOptions(ksp));
   }
 

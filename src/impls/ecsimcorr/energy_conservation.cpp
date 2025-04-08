@@ -37,13 +37,15 @@ PetscErrorCode EnergyConservation::add_titles()
   PetscCall(::EnergyConservation::add_titles());
 
   PetscInt off = 2;
-  for (const auto& particles : simulation.particles_) {
-    off++;
-    add_title("λδK_" + particles->parameters.sort_name, off);
+  for (const auto& sort : simulation.particles_) {
+    const auto& name = sort->parameters.sort_name;
+    add_title("λδK_" + name, ++off);
+    add_title("PWΔ_" + name, ++off);
+    add_title("CWΔ_" + name, ++off);
+    ++off;
   }
 
-  add_title("δE+δB+ΔtJE");
-  add_title("|δK-ΔtJE|");
+  add_title("WΔ");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -54,19 +56,21 @@ PetscErrorCode EnergyConservation::add_args(PetscInt t)
   PetscCall(::EnergyConservation::add_args(t));
 
   PetscInt off = 2;
-  for (const auto& particles : simulation.particles_) {
-    off++;
-    add_arg(dynamic_cast<ecsimcorr::Particles*>(particles.get())->lambda_dK, off);
+  for (const auto& sort : simulation.particles_) {
+    auto* particles = dynamic_cast<ecsimcorr::Particles*>(sort.get());
+    add_arg(particles->lambda_dK, ++off);
+    add_arg(particles->pred_dK - dt * particles->pred_w, ++off);
+    add_arg(particles->corr_dK - dt * particles->corr_w, ++off);
+    ++off;
   }
 
   /// @note Esirkepov current finally created electric field, so its work should be used
   PetscReal corr_w = 0.0;
-  for (const auto& particles : simulation.particles_) {
-    corr_w += dt * dynamic_cast<ecsimcorr::Particles*>(particles.get())->corr_w;
+  for (const auto& sort : simulation.particles_) {
+    corr_w += dynamic_cast<ecsimcorr::Particles*>(sort.get())->corr_w;
   }
 
-  add_arg(dF + corr_w);
-  add_arg(std::abs(dK - corr_w));
+  add_arg(dK - dt * corr_w);
   PetscCall(VecAXPY(B, +1.0, B0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

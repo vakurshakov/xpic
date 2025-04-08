@@ -70,7 +70,7 @@ PetscErrorCode Simulation::first_push()
 PetscErrorCode Simulation::advance_fields(Mat matA)
 {
   PetscFunctionBeginUser;
-  PetscCall(MatAYPX(matA, 2.0 * dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + (2 * dt) * matA
+  PetscCall(MatAYPX(matA, dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt * matA
 
   // Note that we use `matM` to construct the preconditioning matrix
   PetscCall(KSPSetOperators(ksp, matA, matM));
@@ -237,7 +237,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
   PetscCall(fill_ecsim_current(coo_v.data()));
 
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
-  PetscCall(MatScale(matL, 0.25 * dt));  // matL *= dt / 4
+  PetscCall(MatScale(matL, 0.5 * dt));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

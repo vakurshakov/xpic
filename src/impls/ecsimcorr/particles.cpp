@@ -54,6 +54,7 @@ PetscErrorCode Particles::first_push()
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
+  pred_w = 0.0;
   PetscCall(DMDAVecGetArray(world.da, local_currJe, &currJe));
 
   PetscLogEventBegin(events[1], 0, 0, 0, 0);
@@ -62,6 +63,7 @@ PetscErrorCode Particles::second_push()
   for (auto& cell : storage) {
     for (auto& point : cell) {
       const Vector3R old_r = point.r;
+      const Vector3R old_v = point.p;
 
       Shape shape;
       shape.setup(point.r, shape_radius1, shape_func1);
@@ -78,6 +80,11 @@ PetscErrorCode Particles::second_push()
 
       shape.setup(old_r, point.r, shape_radius2, shape_func2);
       decompose_esirkepov_current(shape, point);
+
+      PetscReal frac = charge(point) * density(point) / particles_number(point);
+
+#pragma omp atomic update
+      pred_w += 0.5 * (old_v + point.p).dot(E_p) * frac;
     }
   }
 
@@ -92,8 +99,6 @@ PetscErrorCode Particles::second_push()
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
-  PetscCall(MatMultAdd(simulation_.matL, simulation_.Ep, global_currI, global_currI));
-  PetscCall(VecDot(global_currI, simulation_.Ep, &pred_w));
   PetscCall(VecDot(global_currJe, simulation_.Ec, &corr_w));
 
   PetscReal K0 = energy;
