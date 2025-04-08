@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ $1 == "--help" ]]; then
+  ctest --help
+  exit 0
+fi
+
 source ./header.sh
 
 source ./build.sh

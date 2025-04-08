@@ -1,5 +1,20 @@
 #!/bin/bash
 
+help() {
+  echo "Usage: $0 <config.json>" 1>&2
+}
+
+if [[ $1 == "--help" ]]; then
+  help
+  exit 0
+fi 
+
+if [[ $# == 0 ]]; then
+  echo "Empty argument list, at least configuration file is required"
+  help
+  exit 1
+fi
+
 source ./header.sh
 
 source ./build.sh
@@ -8,12 +23,6 @@ build_type=Release
 
 if [[ $? != 0 ]]; then
   echo "Build was unsuccessful, exiting the $0"
-  exit 1
-fi
-
-if [[ $# == 0 ]]; then
-  echo "Empty argument list, at least configuration file is required"
-  echo "Usage: $0 <config.json>" 1>&2
   exit 1
 fi
 
@@ -81,18 +90,7 @@ export OMP_DISPLAY_AFFINITY=$OMP_DISPLAY_AFFINITY
 
 # Clearing shared memory allocated by `PetscShmgetAllocateArray()`
 ipcrm --all
-
 $PETSC_DIR/lib/petsc/bin/petscfreesharedmemory
 
-# This can be useful to track down `KSPSolve()` residues
-# -predict_ksp_monitor_true_residual
-# -correct_ksp_monitor_true_residual
-
-# With `KSPSetReusePreconditioner()` the default "ilu" is usable!
-# -predict_pc_type none
-# -mpi_linear_solver_server
-# -mpi_linear_solver_server_view
-
-$MPI_DIR/bin/mpiexec                \
-  -n $MPI_NUM_PROC                  \
-  ./build/$build_type/xpic.out $@   \
+# Running the main executable, namely `xpic.out` 
+$MPI_DIR/bin/mpiexec -n $MPI_NUM_PROC ./build/$build_type/xpic.out $@   
