@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     Configuration::init(argv[1]);
     Configuration::save(CONFIG().out_dir);
 
-    Simulation_up simulation = build_simulation();
+    std::unique_ptr<interfaces::Simulation> simulation = build_simulation();
     PetscCall(simulation->initialize());
     PetscCall(simulation->calculate());
   }

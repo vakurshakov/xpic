@@ -75,9 +75,7 @@ protected:
 /// @note Contains the definitions for template methods in `interfaces::Simulation`.
 #include "simulation.tpp"
 
-using Simulation_up = std::unique_ptr<interfaces::Simulation>;
-
 /// @returns Concrete simulation using `config` specification.
-Simulation_up build_simulation();
+std::unique_ptr<interfaces::Simulation> build_simulation();
 
 #endif  // SRC_INTERFACES_SIMULATION_H

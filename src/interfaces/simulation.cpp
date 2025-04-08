@@ -102,14 +102,14 @@ Simulation::NamedValues<Particles*> Simulation::get_backup_particles() const
 }  // namespace interfaces
 
 
-Simulation_up build_simulation()
+std::unique_ptr<interfaces::Simulation> build_simulation()
 {
   const Configuration::json_t& json = CONFIG().json;
 
   std::string simulation_str;
   json.at("Simulation").get_to(simulation_str);
 
-  Simulation_up simulation = nullptr;
+  std::unique_ptr<interfaces::Simulation> simulation = nullptr;
 
   if (simulation_str == "basic")
     simulation = std::make_unique<basic::Simulation>();
