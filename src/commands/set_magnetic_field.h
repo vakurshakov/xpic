@@ -10,11 +10,12 @@
 class SetMagneticField : public interfaces::Command {
 public:
   using Setter = std::function<PetscErrorCode(Vec /* B */)>;
-  SetMagneticField(Vec B, Setter&& setup);
+  SetMagneticField(Vec B0, Vec B, Setter&& setup);
   PetscErrorCode execute(PetscInt t) override;
 
 private:
-  Vec B_;
+  Vec B0_ = nullptr;
+  Vec B_ = nullptr;
   Setter setup_;
 };
 

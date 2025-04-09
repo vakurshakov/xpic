@@ -17,6 +17,7 @@ public:
       "{\n"
       "  \"command\": \"SetMagneticField\", -- Name of the command, constant.\n"
       "  \"field\": \"B0\", -- Name of the field to be set (from Simulation).\n"
+      "  \"field_axpy\": \"B\", -- Name of the field to add B0 to (optional).\n"
       "  \"setter\": { -- Magnetic field setter description.\n"
       "    \"name\": \"Name\", -- Setter name, one of the following:\n"
       "                        SetUniformField, SetCoilsField.\n"

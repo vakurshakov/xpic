@@ -28,9 +28,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCall(init_particles(*this, particles_));
 
-  if (!CONFIG().is_loaded_from_backup())
-    PetscCall(VecAXPY(B, 1.0, B0));
-
   std::vector<Vec> currents;
   std::vector<const interfaces::Particles*> sorts;
   for (const auto& sort : particles_) {
