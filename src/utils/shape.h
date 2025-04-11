@@ -87,8 +87,6 @@ public:
 
 private:
   static Vector3R make_r(const Vector3R& r);
-  static Vector3I make_g(const Vector3R& p_r);
-
   static Vector3I make_start(const Vector3R& p_r, PetscReal radius);
   static Vector3I make_end(const Vector3R& p_r, PetscReal radius);
 

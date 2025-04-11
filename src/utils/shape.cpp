@@ -9,15 +9,6 @@
   };
 }
 
-/* static */ Vector3I Shape::make_g(const Vector3R& p_r)
-{
-  return Vector3I{
-    static_cast<PetscInt>(std::round(p_r[X]) - shape_radius),
-    static_cast<PetscInt>(std::round(p_r[Y]) - shape_radius),
-    static_cast<PetscInt>(std::round(p_r[Z]) - shape_radius),
-  };
-}
-
 /* static */ Vector3I Shape::make_start(const Vector3R& p_r, PetscReal radius)
 {
   return Vector3I{
