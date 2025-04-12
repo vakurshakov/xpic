@@ -23,40 +23,48 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
       result.parent_path().c_str(), type, result.filename().c_str(), diag);
   };
 
-  std::filesystem::path e_path = get_filepath("expected");
-  std::filesystem::path o_path = get_filepath("output");
+  auto e_path = get_filepath("expected");
+  auto o_path = get_filepath("output");
+  std::ifstream e_ifs(e_path);
+  std::ifstream o_ifs(o_path);
 
-  std::ifstream expected(e_path);
-  std::ifstream output(o_path);
-
-  PetscCheck(expected.is_open() == output.is_open(), PETSC_COMM_WORLD, PETSC_ERR_USER,
+  PetscCheck(e_ifs.is_open() == o_ifs.is_open(), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Both expected and output files must be open, filepaths:\n   expected: \"%s\"\n   output: \"%s\"", e_path.c_str(), o_path.c_str());
 
-  std::string e_header;
-  std::string o_header;
+  auto get_linestream = [](std::istream& is) {
+    std::string line;
+    std::getline(is, line);
+    return std::istringstream(line);
+  };
 
-  std::getline(expected, e_header);
-  std::getline(output, o_header);
+  auto e_iss = get_linestream(e_ifs);
+  auto o_iss = get_linestream(o_ifs);
+  std::string e_title;
+  std::string o_title;
 
-  PetscCheck(e_header == o_header, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "File headers must be the same:\n   expected: \"%s\"\n   output: \"%s\"", e_header.c_str(), o_header.c_str());
-
-  std::istringstream is_titles(e_header);
   std::vector<std::string> titles;
+  for (PetscInt col = 0; !e_iss.eof(); ++col) {
+    e_iss >> e_title;
+    o_iss >> o_title;
 
-  for (std::string title; is_titles >> title;) {
-    titles.push_back(title);
+    PetscCheck((bool)e_iss == (bool)o_iss, PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Incorrect header size of output, error occurred at col %" PetscInt_FMT " (%s)", col+1, e_title.c_str());
+
+    PetscCheck(e_title == o_title, PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "File headers must be the same, at col %" PetscInt_FMT " expected: \"%s\", output: \"%s\"", col+1, e_title.c_str(), o_title.c_str());
+
+    titles.push_back(e_title);
   }
 
   PetscReal e_n;
   PetscReal o_n;
 
-  for (PetscInt row = 0; expected; ++row) {
+  for (PetscInt row = 0; (bool)e_ifs; ++row) {
     for (PetscInt col = 0; col < (PetscInt)titles.size(); ++col) {
-      expected >> e_n;
-      output >> o_n;
+      e_ifs >> e_n;
+      o_ifs >> o_n;
 
-      PetscCheck(expected.fail() == output.fail(), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      PetscCheck((bool)e_ifs == (bool)o_ifs, PETSC_COMM_WORLD, PETSC_ERR_USER,
         "Incorrect filesize of output, error occurred at row %" PetscInt_FMT " col %" PetscInt_FMT " (%s)", row+2, col+1, titles[col].c_str());
 
       PetscCheck(std::abs(e_n - o_n) < PETSC_SMALL, PETSC_COMM_WORLD, PETSC_ERR_USER,
