@@ -21,11 +21,6 @@ source ./build.sh
 
 build_type=Release
 
-if [[ $? != 0 ]]; then
-  echo "Build was unsuccessful, exiting the $0"
-  exit 1
-fi
-
 MPI_NUM_PROC=1
 
 # see https://github.com/pmodels/mpich/issues/4616
