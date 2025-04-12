@@ -18,14 +18,19 @@ protected:
 
   template<typename T>
   PetscErrorCode write_formatted(
-    std::format_string<const T&> fmt, std::vector<T>& container)
+    std::format_string<const T&> fmt, const std::vector<T>& container)
   {
     PetscFunctionBeginUser;
-    for (const auto& value : container) {
-      file_() << std::format(fmt, value);
+    for (PetscInt i = 0; i < (PetscInt)container.size() - 1; ++i) {
+      file_() << std::format(fmt, container[i]);
     }
-    file_() << "\n";
-    container.clear();
+
+    auto last = std::format(fmt, container.back());
+    while (last.back() == ' ') {
+      last.pop_back();
+    }
+
+    file_() << last << "\n";
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
