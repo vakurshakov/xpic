@@ -25,8 +25,7 @@ PetscErrorCode Particles::first_push()
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& cell : storage) {
     for (auto& point : cell) {
-      BorisPush push;
-      push.update_r(dt, point, *this);
+      BorisPush::update_r(dt, point);
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -158,9 +157,8 @@ PetscErrorCode Particles::second_push()
       SimpleInterpolation interpolation(shape);
       interpolation.process({{E_p, E}}, {{B_p, B}});
 
-      BorisPush push;
-      push.update_fields(E_p, B_p);
-      push.update_vEB(dt, point, *this);
+      BorisPush push(charge(point) / mass(point), E_p, B_p);
+      push.update_vEB(dt, point);
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);

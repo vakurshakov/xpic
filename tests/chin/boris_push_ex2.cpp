@@ -31,14 +31,16 @@ int main(int argc, char** argv)
   diagnose_period = geom_nt;
 
   PointTrace trace(__FILE__, chin_scheme_id, point, 5);
+
   BorisPush push;
+  push.set_qm(-1.0);
 
   if (chin_scheme_id.ends_with("LF"))
-    push.update_r(-dt / 2.0, point, *particles);
+    push.update_r(-dt / 2.0, point);
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     PetscCall(trace.diagnose(t));
-    process_impl(chin_scheme_id, push, point, *particles, get_magnetic_field);
+    process_impl(chin_scheme_id, push, point, get_magnetic_field);
   }
 
   PetscCall(compare_temporal(__FILE__, chin_scheme_id + ".txt"));

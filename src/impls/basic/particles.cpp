@@ -56,8 +56,8 @@ void Particles::interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) co
 
 void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const
 {
-  BorisPush push(dt, E_p, B_p);
-  push.process_rel(point, *this);
+  BorisPush push(charge(point) / mass(point), E_p, B_p);
+  push.process(dt, point, *this);
 }
 
 void Particles::decompose(const Shape& shape, const Point& point)

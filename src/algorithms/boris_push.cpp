@@ -1,84 +1,53 @@
 #include "boris_push.h"
 
-BorisPush::BorisPush(PetscReal dt, const Vector3R& E_p, const Vector3R& B_p)
-  : dt(dt), E_p(E_p), B_p(B_p)
+BorisPush::BorisPush(PetscReal qm, const Vector3R& E_p, const Vector3R& B_p)
+  : qm(qm), E_p(E_p), B_p(B_p)
 {
 }
 
-PetscErrorCode BorisPush::process(Point& point, const Context& particles) const
+void BorisPush::set_qm(PetscReal qm)
 {
-  PetscFunctionBeginHot;
-  update_u(point, false, particles);
-  point.r += point.p * dt;
-  PetscFunctionReturn(PETSC_SUCCESS);
+  this->qm = qm;
 }
 
-PetscErrorCode BorisPush::process_rel(Point& point, const Context& particles) const
-{
-  PetscFunctionBeginHot;
-  update_u(point, true, particles);
-  point.r += particles.velocity(point) * dt;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-void BorisPush::update_u(
-  Point& point, bool need_gamma, const Context& particles) const
-{
-  PetscReal m = particles.mass(point);
-  PetscReal alpha = 0.5 * dt * particles.charge(point) / m;
-
-  Vector3R& u = point.p;
-
-  Vector3R t = u + alpha * E_p;
-  Vector3R b = alpha * B_p;
-
-  if (need_gamma)
-    b /= std::sqrt(1.0 + t.squared() / POW2(m));
-
-  u = 2.0 * (t + t.cross(b) + b * t.dot(b)) / (1.0 + b.squared()) - u;
-}
-
-void BorisPush::update_fields(const Vector3R& E_p, const Vector3R& B_p)
+void BorisPush::set_fields(const Vector3R& E_p, const Vector3R& B_p)
 {
   this->E_p = E_p;
   this->B_p = B_p;
 }
 
-void BorisPush::update_r(
-  PetscReal dt, Point& point, const Context& /* particles */)
+/* static */ void BorisPush::update_r(PetscReal dt, Point& point)
 {
   point.r += point.p * dt;
 }
 
-void BorisPush::update_vM(PetscReal dt, Point& point, const Context& particles)
+void BorisPush::update_vM(PetscReal dt, Point& point) const
 {
-  PetscReal theta = get_omega(point, particles) * dt;
-  update_v_impl(point.p, std::sin(theta), std::cos(theta));
+  PetscReal theta = get_theta(dt);
+  update_v_impl(point.p, std::make_pair(std::sin(theta), std::cos(theta)));
 }
 
-void BorisPush::update_vB(PetscReal dt, Point& point, const Context& particles)
+void BorisPush::update_vB(PetscReal dt, Point& point) const
 {
-  auto [sin, cos] = get_theta_b(dt, point, particles);
-  update_v_impl(point.p, sin, cos);
+  update_v_impl(point.p, get_theta_b(dt));
 }
 
-void BorisPush::update_vC1(PetscReal dt, Point& point, const Context& particles)
+void BorisPush::update_vC1(PetscReal dt, Point& point) const
 {
-  auto [sin, cos] = get_theta_c1(dt, point, particles);
-  update_v_impl(point.p, sin, cos);
+  update_v_impl(point.p, get_theta_c1(dt));
 }
 
-/// @note Separate update is needed because we use different formulas for `theta_c`.
-/// This difference arised since we pass `dt/2` into the velocity update, M2B scheme uses the `dt` instead.
-void BorisPush::update_vC2(PetscReal dt, Point& point, const Context& particles)
+/// @details Separate update is needed because we use different
+/// formulas for `theta_c`. This difference arose since we pass
+/// `dt/2` into the velocity update, M2B scheme uses the `dt` instead.
+void BorisPush::update_vC2(PetscReal dt, Point& point) const
 {
-  auto [sin, cos] = get_theta_c2(dt, point, particles);
-  update_v_impl(point.p, sin, cos);
+  update_v_impl(point.p, get_theta_c2(dt));
 }
 
-void BorisPush::update_vEB(PetscReal dt, Point& point, const Context& particles)
+void BorisPush::update_vEB(PetscReal dt, Point& point) const
 {
-  PetscReal alpha = dt * particles.charge(point) / particles.mass(point);
+  PetscReal alpha = dt * qm;
   Vector3R a = +alpha * E_p;
   Vector3R b = -alpha * B_p;
 
@@ -88,40 +57,50 @@ void BorisPush::update_vEB(PetscReal dt, Point& point, const Context& particles)
 }
 
 
-inline PetscReal BorisPush::get_omega(
-  const Point& point, const Context& particles) const
+inline PetscReal BorisPush::get_theta(PetscReal dt) const
 {
-  return (-1.0) * particles.charge(point) * B_p.length() / particles.mass(point);
+  return (-1.0) * qm * B_p.length() * dt;
 }
 
-std::pair<REP2(PetscReal)> BorisPush::get_theta_b(
-  PetscReal dt, const Point& point, const Context& particles) const
+BorisPush::AnglePair BorisPush::get_theta_b(PetscReal dt) const
 {
-  PetscReal theta = get_omega(point, particles) * dt;
+  PetscReal theta = get_theta(dt);
   PetscReal d = (1.0 + 0.25 * POW2(theta));
   return std::make_pair(theta / d, (1.0 - 0.25 * POW2(theta)) / d);
 }
 
-std::pair<REP2(PetscReal)> BorisPush::get_theta_c1(
-  PetscReal dt, const Point& point, const Context& particles) const
+BorisPush::AnglePair BorisPush::get_theta_c1(PetscReal dt) const
 {
-  PetscReal theta = get_omega(point, particles) * dt;
+  PetscReal theta = get_theta(dt);
   return std::make_pair(
     theta * std::sqrt(1.0 - 0.25 * POW2(theta)), (1 - 0.5 * POW2(theta)));
 }
 
-std::pair<REP2(PetscReal)> BorisPush::get_theta_c2(
-  PetscReal dt, const Point& point, const Context& particles) const
+BorisPush::AnglePair BorisPush::get_theta_c2(PetscReal dt) const
 {
-  PetscReal theta = get_omega(point, particles) * dt;
+  PetscReal theta = get_theta(dt);
   return std::make_pair(theta, std::sqrt(1.0 - POW2(theta)));
 }
 
-void BorisPush::update_v_impl(
-  Vector3R& v, PetscReal sin_theta, PetscReal cos_theta) const
+void BorisPush::update_v_impl(Vector3R& v, const BorisPush::AnglePair& pair) const
 {
   Vector3R b = B_p.normalized();
   Vector3R v_p = v.parallel_to(b);
   Vector3R v_t = v.transverse_to(b);
-  v = v_p + cos_theta * v_t + sin_theta * b.cross(v_t);
+  v = v_p + pair.second * v_t + pair.first * b.cross(v_t);
+}
+
+
+void BorisPush::process(PetscReal dt, Point& point,  //
+  const interfaces::Particles& particles) const
+{
+  PetscReal m = particles.mass(point);
+  PetscReal alpha = 0.5 * dt * qm;
+
+  Vector3R& u = point.p;
+  Vector3R t = u + alpha * E_p;
+  Vector3R b = alpha * B_p / std::sqrt(1.0 + t.squared() / POW2(m));
+
+  u = 2.0 * (t + t.cross(b) + b * t.dot(b)) / (1.0 + b.squared()) - u;
+  point.r += particles.velocity(point) * dt;
 }
