@@ -4,14 +4,18 @@
 #include "src/interfaces/particles.h"
 #include "src/interfaces/point.h"
 
-/// @note For a detail classification of boris schemes we refer to
-/// https://doi.org/10.1016/j.jcp.2022.111422 and tests/chin/common.h:262
+/// @note For a detailed classification of boris schemes we refer to
+/// https://doi.org/10.1016/j.jcp.2022.111422 and tests/boris_push/boris_push.h:201
 class BorisPush {
 public:
   BorisPush() = default;
   BorisPush(PetscReal qm, const Vector3R& E_p, const Vector3R& B_p);
 
+  /// @brief Sets charge to mass ratio, it is constant during the push.
+  /// @note This implies non-relativistic limit, where `q/m` defines the motion.
   void set_qm(PetscReal qm);
+
+  /// @brief Sets particle-local fields, they are constant in the push.
   void set_fields(const Vector3R& E_p, const Vector3R& B_p);
 
   static void update_r(PetscReal dt, Point& point);

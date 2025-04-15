@@ -38,6 +38,7 @@ set(algorithms
   src/algorithms/simple_decomposition.cpp
   src/algorithms/esirkepov_decomposition.cpp
   src/algorithms/boris_push.cpp
+  src/algorithms/crank_nicolson_push.cpp
 )
 
 set(diagnostics
