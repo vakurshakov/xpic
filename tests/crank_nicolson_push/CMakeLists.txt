@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 set(tests
   crank_nicolson_push_ex1
+  crank_nicolson_push_ex2
 )
 
 set(omega_dt_values
