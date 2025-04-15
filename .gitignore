@@ -9,7 +9,7 @@ results/
 
 (^tests)*.txt
 (^tests)*.png
-tests/chin/output/**
+tests/boris_push/output/**
 tests/basic/output/**
 tests/ecsimcorr/output/**
 *.out

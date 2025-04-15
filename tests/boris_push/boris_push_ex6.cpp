@@ -24,7 +24,6 @@ int main(int argc, char** argv)
   constexpr Vector3R v0(0.1, 0.01, 0.0);
 
   Point point(r0, v0);
-  auto particles = prepare_electron(point);
 
   // dt = 2.0 * M_PI / 20.0;
   dt = 2.1 * M_PI;

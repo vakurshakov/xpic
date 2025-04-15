@@ -25,7 +25,6 @@ int main(int argc, char** argv)
   constexpr Vector3R v0(0.16, 1, 0);
 
   Point point(r0, v0);
-  auto particles = prepare_electron(point);
 
   dt = 0.16;
   geom_nt = 1000;
@@ -47,7 +46,7 @@ int main(int argc, char** argv)
     check_mean_v += point.p / static_cast<PetscReal>(geom_nt);
   }
 
-  PetscReal alpha = particles->mass(point) / (2.0 * particles->charge(point));
+  PetscReal alpha = -0.5;
   PetscReal v_util2 = POW2(v0.x()) + 2.0 * POW2(v0.y());
   Vector3R B_p(0, -B_coeff / r0.length(), 0);
   Vector3R B_grad(B_coeff / r0.squared(), 0, 0);

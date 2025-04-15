@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-add_subdirectory(chin)
+add_subdirectory(boris_push)
 add_subdirectory(diagnostics)
 
 add_subdirectory(basic)

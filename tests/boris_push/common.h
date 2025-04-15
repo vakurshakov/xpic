@@ -289,19 +289,6 @@ void process_impl(std::string_view id, BorisPush& push, Point& point,
 }
 
 
-auto prepare_electron(const Point& point)
-{
-  World world;
-  SortParameters parameters;
-  parameters.q = -1.0;
-  parameters.m = 1.0;
-
-  auto particles = std::make_unique<interfaces::Particles>(world, parameters);
-  particles->add_particle(point);
-  return particles;
-}
-
-
 PetscReal get_effective_larmor(std::string_view id, PetscReal rg, PetscReal theta)
 {
   if (id.starts_with("M") && id != "M2B")
