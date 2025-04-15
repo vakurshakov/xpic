@@ -6,7 +6,6 @@ static char help[] =
   "checks of energy conservation and drift velocity. Clockwise rotation \n"
   "isn't checked since we will assume the limit of 'Omega * dt >> 1'.   \n";
 
-
 constexpr Vector3R E0(0, 0, 1);
 constexpr Vector3R B0(20, 0, 0);
 
@@ -24,7 +23,7 @@ int main(int argc, char** argv)
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
 
-  std::string id = std::format("OmegaDt_{:.1f}", omega_dt);
+  std::string id = std::format("omega_dt_{:.1f}", omega_dt);
 
   PetscReal omega = B0.length();
   dt = omega_dt / omega;

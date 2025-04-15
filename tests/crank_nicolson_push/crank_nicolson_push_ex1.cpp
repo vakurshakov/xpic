@@ -21,7 +21,7 @@ int main(int argc, char** argv)
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
 
-  std::string id = std::format("OmegaDt_{:.1f}", omega_dt);
+  std::string id = std::format("omega_dt_{:.1f}", omega_dt);
 
   dt = omega_dt / B0.length();
   geom_nt = 100'000;
