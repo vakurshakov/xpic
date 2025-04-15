@@ -46,7 +46,7 @@ int main(int argc, char** argv)
     PetscCall(trace.diagnose(t));
     push.process(dt, point_n, point_0);
 
-    update_counter_clockwise(point_0.r, point_n.r, check_counter_clockwise);
+    update_counter_clockwise(point_0.r, point_n.r, B0, check_counter_clockwise);
     check_mean_radius += point_n.r.length() / geom_nt;
     check_mean_coord += point_n.r / geom_nt;
   }

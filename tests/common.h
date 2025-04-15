@@ -138,8 +138,11 @@ private:
   }
 };
 
-void update_counter_clockwise(
-  const Vector3R& old_r, const Vector3R& new_r, PetscReal& counter_clockwise)
+void update_counter_clockwise(  //
+  const Vector3R& old_r, const Vector3R& new_r,  //
+  const Vector3R& B_p, PetscReal& counter_clockwise)
 {
-  counter_clockwise += (old_r.y() + new_r.y()) * (old_r.x() - new_r.x());
+  Vector3R or_t = old_r.transverse_to(B_p);
+  Vector3R nr_t = new_r.transverse_to(B_p);
+  counter_clockwise += or_t.cross(nr_t).dot(B_p) / B_p.length();
 }

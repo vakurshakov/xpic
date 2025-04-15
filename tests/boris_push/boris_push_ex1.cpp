@@ -54,7 +54,7 @@ int main(int argc, char** argv)
     PetscCall(trace.diagnose(t));
     process_impl(chin_scheme_id, push, point, get_magnetic_field);
 
-    update_counter_clockwise(old_r, point.r, check_counter_clockwise);
+    update_counter_clockwise(old_r, point.r, B0, check_counter_clockwise);
     check_mean_radius += (point.r - rc).length() / geom_nt;
     check_mean_coord += point.r / geom_nt;
   }
@@ -62,10 +62,10 @@ int main(int argc, char** argv)
   PetscCheck(check_counter_clockwise * omega > 0.0, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Electron must rotate counter clockwise. Result ccw count: %f, chin omega: %f", check_counter_clockwise, omega);
 
-  // Checking that magnetic field doesn't do any work on particle
-  PetscReal new_rg = point.p.length() / omega;
-  PetscCheck(equal_tol(new_rg, rg, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "In uniform field, gyration radius shouldn't change. Result new: %f, old: %f", new_rg, rg);
+  PetscReal old_E = v0.squared();
+  PetscReal new_E = point.p.squared();
+  PetscCheck(equal_tol(new_E, old_E, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Particle energy can not be changed in a uniform magnetic field. Result energy new: %.10f, old: %.10f", new_E, old_E);
 
   PetscCheck(equal_tol(check_mean_radius, Rg, 1e-5), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Mean value of gyration radius should match theory. Result mean: %f, theory: %f", check_mean_radius, Rg);
