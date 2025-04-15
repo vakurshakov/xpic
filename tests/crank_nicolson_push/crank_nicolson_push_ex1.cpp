@@ -54,15 +54,16 @@ int main(int argc, char** argv)
   PetscCheck(check_counter_clockwise * omega < 0.0, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Electron must rotate counter clockwise. Result ccw count: %f, omega: %f", check_counter_clockwise, omega);
 
-  PetscReal new_rg = point_n.p.length() / B0.length();
-  PetscCheck(equal_tol(new_rg, rg, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "In uniform field, gyration radius shouldn't change. Result new: %f, old: %f", new_rg, rg);
+  PetscReal old_E = v0.squared();
+  PetscReal new_E = point_n.p.squared();
+  PetscCheck(equal_tol(new_E, old_E, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Particle energy can not be changed in a uniform magnetic field. Result energy new: %.5e, old: %.5e", new_E, old_E);
 
   PetscCheck(equal_tol(check_mean_radius, rg, 1e-5), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Mean value of gyration radius should match theory. Result mean: %.5f, theory: %.5f", check_mean_radius, rg);
 
   PetscCheck(equal_tol(check_mean_coord, 0.0, 1e-4), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Mean value of gyration center should match theory. Result mean: (%.5f, %.5f, %.5f), theory: (%.5f, %.5f, %.5f)", REP3_A(check_mean_coord), REP3(0.0));
+    "Mean value of gyration center should match theory. Result mean: (%.4f, %.4f, %.4f), theory: (%.4f, %.4f, %.4f)", REP3_A(check_mean_coord), REP3(0.0));
 
   PetscCall(compare_temporal(__FILE__, id + ".txt"));
 

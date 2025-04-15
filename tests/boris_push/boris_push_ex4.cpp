@@ -49,15 +49,16 @@ int main(int argc, char** argv)
     process_impl(chin_scheme_id, push, point, interpolated_fields);
 
     check_energy_conservation += //
-      0.5 * (point.p.squared() - old_v.squared()) +
-      0.5 * (point.p + old_v).dot(E0) * dt;
+      (0.5 * (point.p.squared() - old_v.squared()) +
+        0.5 * (point.p + old_v).dot(E0) * dt) /
+      geom_nt;
 
     update_counter_clockwise(old_r, point.r, B0, check_counter_clockwise);
     check_drift_velocity += 0.5 * (point.p + old_v).transverse_to(B0) / geom_nt;
   }
 
   PetscCheck(equal_tol(check_energy_conservation, 0.0, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Total energy of electron must remain constant, result δK: %.10f", check_energy_conservation);
+    "Total energy of electron must remain constant, result δK: %.5e", check_energy_conservation);
 
   PetscReal omega = B0.length();
   PetscCheck(check_counter_clockwise * omega > 0.0, PETSC_COMM_WORLD, PETSC_ERR_USER,

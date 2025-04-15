@@ -24,7 +24,7 @@ int main(int argc, char** argv)
 
   dt = M_PI / 4.0;
   geom_nt = 100'000;
-  diagnose_period = geom_nt / 4;
+  diagnose_period = geom_nt;
 
   PetscReal check_counter_clockwise = 0.0;
   PetscReal check_mean_radius = 0.0;
@@ -65,13 +65,13 @@ int main(int argc, char** argv)
   PetscReal old_E = v0.squared();
   PetscReal new_E = point.p.squared();
   PetscCheck(equal_tol(new_E, old_E, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Particle energy can not be changed in a uniform magnetic field. Result energy new: %.10f, old: %.10f", new_E, old_E);
+    "Particle energy can not be changed in a uniform magnetic field. Result energy new: %.5e, old: %.5e", new_E, old_E);
 
   PetscCheck(equal_tol(check_mean_radius, Rg, 1e-5), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Mean value of gyration radius should match theory. Result mean: %f, theory: %f", check_mean_radius, Rg);
+    "Mean value of gyration radius should match theory. Result mean: %.5f, theory: %.5f", check_mean_radius, Rg);
 
   PetscCheck(equal_tol(check_mean_coord, rc, 1e-4), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Mean value of gyration center should match theory. Result mean: (%f, %f, %f), theory: (%f, %f, %f)", REP3_A(check_mean_coord), REP3_A(rc));
+    "Mean value of gyration center should match theory. Result mean: (%.4f, %.4f, %.4f), theory: (%.4f, %.4f, %.4f)", REP3_A(check_mean_coord), REP3_A(rc));
 
   PetscCall(compare_temporal(__FILE__, chin_scheme_id + ".txt"));
 
