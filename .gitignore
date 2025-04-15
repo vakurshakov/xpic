@@ -7,11 +7,9 @@ doc/build/
 results/
 **/__pycache__/**
 
+tests/**/output/**
 (^tests)*.txt
 (^tests)*.png
-tests/boris_push/output/**
-tests/basic/output/**
-tests/ecsimcorr/output/**
 *.out
 *.bin
 *.npy
