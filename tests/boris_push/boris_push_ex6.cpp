@@ -1,4 +1,4 @@
-#include "common.h"
+#include "boris_push.h"
 
 static char help[] =
   "Here we are testing the electron drift in a fields, where both electric   \n"
@@ -10,7 +10,7 @@ static char help[] =
 constexpr PetscReal E_coeff = 0.1;
 constexpr PetscReal B_coeff = 1.0;
 
-InterpolationResult interpolated_fields(const Vector3R& r);
+void interpolated_fields(const Vector3R& r, Vector3R& E_p, Vector3R& B_p);
 
 int main(int argc, char** argv)
 {
@@ -22,7 +22,6 @@ int main(int argc, char** argv)
 
   constexpr Vector3R r0(0.0, -1.0, 0.0);
   constexpr Vector3R v0(0.1, 0.01, 0.0);
-
   Point point(r0, v0);
 
   // dt = 2.0 * M_PI / 20.0;
@@ -50,19 +49,19 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-InterpolationResult interpolated_fields(const Vector3R& r)
+void interpolated_fields(const Vector3R& r, Vector3R& E_p, Vector3R& B_p)
 {
   PetscReal rr = r.length();
 
-  return std::make_pair(
-    Vector3R{
-      E_coeff * r.x() / POW3(rr),
-      E_coeff * r.y() / POW3(rr),
-      0.0,
-    },
-    Vector3R{
-      0.0,
-      0.0,
-      B_coeff * rr,
-    });
+  E_p = Vector3R{
+    E_coeff * r.x() / POW3(rr),
+    E_coeff * r.y() / POW3(rr),
+    0.0,
+  };
+
+  B_p = Vector3R{
+    0.0,
+    0.0,
+    B_coeff * rr,
+  };
 }

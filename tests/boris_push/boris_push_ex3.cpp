@@ -1,4 +1,4 @@
-#include "common.h"
+#include "boris_push.h"
 
 static char help[] =
   "Here we are testing the electron drift in a curvilinear magnetic \n"
@@ -11,7 +11,7 @@ static char help[] =
 constexpr PetscReal B_coeff = 800;
 constexpr Vector3R B_center(10, 10, 0);
 
-InterpolationResult get_magnetic_field(const Vector3R& r);
+void get_magnetic_field(const Vector3R& r, Vector3R& E_p, Vector3R& B_p);
 
 int main(int argc, char** argv)
 {
@@ -23,7 +23,6 @@ int main(int argc, char** argv)
 
   constexpr Vector3R r0(0, 10, 0);
   constexpr Vector3R v0(0.16, 1, 0);
-
   Point point(r0, v0);
 
   dt = 0.16;
@@ -43,7 +42,7 @@ int main(int argc, char** argv)
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     PetscCall(trace.diagnose(t));
     process_impl(chin_scheme_id, push, point, get_magnetic_field);
-    check_mean_v += point.p / static_cast<PetscReal>(geom_nt);
+    check_mean_v += point.p / geom_nt;
   }
 
   PetscReal alpha = -0.5;
@@ -61,18 +60,16 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-InterpolationResult get_magnetic_field(const Vector3R& r)
+void get_magnetic_field(const Vector3R& r, Vector3R&, Vector3R& B_p)
 {
   Vector3R cr = r - B_center;
   PetscReal rr = cr.length();
   PetscReal ra = std::atan2(cr.y(), cr.x());
 
   PetscReal B_theta = B_coeff / rr;
-
-  return std::make_pair(Vector3R{},
-    Vector3R{
-      -std::sin(ra) * B_theta,
-      +std::cos(ra) * B_theta,
-      0.0,
-    });
+  B_p = Vector3R{
+    -std::sin(ra) * B_theta,
+    +std::cos(ra) * B_theta,
+    0.0,
+  };
 }

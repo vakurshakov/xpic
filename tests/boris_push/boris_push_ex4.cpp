@@ -1,4 +1,4 @@
-#include "common.h"
+#include "boris_push.h"
 
 static char help[] =
   "Here we are testing the electron drift in crossed electric and \n"
@@ -10,7 +10,7 @@ static char help[] =
 constexpr Vector3R E0(0, 0, 1);
 constexpr Vector3R B0(250, 0, 0);
 
-InterpolationResult interpolated_fields(const Vector3R& r);
+void interpolated_fields(const Vector3R& r, Vector3R& E_p, Vector3R& B_p);
 
 int main(int argc, char** argv)
 {
@@ -22,7 +22,6 @@ int main(int argc, char** argv)
 
   constexpr Vector3R r0(0.0, 0.0, 0.0);
   constexpr Vector3R v0(0.1, 0.0, 0.4);
-
   Point point(r0, v0);
 
   dt = 0.1975;
@@ -48,7 +47,8 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-InterpolationResult interpolated_fields(const Vector3R& /* r */)
+void interpolated_fields(const Vector3R&, Vector3R& E_p, Vector3R& B_p)
 {
-  return std::make_pair(E0, B0);
+  E_p = E0;
+  B_p = B0;
 }

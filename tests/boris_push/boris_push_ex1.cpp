@@ -1,4 +1,4 @@
-#include "common.h"
+#include "boris_push.h"
 
 static char help[] =
   "Test of electron gyration in a uniform magnetic field using   \n"
@@ -8,7 +8,7 @@ static char help[] =
 
 constexpr Vector3R B0(0.0, 0.0, 2.0);
 
-InterpolationResult get_magnetic_field(const Vector3R& r);
+void get_magnetic_field(const Vector3R& r, Vector3R& E_p, Vector3R& B_p);
 
 int main(int argc, char** argv)
 {
@@ -20,7 +20,6 @@ int main(int argc, char** argv)
 
   constexpr Vector3R r0(0.5, 0.0, 0.0);
   constexpr Vector3R v0(0.0, 1.0, 0.0);
-
   Point point(r0, v0);
 
   dt = M_PI / 4.0;
@@ -55,18 +54,17 @@ int main(int argc, char** argv)
     PetscCall(trace.diagnose(t));
     process_impl(chin_scheme_id, push, point, get_magnetic_field);
 
-    // clang-format off
     update_counter_clockwise(old_r, point.r, check_counter_clockwise);
-    check_mean_radius += (point.r - rc).length() / static_cast<PetscReal>(geom_nt);
-    check_mean_coord += point.r / static_cast<PetscReal>(geom_nt);
-    // clang-format on
+    check_mean_radius += (point.r - rc).length() / geom_nt;
+    check_mean_coord += point.r / geom_nt;
   }
+
   PetscCheck(check_counter_clockwise * omega > 0.0, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Electron must rotate counter clockwise. Result ccw count: %f, chin omega: %f", check_counter_clockwise, omega);
 
   // Checking that magnetic field doesn't do any work on particle
   PetscReal new_rg = point.p.length() / omega;
-  PetscCheck(equal_tol(new_rg, rg, 1e-10), PETSC_COMM_WORLD, PETSC_ERR_USER,
+  PetscCheck(equal_tol(new_rg, rg, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "In uniform field, gyration radius shouldn't change. Result new: %f, old: %f", new_rg, rg);
 
   PetscCheck(equal_tol(check_mean_radius, Rg, 1e-5), PETSC_COMM_WORLD, PETSC_ERR_USER,
@@ -81,7 +79,7 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-InterpolationResult get_magnetic_field(const Vector3R& /* r */)
+void get_magnetic_field(const Vector3R&, Vector3R&, Vector3R& B_p)
 {
-  return std::make_pair(Vector3R{}, B0);
+  B_p = B0;
 }

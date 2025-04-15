@@ -1,4 +1,4 @@
-#include "common.h"
+#include "boris_push.h"
 
 static char help[] =
   "Here we are testing the electron gyration in a linearly-chaning    \n"
@@ -10,7 +10,7 @@ static char help[] =
 constexpr PetscReal B_uniform = 100;
 constexpr PetscReal B_gradient = 25;
 
-InterpolationResult get_magnetic_field(const Vector3R& r);
+void get_magnetic_field(const Vector3R& r, Vector3R& E_p, Vector3R& B_p);
 
 int main(int argc, char** argv)
 {
@@ -22,7 +22,6 @@ int main(int argc, char** argv)
 
   constexpr Vector3R r0(0, 0, 0);
   constexpr Vector3R v0(0, 0, 2);
-
   Point point(r0, v0);
 
   dt = 0.5;
@@ -48,8 +47,11 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-InterpolationResult get_magnetic_field(const Vector3R& r)
+void get_magnetic_field(const Vector3R& r, Vector3R&, Vector3R& B_p)
 {
-  return std::make_pair(
-    Vector3R{}, Vector3R{(B_uniform - B_gradient * r.y()), 0, 0});
+  B_p = Vector3R{
+    B_uniform - B_gradient * r.y(),
+    0.0,
+    0.0,
+  };
 }

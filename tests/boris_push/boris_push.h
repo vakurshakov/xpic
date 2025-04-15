@@ -1,28 +1,6 @@
-#include "src/interfaces/particles.h"
 #include "src/algorithms/boris_push.h"
-#include "src/diagnostics/utils/table_diagnostic.h"
-#include "src/utils/sync_file.h"
 #include "src/utils/vector3.h"
 #include "tests/common.h"
-
-void update_counter_clockwise(
-  const Vector3R& old_r, const Vector3R& new_r, PetscReal& counter_clockwise)
-{
-  counter_clockwise += (old_r.y() + new_r.y()) * (old_r.x() - new_r.x());
-}
-
-bool equal_tol(PetscReal a, PetscReal b, PetscReal tol)
-{
-  return std::abs(a - b) < tol;
-}
-
-bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
-{
-  return //
-    std::abs(a[X] - b[X]) < tol && //
-    std::abs(a[Y] - b[Y]) < tol && //
-    std::abs(a[Z] - b[Z]) < tol;
-}
 
 PetscErrorCode get_id(std::string& id)
 {
@@ -35,65 +13,14 @@ PetscErrorCode get_id(std::string& id)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-class PointTrace : public TableDiagnostic {
-public:
-  PointTrace(std::string_view file, std::string_view id, //
-    const Point& point, PetscInt skip = 1)
-    : TableDiagnostic(get_outputfile(file, id)), skip(skip), point(point)
-  {
-  }
-
-private:
-  PetscInt skip;
-  const Point& point;
-
-  PetscErrorCode add_titles() override
-  {
-    PetscFunctionBeginUser;
-    add_title("t_[1/wpe]");
-    add_title("x_[c/wpe]");
-    add_title("y_[c/wpe]");
-    add_title("z_[c/wpe]");
-    add_title("vx_[c]");
-    add_title("vy_[c]");
-    add_title("vz_[c]");
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-
-  PetscErrorCode add_args(PetscInt t) override
-  {
-    if (t % skip != 0)
-      return PETSC_SUCCESS;
-
-    PetscFunctionBeginUser;
-    add_arg(t * dt);
-    add_arg(point.x());
-    add_arg(point.y());
-    add_arg(point.z());
-    add_arg(point.px());
-    add_arg(point.py());
-    add_arg(point.pz());
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-
-  std::filesystem::path get_outputfile(std::string_view file, std::string_view id)
-  {
-    std::filesystem::path outputfile(file);
-    outputfile.replace_extension("");
-    outputfile = std::format("{}/output/{}/temporal/{}.txt",
-      outputfile.parent_path().c_str(), outputfile.filename().c_str(), id);
-    return outputfile;
-  }
-};
-
-using InterpolationResult = std::pair<REP2(Vector3R)>;
-using Interpolator = std::function<InterpolationResult(const Vector3R& r)>;
+using Interpolator = std::function<void(const Vector3R&, Vector3R&, Vector3R&)>;
 
 // First-order magnetic field integrators
 
 void process_M1A(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vM(dt, point);
   push.update_r(dt, point);
@@ -103,7 +30,8 @@ void process_M1B(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
   push.update_r(dt, point);
 
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vM(dt, point);
 }
@@ -115,7 +43,8 @@ void process_MLF(BorisPush& push, Point& point, const Interpolator& interpolate)
 
 void process_B1A(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vB(dt, point);
   push.update_r(dt, point);
@@ -125,7 +54,8 @@ void process_B1B(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
   push.update_r(dt, point);
 
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vB(dt, point);
 }
@@ -137,7 +67,8 @@ void process_BLF(BorisPush& push, Point& point, const Interpolator& interpolate)
 
 void process_C1A(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vC1(dt, point);
   push.update_r(dt, point);
@@ -147,7 +78,8 @@ void process_C1B(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
   push.update_r(dt, point);
 
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vC1(dt, point);
 }
@@ -163,15 +95,16 @@ void process_CLF(BorisPush& push, Point& point, const Interpolator& interpolate)
 void process_M2A(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
   // v_B(r_0, v_0, dt / 2) -> v_{1/2}
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vM((dt / 2.0), point);
 
   // r_0 + dt * v_{1/2} -> r_1
   push.update_r(dt, point);
 
-  // v_B(r_1, v_{1/2}, dt / 2) -> v_1
-  std::tie(E_p, B_p) = interpolate(point.r);
+  // v_B(r_1, v_{1/2}, dt / 2) ;-> v_1
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vM((dt / 2.0), point);
 }
@@ -182,7 +115,8 @@ void process_M2B(BorisPush& push, Point& point, const Interpolator& interpolate)
   push.update_r((dt / 2.0), point);
 
   // v_B(r_{1/2}, v_0, dt) -> v_1
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vM(dt, point);
 
@@ -193,15 +127,16 @@ void process_M2B(BorisPush& push, Point& point, const Interpolator& interpolate)
 void process_C2A(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
   // v_B(r_0, v_0, dt / 2) -> v_{1/2}
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vC2((dt / 2.0), point);
 
   // r_0 + dt * v_{1/2} -> r_1
   push.update_r(dt, point);
 
-  // v_B(r_1, v_{1/2}, dt / 2) -> v_1
-  std::tie(E_p, B_p) = interpolate(point.r);
+  // v_B(r_1, v_{1/2}, dt / 2) ;-> v_1
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vC2((dt / 2.0), point);
 }
@@ -212,7 +147,8 @@ void process_B2B(BorisPush& push, Point& point, const Interpolator& interpolate)
   push.update_r((dt / 2.0), point);
 
   // v_B(r_{1/2}, v_0, dt) -> v_1
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vB(dt, point);
 
@@ -224,7 +160,8 @@ void process_B2B(BorisPush& push, Point& point, const Interpolator& interpolate)
 
 void process_EB1A(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vEB(dt, point);
   push.update_r(dt, point);
@@ -234,7 +171,8 @@ void process_EB1B(BorisPush& push, Point& point, const Interpolator& interpolate
 {
   push.update_r(dt, point);
 
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vEB(dt, point);
 }
@@ -250,7 +188,8 @@ void process_EB2B(BorisPush& push, Point& point, const Interpolator& interpolate
   push.update_r((dt / 2.0), point);
 
   // v_B(r_{1/2}, v_0, dt) -> v_1
-  auto [E_p, B_p] = interpolate(point.r);
+  Vector3R E_p, B_p;
+  interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
   push.update_vEB(dt, point);
 

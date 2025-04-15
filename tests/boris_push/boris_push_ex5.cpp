@@ -1,4 +1,4 @@
-#include "common.h"
+#include "boris_push.h"
 
 static char help[] =
   "Here we are testing the electron drift in a time-dependent electric    \n"
@@ -20,7 +20,6 @@ int main(int argc, char** argv)
 
   constexpr Vector3R r0(0.0, 0.0, 0.0);
   constexpr Vector3R v0(0.0, 0.0, 0.1);
-
   Point point(r0, v0);
 
   dt = 0.5;
@@ -36,8 +35,9 @@ int main(int argc, char** argv)
     push.update_r(-dt / 2.0, point);
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
-    auto interpolated_fields = [t](const Vector3R& /* r */) {
-      return std::make_pair(E0 * (t * dt), B0);
+    auto interpolated_fields = [t](const Vector3R&, Vector3R& E_p, Vector3R& B_p) {
+      E_p = E0 * (t * dt);
+      B_p = B0;
     };
 
     PetscCall(trace.diagnose(t));
