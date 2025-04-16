@@ -3,8 +3,11 @@ cmake_minimum_required(VERSION 3.10)
 set(tests
   crank_nicolson_push_ex1
   crank_nicolson_push_ex2
+  crank_nicolson_push_ex3
 )
 
+# Since Crank-Nicolson particle integrator enables large timesteps to 
+# be taken, we will _test_ against exactly this property of the mover.
 set(omega_dt_values
   0.1
   1.0

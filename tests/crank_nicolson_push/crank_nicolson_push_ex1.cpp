@@ -51,6 +51,7 @@ int main(int argc, char** argv)
     check_mean_coord += point_n.r / geom_nt;
   }
 
+  // Though this quantity isn't quite correct for particle gyration with `Omega * dt >> 1`
   PetscCheck(check_counter_clockwise * omega < 0.0, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Electron must rotate counter clockwise. Result ccw count: %f, omega: %f", check_counter_clockwise, omega);
 
