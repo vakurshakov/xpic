@@ -31,7 +31,7 @@ int main(int argc, char** argv)
   PetscReal check_mean_radius = 0.0;
   Vector3R check_mean_coord;
 
-  PointTrace trace(__FILE__, id, point_n, 543);
+  PointTrace trace(__FILE__, id, point_n, geom_nt / 123);
 
   CrankNicolsonPush push;
   push.set_qm(-1.0);

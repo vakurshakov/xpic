@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 
   PetscReal omega = B0.length();
   dt = omega_dt / omega;
-  geom_t = 8000 * (2.0 * M_PI / omega);
+  geom_t = 100'000 * (2.0 * M_PI / omega);
   geom_nt = ROUND_STEP(geom_t, dt);
   diagnose_period = geom_nt;
 

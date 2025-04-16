@@ -13,6 +13,7 @@ set(omega_dt_values
   1.0
   10.0
   100.0
+  1000.0
 )
 
 foreach(test ${tests})
