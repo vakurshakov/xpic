@@ -11,6 +11,7 @@ results/
 (^tests)*.png
 tests/chin/output/**
 tests/basic/output/**
+tests/ecsim/output/**
 tests/ecsimcorr/output/**
 *.out
 *.bin

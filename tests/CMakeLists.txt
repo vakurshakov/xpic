@@ -4,4 +4,5 @@ add_subdirectory(chin)
 add_subdirectory(diagnostics)
 
 add_subdirectory(basic)
+add_subdirectory(ecsim)
 add_subdirectory(ecsimcorr)
