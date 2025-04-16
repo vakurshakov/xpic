@@ -8,8 +8,6 @@ static char help[] =
   "in periodic boundaries for 100 cycles (dt=1.5). There are only maxwellian\n"
   "electrons with the temperature T=100 eV, ions are stationary background. \n";
 
-/// @todo Create a binary files comparator to be able to tell where is the difference
-
 void overwrite_config();
 
 int main(int argc, char** argv)
