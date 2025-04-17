@@ -4,6 +4,7 @@
 #include "src/utils/shape.h"
 
 /// @brief Charge-conserving Esirkepov density decomposition.
+/// @note A temporary buffer is allocated with the size of `shape_width`.
 class EsirkepovDecomposition {
 public:
   EsirkepovDecomposition() = delete;
@@ -12,9 +13,6 @@ public:
   /// @brief Decomposition context is a reference to outer global current.
   using Context = Vector3R***;
 
-  /// @note A temporary buffer is allocated with a maximum size of
-  /// `shape_width` so that a lower-order shape can fit into it.
-  /// @todo Think on std::vector<PetscReal> instead.
   PetscErrorCode process(Context& J) const;
 
 private:
