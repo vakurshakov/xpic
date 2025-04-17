@@ -8,7 +8,7 @@ SyncBinaryFile::SyncBinaryFile()
 SyncBinaryFile::SyncBinaryFile(const std::string& filename)
   : SyncBinaryFile()
 {
-  PetscCallVoid(SyncFile::open(filename));
+  PetscCallAbort(PETSC_COMM_WORLD, SyncFile::open(filename));
 }
 
 PetscErrorCode SyncBinaryFile::write(PetscReal data)

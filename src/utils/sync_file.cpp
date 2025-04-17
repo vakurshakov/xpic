@@ -2,7 +2,7 @@
 
 SyncFile::SyncFile(const std::string& filename)
 {
-  PetscCallVoid(open(filename));
+  PetscCallAbort(PETSC_COMM_WORLD, open(filename));
 }
 
 PetscErrorCode SyncFile::open(const std::string& filename)

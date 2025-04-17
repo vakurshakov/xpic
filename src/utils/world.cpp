@@ -52,7 +52,7 @@ PetscErrorCode World::finalize()
 
 World::~World()
 {
-  PetscCallVoid(finalize());
+  PetscCallAbort(PETSC_COMM_WORLD, finalize());
 }
 
 

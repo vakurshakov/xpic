@@ -12,16 +12,14 @@ namespace ecsimcorr {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : ecsim::Particles(simulation, parameters), simulation_(simulation)
 {
-  PetscFunctionBeginUser;
   DM da = world.da;
-  PetscCallVoid(DMCreateLocalVector(da, &local_currJe));
-  PetscCallVoid(DMCreateGlobalVector(da, &global_currJe));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &local_currJe));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &global_currJe));
 
-  PetscClassIdRegister("ecsimcorr::Particles", &classid);
-  PetscLogEventRegister("first_push", classid, &events[0]);
-  PetscLogEventRegister("second_push", classid, &events[1]);
-  PetscLogEventRegister("final_update", classid, &events[2]);
-  PetscFunctionReturnVoid();
+  PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("ecsimcorr::Particles", &classid));
+  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("first_push", classid, &events[0]));
+  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("second_push", classid, &events[1]));
+  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("final_update", classid, &events[2]));
 }
 
 PetscErrorCode Particles::first_push()

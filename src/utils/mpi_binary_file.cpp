@@ -2,7 +2,7 @@
 
 MPI_BinaryFile::MPI_BinaryFile(MPI_Comm comm, const std::string& filename)
 {
-  PetscCallVoid(open(comm, filename));
+  PetscCallAbort(PETSC_COMM_WORLD, open(comm, filename));
 }
 
 MPI_BinaryFile::~MPI_BinaryFile()

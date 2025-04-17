@@ -10,11 +10,9 @@ namespace basic {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
-  PetscFunctionBeginUser;
   DM da = world.da;
-  PetscCallVoid(DMCreateGlobalVector(da, &global_J));
-  PetscCallVoid(DMCreateLocalVector(da, &local_J));
-  PetscFunctionReturnVoid();
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &global_J));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &local_J));
 }
 
 PetscErrorCode Particles::push()

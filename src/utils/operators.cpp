@@ -5,7 +5,7 @@
 Operator::Operator(DM da, PetscInt mdof, PetscInt ndof)
   : da_(da), mdof_(mdof), ndof_(ndof)
 {
-  PetscCallVoid(DMDAGetCorners(da_, REP3_A(&start_), REP3_A(&size_)));
+  PetscCallAbort(PETSC_COMM_WORLD, DMDAGetCorners(da_, REP3_A(&start_), REP3_A(&size_)));
 }
 
 /// @details For reference, see `DMCreateMatrix()`, `MatSetStencil()`, `MatSetValuesStencil()`.
@@ -220,7 +220,7 @@ NonRectangularOperator::NonRectangularOperator(
 
 NonRectangularOperator::~NonRectangularOperator()
 {
-  PetscCallVoid(DMDestroy(&sda_));
+  PetscCallAbort(PETSC_COMM_WORLD, DMDestroy(&sda_));
 }
 
 PetscErrorCode NonRectangularOperator::create_matrix(Mat* mat)

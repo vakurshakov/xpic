@@ -34,13 +34,11 @@ constexpr PetscMPIInt get_neighbor(PetscInt i, const World& world)
 Particles::Particles(const World& world, const SortParameters& parameters)
   : world(world), parameters(parameters), storage(world.size.elements_product())
 {
-  PetscFunctionBeginUser;
   PetscMPIInt size;
-  PetscCallVoid(MPI_Comm_size(PETSC_COMM_WORLD, &size));
+  PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_size(PETSC_COMM_WORLD, &size));
   update_cells = (size == 1) //
     ? std::bind(std::mem_fn(&Particles::update_cells_seq), this)
     : std::bind(std::mem_fn(&Particles::update_cells_mpi), this);
-  PetscFunctionReturnVoid();
 }
 
 PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)

@@ -12,11 +12,9 @@ namespace ecsim {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
-  PetscFunctionBeginUser;
   DM da = world.da;
-  PetscCallVoid(DMCreateLocalVector(da, &local_currI));
-  PetscCallVoid(DMCreateGlobalVector(da, &global_currI));
-  PetscFunctionReturnVoid();
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &local_currI));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &global_currI));
 }
 
 PetscErrorCode Particles::first_push()
