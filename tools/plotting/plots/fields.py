@@ -6,7 +6,7 @@ from plot import *
 
 vmap = np.array([-0.02, +0.02])
 
-process_basic("fields", lambda t: f"$t / \\tau = {t * dts:.3f}$", (
+process_basic("fields", lambda t: f"$t = {t * dts:.3f}$", (
     gen_plot("$E_x$", "E_PlaneZ_05", 'Z', 'x', 3, vmap),
     gen_plot("$E_x$", "E_PlaneX_05", 'X', 'x', 3, vmap),
     gen_plot("$B_x$", "B_PlaneZ_05", 'Z', 'x', 3, vmap),

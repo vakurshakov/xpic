@@ -37,4 +37,4 @@ def callback(t):
     for p in p_s_avg:
         p.draw(rs)
 
-process_plots("pressures", lambda t: f"$t / \\tau = {t * dts:.3f}$", p_s + p_s_avg, callback)
+process_plots("pressures", lambda t: f"$t = {t * dts:.3f}$", p_s + p_s_avg, callback)

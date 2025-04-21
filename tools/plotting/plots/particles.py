@@ -10,7 +10,7 @@ vmap_j = {
 vmap_n = 1 + 0.01 * vmap_j["electrons"]
 
 for s in sorts:
-    process_basic(f"info_{s}", lambda t: f"$t / \\tau = {t * dts:.3f}$", (
+    process_basic(f"info_{s}", lambda t: f"$t = {t * dts:.3f}$", (
         gen_plot(f"$n_{s[0]}$", f"{s}/Density_PlaneZ_05", 'Z', '', 1, vmap_n, unsigned_cmap),
         gen_plot(f"$J_x^{s[0]}$", f"{s}/Vx_PlaneZ_05", 'Z', 'x', 1, vmap_j.get(s)),
         gen_plot(f"$J_y^{s[0]}$", f"{s}/Vy_PlaneZ_05", 'Z', 'y', 1, vmap_j.get(s)),
