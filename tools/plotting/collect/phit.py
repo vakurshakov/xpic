@@ -7,9 +7,9 @@ rmax  = 3 # int(2 / dx)
 rstep = 1
 
 rmap = []
-for r, map in enumerate(RMAP):
+for r, map in enumerate(const.rmap):
     if (r0 <= r and r < rmax) and (r % rstep == 0):
-        rmap.append((r * dx, map))
+        rmap.append((r * const.dx, map))
 
 arrays: CollectionArrays = {
     "b": [[], gen_view("B_PlaneZ_05", 'z', 3)],
@@ -28,8 +28,8 @@ def parse(t, map):
     b, er, ea, jxi, jyi, jxe, jye = read(t, arrays, \
       ["b", "er", "ea", "jri", "jai", "jre", "jae"])
     
-    jri, jai = vx_vy_to_vr_va(jxi, jyi, COS, SIN)
-    jre, jae = vx_vy_to_vr_va(jxe, jye, COS, SIN)
+    jri, jai = vx_vy_to_vr_va(jxi, jyi, const.cos, const.sin)
+    jre, jae = vx_vy_to_vr_va(jxe, jye, const.cos, const.sin)
     return b[map], er[map], ea[map], jri[map], jai[map], jre[map], jae[map]
 
 def output(name, r):

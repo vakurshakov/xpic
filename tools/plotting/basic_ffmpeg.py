@@ -4,9 +4,10 @@ import os, sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
-from configuration import output_path, Nt
+from lib.common import makedirs
+from configuration import const
 
-os.chdir(output_path)
+os.chdir(const.output_path)
 
 if len(sys.argv) == 1:
     plots = (
@@ -18,5 +19,7 @@ if len(sys.argv) == 1:
 else:
     plots = sys.argv[1:]
 
+makedirs(f"{const.output_path}/video")
+
 for plot in plots:
-    os.system(f"ffmpeg -y -i ./{plot}/%0{len(str(Nt))}d.png -r 15 ./video/{plot}.mp4")
+    os.system(f"ffmpeg -y -i ./{plot}/%0{len(str(const.Nt))}d.png -r 15 ./video/{plot}.mp4")

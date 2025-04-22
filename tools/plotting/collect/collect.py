@@ -1,21 +1,24 @@
 import os, sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 
 from lib.common import *
+from configuration import *
 
 tmin = 0
-tmax = int(time / dts) + 1
+tmax = const.Nt + 1
 t_range = mpi_chunks_reduce(np.arange(tmin, tmax, 1))
 
-res_dir = f"{output_path}/collections"
+res_dir = f"{const.output_path}/collections"
 makedirs(res_dir)
 
 def gen_view(path: str, comp: str = None, dof: int = 1) -> FieldView:
     view = FieldView()
-    view.path = lambda t: f"{prefix}/{path}/{get_formatted_time(t)}"
-    view.region = FieldView.Region(dof, (0, 0, 0), (*data_shape['Z'], dof))
+    view.path = lambda t: f"{const.input_path}/{path}/{format_time(t, const.Nt)}"
+    view.region = FieldView.Region(dof, (0, 0, 0), (*const.data_shape['Z'], dof))
     view.coords = FieldView.Cartesian if not comp in ['r', 'phi'] else FieldView.Cylinder
+    if view.coords == FieldView.Cylinder: view.init_cos_sin(const.cos, const.sin)
     view.plane = 'Z'
     view.comp = comp
     return view
@@ -33,19 +36,19 @@ def read(t: int, arrays: CollectionArrays, name: str | list[str]):
     return None
 
 def center_avg(d: np.ndarray, w: int = 5):
-    c0 = data_shape["Z"][0] // 2
-    c1 = data_shape["Z"][1] // 2
+    c0 = d.shape[0] // 2
+    c1 = d.shape[1] // 2
     return np.mean(d[c1-w:c1+w, c0-w:c0+w])
 
 def phi_avg(d: np.ndarray):
-    return phi_averaged(d, RMAP)
+    return phi_averaged(d, const.rmap)
 
 def process_collection(arrays: CollectionArrays, parse: Callable[[int], None], output: Callable[[str], str], shape: tuple = None):
     for t in t_range:
-        data = parse(find_correct_timestep(t, t_range))
+        data = parse(find_correct_timestep(t, t_range, list(arrays.values())[0][1]))
 
-        for d, arr in zip(data, arrays.values()):
-            arr[0].append(d)
+        for d, (arr, _) in zip(data, arrays.values()):
+            arr.append(d)
 
     for name, (arr, _) in arrays.items():
         gathered_list = comm.gather(arr, root=0)

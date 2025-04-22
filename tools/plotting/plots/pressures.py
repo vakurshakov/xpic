@@ -8,7 +8,7 @@ vmap_i = (0, +2e-7)
 vmap_e = (0, +2e-3)
 cmap = unsigned_cmap
 
-rs = np.arange(0, boundaries['Z'][1])
+rs = np.arange(0, const.boundaries['Z'][1])
 
 pr_i = gen_plot("$\\Pi_{rr}^i$", "ions/mVrVr_PlaneZ_05", 'Z', '', 1, vmap_i, cmap)
 pr_e = gen_plot("$\\Pi_{rr}^e$", "electrons/mVrVr_PlaneZ_05", 'Z', '', 1, vmap_e, cmap)
@@ -29,12 +29,12 @@ def callback(t):
         p.data = p.view.parse(t)
         p.draw()
     
-    pr_i_avg.data = phi_averaged(pr_i.data, RMAP)
-    pa_i_avg.data = phi_averaged(pa_i.data, RMAP)
-    pr_e_avg.data = phi_averaged(pr_e.data, RMAP)
-    pa_e_avg.data = phi_averaged(pa_e.data, RMAP)
+    pr_i_avg.data = phi_averaged(pr_i.data, const.rmap)
+    pa_i_avg.data = phi_averaged(pa_i.data, const.rmap)
+    pr_e_avg.data = phi_averaged(pr_e.data, const.rmap)
+    pa_e_avg.data = phi_averaged(pa_e.data, const.rmap)
     
     for p in p_s_avg:
         p.draw(rs)
 
-process_plots("pressures", lambda t: f"$t = {t * dts:.3f}$", p_s + p_s_avg, callback)
+process_plots("pressures", lambda t: f"$t = {t * const.dt:.3f}$", p_s + p_s_avg, callback)

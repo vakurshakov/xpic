@@ -28,8 +28,8 @@ def parse(t):
     pr = pri + pre
     pa = pai + pae
 
-    rs = np.arange(0, data_shape["Z"][0] // 2) * dx
-    pd = cumulative_trapezoid((pr - pa) / (rs + 0.1), dx=dx, initial=0)
+    rs = np.arange(0, const.data_shape["Z"][0] // 2) * const.dx
+    pd = cumulative_trapezoid((pr - pa) / (rs + 0.1), dx=const.dx, initial=0)
     pd = -(pd - pd[-1])
     return b, ni, ne, pri[0], pai[0], pre[0], pae[0], pd[0]
 
