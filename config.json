@@ -60,6 +60,7 @@
     {
       "command": "SetMagneticField",
       "field": "B0",
+      "field_axpy": "B",
       "setter": {
         "name": "SetUniformField",
         "value": [0, 0, 0.2],
@@ -90,20 +91,32 @@
 
   "Diagnostics": [
     { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "Y", "position": 5 } },
     { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "Z", "position": 5 } },
 
     { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "Y", "position": 5 } },
     { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "Z", "position": 5 } },
 
     { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "Y", "position": 5 } },
     { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vx", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vy", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vz", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vx", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vy", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vz", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "mVrVr", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "mVphiVphi", "region": { "type": "2D", "plane": "Z", "position": 5 } },
 
     { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "Y", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } }
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vx", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vy", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vz", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vx", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vy", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vz", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "mVrVr", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "mVphiVphi", "region": { "type": "2D", "plane": "Z", "position": 5 } }
   ],
 
   "SimulationBackup": {

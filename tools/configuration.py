@@ -3,47 +3,21 @@
 import os
 import json
 
-xpic_dir = os.path.join(os.path.dirname(__file__), "../")
+from plotting.lib.constants import *
 
-config_path = os.path.join(xpic_dir, "config.json")
-config = None
+config_dir = os.path.join(os.path.dirname(__file__), "../")
+config_path = os.path.join(config_dir, "config.json")
 
 with open(config_path, "r") as file:
     config = json.load(file)
-    file.close()
 
+const = Constants()
+const.init_from_config(config)
+const.init_dependent()
+const.input_path = os.path.join(config_dir, config["OutputDirectory"])
+const.output_path = os.path.join(config_dir, config["OutputDirectory"], "processed")
 
-# Common information in any case
-params_path = os.path.join(xpic_dir, config["OutputDirectory"])
-
-prefixes =  [
-    os.path.join(xpic_dir, config["OutputDirectory"])
-]
-
-restarts = [  # in dts units
-]
-
-prefix = prefixes[0]
-
-
-# Setting up geometry information
-geometry = config["Geometry"]
-dx = geometry["dx"]  # c / wpe
-dy = geometry["dy"]  # c / wpe
-dz = geometry["dz"]  # c / wpe
-dt = geometry["dt"]  # 1 / wpe
-Nx = round(geometry["x"] / dx)  # cells
-Ny = round(geometry["y"] / dy)  # cells
-Nz = round(geometry["z"] / dz)  # cells
-
-time = geometry["t"]     # 1 / wpe, (number of files) * dts
-Nt   = round(time / dt)  # cells
-
-dts  = geometry["diagnose_period"]  # 1 / wpe
-
-
-# Setting up particles information
-sorts = []
+# Setting up the rest of particles information
 mi_me = None   # me
 T_i   = None   # mec^2
 T_e   = None   # mec^2
@@ -52,7 +26,6 @@ mec2  = 511.0  # KeV
 if "Particles" in config:
   for sort in config["Particles"]:
     name = sort["sort_name"]
-    sorts.append(name)
 
     if name == "ions":
       mi_me = sort["m"]
@@ -60,7 +33,6 @@ if "Particles" in config:
 
     elif name == "electrons":
       T_e = sort["T"] / mec2
-
 
 # Setting up information from commands (presets)
 def get(d: dict, path: str, default = None):
@@ -98,17 +70,13 @@ def get(d: dict, path: str, default = None):
 
     return result
 
-# Buffer cells used to offset diagnostic [cells]
-buff = 0
+# [mecwpe/e] Reference value of the magnetic field 
+const.B0 = get(config, "command:SetMagneticField.setter.reference", 0)
 
-# Reference value of the magnetic field [mecwpe/e]
-B0 = get(config, "command:SetMagneticField.setter.reference", 0)
+# [1/wpe] Particles injection rate 
+const.tau = get(config, "command:InjectParticles.tau", 0)
 
-# Particles injection rate [1 / wpe]
-tau = get(config, "command:InjectParticles.tau", 0)
-
-
-# Some utilities that would be used in `xplot`
+# Some utilities that would be used in plotting
 def find_diag(name: str):
     names = name.split(".")
 
@@ -125,3 +93,50 @@ def find_diag(name: str):
         if get(diag, "moment") == names[1] and get(diag, "particles") == names[2]:
             return diag
     return None
+
+input_paths = [
+    const.input_path
+]
+
+prefix = input_paths[0]
+
+restarts = [  # in dts units
+]
+
+def get_prefix(t, restarts, prefixes):
+    i = 0
+    for restart in restarts:
+        if (t > restart):
+            i += 1
+    return prefixes[i]
+
+def get_diag_path(diag: dict | None, prefix: str = None):
+    if not diag:
+        return None
+
+    def get_suffix_2D(diag):
+        plane = get(diag, "region.plane")
+        pos = get(diag, "region.position")
+        fill = -1
+
+        if plane == "X": pos = round(pos / const.dx); fill = const.Nx
+        elif plane == "Y": pos = round(pos / const.dy); fill = const.Ny
+        elif plane == "Z": pos = round(pos / const.dz); fill = const.Nz
+
+        s = ""
+        s += f"_Plane{plane}"
+        s += f"_{str(pos).zfill(len(str(fill)))}"
+        return s
+
+    suffix = ""
+
+    if get(diag, "field"):
+        suffix += get(diag, "field")
+    elif get(diag, "particles") and get(diag, "moment"):
+        suffix += f"{get(diag, "particles")}/{get(diag, "moment")}"
+
+    if get(diag, "region.type") == "2D":
+        suffix += get_suffix_2D(diag)
+
+    p = get_prefix(t, restarts, input_paths) if prefix == None else prefix
+    return f"{p}/{suffix}/"

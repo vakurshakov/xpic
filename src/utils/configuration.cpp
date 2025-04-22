@@ -12,6 +12,7 @@ const Configuration& Configuration::get()
 
 void Configuration::overwrite(json_t&& json)
 {
+  config.config_path_.clear();
   config.json = std::move(json);
   config.json.at("OutputDirectory").get_to(config.out_dir);
 }
@@ -25,8 +26,14 @@ void Configuration::init(const std::string& config_path)
 
 void Configuration::save(const std::string& out_dir)
 {
-  save(config.config_path_, out_dir,
-    std::filesystem::copy_options::overwrite_existing);
+  if (!config.config_path_.empty()) {
+    save(config.config_path_, out_dir,
+      std::filesystem::copy_options::overwrite_existing);
+  }
+  else if (!config.json.empty()) {
+    std::ofstream os(out_dir + "/config.json");
+    os << std::setw(2) << config.json;
+  }
 }
 
 void Configuration::save_sources(const std::string& out_dir)
