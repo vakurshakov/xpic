@@ -16,6 +16,7 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   overwrite_config();
+  Configuration::save(get_out_dir(__FILE__));
 
   ecsim::Simulation simulation;
   PetscCall(simulation.initialize());
