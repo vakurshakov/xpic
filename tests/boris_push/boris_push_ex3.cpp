@@ -1,6 +1,6 @@
 #include "boris_push.h"
 
-static char help[] =
+static constexpr char help[] =
   "Here we are testing the electron drift in a curvilinear magnetic \n"
   "field created by the line current flowing along z-axis. It is    \n"
   "described by B_coeff and B_center parameters. Different process  \n"

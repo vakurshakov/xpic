@@ -3,7 +3,7 @@
 #include "src/utils/world.h"
 #include "tests/common.h"
 
-static char help[] =
+static constexpr char help[] =
   "Testing \'FieldView\' diagnostics: write, mpi-write, comparisons\n.";
 
 int main(int argc, char** argv)

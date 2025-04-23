@@ -1,6 +1,6 @@
 #include "crank_nicolson_push.h"
 
-static char help[] =
+static constexpr char help[] =
   "Test of electron drift in crossed electric and magnetic fields using \n"
   "Crank-Nicolson integrator for different values of 'Omega * dt' with  \n"
   "checks of energy conservation and drift velocity. Clockwise rotation \n"

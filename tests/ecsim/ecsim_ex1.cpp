@@ -2,7 +2,7 @@
 #include "src/utils/configuration.h"
 #include "tests/common.h"
 
-static char help[] =
+static constexpr char help[] =
   "Test of energy conservation for \"ecsim\" implementation. \n"
   "The simplest case is tested: plasma cube of size L=5.0 (N=10) is modeled \n"
   "in periodic boundaries for 100 cycles (dt=1.5). There are only maxwellian\n"

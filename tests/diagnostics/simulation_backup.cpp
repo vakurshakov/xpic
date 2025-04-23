@@ -5,7 +5,7 @@
 #include "src/utils/world.h"
 #include "tests/common.h"
 
-static char help[] = "Testing save and load of simulation backup\n.";
+static constexpr char help[] = "Testing save and load of simulation backup\n.";
 
 bool operator==(const Point& a, const Point& b);
 

@@ -1,6 +1,6 @@
 #include "crank_nicolson_push.h"
 
-static char help[] =
+static constexpr char help[] =
   "Test of electron gyration in a uniform magnetic field using    \n"
   "Crank-Nicolson integrator for different values of 'Omega * dt' \n"
   "and comparing some quantities, e.g. larmor radius, with theory.\n";

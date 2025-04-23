@@ -1,6 +1,6 @@
 #include "boris_push.h"
 
-static char help[] =
+static constexpr char help[] =
   "Here we are testing the electron drift in crossed electric and \n"
   "magnetic fields using a different process algorithms are used. \n"
   "None that since electric field is on, only \"EB\" algorithms   \n"

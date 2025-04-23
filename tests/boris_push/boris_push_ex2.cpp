@@ -1,6 +1,6 @@
 #include "boris_push.h"
 
-static char help[] =
+static constexpr char help[] =
   "Here we are testing the electron gyration in a linearly-chaning    \n"
   "magnetic field, described by B_uniform and B_gradient parameters,  \n"
   "using a different process algorithms. None that only \"B\" schemes \n"

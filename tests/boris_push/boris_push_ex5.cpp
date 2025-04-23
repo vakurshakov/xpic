@@ -1,6 +1,6 @@
 #include "boris_push.h"
 
-static char help[] =
+static constexpr char help[] =
   "Here we are testing the electron drift in a time-dependent electric and   \n"
   "static magnetic field (described by E0 and B0 parameters) using different \n"
   "processing algorithms. None that since electric field is on, only \"EB\"  \n"
