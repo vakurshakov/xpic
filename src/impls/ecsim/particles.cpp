@@ -78,9 +78,7 @@ void Particles::decompose_ecsim_current(
 
   Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
 
-  PetscReal betaI = charge(point) * density(point) /
-    (particles_number(point) * (1.0 + b.squared()));
-
+  PetscReal betaI = macro_q(point) / (1.0 + b.squared());
   PetscReal betaL = charge(point) / mass(point) * betaI;
 
   Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));

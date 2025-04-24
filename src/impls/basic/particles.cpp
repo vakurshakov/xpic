@@ -60,10 +60,7 @@ void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) con
 
 void Particles::decompose(const Shape& shape, const Point& point)
 {
-  const PetscReal alpha =
-    charge(point) * density(point) / (particles_number(point) * (6.0 * dt));
-
-  EsirkepovDecomposition decomposition(shape, alpha);
+  EsirkepovDecomposition decomposition(shape, macro_q(point) / (6.0 * dt));
   decomposition.process(J);
 }
 

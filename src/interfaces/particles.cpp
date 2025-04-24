@@ -257,6 +257,12 @@ PetscReal Particles::mass(const Point& /* point */) const
   return parameters.m;
 }
 
+PetscReal Particles::macro_q(const Point& point) const
+{
+  return charge(point) * density(point) / particles_number(point);
+}
+
+
 Vector3R Particles::velocity(const Point& point) const
 {
   const Vector3R& p = point.p;

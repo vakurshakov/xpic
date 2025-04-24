@@ -76,10 +76,10 @@ PetscErrorCode Particles::second_push()
       shape.setup(old_r, point.r, shape_radius2, shape_func2);
       decompose_esirkepov_current(shape, point);
 
-      PetscReal frac = charge(point) * density(point) / particles_number(point);
+      PetscReal q = macro_q(point);
 
 #pragma omp atomic update
-      pred_w += 0.5 * (old_v + point.p).dot(E_p) * frac;
+      pred_w += q * 0.5 * (old_v + point.p).dot(E_p);
     }
   }
 
@@ -128,12 +128,8 @@ PetscErrorCode Particles::final_update()
 
 void Particles::decompose_esirkepov_current(const Shape& shape, const Point& point)
 {
-  PetscFunctionBeginUser;
-  const PetscReal alpha =
-    charge(point) * density(point) / (particles_number(point) * (6.0 * dt));
-
-  EsirkepovDecomposition decomposition(shape, alpha);
-  PetscCallVoid(decomposition.process(currJe));
+  EsirkepovDecomposition decomposition(shape, macro_q(point) / (6.0 * dt));
+  decomposition.process(currJe);
 }
 
 PetscErrorCode Particles::calculate_energy()
