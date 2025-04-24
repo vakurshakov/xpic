@@ -35,7 +35,7 @@ private:
   PetscErrorCode init_particles() override;
   PetscErrorCode init_vectors() override;
   PetscErrorCode init_ksp_solvers() override;
-  PetscErrorCode init_log_stages();
+  PetscErrorCode init_log_stages() override;
 
   // The main simulation steps
   PetscErrorCode clear_sources();
@@ -43,16 +43,10 @@ private:
   PetscErrorCode correct_fields();
   PetscErrorCode final_update();
 
-  PetscErrorCode log_timings();
-
   using ecsim::Simulation::ksp; // prediction KSP
   KSP correct;
 
-  PetscClassId classid;
-  PetscLogEvent events[1];
   PetscLogStage stagenums[7];
-
-  SyncClock clock;
 
   friend class EnergyConservation;
 };

@@ -15,16 +15,24 @@ public:
   ~SyncClock() = default;
 
   PetscErrorCode push(PetscLogStage id);
-  PetscErrorCode push(const std::string& name);
+  PetscErrorCode push(std::string_view name);
 
   PetscErrorCode pop();
 
   PetscLogDouble get(PetscLogStage id);
-  PetscLogDouble get(const std::string& name);
+  PetscLogDouble get(std::string_view name);
+
+  PetscErrorCode log_timings(PetscInt skip = 0, PetscInt indent = 2) const;
 
 private:
-  std::stack<std::string> active_;
-  std::map<std::string, PetscLogDouble> times_;
+  using Item = std::pair<std::string_view, PetscLogDouble>;
+  using Storage = std::vector<Item>;
+
+  Storage::iterator times_find(std::string_view name);
+  PetscLogDouble& times_at(std::string_view name);
+
+  std::stack<std::string_view> active_;
+  Storage times_;
 };
 
 #endif  // SRC_UTILS_SYNC_CLOCK_H

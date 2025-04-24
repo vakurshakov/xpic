@@ -11,6 +11,9 @@ namespace ecsim {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
+  PetscCall(clock.push(__FUNCTION__));
+  PetscCall(PetscLogStagePush(stagenums[0]));
+
   assembly_map.resize(world.size.elements_product());
 
   PetscCall(init_vectors());
@@ -28,6 +31,10 @@ PetscErrorCode Simulation::initialize_implementation()
 
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(
     *this, std::move(f_diag), std::move(p_diag)));
+
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
+  LOG("ECSIM initialization took {:6.4e} seconds", clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -39,34 +46,53 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscCall(advance_fields(matL));
   PetscCall(second_push());
   PetscCall(final_update());
+
+  // We are skipping the initialization stage
+  PetscCall(clock.log_timings(1));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
+  /// @todo Now it is the problem to use push(), pop() on the same names in case of virtuality
+  PetscCall(clock.push("clear_sources1"));
+  PetscCall(PetscLogStagePush(stagenums[1]));
+
   PetscCall(VecSet(currI, 0.0));
   PetscCall(MatZeroEntries(matL));
 
   for (auto& sort : particles_)
     PetscCall(sort->clear_sources());
+
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::first_push()
 {
   PetscFunctionBeginUser;
+  PetscCall(clock.push(__FUNCTION__));
+  PetscCall(PetscLogStagePush(stagenums[2]));
+
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
 
   PetscCall(update_cells_with_assembly());
   PetscCall(fill_ecsim_current());
+
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::advance_fields(Mat matA)
 {
   PetscFunctionBeginUser;
+  PetscCall(clock.push(__FUNCTION__));
+  PetscCall(PetscLogStagePush(stagenums[3]));
+
   PetscCall(MatAYPX(matA, dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt * matA
 
   // Note that we use `matM` to construct the preconditioning matrix
@@ -74,12 +100,18 @@ PetscErrorCode Simulation::advance_fields(Mat matA)
   PetscCall(KSPSetUp(ksp));
 
   PetscCall(advance_fields(ksp, currI, Ep));
+
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::second_push()
 {
   PetscFunctionBeginUser;
+  PetscCall(clock.push(__FUNCTION__));
+  PetscCall(PetscLogStagePush(stagenums[4]));
+
   DM da = world.da;
   PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, local_E));
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, local_B));
@@ -100,12 +132,18 @@ PetscErrorCode Simulation::second_push()
   PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
 
   PetscCall(update_cells_with_assembly());
+
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::final_update()
 {
   PetscFunctionBeginUser;
+  PetscCall(clock.push("final_update1"));
+  PetscCall(PetscLogStagePush(stagenums[5]));
+
   Vec util;
   PetscReal norm;
   PetscCall(DMGetGlobalVector(world.da, &util));
@@ -119,6 +157,9 @@ PetscErrorCode Simulation::final_update()
   PetscCall(DMRestoreGlobalVector(world.da, &util));
 
   PetscCall(MatMultAdd(rotE, Ep, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
+
+  PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -343,6 +384,21 @@ void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& of
       off += shs;
 }
 
+
+PetscErrorCode Simulation::init_log_stages()
+{
+  PetscFunctionBeginUser;
+  PetscCall(PetscClassIdRegister("ecsimcorr::Simulation", &classid));
+  PetscCall(PetscLogEventRegister("fill_ecsim_curr", classid, &events[0]));
+
+  PetscCall(PetscLogStageRegister("Initialization", &stagenums[0]));
+  PetscCall(PetscLogStageRegister("Clear sources", &stagenums[1]));
+  PetscCall(PetscLogStageRegister("First push", &stagenums[2]));
+  PetscCall(PetscLogStageRegister("Advance field", &stagenums[3]));
+  PetscCall(PetscLogStageRegister("Second push", &stagenums[4]));
+  PetscCall(PetscLogStageRegister("Final update", &stagenums[5]));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 PetscErrorCode Simulation::init_particles()
 {

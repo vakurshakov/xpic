@@ -49,6 +49,7 @@ protected:
   virtual PetscErrorCode init_particles();
   virtual PetscErrorCode init_vectors();
   virtual PetscErrorCode init_ksp_solvers();
+  virtual PetscErrorCode init_log_stages();
   PetscErrorCode init_matrices();
 
   // The main simulation steps
@@ -92,8 +93,11 @@ protected:
   /// @brief Whether the new cells have been added into `indices_map`.
   bool indices_assembled = false;
 
-  /// @todo Rework clock, there is a problem if you use e.g. __FUNCTION__
-  /// SyncClock clock;
+  PetscClassId classid;
+  PetscLogEvent events[1];
+  PetscLogStage stagenums[6];
+
+  SyncClock clock;
 
   friend class EnergyConservation;
 };

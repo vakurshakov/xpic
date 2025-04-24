@@ -12,11 +12,11 @@ namespace ecsimcorr {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-  PetscCall(init_log_stages());
-  PetscCall(clock.push(stagenums[0]));
-  PetscCall(PetscLogStagePush(stagenums[0]));
-
   PetscCall(ecsim::Simulation::initialize_implementation());
+
+  PetscCall(init_log_stages());
+  PetscCall(clock.push(__FUNCTION__));
+  PetscCall(PetscLogStagePush(stagenums[0]));
 
   std::vector<Vec> currents;
   std::vector<const interfaces::Particles*> particles;
@@ -34,8 +34,7 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCall(PetscLogStagePop());
   PetscCall(clock.pop());
-
-  LOG("Initialization took {:6.4e} seconds", clock.get(stagenums[0]));
+  LOG("ECSIMCorr initialization took {:6.4e} seconds", clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -48,14 +47,15 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscCall(second_push());
   PetscCall(correct_fields());
   PetscCall(final_update());
-  PetscCall(log_timings());
+
+  PetscCall(clock.log_timings(/* skip = */ 1));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(stagenums[1]));
+  PetscCall(clock.push("clear_sources2"));
   PetscCall(PetscLogStagePush(stagenums[1]));
 
   PetscCall(ecsim::Simulation::clear_sources());
@@ -73,7 +73,7 @@ PetscErrorCode Simulation::clear_sources()
 PetscErrorCode Simulation::predict_fields()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(stagenums[3]));
+  PetscCall(clock.push(__FUNCTION__));
   PetscCall(PetscLogStagePush(stagenums[3]));
 
   // Storing `matL` to reuse it for ECSIM current calculation later
@@ -91,7 +91,7 @@ PetscErrorCode Simulation::predict_fields()
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(stagenums[5]));
+  PetscCall(clock.push(__FUNCTION__));
   PetscCall(PetscLogStagePush(stagenums[5]));
 
   PetscCall(advance_fields(correct, currJe, Ec));
@@ -104,7 +104,7 @@ PetscErrorCode Simulation::correct_fields()
 PetscErrorCode Simulation::final_update()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(stagenums[6]));
+  PetscCall(clock.push("final_update2"));
   PetscCall(PetscLogStagePush(stagenums[6]));
 
   for (auto& sort : particles_)
@@ -127,32 +127,6 @@ PetscErrorCode Simulation::final_update()
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
-PetscErrorCode Simulation::log_timings()
-{
-  PetscFunctionBeginUser;
-  PetscInt size = (PetscInt)std::size(stagenums);
-  PetscLogDouble sum = 0.0;
-
-  // We are skipping the initialization stage
-  for (PetscInt i = 1; i < size; ++i)
-    sum += clock.get(stagenums[i]);
-
-  LOG("  Summary of Stages:  ------- Time -------");
-  LOG("                          Avg         %");
-
-  for (PetscInt i = 1; i < size; ++i) {
-    PetscLogStage id = stagenums[i];
-
-    const char* name;
-    PetscCall(PetscLogStageGetName(id, &name));
-
-    PetscLogDouble time = clock.get(std::string(name));
-    LOG("  {:2d}: {:>15s}: {:6.4e}  {:5.1f}%", id, name, time, 100.0 * time / sum);
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 
 PetscErrorCode Simulation::init_particles()
 {
@@ -206,16 +180,15 @@ PetscErrorCode Simulation::init_ksp_solvers()
 PetscErrorCode Simulation::init_log_stages()
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscClassIdRegister("ecsimcorr::Simulation", &classid));
-  PetscCall(PetscLogEventRegister("fill_ecsim_curr", classid, &events[0]));
+  PetscCall(ecsim::Simulation::init_log_stages());
 
-  PetscCall(PetscLogStageRegister("Initialization", &stagenums[0]));
-  PetscCall(PetscLogStageRegister("Clear sources", &stagenums[1]));
-  PetscCall(PetscLogStageRegister("First push", &stagenums[2]));
+  stagenums[0] = ecsim::Simulation::stagenums[0]; // Initialization
+  stagenums[1] = ecsim::Simulation::stagenums[1]; // Clear sources
+  stagenums[2] = ecsim::Simulation::stagenums[2]; // First push
+  stagenums[4] = ecsim::Simulation::stagenums[4]; // Second push
+  stagenums[6] = ecsim::Simulation::stagenums[5]; // Final update
   PetscCall(PetscLogStageRegister("Predict field", &stagenums[3]));
-  PetscCall(PetscLogStageRegister("Second push", &stagenums[4]));
   PetscCall(PetscLogStageRegister("Correct fields", &stagenums[5]));
-  PetscCall(PetscLogStageRegister("Renormalization", &stagenums[6]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
