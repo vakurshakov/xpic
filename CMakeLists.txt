@@ -109,6 +109,11 @@ set(impls_ricketson
   src/impls/ricketson/particles.cpp
 )
 
+set(impls_eccapfim
+  src/impls/eccapfim/simulation.cpp
+  src/impls/eccapfim/particles.cpp
+)
+
 add_library(
   ${PROJECT_NAME} SHARED
   src/constants.cpp
@@ -121,6 +126,7 @@ add_library(
   ${impls_ecsim}
   ${impls_ecsimcorr}
   ${impls_ricketson}
+  ${impls_eccapfim}
 )
 
 target_precompile_headers(

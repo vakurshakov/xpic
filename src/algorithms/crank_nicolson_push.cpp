@@ -28,19 +28,22 @@ void CrankNicolsonPush::process(PetscReal dt, Point& pn, const Point& p0)
   PetscAssertAbort((bool)set_fields, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "CrankNicolsonPush::set_fields have to be specified");
 
-  set_fields(pn.r, E_p, B_p);
+  set_fields(0.5 * (pn.r + p0.r), E_p, B_p);
   PetscReal r0 = get_residue(dt, pn, p0);
 
   for (PetscInt k = 0; k < maxit; ++k) {
     update_v(dt, pn.p, p0.p);
     update_r(dt, pn, p0);
-
-    set_fields(0.5 * (pn.r + p0.r), E_p, B_p);
     PetscReal rn = get_residue(dt, pn, p0);
 
     if (rn < atol + rtol * r0)
       return;
+
+    set_fields(0.5 * (pn.r + p0.r), E_p, B_p);
   }
+
+  /// @todo This is at least something, should be replaced with a proper checks
+  LOG("  Warning: CrankNicolsonPush::process() nonlinear iterations diverged!");
 }
 
 void CrankNicolsonPush::update_v(
@@ -65,7 +68,5 @@ PetscReal CrankNicolsonPush::get_residue(
   PetscReal dt, const Point& pn, const Point& p0) const
 {
   Vector3R vh = 0.5 * (pn.p + p0.p);
-  Vector3R rv = ((pn.p - p0.p) / dt - qm * (E_p + vh.cross(B_p)));
-  Vector3R rr = ((pn.r - p0.r) / dt - vh);
-  return std::hypot(rv.length(), rr.length());
+  return ((pn.p - p0.p) / dt - qm * (E_p + vh.cross(B_p))).length();
 }
