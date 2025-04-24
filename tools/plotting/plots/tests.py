@@ -19,25 +19,27 @@ with open(os.path.join(const.input_path, "config.json"), "r") as file:
 const.init_from_config(config)
 const.init_dependent()
 
-vmap = np.array([-0.02, +0.02])
+vmap_e = np.array([-0.002, +0.002])
+vmap_b = vmap_e * 0.1
+vmap_n = vmap_e * 40 + 1
 
 plane = 'Z'
 plane_position = sys.argv[1] if len(sys.argv) == 2 else const.Nz // 2
 
-def gen_plot_tests(title, path, comp, dof=3, vmap=vmap, cmap=signed_cmap):
+def gen_plot_tests(title, path, comp, dof, vmap, cmap=signed_cmap):
     plot = gen_plot(title, path, plane, comp, dof, vmap, cmap, const=const) 
     plot.view.region = FieldView.Region(dof, (0, 0, 0, 0), (const.Nx, const.Ny, const.Nz, dof))
     plot.view.plane_position = plane_position
     return plot
 
 process_basic(f"PlaneZ_{plane_position}", lambda t: f"$t = {t * const.dt:.3f}$", (
-    gen_plot_tests("$E_x$", 'E', 'x'),
-    gen_plot_tests("$E_y$", 'E', 'y'),
-    gen_plot_tests("$E_z$", 'E', 'z'),
+    gen_plot_tests("$E_x$", 'E', 'x', 3, vmap_e),
+    gen_plot_tests("$E_y$", 'E', 'y', 3, vmap_e),
+    gen_plot_tests("$E_z$", 'E', 'z', 3, vmap_e),
 
-    gen_plot_tests("$B_x$", 'B', 'x'),
-    gen_plot_tests("$B_y$", 'B', 'y'),
-    gen_plot_tests("$B_z$", 'B', 'z'),
+    gen_plot_tests("$B_x$", 'B', 'x', 3, vmap_b),
+    gen_plot_tests("$B_y$", 'B', 'y', 3, vmap_b),
+    gen_plot_tests("$B_z$", 'B', 'z', 3, vmap_b),
 
-    gen_plot_tests("$n_e$", "electrons/Density", '', 1, 1 + vmap * 2),
+    gen_plot_tests("$n_e$", "electrons/Density", '', 1, vmap_n),
 ), const)

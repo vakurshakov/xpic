@@ -6,6 +6,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
 from lib.common import *
 from configuration import *
 
+# @todo move this into a `lib.common`, or even into `lib.plot``
+
 # `PlotIm` generation utility
 def gen_plot(title: str, path: str, plane: str, comp: str, dof: int, vmap: tuple[float], \
         cmap: plt.Colormap = signed_cmap, buff: int = 0, const = const):
