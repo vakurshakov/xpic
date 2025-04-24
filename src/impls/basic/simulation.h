@@ -32,8 +32,8 @@ private:
   Vec local_E;
   Vec local_B;
 
-  Mat rot_dt_p;
-  Mat rot_dt_m;
+  Mat rotE;
+  Mat rotB;
 };
 
 }  // namespace basic

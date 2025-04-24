@@ -19,12 +19,12 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMCreateLocalVector(da, &local_B));
 
   Rotor rotor(da);
-  PetscCall(rotor.create_positive(&rot_dt_p));
-  PetscCall(rotor.create_negative(&rot_dt_m));
+  PetscCall(rotor.create_positive(&rotE));
+  PetscCall(rotor.create_negative(&rotB));
 
   // For the reasoning see `timestep_implementation()`
-  PetscCall(MatScale(rot_dt_p, -(0.5 * dt)));
-  PetscCall(MatScale(rot_dt_m, +(1.0 * dt)));
+  PetscCall(MatScale(rotE, -(0.5 * dt)));
+  PetscCall(MatScale(rotB, +(1.0 * dt)));
 
   PetscCall(init_particles(*this, particles_));
 
@@ -69,7 +69,7 @@ PetscErrorCode Simulation::push_particles()
   PetscFunctionBeginUser;
   PetscCall(VecAXPY(B, -1.0, B0));
   // B^{n} = B^{n-1/2} - rot(E^{n}) * (0.5 * dt)
-  PetscCall(MatMultAdd(rot_dt_p, E, B, B));
+  PetscCall(MatMultAdd(rotE, E, B, B));
   PetscCall(VecAXPY(B, +1.0, B0));
 
   if (particles_.empty())
@@ -108,14 +108,13 @@ PetscErrorCode Simulation::push_fields()
   PetscCall(VecAXPY(B, -1.0, B0));
 
   // B^{n+1/2} = B^{n} - rot(E^{n}) * (0.5 * dt)
-  PetscCall(MatMultAdd(rot_dt_p, E, B, B));
+  PetscCall(MatMultAdd(rotE, E, B, B));
 
-  // E'^{n+1} = E^{n} + rot(B^{n+1/2}) * dt
-  PetscCall(MatMultAdd(rot_dt_m, B, E, E));
+  // E^{n+1} = E^{n} + rot(B^{n+1/2}) * dt - J * dt
+  PetscCall(MatMultAdd(rotB, B, E, E));
+  PetscCall(VecAXPY(E, -dt, J));
+
   PetscCall(VecAXPY(B, +1.0, B0));
-
-  // E^{n+1} = E'^{n+1} - J
-  PetscCall(VecAXPY(E, -1, J));
 
   PetscCall(VecAXPY(util, -1, E));
   PetscCall(VecNorm(util, NORM_2, &norm));
@@ -135,8 +134,8 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&J));
   PetscCall(VecDestroy(&local_E));
   PetscCall(VecDestroy(&local_B));
-  PetscCall(MatDestroy(&rot_dt_p));
-  PetscCall(MatDestroy(&rot_dt_m));
+  PetscCall(MatDestroy(&rotE));
+  PetscCall(MatDestroy(&rotB));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
