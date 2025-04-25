@@ -40,29 +40,21 @@ def get(d: dict, path: str, default = None):
 
     # Can only read top-level arrays
     def get_from_array(p: str):
-        id, val = p.split(":")
+        arr, val = p.split(":")
 
-        arrays = [
-            "Particles",
-            "Presets",
-            "StepPresets",
-            "Diagnostics",
-        ]
+        if not arr in config:
+            return default
 
-        for arr in arrays:
-            if not arr in config:
-                continue
-
-            for item in config[arr]:
-                if id in item and val == item[id]:
-                    return item
+        for item in config[arr]:
+            if val in item.values():
+                return item
 
         return default
 
     for p in path.split("."):
         if ":" in p:
             result = get_from_array(p)
-        elif d != None and p in d:
+        elif d != default and p in d:
             result = d.get(p)
         else:
             return default
@@ -71,10 +63,10 @@ def get(d: dict, path: str, default = None):
     return result
 
 # [mecwpe/e] Reference value of the magnetic field 
-const.B0 = get(config, "command:SetMagneticField.setter.reference", 0)
+const.B0 = get(config, "Presets:SetMagneticField.setter.reference", 0)
 
 # [1/wpe] Particles injection rate 
-const.tau = get(config, "command:InjectParticles.tau", 0)
+const.tau = get(config, "StepPresets:InjectParticles.tau", 0)
 
 # Some utilities that would be used in plotting
 def find_diag(name: str):
