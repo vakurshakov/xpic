@@ -2,12 +2,14 @@
 
 from plot import *
 
+vmap = np.array([-2e-2, +2e-2])
+
 vmap_j = {
-    "ions": np.array([-2e-5, +2e-5]),
-    "electrons": np.array([-2e-2, +2e-2]),
+    "ions": 1e-3 * vmap,
+    "electrons": vmap,
 }
 
-vmap_n = 1 + 0.01 * vmap_j["electrons"]
+vmap_n = 1 + 1e-2 * vmap
 
 for s in const.sorts:
     process_basic(f"info_{s}", lambda t: f"$t = {t * const.dt:.3f}$", (

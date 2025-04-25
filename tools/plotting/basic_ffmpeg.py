@@ -22,4 +22,5 @@ else:
 makedirs(f"{const.output_path}/video")
 
 for plot in plots:
-    os.system(f"ffmpeg -y -i ./{plot}/%0{len(str(const.Nt))}d.png -r 15 ./video/{plot}.mp4")
+    if os.path.exists(plot):
+        os.system(f"ffmpeg -y -i ./{plot}/%0{len(str(const.Nt))}d.png -r 15 ./video/{plot}.mp4")
