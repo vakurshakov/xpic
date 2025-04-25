@@ -70,6 +70,7 @@ protected:
   DM da_EB;
   Vec sol;
   SNES snes;
+  std::vector<PetscReal> conv_hist;
 
   SyncClock clock;
 };

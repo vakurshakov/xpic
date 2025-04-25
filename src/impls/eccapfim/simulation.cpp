@@ -81,6 +81,14 @@ PetscErrorCode Simulation::calc_iteration()
   LOG("  SNESSolve() has finished for \"{}\", SNESConvergedReasonView():", name);
   PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
 
+  PetscInt len;
+  PetscCall(SNESGetConvergenceHistory(snes, nullptr, nullptr, &len));
+  LOG("  Convergence history for this solution:");
+
+  for (PetscInt i = 0; i < len; ++i) {
+    LOG("    {:2d} SNES Function norm {:e}", i, conv_hist[i]);
+  }
+
   for (const auto& sort : particles_) {
     LOG("  Average number of Crank-Nicolson iterations for \"{}\" is {}",
       sort->parameters.sort_name, sort->get_average_iteration_number());
@@ -311,16 +319,15 @@ PetscErrorCode Simulation::init_snes_solver()
   static constexpr PetscInt maxit = 50;
   static constexpr PetscInt maxf = PETSC_UNLIMITED;
 
+  conv_hist.resize(maxit);
+
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
   PetscCall(SNESSetType(snes, SNESNGMRES));
   PetscCall(SNESSetErrorIfNotConverged(snes, PETSC_TRUE));
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
+  PetscCall(SNESSetConvergenceHistory(snes, conv_hist.data(), nullptr, maxit, PETSC_TRUE));
   PetscCall(SNESSetFunction(snes, nullptr, Simulation::form_iteration, this));
-
-  // using SNESMonitorFunction = PetscErrorCode(*)(SNES snes, PetscInt its, PetscReal norm, void *mctx)
-  // PetscCall(SNESMonitorSet(snes, (SNESMonitorFunction)SNESMonitorDefaultShort, nullptr, nullptr));
-
   PetscCall(SNESSetFromOptions(snes));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
