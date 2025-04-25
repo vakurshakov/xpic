@@ -13,6 +13,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionBeginUser;
   SyncClock init_clock;
   PetscCall(init_clock.push(__FUNCTION__));
+  PetscCall(init_log_stages());
   PetscCall(PetscLogStagePush(stagenums[0]));
 
   assembly_map.resize(world.size.elements_product());

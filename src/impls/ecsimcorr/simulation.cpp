@@ -16,7 +16,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   SyncClock init_clock;
   PetscCall(init_clock.push(__FUNCTION__));
-  PetscCall(init_log_stages());
   PetscCall(PetscLogStagePush(stagenums[0]));
 
   std::vector<Vec> currents;
