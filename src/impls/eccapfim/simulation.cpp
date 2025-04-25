@@ -93,8 +93,8 @@ PetscErrorCode Simulation::after_iteration()
   PetscCall(VecAXPBY(E, 2, -1, E_hk));
   PetscCall(VecAXPBY(B, 2, -1, B_hk));
 
-  // for (auto& sort : particles_)
-  //   PetscCall(sort->update_cells());
+  for (auto& sort : particles_)
+    PetscCall(sort->update_cells());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
