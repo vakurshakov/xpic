@@ -452,8 +452,8 @@ PetscErrorCode Simulation::init_matrices()
 PetscErrorCode Simulation::init_ksp_solvers()
 {
   PetscFunctionBeginUser;
-  static constexpr PetscReal atol = 1e-16;
-  static constexpr PetscReal rtol = 1e-16;
+  static constexpr PetscReal atol = 1e-10;
+  static constexpr PetscReal rtol = 1e-10;
 
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
   PetscCall(KSPSetErrorIfNotConverged(ksp, PETSC_TRUE));
