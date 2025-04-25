@@ -14,8 +14,6 @@
         "config.json",
         // PETSc options
         "-version",
-        "-options_view",
-        "-options_left",
         "-omp_view",
         "-fp_trap",
         // "-info", // [filename]
@@ -47,8 +45,8 @@
       "preLaunchTask": "${defaultBuildTask}",
       "miDebuggerPath": "/usr/bin/gdb",
       "sourceFileMap": {
-        "${workspaceFolder}": {
-          "editorPath": "${workspaceFolder}",
+        "/home/kurshakov/Code/xpic": {
+          "editorPath": "/home/kurshakov/Code/xpic",
           "useForBreakpoints": true
         }
       }
@@ -72,8 +70,8 @@
       "preLaunchTask": "${defaultBuildTask}",
       "miDebuggerPath": "/usr/bin/gdb",
       "sourceFileMap": {
-        "${workspaceFolder}": {
-          "editorPath": "${workspaceFolder}",
+        "/home/kurshakov/Code/xpic": {
+          "editorPath": "/home/kurshakov/Code/xpic",
           "useForBreakpoints": true
         }
       }
