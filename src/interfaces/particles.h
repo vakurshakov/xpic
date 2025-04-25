@@ -55,8 +55,10 @@ public:
   PetscReal mass(const Point& point) const;
   PetscReal charge(const Point& point) const;
   PetscReal density(const Point& point) const;
-  PetscReal macro_q(const Point& point) const;
   PetscInt particles_number(const Point& point) const;
+
+  PetscReal q_m(const Point& point) const;
+  PetscReal qn_Np(const Point& point) const;
 
   Vector3R velocity(const Point& point) const;
 

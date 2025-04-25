@@ -54,13 +54,13 @@ void Particles::interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) co
 
 void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const
 {
-  BorisPush push(charge(point) / mass(point), E_p, B_p);
+  BorisPush push(q_m(point), E_p, B_p);
   push.process(dt, point, *this);
 }
 
 void Particles::decompose(const Shape& shape, const Point& point)
 {
-  EsirkepovDecomposition decomposition(shape, macro_q(point) / (6.0 * dt));
+  EsirkepovDecomposition decomposition(shape, qn_Np(point) / (6.0 * dt));
   decomposition.process(J);
 }
 

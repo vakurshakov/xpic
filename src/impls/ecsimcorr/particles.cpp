@@ -69,17 +69,15 @@ PetscErrorCode Particles::second_push()
       SimpleInterpolation interpolation(shape);
       interpolation.process({{E_p, E}}, {{B_p, B}});
 
-      BorisPush push(charge(point) / mass(point), E_p, B_p);
+      BorisPush push(q_m(point), E_p, B_p);
       push.update_vEB(dt, point);
       push.update_r((0.5 * dt), point);
 
       shape.setup(old_r, point.r, shape_radius2, shape_func2);
       decompose_esirkepov_current(shape, point);
 
-      PetscReal q = macro_q(point);
-
 #pragma omp atomic update
-      pred_w += q * 0.5 * (old_v + point.p).dot(E_p);
+      pred_w += qn_Np(point) * 0.5 * (old_v + point.p).dot(E_p);
     }
   }
 
@@ -128,7 +126,7 @@ PetscErrorCode Particles::final_update()
 
 void Particles::decompose_esirkepov_current(const Shape& shape, const Point& point)
 {
-  EsirkepovDecomposition decomposition(shape, macro_q(point) / (6.0 * dt));
+  EsirkepovDecomposition decomposition(shape, qn_Np(point) / (6.0 * dt));
   decomposition.process(currJe);
 }
 

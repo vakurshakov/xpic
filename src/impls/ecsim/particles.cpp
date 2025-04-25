@@ -76,10 +76,10 @@ void Particles::decompose_ecsim_current(
   PetscFunctionBeginUser;
   const auto& [r, v] = point;
 
-  Vector3R b = 0.5 * dt * charge(point) / mass(point) * B_p;
+  Vector3R b = 0.5 * dt * q_m(point) * B_p;
 
-  PetscReal betaI = macro_q(point) / (1.0 + b.squared());
-  PetscReal betaL = charge(point) / mass(point) * betaI;
+  PetscReal betaI = qn_Np(point) / (1.0 + b.squared());
+  PetscReal betaL = q_m(point) * betaI;
 
   Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
 
@@ -153,7 +153,7 @@ PetscErrorCode Particles::second_push()
       SimpleInterpolation interpolation(shape);
       interpolation.process({{E_p, E}}, {{B_p, B}});
 
-      BorisPush push(charge(point) / mass(point), E_p, B_p);
+      BorisPush push(q_m(point), E_p, B_p);
       push.update_vEB(dt, point);
     }
   }

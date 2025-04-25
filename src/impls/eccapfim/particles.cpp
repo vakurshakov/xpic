@@ -29,7 +29,7 @@ PetscErrorCode Particles::form_iteration()
     for (PetscInt i = 0; auto& point : storage[g]) {
       const auto& point_0(previous_storage[g][i]);
 
-      CrankNicolsonPush push(charge(point) / mass(point));
+      CrankNicolsonPush push(q_m(point));
 
       /// @todo This `Shape` and `SimpleInterpolation`, `SimpleDecomposition` below
       /// should be replaced with charge-conserving ones, using non-symmetric particle shape
@@ -52,7 +52,7 @@ PetscErrorCode Particles::form_iteration()
         "Particle cannot move farther than one cell at a time");
 
       /// @todo Separate particle advancement and current decomposition onto different stages?
-      Vector3R J_p = macro_q(point) * 0.5 * (point.p + point_0.p);
+      Vector3R J_p = qn_Np(point) * 0.5 * (point.p + point_0.p);
       SimpleDecomposition decomposition(shape, J_p);
       decomposition.process(J);
 
