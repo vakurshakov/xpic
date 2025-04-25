@@ -1,7 +1,8 @@
 {
   "env": {
     "MPI_DIR": "/usr",
-    "PETSC_DIR": "external/petsc",
+    "JSON_DIR": "${workspaceFolder}/external/json",
+    "PETSC_DIR": "${workspaceFolder}/external/petsc",
     "PETSC_ARCH": "linux-mpi-debug"
   },
   "configurations": [
@@ -9,11 +10,11 @@
       "name": "Linux",
       "includePath": [
         "${default}",
-        "${MPI_DIR}/include",
         "${workspaceFolder}",
-        "${workspaceFolder}/external/json/include",
-        "${workspaceFolder}/${PETSC_DIR}/include/",
-        "${workspaceFolder}/${PETSC_DIR}/${PETSC_ARCH}/include/"
+        "${MPI_DIR}/include",
+        "${JSON_DIR}/include",
+        "${PETSC_DIR}/include/",
+        "${PETSC_DIR}/${PETSC_ARCH}/include/"
       ],
       "defines": [],
       "compilerPath": "${MPI_DIR}/bin/mpicxx",
