@@ -19,7 +19,6 @@ public:
   PetscErrorCode clear_sources();
   PetscErrorCode prepare_storage();
   PetscErrorCode form_iteration();
-  PetscErrorCode final_update();
 
   Vector3R*** E;
   Vector3R*** B;

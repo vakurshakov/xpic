@@ -28,7 +28,6 @@ PetscErrorCode Simulation::initialize_implementation()
   }
   currents.emplace_back(J);
 
-
   auto&& f_diag = std::make_unique<FieldsEnergy>(world.da, E, B);
   auto&& p_diag = std::make_unique<ParticlesEnergy>(sorts);
 
@@ -94,10 +93,8 @@ PetscErrorCode Simulation::after_iteration()
   PetscCall(VecAXPBY(E, 2, -1, E_hk));
   PetscCall(VecAXPBY(B, 2, -1, B_hk));
 
-  for (auto& sort : particles_) {
-    PetscCall(sort->final_update());
-    PetscCall(sort->update_cells());
-  }
+  // for (auto& sort : particles_)
+  //   PetscCall(sort->update_cells());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -158,7 +155,6 @@ PetscErrorCode Simulation::form_current()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/// @todo Calculations can be reduced with a properly set `rhs` vector
 PetscErrorCode Simulation::form_function(Vec vf)
 {
   PetscFunctionBeginUser;
@@ -171,12 +167,12 @@ PetscErrorCode Simulation::form_function(Vec vf)
   PetscCall(DMGetGlobalVector(da, &B_f));
 
   // F(E) = (E^{n+1/2,k} - E^{n}) / (dt / 2) + J^{n+1/2,k} - rot(B^{n+1/2,k})
-  PetscCall(VecAXPBYPCZ(E_f, +2.0 / dt, -2.0 / dt, 0, E_hk, E));
+  PetscCall(VecAXPBYPCZ(E_f, +2 / dt, -2 / dt, 0, E_hk, E));
   PetscCall(VecAXPY(E_f, +1, J));
   PetscCall(MatMultAdd(rotB, B_hk, E_f, E_f));
 
   // F(B) = (B^{n+1/2,k} - B^{n}) / (dt / 2) + rot(E^{n+1/2,k})
-  PetscCall(VecAXPBYPCZ(B_f, +2.0 / dt, -2.0 / dt, 0, B_hk, B));
+  PetscCall(VecAXPBYPCZ(B_f, +2 / dt, -2 / dt, 0, B_hk, B));
   PetscCall(MatMultAdd(rotE, E_hk, B_f, B_f));
 
   PetscCall(to_snes(E_f, B_f, vf));
@@ -279,6 +275,9 @@ PetscErrorCode Simulation::init_matrices()
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rotE));
   PetscCall(rotor.create_negative(&rotB));
+
+  /// @note The minus sign here is from Faraday's equation
+  PetscCall(MatScale(rotE, -1));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -300,16 +299,18 @@ PetscErrorCode Simulation::init_snes_solver()
 
   PetscCall(DMCreateGlobalVector(da_EB, &sol));
 
-  static constexpr PetscReal atol = 1e-10;
-  static constexpr PetscReal rtol = 1e-10;
-  static constexpr PetscReal stol = 1e-10;
+  static constexpr PetscReal atol = 1e-7;
+  static constexpr PetscReal rtol = 1e-7;
+  static constexpr PetscReal stol = 1e-7;
+  static constexpr PetscReal divtol = 1e+1;
   static constexpr PetscInt maxit = 50;
   static constexpr PetscInt maxf = PETSC_UNLIMITED;
 
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
+  PetscCall(SNESSetType(snes, SNESNGMRES));
   PetscCall(SNESSetErrorIfNotConverged(snes, PETSC_TRUE));
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
-  PetscCall(SNESSetType(snes, SNESNGMRES));
+  PetscCall(SNESSetDivergenceTolerance(snes, divtol));
   PetscCall(SNESSetFunction(snes, nullptr, Simulation::form_iteration, this));
 
   // using SNESMonitorFunction = PetscErrorCode(*)(SNES snes, PetscInt its, PetscReal norm, void *mctx)
@@ -348,8 +349,8 @@ Vec Simulation::get_named_vector(std::string_view name) const
   static const std::unordered_map<std::string_view, Vec> map{
     {"E", E},
     {"B", B},
-    {"B0", B0},
     {"J", J},
+    {"B0", B0},
   };
   return map.at(name);
 }

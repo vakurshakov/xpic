@@ -31,8 +31,8 @@ private:
   PetscReal get_residue(PetscReal dt, const Point& pn, const Point& p0) const;
 
   PetscInt maxit = 30;
-  PetscReal atol = 1e-10;
-  PetscReal rtol = 1e-10;
+  PetscReal atol = 1e-7;
+  PetscReal rtol = 1e-7;
 
   PetscReal qm = 0;
 

@@ -49,9 +49,7 @@ PetscErrorCode Particles::form_iteration()
       /// @todo Get some feedback about convergence success, number of iterations during the `process()`
       push.process(dt, point, point_0);
 
-      Vector3R xh = 0.5 * (point.r + point_0.r);
       Vector3R vh = 0.5 * (point.p + point_0.p);
-      shape.setup(xh);
       SimpleDecomposition decomposition(shape, macro_q(point) * vh);
 
       // shape.setup(point_0.r, point.r);
@@ -72,41 +70,6 @@ PetscErrorCode Particles::form_iteration()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Particles::final_update()
-{
-  PetscFunctionBeginUser;
-  PetscInt g = 0;
-  PetscInt p = 0;
-
-  // #pragma omp parallel for
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      const Point point_0(previous_storage[g][p]);
-
-      CrankNicolsonPush push(charge(point) / mass(point));
-
-      Shape shape;
-
-      push.set_fields_callback(
-        [&](const Vector3R& r, Vector3R& E_p, Vector3R& B_p) {
-          shape.setup(r, shape_radius, shape_func);
-
-          SimpleInterpolation interpolation(shape);
-          interpolation.process({{E_p, E}}, {{B_p, B}});
-        });
-
-      push.process(dt, point, point_0);
-
-      PetscAssertAbort((point.r - point_0.r).abs_max() < dx, PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "Particle cannot move farther than one cell at a time");
-
-      p++;
-    }
-    g++;
-  }
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 PetscErrorCode Particles::clear_sources()
 {
   PetscFunctionBeginUser;
@@ -120,9 +83,10 @@ PetscErrorCode Particles::prepare_storage()
   PetscFunctionBeginUser;
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto&& curr = storage[g];
-    auto&& prev = previous_storage[g];
+    if (curr.empty())
+      continue;
 
-    prev.clear();
+    auto&& prev = previous_storage[g];
     prev = std::vector(curr.begin(), curr.end());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
