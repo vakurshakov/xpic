@@ -11,7 +11,8 @@ namespace ecsim {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
+  SyncClock init_clock;
+  PetscCall(init_clock.push(__FUNCTION__));
   PetscCall(PetscLogStagePush(stagenums[0]));
 
   assembly_map.resize(world.size.elements_product());
@@ -33,8 +34,8 @@ PetscErrorCode Simulation::initialize_implementation()
     *this, std::move(f_diag), std::move(p_diag)));
 
   PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
-  LOG("ECSIM initialization took {:6.4e} seconds", clock.get(__FUNCTION__));
+  PetscCall(init_clock.pop());
+  LOG("Initialization of ecsim took {:6.4e} seconds", init_clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -46,16 +47,13 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscCall(advance_fields(matL));
   PetscCall(second_push());
   PetscCall(final_update());
-
-  // We are skipping the initialization stage
-  PetscCall(clock.log_timings(1));
+  PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  /// @todo Now it is the problem to use push(), pop() on the same names in case of virtuality
   PetscCall(clock.push("clear_sources1"));
   PetscCall(PetscLogStagePush(stagenums[1]));
 

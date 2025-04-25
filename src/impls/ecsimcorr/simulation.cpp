@@ -14,8 +14,9 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionBeginUser;
   PetscCall(ecsim::Simulation::initialize_implementation());
 
+  SyncClock init_clock;
+  PetscCall(init_clock.push(__FUNCTION__));
   PetscCall(init_log_stages());
-  PetscCall(clock.push(__FUNCTION__));
   PetscCall(PetscLogStagePush(stagenums[0]));
 
   std::vector<Vec> currents;
@@ -33,8 +34,8 @@ PetscErrorCode Simulation::initialize_implementation()
   // clang-format on
 
   PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
-  LOG("ECSIMCorr initialization took {:6.4e} seconds", clock.get(__FUNCTION__));
+  PetscCall(init_clock.pop());
+  LOG("Initialization of ecsimcorr took {:6.4e} seconds", init_clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -47,8 +48,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscCall(second_push());
   PetscCall(correct_fields());
   PetscCall(final_update());
-
-  PetscCall(clock.log_timings(/* skip = */ 1));
+  PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
