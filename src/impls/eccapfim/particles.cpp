@@ -23,13 +23,11 @@ PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(world.da, local_J, &J));
-  PetscInt g = 0;
-  PetscInt p = 0;
 
-// #pragma omp parallel for
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      const Point point_0(previous_storage[g][p]);
+  // #pragma omp parallel for
+  for (PetscInt g = 0; g < (PetscInt)storage.size(); ++g) {
+    for (PetscInt i = 0; auto& point : storage[g]) {
+      const auto& point_0(previous_storage[g][i]);
 
       CrankNicolsonPush push(charge(point) / mass(point));
 
@@ -49,20 +47,17 @@ PetscErrorCode Particles::form_iteration()
       /// @todo Get some feedback about convergence success, number of iterations during the `process()`
       push.process(dt, point, point_0);
 
-      Vector3R vh = 0.5 * (point.p + point_0.p);
-      SimpleDecomposition decomposition(shape, macro_q(point) * vh);
-
-      // shape.setup(point_0.r, point.r);
-      // EsirkepovDecomposition decomposition(shape, macro_q(point) / (6.0 * dt));
-      decomposition.process(J);
-
       /// @todo For now, we have to check that particle doesn't pass the cell boundaries
       PetscAssertAbort((point.r - point_0.r).abs_max() < dx, PETSC_COMM_WORLD, PETSC_ERR_USER,
         "Particle cannot move farther than one cell at a time");
 
-      p++;
+      /// @todo Separate particle advancement and current decomposition onto different stages?
+      Vector3R J_p = macro_q(point) * 0.5 * (point.p + point_0.p);
+      SimpleDecomposition decomposition(shape, J_p);
+      decomposition.process(J);
+
+      i++;
     }
-    g++;
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(world.da, local_J, &J));
