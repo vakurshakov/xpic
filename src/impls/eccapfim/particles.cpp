@@ -19,6 +19,11 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &global_J));
 }
 
+PetscReal Particles::get_average_iteration_number() const
+{
+  return avgit;
+}
+
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
@@ -44,12 +49,13 @@ PetscErrorCode Particles::form_iteration()
         });
 
       /// @todo This `dt` can be different from the global one, if we introduce sub-stepping
-      /// @todo Get some feedback about convergence success, number of iterations during the `process()`
       push.process(dt, point, point_0);
 
       /// @todo For now, we have to check that particle doesn't pass the cell boundaries
       PetscAssertAbort((point.r - point_0.r).abs_max() < dx, PETSC_COMM_WORLD, PETSC_ERR_USER,
         "Particle cannot move farther than one cell at a time");
+
+      avgit += push.get_iteration_number() / size;
 
       /// @todo Separate particle advancement and current decomposition onto different stages?
       Vector3R J_p = qn_Np(point) * 0.5 * (point.p + point_0.p);
@@ -83,6 +89,8 @@ PetscErrorCode Particles::prepare_storage()
 
     auto&& prev = previous_storage[g];
     prev = std::vector(curr.begin(), curr.end());
+
+    size += (PetscInt)curr.size();
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

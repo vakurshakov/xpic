@@ -9,12 +9,14 @@ public:
   CrankNicolsonPush() = default;
   CrankNicolsonPush(PetscReal qm);
 
-  /// @brief As CN integrator is of iterative nature, numerical
-  /// tolerances, controlling this process should be set.
+  /// @brief Sets numerical tolerances controlling iterative process.
   void set_tolerances(PetscReal atol, PetscReal rtol, PetscInt maxit);
 
   /// @brief Sets charge to mass ratio, assumed to be constant during the iteration.
   void set_qm(PetscReal qm);
+
+  /// @brief Once `process()` is complete, this will return the number of nonlinear iterations used.
+  PetscInt get_iteration_number() const;
 
   /// @brief Used during the internal iteration process to obtain
   /// fields acting on particle at time-centered coordinate.
@@ -30,6 +32,7 @@ private:
   void update_r(PetscReal dt, Point& pn, const Point& p0) const;
   PetscReal get_residue(PetscReal dt, const Point& pn, const Point& p0) const;
 
+  PetscInt it = 0;
   PetscInt maxit = 30;
   PetscReal atol = 1e-7;
   PetscReal rtol = 1e-7;

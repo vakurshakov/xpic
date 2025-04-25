@@ -20,6 +20,8 @@ public:
   PetscErrorCode prepare_storage();
   PetscErrorCode form_iteration();
 
+  PetscReal get_average_iteration_number() const;
+
   Vector3R*** E;
   Vector3R*** B;
 
@@ -34,6 +36,9 @@ protected:
   /// @note We should iterate the `Point` ~ (x^{n+1,k}, v^{n+1,k}) from _previous_
   /// timestep, meaning that we have to store copy of `Particles::storage`.
   std::vector<std::vector<Point>> previous_storage;
+
+  PetscInt size = 0;
+  PetscReal avgit = 0;
 
   Simulation& simulation_;
 };

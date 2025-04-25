@@ -18,6 +18,11 @@ void CrankNicolsonPush::set_qm(PetscReal qm)
   this->qm = qm;
 }
 
+PetscInt CrankNicolsonPush::get_iteration_number() const
+{
+  return it;
+}
+
 void CrankNicolsonPush::set_fields_callback(SetFields&& callback)
 {
   this->set_fields = std::move(callback);
@@ -28,13 +33,15 @@ void CrankNicolsonPush::process(PetscReal dt, Point& pn, const Point& p0)
   PetscAssertAbort((bool)set_fields, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "CrankNicolsonPush::set_fields have to be specified");
 
-  set_fields(0.5 * (pn.r + p0.r), E_p, B_p);
-  PetscReal r0 = get_residue(dt, pn, p0);
+  PetscReal r0 = 0, rn = 0;
 
-  for (PetscInt k = 0; k < maxit; ++k) {
+  set_fields(0.5 * (pn.r + p0.r), E_p, B_p);
+  r0 = get_residue(dt, pn, p0);
+
+  for (it = 0; it < maxit; ++it) {
     update_v(dt, pn.p, p0.p);
     update_r(dt, pn, p0);
-    PetscReal rn = get_residue(dt, pn, p0);
+    rn = get_residue(dt, pn, p0);
 
     if (rn < atol + rtol * r0)
       return;
@@ -42,8 +49,8 @@ void CrankNicolsonPush::process(PetscReal dt, Point& pn, const Point& p0)
     set_fields(0.5 * (pn.r + p0.r), E_p, B_p);
   }
 
-  /// @todo This is at least something, should be replaced with a proper checks
-  LOG("  Warning: CrankNicolsonPush::process() nonlinear iterations diverged!");
+  PetscCheckAbort(rn >= atol + rtol * r0, PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "CrankNicolsonPush::process() nonlinear iterations diverged with norm %e!", rn);
 }
 
 void CrankNicolsonPush::update_v(

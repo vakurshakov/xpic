@@ -81,6 +81,11 @@ PetscErrorCode Simulation::calc_iteration()
   LOG("  SNESSolve() has finished for \"{}\", SNESConvergedReasonView():", name);
   PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
 
+  for (const auto& sort : particles_) {
+    LOG("  Average number of Crank-Nicolson iterations for \"{}\" is {}",
+      sort->parameters.sort_name, sort->get_average_iteration_number());
+  }
+
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
