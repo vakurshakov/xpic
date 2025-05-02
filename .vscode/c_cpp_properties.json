@@ -16,6 +16,18 @@
         "${PETSC_DIR}/include/",
         "${PETSC_DIR}/${PETSC_ARCH}/include/"
       ],
+      "browse": {
+        "path": [
+          "${default}",
+          "${workspaceFolder}",
+          "${MPI_DIR}/include",
+          "${JSON_DIR}/include",
+          "${PETSC_DIR}/include/",
+          "${PETSC_DIR}/${PETSC_ARCH}/include/"
+        ],
+        "limitSymbolsToIncludedHeaders": true,
+        "databaseFilename": ""
+      },
       "defines": [],
       "compilerPath": "${MPI_DIR}/bin/mpicxx",
       "cStandard": "c17",
