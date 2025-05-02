@@ -23,12 +23,11 @@ PetscErrorCode Simulation::initialize()
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
   PetscCall(build_commands(*this, "StepPresets", step_presets_));
+  PetscCall(build_diagnostics(*this, diagnostics_));
 
   LOG("Executing presets");
   for (auto&& preset : presets)
     preset->execute(start);
-
-  PetscCall(build_diagnostics(*this, diagnostics_));
 
   PetscCall(PetscLogStageRegister("Commands run", &stagenums[0]));
   PetscCall(PetscLogStageRegister("Diagnostics run", &stagenums[1]));
