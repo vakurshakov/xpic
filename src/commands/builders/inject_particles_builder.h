@@ -4,7 +4,7 @@
 #include "src/commands/builders/particles_builder.h"
 #include "src/utils/particles_load.h"
 
-class InjectParticlesBuilder : public interfaces::ParticlesBuilder {
+class InjectParticlesBuilder : public ParticlesBuilder {
 public:
   InjectParticlesBuilder(
     interfaces::Simulation& simulation, std::vector<Command_up>& result);

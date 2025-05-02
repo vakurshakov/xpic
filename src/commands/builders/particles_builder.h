@@ -4,8 +4,6 @@
 #include "src/commands/builders/command_builder.h"
 #include "src/utils/particles_load.h"
 
-namespace interfaces {
-
 class ParticlesBuilder : public CommandBuilder {
 public:
   ParticlesBuilder(
@@ -19,7 +17,5 @@ protected:
   void load_momentum(const Configuration::json_t& info,
     const interfaces::Particles& particles, MomentumGenerator& gen);
 };
-
-}  // namespace interfaces
 
 #endif  // SRC_COMMANDS_BUILDERS_PARTICLES_BUILDER_H

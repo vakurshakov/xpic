@@ -4,7 +4,7 @@
 #include "src/commands/builders/particles_builder.h"
 #include "src/utils/particles_load.h"
 
-class RemoveParticlesBuilder : public interfaces::ParticlesBuilder {
+class RemoveParticlesBuilder : public ParticlesBuilder {
 public:
   RemoveParticlesBuilder(
     interfaces::Simulation& simulation, std::vector<Command_up>& result);

@@ -1,7 +1,5 @@
 #include "particles_builder.h"
 
-namespace interfaces {
-
 ParticlesBuilder::ParticlesBuilder(
   interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : CommandBuilder(simulation, result)
@@ -60,5 +58,3 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
     throw std::runtime_error("Unknown coordinate generator name " + name);
   }
 }
-
-}  // namespace interfaces

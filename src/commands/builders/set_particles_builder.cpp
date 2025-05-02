@@ -4,7 +4,7 @@
 
 SetParticlesBuilder::SetParticlesBuilder(
   interfaces::Simulation& simulation, std::vector<Command_up>& result)
-  : interfaces::ParticlesBuilder(simulation, result)
+  : ParticlesBuilder(simulation, result)
 {
 }
 
