@@ -40,6 +40,7 @@ PetscErrorCode Simulation::initialize()
 PetscErrorCode Simulation::calculate()
 {
   PetscFunctionBeginUser;
+  LOG("Running the main simulation cycle");
   for (PetscInt t = start + 1; t <= geom_nt; ++t) {
     LOG_FLUSH();
     LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
