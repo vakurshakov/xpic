@@ -71,10 +71,10 @@ PetscErrorCode SetStepPresets::build(const Configuration::json_t& info)
   PetscReal buffer;
   info.at("buffer").get_to(buffer);
 
-  Vector3R center(Geom);
+  Vector3R max(Geom);
   PetscReal radius = 0.5 * std::min(geom_x, geom_y) - buffer;
-  PetscReal height = geom_z;
-  CylinderGeometry cyl(0.5 * center, radius, height);
+  PetscReal height = geom_z + 2.0 * dz;
+  CylinderGeometry cyl(0.5 * max, radius, height);
 
   auto test = [&]() {
     return WithinCylinder(cyl);
@@ -87,17 +87,17 @@ PetscErrorCode SetStepPresets::build(const Configuration::json_t& info)
   commands_.emplace_back(std::make_unique<RemoveParticles>(electrons, test()));
   LOG("  RemoveParticles commands are added for Kotelnikov equilibrium");
 
-  // auto E = simulation_.get_named_vector("E");
-  // auto B = simulation_.get_named_vector("B");
-  // auto B0 = simulation_.get_named_vector("B0");
+  auto E = simulation_.get_named_vector("E");
+  auto B = simulation_.get_named_vector("B");
+  auto B0 = simulation_.get_named_vector("B0");
 
-  // PetscReal coeff;
-  // info.at("damping_coefficient").get_to(coeff);
+  PetscReal coeff;
+  info.at("damping_coefficient").get_to(coeff);
 
-  // auto damp = DampForCylinder(cyl, coeff);
+  auto damp = DampForCylinder(cyl, coeff);
 
-  // commands_.emplace_back(std::make_unique<FieldsDamping>(
-  //   simulation_.world.da, E, B, B0, test(), std::move(damp)));
+  commands_.emplace_back(std::make_unique<FieldsDamping>(
+    simulation_.world.da, E, B, B0, test(), std::move(damp)));
   LOG("  FieldsDamping command is added for Kotelnikov equilibrium");
   PetscFunctionReturn(PETSC_SUCCESS);
 }

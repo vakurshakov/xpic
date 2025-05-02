@@ -95,7 +95,7 @@ Vector3R LoadCoordinate::operator()()
     r = rmax * std::sqrt(random_01());
     np = get_probability(r);
   }
-  while (np > n0_tolerance && random_01() > np);
+  while (np < n0_tolerance && random_01() > np);
 
   PetscReal phi = 2.0 * M_PI * random_01();
 
@@ -116,7 +116,7 @@ PetscInt LoadCoordinate::get_cells_number() const
     if (PetscReal np = get_probability(r); np > n0_tolerance)
       integral += np * r * dr;
   }
-  return ROUND_STEP(2.0 * M_PI * integral, dx * dy);
+  return ROUND_STEP(2.0 * M_PI * integral, dx * dy) * geom_nz;
 }
 
 PetscReal LoadCoordinate::get_probability(PetscReal r) const
