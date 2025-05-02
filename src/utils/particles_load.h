@@ -16,18 +16,15 @@ struct PreciseCoordinate {
   Vector3R dot;
 };
 
-
 struct CoordinateInBox {
   Vector3R operator()();
   BoxGeometry box;
 };
 
-
 struct CoordinateInCylinder {
   Vector3R operator()();
   CylinderGeometry cyl;
 };
-
 
 struct CoordinateOnAnnulus {
   CoordinateOnAnnulus(const Vector3R& center, //
@@ -45,13 +42,11 @@ struct PreciseMomentum {
   Vector3R value;
 };
 
-
 struct MaxwellianMomentum {
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params;
   bool tov = false;
 };
-
 
 struct AngularMomentum {
   Vector3R operator()(const Vector3R& coordinate);

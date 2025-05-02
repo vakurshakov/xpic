@@ -8,7 +8,6 @@ Vector3R PreciseCoordinate::operator()()
   return dot;
 }
 
-
 Vector3R CoordinateInBox::operator()()
 {
   return Vector3R{
@@ -17,7 +16,6 @@ Vector3R CoordinateInBox::operator()()
     box.min[Z] + random_01() * (box.max[Z] - box.min[Z]),
   };
 }
-
 
 Vector3R CoordinateInCylinder::operator()()
 {
@@ -47,8 +45,8 @@ Vector3R CoordinateOnAnnulus::operator()()
   PetscReal phi = 2.0 * M_PI * random_01();
 
   return Vector3R{
-    center[X] + r * cos(phi),
-    center[Y] + r * sin(phi),
+    center[X] + r * std::cos(phi),
+    center[Y] + r * std::sin(phi),
     center[Z] + height * (random_01() - 0.5),
   };
 }
@@ -59,19 +57,10 @@ Vector3R PreciseMomentum::operator()(const Vector3R& /* coordinate */)
   return value;
 }
 
-
 PetscReal temperature_momentum(PetscReal temperature, PetscReal mass)
 {
-  static constexpr PetscReal mec2 = 511.0;  // KeV
-
-  PetscReal p = 0.0;
-  do {
-    p = std::sqrt(-2.0 * (temperature * mass / mec2) * std::log(random_01()));
-  }
-  while (std::isinf(p));
-  return p;
+  return std::sqrt(-2.0 * (temperature * mass / mec2) * std::log(random_01()));
 }
-
 
 Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
 {
@@ -93,7 +82,6 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
     result /= std::sqrt(params.m * params.m + result.squared());
   return result;
 }
-
 
 Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
 {

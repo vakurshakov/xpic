@@ -15,15 +15,14 @@ public:
 
 private:
   DEFAULT_MOVABLE(RandomGenerator);
-
   RandomGenerator() = default;
   ~RandomGenerator() = default;
 
+  std::mt19937 gen{
 #if RANDOM_SEED
-  std::mt19937 gen{std::random_device()()};
-#else
-  std::mt19937 gen;
+    std::random_device()()
 #endif
+  };
 };
 
 inline PetscReal random_01()
