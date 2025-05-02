@@ -27,4 +27,6 @@ extern PetscInt geom_nt;          // units of dt
 
 extern PetscInt diagnose_period;  // units of dt
 
+constexpr PetscReal mec2 = 511.0; // KeV
+
 #endif  // SRC_CONSTANTS_H

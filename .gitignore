@@ -1,11 +1,10 @@
 external/json
 external/petsc
 
+**/__pycache__/**
+
 build/
 doc/build/
-
-results/
-**/__pycache__/**
 
 tests/**/output/**
 (^tests)*.txt
@@ -17,3 +16,6 @@ tests/**/output/**
 *.pdf
 *.zip
 *.log
+
+results/
+src/commands/kotelnikov_equilibrium/**/cache/**

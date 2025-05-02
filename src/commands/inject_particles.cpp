@@ -40,6 +40,7 @@ PetscErrorCode InjectParticles::execute(PetscInt t)
   const PetscInt Npe = ejected_.parameters.Np;
 
   PetscFunctionBeginUser;
+#pragma omp parallel for
   for (PetscInt p = 0; p < per_step_particles_num_; ++p) {
     Vector3R shared_coordinate = generate_coordinate_();
     Vector3R pi = generate_momentum_i_(shared_coordinate);

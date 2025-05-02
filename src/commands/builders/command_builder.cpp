@@ -3,6 +3,7 @@
 #include "src/commands/builders/fields_damping_builder.h"
 #include "src/commands/builders/inject_particles_builder.h"
 #include "src/commands/builders/remove_particles_builder.h"
+#include "src/commands/builders/set_kotelnikov_equilibrium.h"
 #include "src/commands/builders/set_magnetic_field_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
@@ -33,26 +34,33 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
   LOG("Building commands from \"{}\"", name);
 
   for (auto&& info : *it) {
-    std::string name;
-    info.at("command").get_to(name);
+    std::string command;
+    info.at("command").get_to(command);
 
-    if (name == "SetParticles") {
+    if (command == "SetParticles") {
       PetscCall(Builder::use_impl<SetParticlesBuilder>(info, simulation, result));
     }
-    else if (name == "InjectParticles") {
+    else if (command == "InjectParticles") {
       PetscCall(Builder::use_impl<InjectParticlesBuilder>(info, simulation, result));
     }
-    else if (name == "RemoveParticles") {
+    else if (command == "RemoveParticles") {
       PetscCall(Builder::use_impl<RemoveParticlesBuilder>(info, simulation, result));
     }
-    else if (name == "SetMagneticField") {
+    else if (command == "SetMagneticField") {
       PetscCall(Builder::use_impl<SetMagneticFieldBuilder>(info, simulation, result));
     }
-    else if (name == "FieldsDamping") {
+    else if (command == "FieldsDamping") {
       PetscCall(Builder::use_impl<FieldsDampingBuilder>(info, simulation, result));
     }
+    else if (command == "SetKotelnikovEquilibrium") {
+      using namespace kotelnikov_equilibrium;
+      if (name == "Presets")
+        PetscCall(Builder::use_impl<SetPresets>(info, simulation, result));
+      else if (name == "StepPresets")
+        PetscCall(Builder::use_impl<SetStepPresets>(info, simulation, result));
+    }
     else {
-      throw std::runtime_error("Unknown command name " + name);
+      throw std::runtime_error("Unknown command name " + command);
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);

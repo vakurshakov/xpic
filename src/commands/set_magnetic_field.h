@@ -9,7 +9,7 @@
 
 class SetMagneticField : public interfaces::Command {
 public:
-  using Setter = std::function<PetscErrorCode(Vec /* B */)>;
+  using Setter = std::function<PetscErrorCode(Vec)>;
   SetMagneticField(Vec B0, Vec B, Setter&& setup);
   PetscErrorCode execute(PetscInt t) override;
 
@@ -21,7 +21,7 @@ private:
 
 struct SetUniformField {
   SetUniformField(const Vector3R& value);
-  PetscErrorCode operator()(Vec B);
+  PetscErrorCode operator()(Vec vec);
   Vector3R value_;
 };
 
@@ -34,7 +34,7 @@ struct SetCoilsField {
   std::vector<Coil> coils_;
 
   SetCoilsField(std::vector<Coil>&& coils);
-  PetscErrorCode operator()(Vec B);
+  PetscErrorCode operator()(Vec vec);
 
 private:
   static constexpr PetscReal denominator_tolerance = 1e-10;
