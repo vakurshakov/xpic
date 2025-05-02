@@ -102,10 +102,7 @@ def get_prefix(t, restarts, prefixes):
             i += 1
     return prefixes[i]
 
-def get_diag_path(diag: dict | None, prefix: str = None):
-    if not diag:
-        return None
-
+def get_diag_path(diag: dict):
     def get_suffix_2D(diag):
         plane = get(diag, "region.plane")
         pos = get(diag, "region.position")
@@ -130,5 +127,4 @@ def get_diag_path(diag: dict | None, prefix: str = None):
     if get(diag, "region.type") == "2D":
         suffix += get_suffix_2D(diag)
 
-    p = get_prefix(t, restarts, input_paths) if prefix == None else prefix
-    return f"{p}/{suffix}/"
+    return suffix

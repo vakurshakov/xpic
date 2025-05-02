@@ -1,24 +1,51 @@
 #!/usr/bin/env python3
 
+import argparse
+
 from plot import *
 
-# This is the most basic example of the plot
+parser = argparse.ArgumentParser(prog="fields")
 
-vmap = np.array([-0.02, +0.02])
+parser.add_argument("-c", "--cyl", action="store_true", help="draw fields in cylindrical components")
+parser.add_argument("-v", "--vmap", action="store_const", default=0.02, help="colormap scale used for \'Plot\'")
 
-process_basic("fields", lambda t: f"$t = {t * const.dt:.3f}$", (
-    gen_plot("$E_x$", "E_PlaneZ_05", 'Z', 'x', 3, vmap),
-    gen_plot("$E_x$", "E_PlaneX_05", 'X', 'x', 3, vmap),
-    gen_plot("$B_x$", "B_PlaneZ_05", 'Z', 'x', 3, vmap),
-    gen_plot("$B_x$", "B_PlaneX_05", 'X', 'x', 3, vmap),
+args = parser.parse_args()
 
-    gen_plot("$E_y$", "E_PlaneZ_05", 'Z', 'y', 3, vmap),
-    gen_plot("$E_y$", "E_PlaneX_05", 'X', 'y', 3, vmap),
-    gen_plot("$B_y$", "B_PlaneZ_05", 'Z', 'y', 3, vmap),
-    gen_plot("$B_y$", "B_PlaneX_05", 'X', 'y', 3, vmap),
+c1 = n1 = 'x'
+c2 = n2 = 'y'
+c3 = n3 = 'z'
 
-    gen_plot("$E_z$", "E_PlaneZ_05", 'Z', 'z', 3, vmap),
-    gen_plot("$E_z$", "E_PlaneX_05", 'X', 'z', 3, vmap),
-    gen_plot("$B_z$", "B_PlaneZ_05", 'Z', 'z', 3, const.B0+vmap),
-    gen_plot("$B_z$", "B_PlaneX_05", 'X', 'z', 3, const.B0+vmap),
-))
+if args.cyl:
+    c1 = 'r'; n1 = 'r'
+    c2 = 'phi'; n2 = '\\phi'
+
+vmap = args.vmap * np.array([-1, +1])
+
+plots = []
+
+def add(name, path, comp, vmap):
+    diag = find_diag(f"FieldView.{path}")
+    if not diag is None:
+        path = get_diag_path(diag)
+        plane = get(diag, "region.plane")
+
+        # Use this to directly attach the generated plot to `plots` 
+        plots.append(gen_plot(name, path, plane, comp, 3, vmap))
+
+add(f"$E_{n1}$", "E.X", c1, vmap)
+add(f"$E_{n2}$", "E.X", c2, vmap)
+add(f"$E_{n3}$", "E.X", c3, vmap)
+
+add(f"$E_{n1}$", "E.Z", c1, vmap)
+add(f"$E_{n2}$", "E.Z", c2, vmap)
+add(f"$E_{n3}$", "E.Z", c3, vmap)
+
+add(f"$B_{n1}$", "B.X", c1, vmap)
+add(f"$B_{n2}$", "B.X", c2, vmap)
+add(f"$B_{n3}$", "B.X", c3, const.B0+vmap)
+
+add(f"$B_{n1}$", "B.Z", c1, vmap)
+add(f"$B_{n2}$", "B.Z", c2, vmap)
+add(f"$B_{n3}$", "B.Z", c3, const.B0+vmap)
+
+process_basic("fields", lambda t: f"$t = {t * const.dt:.3f}$", plots)
