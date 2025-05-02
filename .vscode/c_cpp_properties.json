@@ -1,8 +1,8 @@
 {
   "env": {
     "MPI_DIR": "/usr",
-    "JSON_DIR": "${workspaceFolder}/external/json",
-    "PETSC_DIR": "${workspaceFolder}/external/petsc",
+    "JSON_DIR": "external/json",
+    "PETSC_DIR": "external/petsc",
     "PETSC_ARCH": "linux-mpi-debug"
   },
   "configurations": [
