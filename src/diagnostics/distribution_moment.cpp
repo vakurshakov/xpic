@@ -101,7 +101,7 @@ PetscErrorCode DistributionMoment::set_local_da(const Region& region)
     l_bound[i] = (g_size[i] == size[i]) ? bound[i] : DM_BOUNDARY_GHOSTED;
   }
 
-  PetscCall(DMDACreate3d(comm_, REP3_A(l_bound), st, REP3_A(g_size), REP3_A(l_proc), 1, s, l_ownership[X].data(), l_ownership[Y].data(), l_ownership[Z].data(), &da_));
+  PetscCall(DMDACreate3d(comm_, REP3_A(l_bound), st, REP3_A(g_size), REP3_A(l_proc), region.dof, s, l_ownership[X].data(), l_ownership[Y].data(), l_ownership[Z].data(), &da_));
   PetscCall(DMDASetOffset(da_, REP3_A(g_start), REP3(0)));
   PetscCall(DMSetUp(da_));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -158,18 +158,22 @@ PetscErrorCode DistributionMoment::collect()
       Shape shape;
       shape.setup(point.r);
 
-      PetscReal moment =
-        moment_(particles_, point) / particles_.particles_number(point);
+      std::vector<PetscReal> moments = moment_(particles_, point);
+      auto msize = static_cast<PetscInt>(moments.size());
 
       for (PetscInt i = 0; i < shape.size.elements_product(); ++i) {
         PetscInt g_x = shape.start[X] + i % shape.size[X];
         PetscInt g_y = shape.start[Y] + (i / shape.size[X]) % shape.size[Y];
         PetscInt g_z = shape.start[Z] + (i / shape.size[X]) / shape.size[Y];
 
-        PetscReal value = moment * shape.density(i);
+        PetscReal si = shape.density(i) / particles_.particles_number(point);
+
+        for (PetscInt j = 0; j < msize; ++j) {
+          PetscReal mj = moments[j] * si;
 
 #pragma omp atomic update
-        arr[g_z][g_y][g_x] += value;
+          arr[g_z][g_y][g_x * msize + j] += mj;
+        }
       }
     }
   }
@@ -178,148 +182,110 @@ PetscErrorCode DistributionMoment::collect()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
-// clang-format off
-inline PetscReal get_density(const Particles& particles, const Point& point)
+inline std::vector<PetscReal> get_density(
+  const Particles& particles, const Point& point)
 {
-  return particles.density(point);
+  return {particles.density(point)};
 }
 
-inline PetscReal get_vx(const Particles& particles, const Point& point)
+inline std::vector<PetscReal> get_v( //
+  const Particles& particles, const Point& point)
 {
-  return particles.velocity(point).x();
+  auto v = particles.velocity(point);
+  return {v[X], v[Y], v[Z]};
 }
 
-inline PetscReal get_vy(const Particles& particles, const Point& point)
-{
-  return particles.velocity(point).y();
-}
-
-inline PetscReal get_vz(const Particles& particles, const Point& point)
-{
-  return particles.velocity(point).z();
-}
-
-inline PetscReal get_m_vx_vx(const Particles& particles, const Point& point)
-{
-  return particles.mass(point) * get_vx(particles, point) * get_vx(particles, point);
-}
-
-inline PetscReal get_m_vx_vy(const Particles& particles, const Point& point)
-{
-  return particles.mass(point) * get_vx(particles, point) * get_vy(particles, point);
-}
-
-inline PetscReal get_m_vx_vz(const Particles& particles, const Point& point)
-{
-  return particles.mass(point) * get_vx(particles, point) * get_vz(particles, point);
-}
-
-inline PetscReal get_m_vy_vy(const Particles& particles, const Point& point)
-{
-  return particles.mass(point) * get_vy(particles, point) * get_vy(particles, point);
-}
-
-inline PetscReal get_m_vy_vz(const Particles& particles, const Point& point)
-{
-  return particles.mass(point) * get_vy(particles, point) * get_vz(particles, point);
-}
-
-inline PetscReal get_m_vz_vz(const Particles& particles, const Point& point)
-{
-  return particles.mass(point) * get_vz(particles, point) * get_vz(particles, point);
-}
-
-inline PetscReal get_vr(const Particles& particles, const Point& point)
+inline std::vector<PetscReal> get_v_cyl(
+  const Particles& particles, const Point& point)
 {
   PetscReal x = point.x() - 0.5 * geom_x;
   PetscReal y = point.y() - 0.5 * geom_y;
-  PetscReal r = std::sqrt(x * x + y * y);
+  PetscReal r = std::hypot(x, y);
+
+  auto v = particles.velocity(point);
 
   // Particles close to r=0 are not taken into account
   if (std::isinf(1.0 / r))
-    return 0.0;
+    return {v[X], v[Y], v[Z]};
 
-  return (+x * get_vx(particles, point) + y * get_vy(particles, point)) / r;
+  return {
+    (+x * v[X] + y * v[Y]) / r,
+    (-y * v[X] + x * v[Y]) / r,
+    v[Z],
+  };
 }
 
-inline PetscReal get_vphi(const Particles& particles, const Point& point)
+inline std::vector<PetscReal> get_mvv(
+  const Particles& particles, const Point& point)
 {
-  PetscReal x = point.x() - 0.5 * geom_x;
-  PetscReal y = point.y() - 0.5 * geom_y;
-  PetscReal r = std::sqrt(x * x + y * y);
-
-  // Particles close to r=0 are not taken into account
-  if (std::isinf(1.0 / r))
-    return 0.0;
-
-  return (-y * get_vx(particles, point) + x * get_vy(particles, point)) / r;
+  PetscReal m = particles.mass(point);
+  auto v = particles.velocity(point);
+  return {
+    m * v[X] * v[X],
+    m * v[X] * v[Y],
+    m * v[X] * v[Z],
+    m * v[Y] * v[Y],
+    m * v[Y] * v[Z],
+    m * v[Z] * v[Z],
+  };
 }
 
-inline PetscReal get_m_vr_vr(const Particles& particles, const Point& point)
+inline std::vector<PetscReal> get_mvv_cyl(
+  const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vr(particles, point) * get_vr(particles, point);
+  PetscReal m = particles.mass(point);
+  auto v = get_v_cyl(particles, point);
+  return {
+    m * v[R] * v[R],
+    m * v[R] * v[A],
+    m * v[R] * v[Z],
+    m * v[A] * v[A],
+    m * v[A] * v[Z],
+    m * v[Z] * v[Z],
+  };
 }
 
-inline PetscReal get_m_vr_vphi(const Particles& particles, const Point& point)
+inline std::vector<PetscReal> get_mvv_diag(
+  const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vr(particles, point) * get_vphi(particles, point);
+  PetscReal m = particles.mass(point);
+  auto v = particles.velocity(point);
+  return {
+    m * v[X] * v[X],
+    m * v[Y] * v[Y],
+    m * v[Z] * v[Z],
+  };
 }
 
-inline PetscReal get_m_vr_vz(const Particles& particles, const Point& point)
+inline std::vector<PetscReal> get_mvv_diag_cyl(
+  const Particles& particles, const Point& point)
 {
-  return particles.mass(point) * get_vr(particles, point) * get_vz(particles, point);
+  PetscReal m = particles.mass(point);
+  auto v = get_v_cyl(particles, point);
+  return {
+    m * v[R] * v[R],
+    m * v[A] * v[A],
+    m * v[Z] * v[Z],
+  };
 }
 
-inline PetscReal get_m_vphi_vphi(const Particles& particles, const Point& point)
-{
-  return particles.mass(point) * get_vphi(particles, point) * get_vphi(particles, point);
-}
 
-inline PetscReal get_m_vphi_vz(const Particles& particles, const Point& point)
-{
-  return particles.mass(point) * get_vphi(particles, point) * get_vz(particles, point);
-}
-// clang-format on
-
-
-/// @todo Think on moving to `dof` concept instead of collecting the separate moments!
 Moment moment_from_string(const std::string& name)
 {
   if (name == "Density")
     return get_density;
-  if (name == "Vx")
-    return get_vx;
-  if (name == "Vy")
-    return get_vy;
-  if (name == "Vz")
-    return get_vz;
-  if (name == "Vr")
-    return get_vr;
-  if (name == "Vphi")
-    return get_vphi;
-  if (name == "mVxVx")
-    return get_m_vx_vx;
-  if (name == "mVxVy")
-    return get_m_vx_vy;
-  if (name == "mVxVz")
-    return get_m_vx_vz;
-  if (name == "mVyVy")
-    return get_m_vy_vy;
-  if (name == "mVyVz")
-    return get_m_vy_vz;
-  if (name == "mVzVz")
-    return get_m_vz_vz;
-  if (name == "mVrVr")
-    return get_m_vr_vr;
-  if (name == "mVrVphi")
-    return get_m_vr_vphi;
-  if (name == "mVrVz")
-    return get_m_vr_vz;
-  if (name == "mVphiVphi")
-    return get_m_vphi_vphi;
-  if (name == "mVphiVz")
-    return get_m_vphi_vz;
+  if (name == "V")
+    return get_v;
+  if (name == "V_cyl")
+    return get_v_cyl;
+  if (name == "mVV")
+    return get_mvv;
+  if (name == "mVV_cyl")
+    return get_mvv_cyl;
+  if (name == "mVV_diag")
+    return get_mvv_diag;
+  if (name == "mVV_diag_cyl")
+    return get_mvv_diag_cyl;
 
   throw std::runtime_error("Unkown moment name " + std::string(name));
 }

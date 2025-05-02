@@ -4,7 +4,9 @@
 #include "src/interfaces/particles.h"
 #include "src/diagnostics/field_view.h"
 
-using Moment = PetscReal (*)(const interfaces::Particles&, const Point&);
+/// @note The size of the returned `vector` should match the passed `region.dof`
+using Moment = std::vector<PetscReal> (*)(
+  const interfaces::Particles&, const Point&);
 
 /// @note To see the list of available moment getters, check the implementation
 Moment moment_from_string(const std::string& name);

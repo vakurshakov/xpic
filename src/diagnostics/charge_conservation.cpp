@@ -15,7 +15,7 @@ ChargeConservation::ChargeConservation(DM da, std::vector<Vec> current_densities
     .dim = 3,
     .dof = 1,
     .start = Vector4I(0, 0, 0, 0),
-    .size = Vector4I(geom_nx, geom_ny, geom_nz, 3),
+    .size = Vector4I(geom_nx, geom_ny, geom_nz, 1),
   };
 
   for (const auto& sort : particles) {
