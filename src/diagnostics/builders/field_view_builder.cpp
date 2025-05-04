@@ -34,6 +34,9 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
 
   LOG("  Field view diagnostic is added for {}, suffix: {}", field, suffix.empty() ? "<empty>" : suffix);
 
+  if (!suffix.empty())
+    suffix = "_" + suffix;
+
   std::string res_dir = CONFIG().out_dir + "/" + field + suffix + "/";
 
   auto&& diagnostic = FieldView::create(
@@ -70,18 +73,19 @@ void FieldViewBuilder::parse_region_start_size(const Configuration::json_t& info
 
   if (type == "2D") {
     std::string plane;
-    info.at("plane").get_to(plane);
+    PetscReal position;
+    parse_plane_position(info, plane, position);
 
     if (plane == "X") {
-      start = Vector3R{info.at("position"), start[Y], start[Z]};
+      start = Vector3R{position, start[Y], start[Z]};
       size = Vector3R{dx, size[Y], size[Z]};
     }
     else if (plane == "Y") {
-      start = Vector3R{start[X], info.at("position"), start[Z]};
+      start = Vector3R{start[X], position, start[Z]};
       size = Vector3R{size[X], dy, size[Z]};
     }
     else if (plane == "Z") {
-      start = Vector3R{start[X], start[Y], info.at("position")};
+      start = Vector3R{start[X], start[Y], position};
       size = Vector3R{size[X], size[Y], dz};
     }
   }
@@ -102,25 +106,29 @@ void FieldViewBuilder::parse_res_dir_suffix(
 
   if (type == "2D") {
     std::string plane;
-    info.at("plane").get_to(plane);
-
     PetscReal position;
-    info.at("position").get_to(position);
+    parse_plane_position(info, plane, position);
 
-    suffix += "_Plane" + plane;
-
-    auto parse = [&](Axis dir) {
-      // Analogous to `interfaces::Diagnostics::format_time()`
-      auto width = (PetscInt)std::to_string(Geom_n[dir]).size();
-      std::stringstream ss;
-      ss.width(width);
-      ss.fill('0');
-      ss << std::to_string(ROUND_STEP(position, Dx[dir]));
-      suffix += "_" + ss.str();
-    };
-
-    parse(get_component(plane));
+    Axis dir = get_component(plane);
+    PetscInt position_format = ROUND_STEP(position, Dx[dir]);
+    suffix += std::format("plane{}_{:04d}", plane, position_format);
   }
+}
+
+void FieldViewBuilder::parse_plane_position(
+  const Configuration::json_t& info, std::string& plane, PetscReal& position)
+{
+  info.at("plane").get_to(plane);
+
+  if (plane == "X")
+    position = 0.5 * geom_x;
+  else if (plane == "Y")
+    position = 0.5 * geom_y;
+  else if (plane == "Z")
+    position = 0.5 * geom_z;
+
+  if (info.contains("position"))
+    info.at("position").get_to(position);
 }
 
 void FieldViewBuilder::check_region(

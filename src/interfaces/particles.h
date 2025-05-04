@@ -58,6 +58,7 @@ public:
   PetscInt particles_number(const Point& point) const;
 
   PetscReal q_m(const Point& point) const;
+  PetscReal n_Np(const Point& point) const;
   PetscReal qn_Np(const Point& point) const;
 
   Vector3R velocity(const Point& point) const;

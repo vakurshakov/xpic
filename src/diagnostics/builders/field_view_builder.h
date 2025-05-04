@@ -36,6 +36,9 @@ protected:
   void parse_res_dir_suffix(
     const Configuration::json_t& info, std::string& suffix);
 
+  void parse_plane_position(
+    const Configuration::json_t& info, std::string& plane, PetscReal& position);
+
   void check_region(
     const FieldView::Region& region, const std::string& name) const;
 };

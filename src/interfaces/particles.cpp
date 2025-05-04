@@ -257,17 +257,23 @@ PetscReal Particles::mass(const Point& /* point */) const
   return parameters.m;
 }
 
-PetscReal Particles::qn_Np(const Point& point) const
-{
-  return charge(point) * density(point) / particles_number(point);
-}
-
 PetscReal Particles::q_m(const Point& point) const
 {
   return charge(point) / mass(point);
 }
 
+PetscReal Particles::n_Np(const Point& point) const
+{
+  return density(point) / particles_number(point);
+}
 
+PetscReal Particles::qn_Np(const Point& point) const
+{
+  return charge(point) * density(point) / particles_number(point);
+}
+
+
+/// @todo our schemes are mostly non-relativistic, we should avoid it's direct usage
 Vector3R Particles::velocity(const Point& point) const
 {
   const Vector3R& p = point.p;

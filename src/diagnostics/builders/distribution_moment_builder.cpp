@@ -12,14 +12,13 @@ DistributionMomentBuilder::DistributionMomentBuilder(
 PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
-  std::set<std::string_view> available_moments{
-    "Density",
-    "V",
-    "V_cyl",
-    "mVV",
-    "mVV_cyl",
-    "mVV_diag",
-    "mVV_diag_cyl",
+  const std::map<std::string_view, PetscInt> available_moments{
+    {"density", 1},
+    {"current", 3},
+    {"momentum_flux", 6},
+    {"momentum_flux_cyl", 6},
+    {"momentum_flux_diag", 3},
+    {"momentum_flux_diag_cyl", 3},
   };
 
   std::string particles;
@@ -28,24 +27,14 @@ PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& inf
   std::string moment;
   info.at("moment").get_to(moment);
 
-  if (!available_moments.contains(moment))
+  auto it = available_moments.find(moment);
+  if (it == available_moments.end())
     throw std::runtime_error(
       "Unknown moment name " + moment + " for particles " + particles);
 
   FieldView::Region region;
-
-  if (moment == "Density") {
-    region.dim = 3;
-    region.dof = 1;
-  }
-  if (moment.starts_with("V") || moment.starts_with("mVV_diag")) {
-    region.dim = 4;
-    region.dof = 3;
-  }
-  else if (moment == "mVV" || moment == "mVV_cyl") {
-    region.dim = 4;
-    region.dof = 6;
-  }
+  region.dim = it->second > 1 ? 4 : 3;
+  region.dof = it->second;
 
   region.start = Vector4I(0);
   region.size = Vector4I(geom_nx, geom_ny, geom_nz, region.dof);
@@ -60,6 +49,9 @@ PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& inf
   check_region(region, particles + " " + moment);
 
   LOG("  {} diagnostic is added for {}, suffix: {}", moment, particles, suffix.empty() ? "<empty>" : suffix);
+
+  if (!suffix.empty())
+    suffix = "_" + suffix;
 
   std::string res_dir =
     CONFIG().out_dir + "/" + particles + "/" + moment + suffix;
