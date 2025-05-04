@@ -88,7 +88,7 @@ void overwrite_config()
         {
           {"diagnostic", "DistributionMoment"},
           {"particles", "electrons"},
-          {"moment", "Density"},
+          {"moment", "density"},
         },
       },
     },

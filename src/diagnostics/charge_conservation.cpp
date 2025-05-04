@@ -20,7 +20,7 @@ ChargeConservation::ChargeConservation(DM da, std::vector<Vec> current_densities
 
   for (const auto& sort : particles) {
     charge_densities.emplace_back(DistributionMoment::create(
-      "", *sort, moment_from_string("Density"), region));
+      "", *sort, moment_from_string("density"), region));
   }
 
   Divergence divergence(da);
