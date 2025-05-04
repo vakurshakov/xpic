@@ -12,7 +12,6 @@ const Configuration& Configuration::get()
 
 void Configuration::overwrite(json_t&& json)
 {
-  config.config_path_.clear();
   config.json = std::move(json);
   config.json.at("OutputDirectory").get_to(config.out_dir);
 }
