@@ -165,8 +165,11 @@ class PlotLinear:
     
     def draw(self, x):
         self.plot = self.axis.plot(x, self.data, **self.plot_info)
-        self.info.draw()
+        self.draw_info()
         
+    def draw_info(self):
+        self.info.draw()
+
         if "label" in self.plot_info:
             self.axis.legend()
         

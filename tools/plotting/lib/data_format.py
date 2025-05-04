@@ -14,16 +14,6 @@ class FieldView():
         start: np.ndarray[int]
         size: np.ndarray[int]
 
-    Comps = {
-        'x': 0,
-        'y': 1,
-        'z': 2,
-
-        'r': 0,
-        'phi': 1,
-        # 'z': 2,
-    }
-
     Cartesian = Literal[0]
     Cylinder = Literal[1]
 
@@ -33,7 +23,7 @@ class FieldView():
         self.coords: FieldView.Cartesian | FieldView.Cylinder = None
         self.plane: Literal['X', 'Y', 'Z'] = None
         self.plane_position: int = None
-        self.comp: Literal['x', 'y', 'z', 'r', 'phi'] = None
+        self.comp: int = None
         self.cos: np.ndarray = None
         self.sin: np.ndarray = None
     
@@ -70,13 +60,29 @@ class FieldView():
             return self.read(t).squeeze(2)
         elif self.region.dof == 3 and self.coords == FieldView.Cylinder:
             return self.parse_cyl(t)
-        return self.read(t)[:, :, FieldView.Comps.get(self.comp)]
+        return self.read(t)[:, :, self.comp]
 
     def parse_cyl(self, t: int):
-        # Do we need to remap 'r' and 'phi' components here?
-        if self.plane != 'Z' or self.comp == 'z':
-            return self.read(t)[:, :, FieldView.Comps.get(self.comp)]
-        else:
-            fx = self.read(t)[:, :, FieldView.Comps.get('x')]
-            fy = self.read(t)[:, :, FieldView.Comps.get('y')]
-            return vx_vy_to_vr_va(fx, fy, self.cos, self.sin)[FieldView.Comps.get(self.comp)]
+        if self.plane == "Z" and self.comp in (0, 1):
+            data = self.read(t)
+            fx = data[:, :, 0]
+            fy = data[:, :, 1]
+            return vx_vy_to_vr_va(fx, fy, self.cos, self.sin)[self.comp]
+        # We _do_ need to remap components to get 'r', 'phi'
+        elif (self.plane == "X" and self.comp == 0):
+            data = self.read(t)[:, :, self.comp]
+            data[:, (data.shape[1] // 2):] *= -1
+            return data
+        elif (self.plane == "X" and self.comp == 1):
+            data = self.read(t)[:, :, self.comp]
+            data[:, :(data.shape[1] // 2)] *= -1
+            return data
+        elif (self.plane == "Y" and self.comp == 0):
+            data = self.read(t)[:, :, self.comp]
+            data[:, (data.shape[1] // 2):] *= -1
+            return data
+        elif (self.plane == "Y" and self.comp == 1):
+            data = self.read(t)[:, :, self.comp]
+            data[:, :(data.shape[1] // 2)] *= -1
+            return data
+        return self.read(t)[:, :, self.comp]

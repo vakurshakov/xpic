@@ -68,24 +68,6 @@ const.B0 = get(config, "Presets:SetMagneticField.setter.reference", 0)
 # [1/wpe] Particles injection rate 
 const.tau = get(config, "StepPresets:InjectParticles.tau", 0)
 
-# Some utilities that would be used in plotting
-def find_diag(name: str):
-    names = name.split(".")
-
-    for diag in get(config, "Diagnostics"):
-        if get(diag, "diagnostic") != names[0]:
-            continue
-
-        if get(diag, "field") == names[1]:
-            if get(diag, "region.type") == "3D":
-                return diag
-            elif get(diag, "region.type") == "2D" and get(diag, "region.plane") == names[2]:
-                return diag
-
-        if get(diag, "moment") == names[1] and get(diag, "particles") == names[2]:
-            return diag
-    return None
-
 input_paths = [
     const.input_path
 ]
@@ -94,6 +76,31 @@ prefix = input_paths[0]
 
 restarts = [  # in dts units
 ]
+
+# Some utilities that would be used in plotting
+def find_diag(name: str):
+    names = name.split(".")
+
+    def _test_region(diag, pos=None):
+        type = get(diag, "region.type")
+        return \
+            type is None or \
+            type == "3D" or \
+            (type == "2D" and get(diag, "region.plane") == names[pos])
+
+    for diag in get(config, "Diagnostics"):
+        if get(diag, "diagnostic") != names[0]:
+            continue
+
+        if get(diag, "field") == names[1] and \
+            _test_region(diag, 2):
+            return diag
+
+        if get(diag, "particles") == names[1] and \
+            get(diag, "moment") == names[2] and \
+            _test_region(diag, 3):
+            return diag
+    return None
 
 def get_prefix(t, restarts, prefixes):
     i = 0
@@ -106,16 +113,16 @@ def get_diag_path(diag: dict):
     def get_suffix_2D(diag):
         plane = get(diag, "region.plane")
         pos = get(diag, "region.position")
-        fill = -1
-
-        if plane == "X": pos = round(pos / const.dx); fill = const.Nx
-        elif plane == "Y": pos = round(pos / const.dy); fill = const.Ny
-        elif plane == "Z": pos = round(pos / const.dz); fill = const.Nz
-
-        s = ""
-        s += f"_Plane{plane}"
-        s += f"_{str(pos).zfill(len(str(fill)))}"
-        return s
+        
+        if pos is None:
+            if plane == 'X':
+                pos = const.Nx // 2
+            if plane == 'Y':
+                pos = const.Ny // 2
+            if plane == 'Z':
+                pos = const.Nz // 2
+            
+        return f"_plane{plane}_{pos:04d}"
 
     suffix = ""
 

@@ -9,13 +9,14 @@ from configuration import *
 # @todo move this into a `lib.common`, or even into `lib.plot``
 
 # `PlotIm` generation utility
-def gen_plot(title: str, path: str, plane: str, comp: str, dof: int, vmap: tuple[float], \
+def gen_plot(title: str, path: str, plane: str, comp: int, dof: int, coords, vmap: tuple[float], \
         cmap: plt.Colormap = signed_cmap, buff: int = 0, const = const):
     view = FieldView()
     view.path = lambda t: f"{const.input_path}/{path}/{format_time(t, const.Nt)}"
     view.region = FieldView.Region(dof, (0, 0, 0), (*const.data_shape[plane], dof))
-    view.coords = FieldView.Cartesian if not comp in ['r', 'phi'] else FieldView.Cylinder
-    if view.coords == FieldView.Cylinder: view.init_cos_sin(const.cos, const.sin)
+    view.coords = coords 
+    if view.coords == FieldView.Cylinder:
+      view.init_cos_sin(const.cos, const.sin)
     view.plane = plane
     view.comp = comp
 
@@ -84,8 +85,11 @@ def process_plots(out: str, time: Callable[[int], str], plots: tuple[PlotIm | Pl
 
     for t in t_range:
         filename = f"{res_dir}/{format_time(t // offset, const.Nt)}.png"
-        if not timestep_should_be_processed(t, filename, plots[0].view, False):
-            return
+        print("Processing", f"{'/'.join(filename.split('/')[-2:])} {t} [dts]")
+        
+        # forces.py conflicts with this logic
+        # if not timestep_should_be_processed(t, filename, plots[0].view, False):
+        #     return
 
         callback(t)
 
