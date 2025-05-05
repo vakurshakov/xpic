@@ -17,8 +17,8 @@ def gen_view(path: str, comp: str = None, dof: int = 1) -> FieldView:
     view = FieldView()
     view.path = lambda t: f"{const.input_path}/{path}/{format_time(t, const.Nt)}"
     view.region = FieldView.Region(dof, (0, 0, 0), (*const.data_shape['Z'], dof))
-    view.coords = FieldView.Cartesian if not comp in ['r', 'phi'] else FieldView.Cylinder
-    if view.coords == FieldView.Cylinder: view.init_cos_sin(const.cos, const.sin)
+    view.coords = FieldView.Cartesian if not comp in ['r', 'phi'] else FieldView.Cylindrical
+    if view.coords == FieldView.Cylindrical: view.init_cos_sin(const.cos, const.sin)
     view.plane = 'Z'
     view.comp = comp
     return view

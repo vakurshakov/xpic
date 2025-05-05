@@ -15,12 +15,12 @@ class FieldView():
         size: np.ndarray[int]
 
     Cartesian = Literal[0]
-    Cylinder = Literal[1]
+    Cylindrical = Literal[1]
 
     def __init__(self):
         self.path: Callable[[int], str] = None
         self.region: FieldView.Region = None
-        self.coords: FieldView.Cartesian | FieldView.Cylinder = None
+        self.coords: FieldView.Cartesian | FieldView.Cylindrical = None
         self.plane: Literal['X', 'Y', 'Z'] = None
         self.plane_position: int = None
         self.comp: int = None
@@ -58,7 +58,7 @@ class FieldView():
     def parse(self, t: int) -> np.ndarray[np.float32]:
         if self.region.dof == 1:
             return self.read(t).squeeze(2)
-        elif self.region.dof == 3 and self.coords == FieldView.Cylinder:
+        elif self.region.dof == 3 and self.coords == FieldView.Cylindrical:
             return self.parse_cyl(t)
         return self.read(t)[:, :, self.comp]
 

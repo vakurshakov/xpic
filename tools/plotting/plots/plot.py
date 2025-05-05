@@ -15,7 +15,7 @@ def gen_plot(title: str, path: str, plane: str, comp: int, dof: int, coords, vma
     view.path = lambda t: f"{const.input_path}/{path}/{format_time(t, const.Nt)}"
     view.region = FieldView.Region(dof, (0, 0, 0), (*const.data_shape[plane], dof))
     view.coords = coords 
-    if view.coords == FieldView.Cylinder:
+    if view.coords == FieldView.Cylindrical:
       view.init_cos_sin(const.cos, const.sin)
     view.plane = plane
     view.comp = comp

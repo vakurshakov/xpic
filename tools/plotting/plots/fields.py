@@ -11,7 +11,7 @@ parser.add_argument("-v", "--vmap", action="store_const", default=0.02, help="co
 
 args = parser.parse_args()
 
-coords = FieldView.Cartesian if not args.cyl else FieldView.Cylinder
+coords = FieldView.Cartesian if not args.cyl else FieldView.Cylindrical
 
 comps = {
     0: 'x' if coords == FieldView.Cartesian else 'r',

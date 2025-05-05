@@ -11,7 +11,7 @@ parser.add_argument("-n", "--nmap", action="store_const", default=1, help="scale
 
 args = parser.parse_args()
 
-coords = FieldView.Cartesian if not args.cyl else FieldView.Cylinder
+coords = FieldView.Cartesian if not args.cyl else FieldView.Cylindrical
 
 comps = {
     0: 'x' if coords == FieldView.Cartesian else 'r',
