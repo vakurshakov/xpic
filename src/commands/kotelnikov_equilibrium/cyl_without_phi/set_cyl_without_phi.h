@@ -32,6 +32,7 @@ public:
 private:
   PetscReal get_probability(PetscReal r) const;
 
+  PetscReal a;
   TableFunction table_n;
   static constexpr PetscReal n0_tolerance = 1e-3;
 };

@@ -78,11 +78,13 @@ PetscErrorCode SetEquilibriumField::operator()(Vec vec)
 LoadCoordinate::LoadCoordinate(std::string_view param_str)
 {
   PetscCallAbort(PETSC_COMM_WORLD, table_n.evaluate_from_file(get_distribution(param_str, "n")));
+  a = table_n.get_xmin();
 }
 
 void LoadCoordinate::scale_coordinates(PetscReal scale)
 {
   table_n.scale_coordinates(scale);
+  a *= scale;
 }
 
 Vector3R LoadCoordinate::operator()()
@@ -95,7 +97,7 @@ Vector3R LoadCoordinate::operator()()
     r = rmax * std::sqrt(random_01());
     np = get_probability(r);
   }
-  while (np < n0_tolerance && random_01() > np);
+  while (r > a && (np < n0_tolerance || random_01() > np));
 
   PetscReal phi = 2.0 * M_PI * random_01();
 
@@ -116,7 +118,7 @@ PetscInt LoadCoordinate::get_cells_number() const
     if (PetscReal np = get_probability(r); np > n0_tolerance)
       integral += np * r * dr;
   }
-  return ROUND_STEP(2.0 * M_PI * integral, dx * dy) * geom_nz;
+  return 2 * ROUND_STEP(2 * M_PI * integral, dx * dy) * geom_nz;
 }
 
 PetscReal LoadCoordinate::get_probability(PetscReal r) const
@@ -159,7 +161,7 @@ Vector3R LoadMomentum::operator()(const Vector3R& reference)
   Vector3R v;
   ziggurat_generate_velocity(r, v);
 
-  v[Z] = maxwell_inverse(random_01() / (2.0 * M_PI));
+  v[Z] = random_sign() * maxwell_inverse(random_01() / (2 * M_PI));
 
   // from thermal velocity units to `c`
   v *= std::sqrt(params.Tx / (params.m * mec2));
@@ -167,7 +169,16 @@ Vector3R LoadMomentum::operator()(const Vector3R& reference)
   if (!tov) {
     v *= params.m / std::sqrt(1.0 + v.length());
   }
-  return v;
+
+  // Particles close to r=0 are not taken into account
+  if (std::isinf(1.0 / r))
+    return v;
+
+  return {
+    (+x * v[R] - y * v[A]) / r,
+    (+y * v[R] + x * v[A]) / r,
+    v[Z],
+  };
 }
 
 /// @note `v` here is in thermal velocity units
@@ -228,7 +239,7 @@ void LoadMomentum::ziggurat_generate_velocity(PetscReal r, Vector3R& _v) const
     vx = v * std::cos(theta);
     vy = v * std::sin(theta);
 
-    if (r > a && std::abs(r * vy + chi_r) - (a * v + chi_a) < 0.0)
+    if (r > a && std::abs(r * vy + chi_r) - (a * v + chi_a) > 0.0)
       continue;
 
     if (v < table_v[i + 1])

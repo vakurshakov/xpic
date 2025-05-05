@@ -28,12 +28,20 @@ private:
 inline PetscReal random_01()
 {
   static std::uniform_real_distribution distribution(0.0, 1.0);
-
   PetscReal value;
 
 #pragma omp critical
   value = distribution(RandomGenerator::get());
+  return value;
+}
 
+inline PetscInt random_sign()
+{
+  static std::bernoulli_distribution distribution;
+  PetscInt value;
+
+#pragma omp critical
+  value = distribution(RandomGenerator::get()) ? +1 : -1;
   return value;
 }
 
