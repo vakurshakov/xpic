@@ -1,41 +1,127 @@
 {
   "Simulation": "ecsimcorr",
 
-  "OutputDirectory": "results/kotelnikov_equilibrium/balance",
+  "OutputDirectory": "results/simulation-backup-test/mpi_x1y1",
+
+  "mpi": {
+    "da_processors_x": 1,
+    "da_processors_y": 1,
+    "da_processors_z": 1,
+    "binding": "socket",
+    "mapping": "numa"
+  },
+
+  "omp": {
+    "num_threads": 1,
+    "places": "cores",
+    "proc_bind": "spread"
+  },
 
   "Geometry": {
-    "x": 600,
-    "y": 600,
-    "z": 2, 
-    "t": 10, 
+    "x": 10,
+    "y": 10,
+    "z": 10,
+    "t": 10,
     "dx": 1.0,
     "dy": 1.0,
     "dz": 1.0,
-    "dt": 0.5,
-    "diagnose_period": 0.5,
-    "da_boundary_x": "DM_BOUNDARY_GHOSTED",
-    "da_boundary_y": "DM_BOUNDARY_GHOSTED",
-    "da_boundary_z": "DM_BOUNDARY_PERIODIC"
+    "dt": 1.0,
+    "diagnose_period": 1.0,
+    "da_boundary_x": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_z": "DM_BOUNDARY_PERIODIC",
+    "[x]": "c/w_pe",
+    "[y]": "c/w_pe",
+    "[z]": "c/w_pe",
+    "[t]": "1/w_pe",
+    "[dp]": "1/w_pe"
   },
 
   "Particles": [
-    { "sort_name": "ions",      "Np": 10, "n": 1.0, "q":  1.0, "m": 100.0, "T": 10.0 },
-    { "sort_name": "electrons", "Np": 10, "n": 1.0, "q": -1.0, "m":   1.0, "T":  0.1 }
+    {
+      "sort_name": "ions",
+      "Np": 100,
+      "n": 1.0,
+      "q": 1.0,
+      "m": 100.0,
+      "T": 1.0
+    },
+    {
+      "sort_name": "electrons",
+      "Np": 100,
+      "n": 1.0,
+      "q": -1.0,
+      "m": 1.0,
+      "T": 1.0
+    }
   ],
 
-  "Presets": [ { "command": "SetKotelnikovEquilibrium", "parameters": "a1.5_B0.01" } ],
-  "StepPresets": [ { "command": "SetKotelnikovEquilibrium", "buffer": 2, "damping_coefficient": 0.8 } ],
+  "Presets": [
+    {
+      "command": "SetMagneticField",
+      "field": "B0",
+      "field_axpy": "B",
+      "setter": {
+        "name": "SetUniformField",
+        "value": [0, 0, 0.2],
+        "reference": 0.2
+      }
+    },
+    {
+      "command": "InjectParticles",
+      "ionized": "ions",
+      "ejected": "electrons",
+      "coordinate": {
+        "name": "CoordinateInBox",
+        "min": 0,
+        "max": "Geom"
+      },
+      "momentum_i": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      },
+      "momentum_e": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      }
+    }
+  ],
+
+  "StepPresets": [],
 
   "Diagnostics": [
-    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "Z" } },
-    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "Z" } },
+    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "Z", "position": 5 } },
 
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "density",                "region": { "type": "2D", "plane": "Z" } },
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "current",                "region": { "type": "2D", "plane": "Z" } },
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "momentum_flux_diag_cyl", "region": { "type": "2D", "plane": "Z" } },
+    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "Z", "position": 5 } },
 
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "density",                "region": { "type": "2D", "plane": "Z" } },
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "current",                "region": { "type": "2D", "plane": "Z" } },
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "momentum_flux_diag_cyl", "region": { "type": "2D", "plane": "Z" } }
-  ]
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vx", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vy", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vz", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vx", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vy", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "Vz", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "mVrVr", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "mVphiVphi", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Density", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vx", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vy", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vz", "region": { "type": "2D", "plane": "X", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vx", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vy", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "Vz", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "mVrVr", "region": { "type": "2D", "plane": "Z", "position": 5 } },
+    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "mVphiVphi", "region": { "type": "2D", "plane": "Z", "position": 5 } }
+  ],
+
+  "SimulationBackup": {
+    "diagnose_period": 3.0,
+    "save_sources": false,
+    "load_from": null
+  }
 }
