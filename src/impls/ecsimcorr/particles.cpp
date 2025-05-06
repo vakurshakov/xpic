@@ -83,6 +83,9 @@ PetscErrorCode Particles::second_push()
 
   PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
+  // Because we manually calculated `pred_w`, it is needed to reduce it between ranks
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &pred_w, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+
   PetscCall(DMDAVecRestoreArray(world.da, local_currJe, &currJe));
   PetscCall(DMLocalToGlobal(world.da, local_currJe, ADD_VALUES, global_currJe));
   PetscCall(VecAXPY(simulation_.currJe, 1.0, global_currJe));
