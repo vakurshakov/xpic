@@ -43,7 +43,7 @@ PetscErrorCode FieldsDamping::damping_implementation(Vec f)
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
-    Vector3R r{x * dx, y * dy, z * dz};
+    Vector3R r{(x + 0.5) * dx, (y + 0.5) * dy, (z + 0.5) * dz};
 
     if (within_geom_(r))
       continue;
