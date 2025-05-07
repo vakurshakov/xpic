@@ -11,8 +11,7 @@ EnergyConservation::EnergyConservation(const Simulation& simulation)
   B = simulation.B;
   B0 = simulation.B0;
 
-  fields_energy = std::make_unique<FieldsEnergy>(
-    simulation.world.da, simulation.E, simulation.B);
+  fields_energy = std::make_unique<FieldsEnergy>(simulation.E, simulation.B);
 
   std::vector<const interfaces::Particles*> storage;
   for (const auto& particles : simulation.particles_)

@@ -28,7 +28,7 @@ PetscErrorCode Simulation::initialize_implementation()
   }
   currents.emplace_back(J);
 
-  auto&& f_diag = std::make_unique<FieldsEnergy>(world.da, E, B);
+  auto&& f_diag = std::make_unique<FieldsEnergy>(E, B);
   auto&& p_diag = std::make_unique<ParticlesEnergy>(sorts);
 
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(

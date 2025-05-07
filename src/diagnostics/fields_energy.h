@@ -11,8 +11,8 @@
 
 class FieldsEnergy : public interfaces::Diagnostic {
 public:
-  FieldsEnergy(DM da, Vec E, Vec B);
-  FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B);
+  FieldsEnergy(Vec E, Vec B);
+  FieldsEnergy(const std::string& out_dir, Vec E, Vec B);
 
   PetscErrorCode diagnose(PetscInt t) override;
 
@@ -25,7 +25,6 @@ public:
 private:
   SyncBinaryFile file_;
 
-  DM da_;
   Vec E_;
   Vec B_;
 

@@ -3,15 +3,14 @@
 #include "src/utils/utils.h"
 
 
-FieldsEnergy::FieldsEnergy(DM da, Vec E, Vec B)
-  : da_(da), E_(E), B_(B)
+FieldsEnergy::FieldsEnergy(Vec E, Vec B)
+  : E_(E), B_(B)
 {
 }
 
-FieldsEnergy::FieldsEnergy(const std::string& out_dir, DM da, Vec E, Vec B)
+FieldsEnergy::FieldsEnergy(const std::string& out_dir, Vec E, Vec B)
   : interfaces::Diagnostic(out_dir),
     file_(SyncBinaryFile(out_dir_ + "/fields_energy.bin")),
-    da_(da),
     E_(E),
     B_(B)
 {
