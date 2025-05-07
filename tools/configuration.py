@@ -14,8 +14,8 @@ with open(config_path, "r") as file:
 const = Constants()
 const.init_from_config(config)
 const.init_dependent()
-const.input_path = os.path.join(config_dir, config["OutputDirectory"])
-const.output_path = os.path.join(config_dir, config["OutputDirectory"], "processed")
+const.input_path = os.path.join(config["OutputDirectory"])
+const.output_path = os.path.join(config["OutputDirectory"], "processed")
 
 # Setting up the rest of particles information
 mi_me = None   # me
@@ -62,10 +62,10 @@ def get(d: dict, path: str, default = None):
 
     return result
 
-# [mecwpe/e] Reference value of the magnetic field 
+# [mecwpe/e] Reference value of the magnetic field
 const.B0 = get(config, "Presets:SetMagneticField.setter.reference", 0)
 
-# [1/wpe] Particles injection rate 
+# [1/wpe] Particles injection rate
 const.tau = get(config, "StepPresets:InjectParticles.tau", 0)
 
 input_paths = [
@@ -113,7 +113,7 @@ def get_diag_path(diag: dict):
     def get_suffix_2D(diag):
         plane = get(diag, "region.plane")
         pos = get(diag, "region.position")
-        
+
         if pos is None:
             if plane == 'X':
                 pos = const.Nx // 2
@@ -121,7 +121,7 @@ def get_diag_path(diag: dict):
                 pos = const.Ny // 2
             if plane == 'Z':
                 pos = const.Nz // 2
-            
+
         return f"_plane{plane}_{pos:04d}"
 
     suffix = ""
