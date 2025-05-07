@@ -17,24 +17,19 @@ pa_e = gen_plot("$\\Pi_{\\phi\\phi}^e$", "electrons/mVphiVphi_PlaneZ_05", 'Z', '
 
 p_s = (pr_i, pr_e, pa_i, pa_e)
 
-pr_i_avg = gen_linear("$\\bar{\\Pi}_{rr}^i$", 'Z', vmap_i, linewidth=3)
-pr_e_avg = gen_linear("$\\bar{\\Pi}_{rr}^e$", 'Z', vmap_e, linewidth=3)
-pa_i_avg = gen_linear("$\\bar{\\Pi}_{\\phi\\phi}^i$", 'Z', vmap_i, linewidth=3)
-pa_e_avg = gen_linear("$\\bar{\\Pi}_{\\phi\\phi}^e$", 'Z', vmap_e, linewidth=3)
+pr_i_av = gen_linear("$\\bar{\\Pi}_{rr}^i$", 'Z', vmap_i, linewidth=3)
+pr_e_av = gen_linear("$\\bar{\\Pi}_{rr}^e$", 'Z', vmap_e, linewidth=3)
+pa_i_av = gen_linear("$\\bar{\\Pi}_{\\phi\\phi}^i$", 'Z', vmap_i, linewidth=3)
+pa_e_av = gen_linear("$\\bar{\\Pi}_{\\phi\\phi}^e$", 'Z', vmap_e, linewidth=3)
 
-p_s_avg = (pr_i_avg, pr_e_avg, pa_i_avg, pa_e_avg)
+p_s_av = (pr_i_av, pr_e_av, pa_i_av, pa_e_av)
 
 def callback(t):
-    for p in p_s:
+    for p, av in zip(p_s, p_s_av):
         p.data = p.view.parse(t)
         p.draw()
 
-    pr_i_avg.data = phi_averaged(pr_i.data, const.rmap)
-    pa_i_avg.data = phi_averaged(pa_i.data, const.rmap)
-    pr_e_avg.data = phi_averaged(pr_e.data, const.rmap)
-    pa_e_avg.data = phi_averaged(pa_e.data, const.rmap)
-
-    for p in p_s_avg:
+        av.data = phi_averaged(pr_i.data, const.rmap)
         p.draw(rs)
 
-process_plots("pressures", time_wpe, p_s + p_s_avg, callback)
+process_plots("pressures", time_wpe, p_s + p_s_av, callback)
