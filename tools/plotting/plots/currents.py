@@ -22,12 +22,12 @@ def callback(t):
     for p in js:
         p.data = p.view.parse(t)
         p.draw()
-    
+
     jai_av.data = phi_averaged(jai.data, const.rmap)
     jae_av.data = phi_averaged(jae.data, const.rmap)
-    
+
     for p in js_av:
         p.draw(rs)
         p.axis.set_xlim(0, 150)
 
-process_plots("currents", lambda t: f"$t = {t * const.dt:.3f}$", js + js_av, callback)
+process_plots("currents", time_wpe, js + js_av, callback)

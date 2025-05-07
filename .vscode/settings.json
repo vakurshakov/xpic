@@ -1,9 +1,13 @@
 {
   "[cpp]": {
     "editor.indentSize": 2,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
   },
   "[python]": {
     "editor.indentSize": 4,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
   },
   "files.associations": {
     ".clang-format": "yaml",

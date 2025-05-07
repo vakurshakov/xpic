@@ -8,18 +8,21 @@ from configuration import *
 
 # @todo move this into a `lib.common`, or even into `lib.plot``
 
-# `PlotIm` generation utility
-def gen_plot(title: str, path: str, plane: str, comp: int, dof: int, coords, vmap: tuple[float], \
-        cmap: plt.Colormap = signed_cmap, buff: int = 0, const = const):
+def gen_view(path: str, plane: str, comp: int, dof: int, coords):
     view = FieldView()
     view.path = lambda t: f"{const.input_path}/{path}/{format_time(t, const.Nt)}"
     view.region = FieldView.Region(dof, (0, 0, 0), (*const.data_shape[plane], dof))
-    view.coords = coords 
+    view.coords = coords
     if view.coords == FieldView.Cylindrical:
       view.init_cos_sin(const.cos, const.sin)
     view.plane = plane
     view.comp = comp
+    return view
 
+# `PlotIm` generation utility
+def gen_plot(title: str, path: str, plane: str, comp: int, dof: int, coords, vmap: tuple[float], \
+        cmap: plt.Colormap = signed_cmap, buff: int = 0, const = const):
+    view = gen_view(path, plane, comp, dof, coords)
     plot = PlotIm(view, vmap, cmap)
 
     axis_args = {
@@ -86,7 +89,7 @@ def process_plots(out: str, time: Callable[[int], str], plots: tuple[PlotIm | Pl
     for t in t_range:
         filename = f"{res_dir}/{format_time(t // offset, const.Nt)}.png"
         print("Processing", f"{'/'.join(filename.split('/')[-2:])} {t} [dts]")
-        
+
         # forces.py conflicts with this logic
         # if not timestep_should_be_processed(t, filename, plots[0].view, False):
         #     return
@@ -107,4 +110,13 @@ def process_basic(out: str, time: Callable[[int], str], plots: tuple[PlotIm], co
             plot.data = plot.view.parse(t)
             plot.draw()
 
-    process_plots(out, time, plots, callback, const) 
+    process_plots(out, time, plots, callback, const)
+
+def time_wpe(t: int):
+    return f"$\\omega_{{ pe }}\\,t = {t * const.dt:.3f}$"
+
+def time_wce(t: int):
+    return f"$\\Omega_{{ e }}\\,t = {t * const.dt * const.B0:.3f}$"
+
+def time_wci(t: int):
+    return f"$\\Omega_{{ i }}\\,t = {t * const.dt * (const.B0 / mi_me):.3f}$"

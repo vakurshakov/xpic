@@ -27,12 +27,12 @@ plane = 'Z'
 plane_position = sys.argv[1] if len(sys.argv) == 2 else const.Nz // 2
 
 def gen_plot_tests(title, path, comp, dof, vmap, cmap=signed_cmap):
-    plot = gen_plot(title, path, plane, comp, dof, vmap, cmap, const=const) 
+    plot = gen_plot(title, path, plane, comp, dof, vmap, cmap, const=const)
     plot.view.region = FieldView.Region(dof, (0, 0, 0, 0), (const.Nx, const.Ny, const.Nz, dof))
     plot.view.plane_position = plane_position
     return plot
 
-process_basic(f"PlaneZ_{plane_position}", lambda t: f"$t = {t * const.dt:.3f}$", (
+process_basic(f"PlaneZ_{plane_position}", time_wpe, (
     gen_plot_tests("$E_x$", 'E', 'x', 3, vmap_e),
     gen_plot_tests("$E_y$", 'E', 'y', 3, vmap_e),
     gen_plot_tests("$E_z$", 'E', 'z', 3, vmap_e),

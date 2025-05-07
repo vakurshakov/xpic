@@ -4,7 +4,7 @@ import argparse
 
 from plot import *
 
-parser = argparse.ArgumentParser(prog="fields")
+parser = argparse.ArgumentParser()
 
 parser.add_argument("-c", "--cyl", action="store_true", help="draw fields in cylindrical components")
 parser.add_argument("-v", "--vmap", action="store_const", default=0.02, help="colormap scale used for \'Plot\'")
@@ -47,4 +47,4 @@ add("B.Z", 0, vmap)
 add("B.Z", 1, vmap)
 add("B.Z", 2, const.B0+vmap)
 
-process_basic("fields", lambda t: f"$t = {t * const.dt:.3f}$", plots)
+process_basic("fields", time_wpe, plots)

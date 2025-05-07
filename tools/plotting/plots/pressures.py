@@ -28,13 +28,13 @@ def callback(t):
     for p in p_s:
         p.data = p.view.parse(t)
         p.draw()
-    
+
     pr_i_avg.data = phi_averaged(pr_i.data, const.rmap)
     pa_i_avg.data = phi_averaged(pa_i.data, const.rmap)
     pr_e_avg.data = phi_averaged(pr_e.data, const.rmap)
     pa_e_avg.data = phi_averaged(pa_e.data, const.rmap)
-    
+
     for p in p_s_avg:
         p.draw(rs)
 
-process_plots("pressures", lambda t: f"$t = {t * const.dt:.3f}$", p_s + p_s_avg, callback)
+process_plots("pressures", time_wpe, p_s + p_s_avg, callback)

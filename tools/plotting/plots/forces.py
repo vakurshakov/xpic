@@ -68,8 +68,8 @@ def callback(t):
         f.draw_info()
         f.axis.grid()
         f.axis.legend(fontsize=ticksize * 0.8, loc="lower right")
-    
+
     _impl('i', ni, jai, pri, pai, fi)
     _impl('e', ne, jae, pre, pae, fe)
 
-process_plots("forces", lambda t: f"$t = {t * const.dt:.3f}$", (fi, fe), callback)
+process_plots("forces", time_wpe, (fi, fe), callback)

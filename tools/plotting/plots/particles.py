@@ -39,12 +39,12 @@ def add(name, path, comp, dof, vmap, cmap=signed_cmap):
 
 for s in const.sorts:
     plots.clear()
-    
+
     add(f"$n_{s[0]}$", f"{s}.density.X", '', 1, vmap_n, unsigned_cmap),
     add(f"$J_{comps.get(0)}^{s[0]}$", f"{s}.current.X", 0, 3, vmap_v.get(s)),
     add(f"$J_{comps.get(1)}^{s[0]}$", f"{s}.current.X", 1, 3, vmap_v.get(s)),
     add(f"$J_{comps.get(2)}^{s[0]}$", f"{s}.current.X", 2, 3, vmap_v.get(s)),
-    
+
     add(f"$n_{s[0]}$", f"{s}.density.Z", '', 1, vmap_n, unsigned_cmap),
     add(f"$J_{comps.get(0)}^{s[0]}$", f"{s}.current.Z", 0, 3, vmap_v.get(s)),
     add(f"$J_{comps.get(1)}^{s[0]}$", f"{s}.current.Z", 1, 3, vmap_v.get(s)),
@@ -53,4 +53,4 @@ for s in const.sorts:
     const.nrows = len(plots) // 4
     const.ncols = len(plots) // const.nrows
 
-    process_basic(f"info_{s}", lambda t: f"$t = {t * const.dt:.3f}$", plots)
+    process_basic(f"info_{s}", time_wpe, plots)
