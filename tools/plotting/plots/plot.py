@@ -83,14 +83,14 @@ def process_plots(out: str, time: Callable[[int], str], plots: tuple[PlotIm | Pl
     res_dir = f"{const.output_path}/{out}"
     makedirs(res_dir)
 
-    offset = int(const.diagnose_period / const.dt)
-    t_range = mpi_consecutive_t_range(0, const.Nt, offset)
+    t_range = mpi_consecutive_t_range(const.plot_init, const.plot_time, const.plot_offset)
 
     for t in t_range:
-        filename = f"{res_dir}/{format_time(t // offset, const.Nt)}.png"
+        filename = f"{res_dir}/{format_time(t // const.plot_offset, const.Nt)}.png"
+
         print("Processing", f"{'/'.join(filename.split('/')[-2:])} {t} [dts]")
 
-        # forces.py conflicts with this logic
+        # @todo `forces.py` conflicts with this logic, this can be replaced with try-catch block
         # if not timestep_should_be_processed(t, filename, plots[0].view, False):
         #     return
 

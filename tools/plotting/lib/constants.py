@@ -17,6 +17,10 @@ class Constants:
     # figure parameters
     nrows, ncols = (None,) * 2
 
+    plot_init: int = None
+    plot_time: int = None
+    plot_offset: int = None
+
     # geometry
     dx, dy, dz, dt = (None,) * 4 # c/wpe, 1/wpe
     Nx, Ny, Nz, Nt = (None,) * 4 # cells
@@ -27,7 +31,7 @@ class Constants:
     sorts: list[str] = field(default_factory=list)
 
     # dependent variables
-    data_shape: tuple = None # [{Plane, (cells, cells)}] Common shapes of the data stored in files 
+    data_shape: tuple = None # [{Plane, (cells, cells)}] Common shapes of the data stored in files
     boundaries: tuple = None # [c/wpe] Boundaries to all possible graphs in format (bx, ex, by, ey)
     cos, sin, rmap = (None,) * 3
 
@@ -43,6 +47,10 @@ class Constants:
         self.Nt = round(geometry.get("t") / self.dt)
 
         self.diagnose_period  = geometry["diagnose_period"]  # 1/wpe
+
+        self.plot_init = 0
+        self.plot_time = self.Nt
+        self.plot_offset = int(self.diagnose_period / self.dt)
 
         if "Particles" in config:
             for sort in config["Particles"]:
