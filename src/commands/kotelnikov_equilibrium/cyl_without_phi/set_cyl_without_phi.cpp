@@ -161,7 +161,7 @@ Vector3R LoadMomentum::operator()(const Vector3R& reference)
   Vector3R v;
   ziggurat_generate_velocity(r, v);
 
-  v[Z] = random_sign() * maxwell_inverse(random_01() / (2 * M_PI));
+  v[Z] = std::sin(2 * M_PI * random_01()) * maxwell_inverse(random_01() / (2 * M_PI));
 
   // from thermal velocity units to `c`
   v *= std::sqrt(params.Tx / (params.m * mec2));
