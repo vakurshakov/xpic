@@ -7,8 +7,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 from lib.common import makedirs
 from configuration import const
 
-os.chdir(const.output_path)
-
 if len(sys.argv) == 1:
     plots = (
         "fields",
@@ -19,7 +17,8 @@ if len(sys.argv) == 1:
 else:
     plots = sys.argv[1:]
 
-makedirs(f"{const.output_path}/video")
+os.chdir(const.output_path)
+makedirs("video")
 
 for plot in plots:
     if os.path.exists(plot):
