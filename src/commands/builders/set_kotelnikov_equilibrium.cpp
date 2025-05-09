@@ -36,7 +36,7 @@ PetscErrorCode SetPresets::build(const Configuration::json_t& info)
 
   auto gen_pi = LoadMomentum(ions.parameters, true, params_str);
   gen_pi.scale_coordinates(std::sqrt(mi));
-  gen_pi.scale_chi(std::pow(mi, 1.5) * vi / M_SQRT2);
+  gen_pi.scale_chi(std::pow(mi, 1.5) * vi);
 
   auto gen_pe = MaxwellianMomentum(electrons.parameters, true);
 
