@@ -153,7 +153,6 @@ PetscErrorCode DistributionMoment::collect()
     if (!is_point_within_bounds(vg, gstart, gsize))
       continue;
 
-    /// @todo We can reuse `Simple_decomposition` algorithm here
     for (auto&& point : particles_.storage[g]) {
       Shape shape;
       shape.setup(point.r);
