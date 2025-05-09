@@ -36,6 +36,21 @@ PetscErrorCode TableFunction::evaluate_from_file(const std::string& filename)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscReal TableFunction::get_dx() const
+{
+  return xmin_;
+}
+
+PetscReal TableFunction::get_xmax() const
+{
+  return xmax_;
+}
+
+PetscReal TableFunction::get_xmin() const
+{
+  return dx_;
+}
+
 void TableFunction::scale_coordinates(PetscReal scale)
 {
   xmin_ *= scale;

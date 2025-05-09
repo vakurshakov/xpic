@@ -16,25 +16,23 @@ public:
   TableFunction(const std::string& filename);
   PetscErrorCode evaluate_from_file(const std::string& filename);
 
-  // clang-format off
-  PetscReal get_xmin() const { return xmin_; }
-  PetscReal get_xmax() const { return xmax_; }
-  PetscReal get_dx() const { return dx_; }
-  // clang-format on
+  PetscReal get_xmin() const;
+  PetscReal get_xmax() const;
+  PetscReal get_dx() const;
 
   void scale_coordinates(PetscReal scale);
   void scale_values(PetscReal scale);
 
-  /// @param x Coordinate to find a function value at (in c/w_pe units).
+  /// @param x Coordinate to find a function value at.
   /// @return Linearly interpolated value of a stored parameter function.
   PetscReal get_value(PetscReal x) const;
 
 private:
   PetscReal linear_interpolation(PetscReal v0, PetscReal v1, PetscReal t) const;
 
-  PetscReal xmin_;  // [c/w_pe] - Start coordinate
-  PetscReal xmax_;  // [c/w_pe] - Last coordinate
-  PetscReal dx_;    // [c/w_pe] - Grid spacing
+  PetscReal xmin_;  // - Start coordinate
+  PetscReal xmax_;  // - Last coordinate
+  PetscReal dx_;    // - Grid spacing
 
   std::vector<PetscReal> values_;
 };
