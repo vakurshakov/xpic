@@ -67,6 +67,7 @@ set(commands
   src/commands/fields_damping.cpp
   src/commands/kotelnikov_equilibrium/cyl_without_phi/set_cyl_without_phi.cpp
   src/commands/kotelnikov_equilibrium/cyl_without_phi/table_function.cpp
+  src/commands/kotelnikov_equilibrium/cyl_without_phi/ziggurat_gaussian.cpp
   src/commands/builders/command_builder.cpp
   src/commands/builders/particles_builder.cpp
   src/commands/builders/inject_particles_builder.cpp

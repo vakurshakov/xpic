@@ -36,7 +36,7 @@ PetscErrorCode TableFunction::evaluate_from_file(const std::string& filename)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscReal TableFunction::get_dx() const
+PetscReal TableFunction::get_xmin() const
 {
   return xmin_;
 }
@@ -46,7 +46,7 @@ PetscReal TableFunction::get_xmax() const
   return xmax_;
 }
 
-PetscReal TableFunction::get_xmin() const
+PetscReal TableFunction::get_dx() const
 {
   return dx_;
 }

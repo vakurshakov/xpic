@@ -14,7 +14,6 @@ public:
   }
 
 private:
-  DEFAULT_MOVABLE(RandomGenerator);
   RandomGenerator() = default;
   ~RandomGenerator() = default;
 
