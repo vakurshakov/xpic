@@ -17,12 +17,12 @@ vmap_b = (0, 0.2)
 
 rs = np.arange(0, const.boundaries['Z'][1])
 
-n = gen_plot("$n$", "ions/density_planeZ_0001", 'Z', 0, 1, FieldView.Cartesian, vmap_n, unsigned_cmap)
-ja = gen_plot("$J_{\\phi}$", "ions/current_planeZ_0001", 'Z', 1, 3, FieldView.Cylindrical, vmap_j, signed_cmap)
-prr = gen_plot("$\\Pi_{rr}$", "ions/momentum_flux_diag_cyl_planeZ_0001", 'Z', 0, 3, FieldView.Cartesian, vmap_p, unsigned_cmap)
-paa = gen_plot("$\\Pi_{\\phi\\phi}$", "ions/momentum_flux_diag_cyl_planeZ_0001", 'Z', 1, 3, FieldView.Cartesian, vmap_p, unsigned_cmap)
-pzz = gen_plot("$\\Pi_{\\phi\\phi}$", "ions/momentum_flux_diag_cyl_planeZ_0001", 'Z', 2, 3, FieldView.Cartesian, vmap_p, unsigned_cmap)
-bz = gen_plot("$B_z$", "B_planeZ_0001", 'Z', 2, 3, FieldView.Cylindrical, vmap_b, unsigned_cmap)
+n = gen_plot("$n$", "ions/density_planeZ_0000", 'Z', 0, 1, FieldView.Cartesian, vmap_n, unsigned_cmap)
+ja = gen_plot("$J_{\\phi}$", "ions/current_planeZ_0000", 'Z', 1, 3, FieldView.Cylindrical, vmap_j, signed_cmap)
+prr = gen_plot("$\\Pi_{rr}$", "ions/momentum_flux_diag_cyl_planeZ_0000", 'Z', 0, 3, FieldView.Cartesian, vmap_p, unsigned_cmap)
+paa = gen_plot("$\\Pi_{\\phi\\phi}$", "ions/momentum_flux_diag_cyl_planeZ_0000", 'Z', 1, 3, FieldView.Cartesian, vmap_p, unsigned_cmap)
+pzz = gen_plot("$\\Pi_{\\phi\\phi}$", "ions/momentum_flux_diag_cyl_planeZ_0000", 'Z', 2, 3, FieldView.Cartesian, vmap_p, unsigned_cmap)
+bz = gen_plot("$B_z$", "B_planeZ_0000", 'Z', 2, 3, FieldView.Cylindrical, vmap_b, unsigned_cmap)
 
 plots = (n, ja, prr, bz)
 
