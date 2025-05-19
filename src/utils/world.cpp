@@ -1,5 +1,6 @@
 #include "src/utils/world.h"
 
+#include "src/interfaces/builder.h"
 #include "src/utils/configuration.h"
 
 World::World()
@@ -13,16 +14,20 @@ PetscErrorCode World::initialize()
   if (!CONFIG().json.empty()) {
     const Configuration::json_t& geometry = CONFIG().json.at("Geometry");
 
-    set_geometry( //
-      geometry.at("x").get<PetscReal>(), //
-      geometry.at("y").get<PetscReal>(), //
-      geometry.at("z").get<PetscReal>(), //
-      geometry.at("t").get<PetscReal>(), //
-      geometry.at("dx").get<PetscReal>(), //
-      geometry.at("dy").get<PetscReal>(), //
-      geometry.at("dz").get<PetscReal>(), //
-      geometry.at("dt").get<PetscReal>(), //
-      geometry.at("diagnose_period").get<PetscReal>());
+    // Reading cell sizes first to be able to use them in `Builder::parse_value()`
+    Dx[0] = dx = geometry.at("dx").get<PetscReal>();
+    Dx[1] = dy = geometry.at("dy").get<PetscReal>();
+    Dx[2] = dz = geometry.at("dz").get<PetscReal>();
+    dt = geometry.at("dt").get<PetscReal>();
+
+    using namespace interfaces;
+
+    set_geometry(  //
+      Builder::parse_value(geometry.at("x")),
+      Builder::parse_value(geometry.at("y")),
+      Builder::parse_value(geometry.at("z")),
+      Builder::parse_value(geometry.at("t")), dx, dy, dz, dt,
+      Builder::parse_value(geometry.at("diagnose_period")));
 
     Configuration::get_processors(REP3_A(procs));
     Configuration::get_boundaries_type(REP3_A(bounds));
@@ -56,9 +61,9 @@ World::~World()
 }
 
 
-/* static */ void World::set_geometry( //
-  PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
-  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
+/* static */ void World::set_geometry(  //
+  PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
+  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
   PetscReal _dtp)
 {
   Dx[0] = dx = _dx;
@@ -79,29 +84,29 @@ World::~World()
   diagnose_period = ROUND_STEP(_dtp, dt);
 }
 
-/* static */ void World::set_geometry( //
-  PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
-  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
+/* static */ void World::set_geometry(  //
+  PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt,  //
+  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
   PetscReal _dtp)
 {
-  set_geometry( //
-    static_cast<PetscReal>(_gnx) * _dx, //
-    static_cast<PetscReal>(_gny) * _dy, //
-    static_cast<PetscReal>(_gnz) * _dz, //
-    static_cast<PetscReal>(_gnt) * _dt, //
+  set_geometry(  //
+    static_cast<PetscReal>(_gnx) * _dx,  //
+    static_cast<PetscReal>(_gny) * _dy,  //
+    static_cast<PetscReal>(_gnz) * _dz,  //
+    static_cast<PetscReal>(_gnt) * _dt,  //
     _dx, _dy, _dz, _dt, _dtp);
 }
 
-/* static */ void World::set_geometry( //
-  PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
-  PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
+/* static */ void World::set_geometry(  //
+  PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
+  PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt,  //
   PetscReal _dtp)
 {
-  set_geometry( //
-    _gx, _gy, _gz, _gt, //
-    _gx / static_cast<PetscReal>(_gnx), //
-    _gy / static_cast<PetscReal>(_gny), //
-    _gz / static_cast<PetscReal>(_gnz), //
-    _gt / static_cast<PetscReal>(_gnt), //
+  set_geometry(  //
+    _gx, _gy, _gz, _gt,  //
+    _gx / static_cast<PetscReal>(_gnx),  //
+    _gy / static_cast<PetscReal>(_gny),  //
+    _gz / static_cast<PetscReal>(_gnz),  //
+    _gt / static_cast<PetscReal>(_gnt),  //
     _dtp);
 }

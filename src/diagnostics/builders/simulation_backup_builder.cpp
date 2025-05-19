@@ -27,9 +27,7 @@ PetscErrorCode SimulationBackupDiagBuilder::build(
   const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
-  PetscReal dp_wp;
-  info.at("diagnose_period").get_to(dp_wp);
-
+  PetscReal dp_wp = parse_value(info.at("diagnose_period"));
   PetscInt dp = ROUND_STEP(dp_wp, dt);
   LOG("  Simulation backup diagnostic is added, diagnose period: {:.1f} [1/w_pe], {} [dt]", dp_wp, dp);
 
