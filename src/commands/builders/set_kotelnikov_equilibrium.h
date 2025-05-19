@@ -14,6 +14,7 @@ public:
   std::string_view usage_message() const override
   {
     std::string_view help =
+      "\n"
       "To use the \"SetKotelnikovEquilibrium\" preset it is needed to run the\n"
       "python script generating the distribution caches first. It's placed at\n"
       "[...]/kotelnikov_equilibrium/cyl_without_phi/py-scripts/calc_maxw.py.\n"
@@ -31,9 +32,10 @@ public:
   std::string_view usage_message() const override
   {
     std::string_view help =
+      "\n"
       "\"SetKotelnikovEquilibrium\" step preset description:\n"
       "\"buffer\" -- width of buffer to leave along cylinder radius\n"
-      "\"damping_coefficient\" -- the coefficient to pass to \"FieldsDamping\"";
+      "\"damping_coefficient\" -- the coefficient to pass to \"FieldsDamping\"\n";
     return help;
   }
 };
