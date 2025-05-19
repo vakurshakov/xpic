@@ -34,6 +34,9 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
   LOG("Building commands from \"{}\"", name);
 
   for (auto&& info : *it) {
+    if (!info.contains("command"))
+      continue;
+
     std::string command;
     info.at("command").get_to(command);
 

@@ -17,6 +17,9 @@ PetscErrorCode Simulation::init_particles(
     PetscFunctionReturn(PETSC_SUCCESS);
 
   for (auto&& info : *it) {
+    if (!info.contains("sort_name"))
+      continue;
+
     SortParameters parameters;
     info.at("sort_name").get_to(parameters.sort_name);
     info.at("Np").get_to(parameters.Np);

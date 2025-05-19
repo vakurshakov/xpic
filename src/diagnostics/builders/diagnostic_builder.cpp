@@ -32,6 +32,9 @@ PetscErrorCode build_diagnostics(
     PetscFunctionReturn(PETSC_SUCCESS);
 
   for (auto&& info : *it) {
+    if (!info.contains("diagnostic"))
+      continue;
+
     std::string name;
     info.at("diagnostic").get_to(name);
 
