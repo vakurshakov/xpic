@@ -25,6 +25,9 @@ mec2  = 511.0  # KeV
 
 if "Particles" in config:
   for sort in config["Particles"]:
+    if sort.get("sort_name") is None:
+        continue
+
     name = sort["sort_name"]
 
     if name == "ions":

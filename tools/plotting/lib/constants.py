@@ -54,7 +54,8 @@ class Constants:
 
         if "Particles" in config:
             for sort in config["Particles"]:
-                self.sorts.append(sort["sort_name"])
+                if not sort.get("sort_name") is None:
+                    self.sorts.append(sort["sort_name"])
 
     def bounds_symmetric(G1: float, G2: float) -> tuple[float]:
         return (-0.5 * G1, +0.5 * G1, -0.5 * G2, +0.5 * G2)
