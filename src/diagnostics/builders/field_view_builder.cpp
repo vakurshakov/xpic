@@ -91,8 +91,8 @@ void FieldViewBuilder::parse_region_start_size(const Configuration::json_t& info
   }
 
   for (PetscInt i = 0; i < 3; ++i) {
-    region.start[i] = ROUND_STEP(start[i], Dx[i]);
-    region.size[i] = ROUND_STEP(size[i], Dx[i]);
+    region.start[i] = FLOOR_STEP(start[i], Dx[i]);
+    region.size[i] = FLOOR_STEP(size[i], Dx[i]);
   }
 }
 
@@ -110,7 +110,7 @@ void FieldViewBuilder::parse_res_dir_suffix(
     parse_plane_position(info, plane, position);
 
     Axis dir = get_component(plane);
-    PetscInt position_format = ROUND_STEP(position, Dx[dir]);
+    PetscInt position_format = FLOOR_STEP(position, Dx[dir]);
     suffix += std::format("plane{}_{:04d}", plane, position_format);
   }
 }
