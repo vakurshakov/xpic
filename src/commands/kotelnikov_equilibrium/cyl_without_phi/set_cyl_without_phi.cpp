@@ -7,20 +7,22 @@ namespace cyl_without_phi {
 
 namespace {
 
-static std::string get_distribution(
-  std::string_view param_str, std::string_view name)
+static PetscErrorCode evaluate(
+  TableFunction& table, std::string_view param_str, std::string_view name)
 {
+  PetscFunctionBeginUser;
   std::filesystem::path result(__FILE__);
   result = result.parent_path();
   result = result / "cache" / param_str / ("maxw_" + std::string(name));
-  return result.string();
+  PetscCall(table.evaluate_from_file(result));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 }
 
 SetEquilibriumField::SetEquilibriumField(std::string_view param_str)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, table_b.evaluate_from_file(get_distribution(param_str, "b")));
+  PetscCallAbort(PETSC_COMM_WORLD, evaluate(table_b, param_str, "b"));
 }
 
 void SetEquilibriumField::scale_coordinates(PetscReal scale)
@@ -77,7 +79,7 @@ PetscErrorCode SetEquilibriumField::operator()(Vec vec)
 
 LoadCoordinate::LoadCoordinate(std::string_view param_str)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, table_n.evaluate_from_file(get_distribution(param_str, "n")));
+  PetscCallAbort(PETSC_COMM_WORLD, evaluate(table_n, param_str, "n"));
   a = table_n.get_xmin();
 }
 
@@ -135,7 +137,7 @@ LoadMomentum::LoadMomentum(
   SortParameters params, bool tov, std::string_view param_str)
   : params(params), tov(tov)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, table_chi.evaluate_from_file(get_distribution(param_str, "chi")));
+  PetscCallAbort(PETSC_COMM_WORLD, evaluate(table_chi, param_str, "chi"));
   table_chi.scale_values(M_SQRT1_2);
 
   a = table_chi.get_xmin();
