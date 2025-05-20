@@ -118,7 +118,7 @@ PetscInt LoadCoordinate::get_cells_number() const
     if (PetscReal np = get_probability(r); np > n0_tolerance)
       integral += np * r * dr;
   }
-  return 2 * ROUND_STEP(2 * M_PI * integral, dx * dy) * geom_nz;
+  return ROUND_STEP(2 * M_PI * integral, dx * dy) * geom_nz;
 }
 
 PetscReal LoadCoordinate::get_probability(PetscReal r) const

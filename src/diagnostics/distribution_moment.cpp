@@ -24,6 +24,10 @@ std::unique_ptr<DistributionMoment> DistributionMoment::create(
   PetscFunctionReturn(std::unique_ptr<DistributionMoment>(diagnostic));
 }
 
+DistributionMoment::DistributionMoment(const Particles& particles)
+  : FieldView(particles.world.da, nullptr), particles_(particles)
+{
+}
 
 DistributionMoment::DistributionMoment(const std::string& out_dir,
   const Particles& particles, const Moment& moment, MPI_Comm newcomm)
@@ -120,6 +124,38 @@ PetscErrorCode DistributionMoment::diagnose(PetscInt t)
 
 
 /**
+ * @brief This class is reduced from global `Shape` to be used in a specific task:
+ * (1) All moments are represented as a cell-centered quantities;
+ * (2) Lower order `sfunc` is used to reduce the computational time;
+ * (3) Storage size for `cache` is also reduced using shape products.
+ */
+struct DistributionMoment::Shape {
+  Shape() = default;
+
+  static constexpr PetscInt shr = 1;
+  static constexpr PetscInt shw = 2;
+  static constexpr PetscInt shm = POW3(shw);
+  static constexpr const auto& sfunc = spline_of_1st_order;
+
+  Vector3I start;
+  PetscReal cache[shm];
+
+  void setup(const Vector3R& r)
+  {
+    Vector3R p_r = ::Shape::make_r(r);
+    start = ::Shape::make_start(p_r, shr);
+
+#pragma omp simd
+    for (PetscInt i = 0; i < shm; ++i) {
+      auto g_x = (PetscReal)(start[X] + i % shw) + 0.5;
+      auto g_y = (PetscReal)(start[Y] + (i / shw) % shw) + 0.5;
+      auto g_z = (PetscReal)(start[Z] + (i / shw) / shw) + 0.5;
+      cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
+    }
+  }
+};
+
+/**
  * @note Communication is needed to prevent data losses. Moreover, the type of
  * data exchanges is dictated by the coordinates of the moment (`Projector`).
  * For example, if we collect particles density on (x, y, z) coordinates, we
@@ -142,7 +178,9 @@ PetscErrorCode DistributionMoment::collect()
   const Vector3I gstart = vector_cast(region_.start);
   const Vector3I gsize = vector_cast(region_.size);
 
-#pragma omp parallel for
+  Shape shape;
+
+#pragma omp parallel for private(shape)
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
     Vector3I vg{
       start[X] + g % size[X],
@@ -154,18 +192,17 @@ PetscErrorCode DistributionMoment::collect()
       continue;
 
     for (auto&& point : particles_.storage[g]) {
-      Shape shape;
       shape.setup(point.r);
 
       std::vector<PetscReal> moments = moment_(particles_, point);
       auto msize = static_cast<PetscInt>(moments.size());
 
-      for (PetscInt i = 0; i < shape.size.elements_product(); ++i) {
-        PetscInt g_x = shape.start[X] + i % shape.size[X];
-        PetscInt g_y = shape.start[Y] + (i / shape.size[X]) % shape.size[Y];
-        PetscInt g_z = shape.start[Z] + (i / shape.size[X]) / shape.size[Y];
+      for (PetscInt i = 0; i < shape.shm; ++i) {
+        PetscInt g_x = shape.start[X] + i % shape.shw;
+        PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
+        PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
 
-        PetscReal si = shape.density(i) * particles_.n_Np(point);
+        PetscReal si = shape.cache[i] * particles_.n_Np(point);
 
         for (PetscInt j = 0; j < msize; ++j) {
           PetscReal mj = moments[j] * si;

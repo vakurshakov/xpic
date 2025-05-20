@@ -31,7 +31,7 @@ public:
 
   static constexpr PetscInt i_p(PetscInt i, ShapeType t, PetscInt c)
   {
-    return i * shape_comp + ((t % 2) * Vector3I::dim + c);
+    return i * shc + ((t % 2) * Vector3I::dim + c);
   }
 
   void setup(const Vector3R& p_r)
@@ -48,13 +48,6 @@ public:
 
   void setup(const Vector3R& old_r, const Vector3R& new_r, PetscReal radius,
     PetscReal (&sfunc)(PetscReal));
-
-  /// @returns Shape products corresponding to particles density.
-  /// @note No check is performed to see if the `ShapeType::No/Sh` type pair is set.
-  constexpr PetscReal density(PetscInt i) const
-  {
-    return shape[i_p(i, No, Z)] * shape[i_p(i, No, Y)] * shape[i_p(i, No, X)];
-  }
 
   /// @returns Vector of shape products corresponding to electric fields.
   /// @note No check is performed to see if the `ShapeType::No/Sh` type pair is set.
@@ -85,21 +78,18 @@ public:
     return shape[i_p(i, t, c)];
   }
 
-private:
   static Vector3R make_r(const Vector3R& r);
   static Vector3I make_start(const Vector3R& p_r, PetscReal radius);
   static Vector3I make_end(const Vector3R& p_r, PetscReal radius);
 
+private:
   void fill(const Vector3R& p_r1, const Vector3R& p_r2, ShapeType t1,
     ShapeType t2, PetscReal (&sfunc)(PetscReal));
 
   /// @note `Vector3I::dim` is used as a coordinate space dimensionality.
-  static constexpr PetscInt shape_geom = POW3(shape_width);
-  static constexpr PetscInt shape_comp = Vector3I::dim * 2;
-  static constexpr std::size_t shape_size =
-    static_cast<std::size_t>(shape_geom) * shape_comp;
-
-  std::array<PetscReal, shape_size> shape;
+  static constexpr PetscInt shc = Vector3I::dim * 2;
+  static constexpr PetscInt shm = POW3(shape_width) * shc;
+  PetscReal shape[shm];
 };
 
 #endif  // SRC_UTILS_SHAPE_H

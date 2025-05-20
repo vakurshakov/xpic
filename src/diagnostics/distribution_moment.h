@@ -26,15 +26,18 @@ public:
   PetscErrorCode finalize() override;
   PetscErrorCode diagnose(PetscInt t) override;
 
-private:
+protected:
+  DistributionMoment(const interfaces::Particles& particles);
+
   DistributionMoment(const std::string& out_dir,
     const interfaces::Particles& particles, const Moment& moment,
     MPI_Comm newcomm);
 
-  PetscErrorCode set_data_views(const Region& region);
+  PetscErrorCode set_data_views(const Region& region) override;
   PetscErrorCode set_local_da(const Region& region);
 
-  PetscErrorCode collect();
+  struct Shape;
+  virtual PetscErrorCode collect();
 
   DM global_da_;
   Vec local_;

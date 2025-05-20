@@ -33,8 +33,10 @@ protected:
   static PetscErrorCode get_local_communicator(
     DM da, const Region& region, MPI_Comm* newcomm);
 
+  FieldView(DM da, Vec field);
   FieldView(const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm);
-  PetscErrorCode set_data_views(const Region& region);
+
+  virtual PetscErrorCode set_data_views(const Region& region);
 
   DM da_;
   Vec field_;

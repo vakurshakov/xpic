@@ -18,7 +18,6 @@ std::unique_ptr<FieldView> FieldView::create(
   PetscFunctionReturn(std::unique_ptr<FieldView>(diagnostic));
 }
 
-
 /// @returns Non-null communicator for those processes,
 /// where region intersects with local boundaries of DM.
 PetscErrorCode FieldView::get_local_communicator(
@@ -39,6 +38,10 @@ PetscErrorCode FieldView::get_local_communicator(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+FieldView::FieldView(DM da, Vec field)
+  : da_(da), field_(field)
+{
+}
 
 FieldView::FieldView(
   const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm)
