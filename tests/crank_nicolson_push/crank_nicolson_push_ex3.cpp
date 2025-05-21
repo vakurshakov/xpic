@@ -40,10 +40,11 @@ int main(int argc, char** argv)
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     const Point point_0(point_n);
 
-    push.set_fields_callback([t](const Vector3R&, Vector3R& E_p, Vector3R& B_p) {
-      E_p = E0 * (t * dt);
-      B_p = B0;
-    });
+    push.set_fields_callback(
+      [t](const Vector3R&, const Vector3R&, Vector3R& E_p, Vector3R& B_p) {
+        E_p = E0 * (t * dt);
+        B_p = B0;
+      });
 
     PetscCall(trace.diagnose(t));
     push.process(dt, point_n, point_0);

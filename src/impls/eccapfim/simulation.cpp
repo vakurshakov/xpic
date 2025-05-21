@@ -118,7 +118,7 @@ PetscErrorCode Simulation::form_iteration(
   PetscFunctionBeginUser;
   auto* simulation = (Simulation*)ctx;
 
-  /// @note The clock will show the time of only the last iteration
+  /// @todo The clock shows the time of only the last iteration
   PetscCall(simulation->clock.push(__FUNCTION__));
 
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));

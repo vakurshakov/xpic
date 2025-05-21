@@ -1,10 +1,11 @@
 #include "particles.h"
 
 #include "src/algorithms/crank_nicolson_push.h"
-#include "src/algorithms/esirkepov_decomposition.h"
+#include "src/algorithms/implicit_esirkepov.h"
 #include "src/algorithms/simple_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
 #include "src/diagnostics/particles_energy.h"
+#include "src/impls/eccapfim/cell_traversal.h"
 #include "src/impls/eccapfim/simulation.h"
 
 namespace eccapfim {
@@ -26,6 +27,12 @@ PetscReal Particles::get_average_iteration_number() const
 
 PetscErrorCode Particles::form_iteration()
 {
+  /// @todo Create a separate shape only for ImplicitEsirkepov interpolation/decomposition
+  using namespace ImplicitEsirkepov;
+
+  std::vector<Vector3R> coords;
+  PetscReal path;
+
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(world.da, local_J, &J));
 
@@ -36,31 +43,38 @@ PetscErrorCode Particles::form_iteration()
 
       CrankNicolsonPush push(q_m(point));
 
-      /// @todo This `Shape` and `SimpleInterpolation`, `SimpleDecomposition` below
-      /// should be replaced with charge-conserving ones, using non-symmetric particle shape
-      Shape shape;
+      push.set_fields_callback(  //
+        [&](const Vector3R& rn, const Vector3R& r0, Vector3R& E_p, Vector3R& B_p) {
+          path = (rn - r0).length();
+          coords = cell_traversal(rn, r0);
 
-      push.set_fields_callback(
-        [&](const Vector3R& r, Vector3R& E_p, Vector3R& B_p) {
-          shape.setup(r, shape_radius, shape_func);
+          for (PetscInt s = 0; s < (PetscInt)coords.size() - 1; ++s) {
+            auto&& rs0 = coords[s + 0];
+            auto&& rsn = coords[s + 1];
 
-          SimpleInterpolation interpolation(shape);
-          interpolation.process({{E_p, E}}, {{B_p, B}});
+            Vector3R Ei_p, Bi_p;
+            interpolation(Ei_p, E, rsn, rs0);
+            interpolation(Bi_p, B, rsn, rs0);
+
+            PetscReal beta = path > 0 ? (rsn - rs0).length() / path : 1.0;
+            E_p += Ei_p * beta;
+            B_p += Bi_p * beta;
+          }
         });
 
-      /// @todo This `dt` can be different from the global one, if we introduce sub-stepping
       push.process(dt, point, point_0);
-
-      /// @todo For now, we have to check that particle doesn't pass the cell boundaries
-      PetscAssertAbort((point.r - point_0.r).abs_max() < dx, PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "Particle cannot move farther than one cell at a time");
-
       avgit += push.get_iteration_number() / size;
 
-      /// @todo Separate particle advancement and current decomposition onto different stages?
-      Vector3R J_p = qn_Np(point) * 0.5 * (point.p + point_0.p);
-      SimpleDecomposition decomposition(shape, J_p);
-      decomposition.process(J);
+      path = (point.r - point_0.r).length();
+      coords = cell_traversal(point.r, point_0.r);
+
+      for (PetscInt s = 0; s < (PetscInt)coords.size() - 1; ++s) {
+        auto&& rs0 = coords[s + 0];
+        auto&& rsn = coords[s + 1];
+
+        PetscReal alpha = (qn_Np(point) / 6.0) * (rsn - rs0).length() / path;
+        decomposition(J, rsn, rs0, 0.5 * (point.p + point_0.p), alpha);
+      }
 
       i++;
     }

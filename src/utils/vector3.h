@@ -47,6 +47,24 @@ struct Vector3 {
     return data;
   }
 
+  bool operator==(const Vector3& other) const
+    requires std::is_integral_v<T>
+  {
+    return                   //
+      data[X] == other[X] && //
+      data[Y] == other[Y] && //
+      data[Z] == other[Z];   //
+  }
+
+  bool operator==(const Vector3& other) const
+    requires std::is_floating_point_v<T>
+  {
+    return                                                    //
+      std::abs(data[X] - other[X]) < PETSC_MACHINE_EPSILON && //
+      std::abs(data[Y] - other[Y]) < PETSC_MACHINE_EPSILON && //
+      std::abs(data[Z] - other[Z]) < PETSC_MACHINE_EPSILON;   //
+  }
+
   Vector3& operator+=(const Vector3& other)
   {
     data[X] += other[X];

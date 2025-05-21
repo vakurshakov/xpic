@@ -7,7 +7,8 @@ static constexpr char help[] =
 
 constexpr Vector3R B0(0.0, 0.0, 2.0);
 
-void get_magnetic_field(const Vector3R& xh, Vector3R& E_p, Vector3R& B_p);
+void get_magnetic_field(
+  const Vector3R& xn, const Vector3R& x0, Vector3R& E_p, Vector3R& B_p);
 
 int main(int argc, char** argv)
 {
@@ -72,7 +73,7 @@ int main(int argc, char** argv)
   return EXIT_SUCCESS;
 }
 
-void get_magnetic_field(const Vector3R&, Vector3R&, Vector3R& B_p)
+void get_magnetic_field(const Vector3R&, const Vector3R&, Vector3R&, Vector3R& B_p)
 {
   B_p = B0;
 }

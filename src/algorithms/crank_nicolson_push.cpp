@@ -35,7 +35,7 @@ void CrankNicolsonPush::process(PetscReal dt, Point& pn, const Point& p0)
 
   PetscReal r0 = 0, rn = 0;
 
-  set_fields(0.5 * (pn.r + p0.r), E_p, B_p);
+  set_fields(pn.r, p0.r, E_p, B_p);
   r0 = get_residue(dt, pn, p0);
 
   for (it = 0; it < maxit; ++it) {
@@ -46,7 +46,7 @@ void CrankNicolsonPush::process(PetscReal dt, Point& pn, const Point& p0)
     if (rn < atol + rtol * r0)
       return;
 
-    set_fields(0.5 * (pn.r + p0.r), E_p, B_p);
+    set_fields(pn.r, p0.r, E_p, B_p);
   }
 
   PetscCheckAbort(rn >= atol + rtol * r0, PETSC_COMM_WORLD, PETSC_ERR_USER,

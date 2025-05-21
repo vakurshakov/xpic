@@ -39,6 +39,7 @@ set(algorithms
   src/algorithms/esirkepov_decomposition.cpp
   src/algorithms/boris_push.cpp
   src/algorithms/crank_nicolson_push.cpp
+  src/algorithms/implicit_esirkepov.cpp
 )
 
 set(diagnostics
@@ -116,6 +117,7 @@ set(impls_ricketson
 set(impls_eccapfim
   src/impls/eccapfim/simulation.cpp
   src/impls/eccapfim/particles.cpp
+  src/impls/eccapfim/cell_traversal.cpp
 )
 
 add_library(
