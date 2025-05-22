@@ -21,6 +21,7 @@ public:
   PetscErrorCode form_iteration();
 
   PetscReal get_average_iteration_number() const;
+  PetscReal get_average_number_of_traversed_cells() const;
 
   Vector3R*** E;
   Vector3R*** B;
@@ -39,6 +40,7 @@ protected:
 
   PetscInt size = 0;
   PetscReal avgit = 0;
+  PetscReal avgcell = 0;
 
   Simulation& simulation_;
 };

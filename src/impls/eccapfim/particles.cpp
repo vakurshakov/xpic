@@ -25,10 +25,19 @@ PetscReal Particles::get_average_iteration_number() const
   return avgit;
 }
 
+PetscReal Particles::get_average_number_of_traversed_cells() const
+{
+  return avgcell;
+}
+
+
 PetscErrorCode Particles::form_iteration()
 {
   /// @todo Create a separate shape only for ImplicitEsirkepov interpolation/decomposition
   using namespace ImplicitEsirkepov;
+
+  avgit = 0.0;
+  avgcell = 0.0;
 
   std::vector<Vector3R> coords;
   PetscReal path;
@@ -48,9 +57,9 @@ PetscErrorCode Particles::form_iteration()
           path = (rn - r0).length();
           coords = cell_traversal(rn, r0);
 
-          for (PetscInt s = 0; s < (PetscInt)coords.size() - 1; ++s) {
-            auto&& rs0 = coords[s + 0];
-            auto&& rsn = coords[s + 1];
+          for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
+            auto&& rs0 = coords[s - 1];
+            auto&& rsn = coords[s - 0];
 
             Vector3R Ei_p, Bi_p;
             interpolation(Ei_p, E, rsn, rs0);
@@ -63,14 +72,15 @@ PetscErrorCode Particles::form_iteration()
         });
 
       push.process(dt, point, point_0);
-      avgit += push.get_iteration_number() / size;
+      avgit += (PetscReal)push.get_iteration_number() / size;
 
       path = (point.r - point_0.r).length();
       coords = cell_traversal(point.r, point_0.r);
+      avgcell += (PetscReal)(coords.size() - 1) / size;
 
-      for (PetscInt s = 0; s < (PetscInt)coords.size() - 1; ++s) {
-        auto&& rs0 = coords[s + 0];
-        auto&& rsn = coords[s + 1];
+      for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
+        auto&& rs0 = coords[s - 1];
+        auto&& rsn = coords[s - 0];
 
         PetscReal alpha = (qn_Np(point) / 6.0) * (rsn - rs0).length() / path;
         decomposition(J, rsn, rs0, 0.5 * (point.p + point_0.p), alpha);
@@ -96,6 +106,8 @@ PetscErrorCode Particles::clear_sources()
 PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
+  size = 0;
+
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto&& curr = storage[g];
     if (curr.empty())
