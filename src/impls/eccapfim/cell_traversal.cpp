@@ -1,8 +1,5 @@
 #include "cell_traversal.h"
 
-#include <iostream>
-#include <vector>
-
 std::vector<Vector3R> cell_traversal(const Vector3R& end, const Vector3R& start)
 {
   Vector3I curr{
