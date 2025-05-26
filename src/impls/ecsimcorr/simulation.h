@@ -9,8 +9,6 @@ namespace ecsimcorr {
 
 class Simulation final : public ecsim::Simulation {
 public:
-  DEFAULT_MOVABLE(Simulation);
-
   Simulation() = default;
   PetscErrorCode finalize() override;
 

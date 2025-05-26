@@ -11,8 +11,6 @@ namespace interfaces {
 
 class Builder {
 public:
-  DEFAULT_MOVABLE(Builder);
-
   Builder(Simulation& simulation);
   virtual ~Builder() = default;
 

@@ -15,7 +15,7 @@ PetscErrorCode LogViewBuilder::build(const Configuration::json_t& info)
   std::string level_info;
   info.at("level").get_to(level_info);
 
-  LogView::Level level;
+  LogView::Level level = LogView::EachTimestep;
 
   if (level_info == "EachTimestep")
     level = LogView::EachTimestep;

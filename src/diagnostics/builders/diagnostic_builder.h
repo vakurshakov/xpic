@@ -9,8 +9,6 @@
 
 class DiagnosticBuilder : public interfaces::Builder {
 public:
-  DEFAULT_MOVABLE(DiagnosticBuilder);
-
   DiagnosticBuilder(
     interfaces::Simulation& simulation, std::vector<Diagnostic_up>& result);
 

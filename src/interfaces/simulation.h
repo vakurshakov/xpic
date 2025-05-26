@@ -15,9 +15,8 @@ class Simulation {
   friend class ::EnergyConservation;
 
 public:
-  DEFAULT_MOVABLE(Simulation);
-
   Simulation() = default;
+  virtual ~Simulation() = default;
 
   /// @brief From what timepoint the simulation starts, see `Simulation::calculate()`.
   PetscInt start = 0;

@@ -10,9 +10,8 @@ namespace interfaces {
 
 class Particles {
 public:
-  DEFAULT_MOVABLE(Particles);
-
   Particles(const World& world, const SortParameters& parameters);
+  virtual ~Particles() = default;
 
   /// @brief Inheritors should override this finalize, to clear the internal petsc data
   virtual PetscErrorCode finalize()

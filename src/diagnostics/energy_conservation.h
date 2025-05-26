@@ -8,8 +8,6 @@
 
 class EnergyConservation : public TableDiagnostic {
 public:
-  DEFAULT_MOVABLE(EnergyConservation);
-
   EnergyConservation( //
     const interfaces::Simulation& simulation,
     std::shared_ptr<FieldsEnergy> fields_energy,
