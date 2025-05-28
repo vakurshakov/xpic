@@ -7,23 +7,29 @@
 
 std::unique_ptr<VelocityDistribution> VelocityDistribution::create(
   const std::string& out_dir, const interfaces::Particles& particles,
+  const Projector& projector, const Tester& within_geom,
   const Region& xreg_aabb, const VelocityRegion& vreg)
 {
   PetscFunctionBeginUser;
-  // Communicator is based on axis-aligned bounding box of space integration domain
+  // Communicator is based on axis-aligned bounding box (AABB) of space integration domain
   MPI_Comm newcomm;
   PetscCallAbort(PETSC_COMM_WORLD, get_local_communicator(particles.world.da, xreg_aabb, &newcomm));
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
-  auto* diagnostic = new VelocityDistribution(out_dir, particles, newcomm);
+  auto* diagnostic = new VelocityDistribution(
+    out_dir, particles, projector, within_geom, newcomm);
+
   PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_regions(xreg_aabb, vreg));
   PetscFunctionReturn(std::unique_ptr<VelocityDistribution>(diagnostic));
 }
 
 VelocityDistribution::VelocityDistribution(const std::string& out_dir,
-  const interfaces::Particles& particles, MPI_Comm newcomm)
-  : DistributionMoment(out_dir, particles, nullptr, newcomm)
+  const interfaces::Particles& particles, const Projector& projector,
+  const Tester& within_geom, MPI_Comm newcomm)
+  : DistributionMoment(out_dir, particles, nullptr, newcomm),
+    projector(projector),
+    within_geom(within_geom)
 {
 }
 

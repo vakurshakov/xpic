@@ -32,13 +32,15 @@ public:
 
   static std::unique_ptr<VelocityDistribution> create( //
     const std::string& out_dir, const interfaces::Particles& particles,
+    const Projector& projector, const Tester& within_geom,
     const Region& xreg_aabb, const VelocityRegion& vreg);
 
   PetscErrorCode finalize() override;
 
 protected:
   VelocityDistribution(const std::string& out_dir,
-    const interfaces::Particles& particles, MPI_Comm newcomm);
+    const interfaces::Particles& particles, const Projector& projector,
+    const Tester& within_geom, MPI_Comm newcomm);
 
   PetscErrorCode set_regions(const Region& xreg_aabb, const VelocityRegion& vreg);
   PetscErrorCode set_data_views(const Region& /* reg */) override;

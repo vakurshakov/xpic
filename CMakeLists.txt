@@ -58,6 +58,7 @@ set(diagnostics
   src/diagnostics/builders/distribution_moment_builder.cpp
   src/diagnostics/builders/log_view_builder.cpp
   src/diagnostics/builders/simulation_backup_builder.cpp
+  src/diagnostics/builders/velocity_distribution_builder.cpp
 )
 
 set(commands
