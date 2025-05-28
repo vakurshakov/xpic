@@ -253,7 +253,7 @@ inline std::vector<PetscReal> _get_v_cyl(const Point& point)
 
   auto&& v = point.p;
 
-  // interfaces::Particles close to r=0 are not taken into account
+  // Particles close to r=0 are not taken into account
   if (std::isinf(1.0 / r))
     return {v[X], v[Y], v[Z]};
 

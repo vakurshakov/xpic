@@ -3,6 +3,15 @@
 
 #include "src/diagnostics/distribution_moment.h"
 
+/// @brief Customizable projector of particle velocities
+using Projector = std::tuple<PetscReal, PetscReal> (*)(const Point&);
+
+/// @note To see the list of available projectors, check the implementation
+Projector projector_from_string(const std::string& name);
+
+/// @brief Default geometry tester from "src/utils/geometries.h"
+using Tester = std::function<bool(const Vector3R&)>;
+
 /**
  * @brief This diagnostic collects velocity distribution
  * with some restrictions on space coordinates and velocity.
@@ -41,6 +50,9 @@ protected:
 
   Vector3I xstart, xsize;
   Vector3I vstart, vsize;
+
+  Projector projector;
+  Tester within_geom;
 
   IS is;
   VecScatter ctx;

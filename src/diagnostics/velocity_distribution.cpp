@@ -103,10 +103,6 @@ PetscErrorCode VelocityDistribution::set_data_views(const Region& /* reg */)
 }
 
 
-/// @todo Test-condition is required for spatial coordinates
-/// @todo Projector here is required in case we would need to
-/// map `point.p` onto cylinder or field-aligned coordinates.
-/// Without it, we wouldn't be able to remap components later.
 PetscErrorCode VelocityDistribution::collect()
 {
   PetscFunctionBeginUser;
@@ -130,9 +126,20 @@ PetscErrorCode VelocityDistribution::collect()
     if (!is_point_within_bounds(vg, xstart, xsize))
       continue;
 
+    Vector3R r{
+      (vg[X] + 0.5) * dx,
+      (vg[Y] + 0.5) * dy,
+      (vg[Z] + 0.5) * dz,
+    };
+
+    if (!within_geom(r))
+      continue;
+
     for (auto&& point : particles_.storage[g]) {
-      vg[X] = ROUND_STEP(point.px(), vreg.dvx);
-      vg[Y] = ROUND_STEP(point.py(), vreg.dvy);
+      auto [vx, vy] = projector(point);
+
+      vg[X] = ROUND_STEP(vx, vreg.dvx);
+      vg[Y] = ROUND_STEP(vy, vreg.dvy);
       vg[Z] = 0;
 
       if (!is_point_within_bounds(vg, vstart, vsize))
@@ -147,4 +154,46 @@ PetscErrorCode VelocityDistribution::collect()
   PetscCall(VecScatterBegin(ctx, local_, field_, ADD_VALUES, SCATTER_FORWARD));
   PetscCall(VecScatterEnd(ctx, local_, field_, ADD_VALUES, SCATTER_FORWARD));
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+std::tuple<PetscReal, PetscReal> get_vx_vy(const Point& point)
+{
+  return {point.px(), point.py()};
+}
+
+std::tuple<PetscReal, PetscReal> get_vz_vxy(const Point& point)
+{
+  const Vector3R perp(point.px(), point.py(), 0);
+  return {point.pz(), perp.length()};
+}
+
+std::tuple<PetscReal, PetscReal> get_vr_vphi(const Point& point)
+{
+  PetscReal x = point.x() - 0.5 * geom_x;
+  PetscReal y = point.y() - 0.5 * geom_y;
+  PetscReal r = std::hypot(x, y);
+
+  auto&& v = point.p;
+
+  // Particles close to r=0 are not taken into account
+  if (std::isinf(1.0 / r))
+    return {v[X], v[Y]};
+
+  return {
+    (+x * v[X] + y * v[Y]) / r,
+    (-y * v[X] + x * v[Y]) / r,
+  };
+}
+
+Projector projector_from_string(const std::string& name)
+{
+  if (name == "vx_vy")
+    return get_vx_vy;
+  if (name == "vz_vxy")
+    return get_vz_vxy;
+  if (name == "vr_vphi")
+    return get_vr_vphi;
+
+  throw std::runtime_error("Unkown projector name " + std::string(name));
 }
