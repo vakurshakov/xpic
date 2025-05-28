@@ -170,7 +170,7 @@ SeparateDefinitionBlocks: Leave
 ShortNamespaceLines: 10
 SkipMacroDefinitionBody: false
 SortIncludes: CaseSensitive
-SortUsingDeclarations: LexicographicNumeric
+SortUsingDeclarations: false
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
 SpaceAfterTemplateKeyword: false

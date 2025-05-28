@@ -20,7 +20,8 @@ ParticlesChargeDensity::ParticlesChargeDensity(
   PetscCallAbort(PETSC_COMM_WORLD, set_data_views(region));
 }
 
-PetscErrorCode ParticlesChargeDensity::set_data_views(const FieldView::Region& region)
+PetscErrorCode ParticlesChargeDensity::set_data_views(
+  const FieldView::Region& region)
 {
   PetscFunctionBeginUser;
   PetscCall(set_local_da(region));
