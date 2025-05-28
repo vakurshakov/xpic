@@ -15,6 +15,14 @@ struct CylinderGeometry {
   PetscReal height;
 };
 
+struct AnnulusGeometry {
+  Vector3R center;
+  PetscReal inner_r;
+  PetscReal outer_r;
+  PetscReal height;
+};
+
+
 struct WithinBox {
   bool operator()(const Vector3R& r);
   BoxGeometry geom;
@@ -24,6 +32,12 @@ struct WithinCylinder {
   bool operator()(const Vector3R& r);
   CylinderGeometry geom;
 };
+
+struct WithinAnnulus {
+  bool operator()(const Vector3R& r);
+  AnnulusGeometry geom;
+};
+
 
 bool is_point_within_bounds(
   const Vector3I& point, const Vector3I& b_start, const Vector3I& b_size);

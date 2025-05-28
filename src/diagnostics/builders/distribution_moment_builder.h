@@ -2,7 +2,6 @@
 #define SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_MOMENT_BUILDER_H
 
 #include "src/diagnostics/builders/field_view_builder.h"
-#include "src/diagnostics/distribution_moment.h"
 
 class DistributionMomentBuilder : public FieldViewBuilder {
 public:
@@ -19,8 +18,9 @@ public:
       "  \"diagnostic\": \"DistributionMoment\" -- Name of the diagnostic.\n"
       "  \"particles\": \"electrons\", -- Name from `Particles` settings.\n"
       "  \"moment\": \"Density\", -- Name of the moment getter, available\n"
-      "                           getters are: Density, V, V_cyl, mVV,\n"
-      "                           mVV_cyl, mVV_diag, mVV_diag_cyl.\n"
+      "                           getters are: density, current,\n"
+      "                           momentum_flux, momentum_flux_cyl,\n"
+      "                           momentum_flux_diag, momentum_flux_diag_cyl.\n"
       "  \"start\": [ox, oy, oz], -- Starting point of a diagnosed region, in\n"
       "                           global coordinates of c/w_pe units.\n"
       "                           Optional, zeros will be used if empty.\n"

@@ -11,8 +11,6 @@ namespace interfaces {
 
 class Builder {
 public:
-  DEFAULT_MOVABLE(Builder);
-
   Builder(Simulation& simulation);
   virtual ~Builder() = default;
 
@@ -38,7 +36,8 @@ public:
 
   virtual std::string_view usage_message() const = 0;
 
-  static Vector3R parse_vector(const Configuration::json_t& info, const std::string& name);
+  static Vector3R parse_vector(
+    const Configuration::json_t& info, const std::string& name);
   static PetscReal parse_value(const Configuration::json_t& value);
 
 protected:

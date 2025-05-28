@@ -6,8 +6,6 @@
 
 class TableDiagnostic : public interfaces::Diagnostic {
 public:
-  DEFAULT_MOVABLE(TableDiagnostic);
-
   TableDiagnostic(const std::string& filename);
   PetscErrorCode diagnose(PetscInt t) final;
 

@@ -30,7 +30,7 @@ public:
   void update_vEB(PetscReal dt, Point& point) const;
 
   /// @brief Relativistic move that updates _both_ momentum and coordinate.
-  void process(PetscReal dt, Point& point, //
+  void process(PetscReal dt, Point& point,  //
     const interfaces::Particles& particles) const;
 
 private:

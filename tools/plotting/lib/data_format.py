@@ -26,7 +26,7 @@ class FieldView():
         self.comp: int = None
         self.cos: np.ndarray = None
         self.sin: np.ndarray = None
-    
+
     def init_cos_sin(self, cos: np.ndarray, sin: np.ndarray):
         self.cos = cos
         self.sin = sin
@@ -57,10 +57,23 @@ class FieldView():
 
     def parse(self, t: int) -> np.ndarray[np.float32]:
         if self.region.dof == 1:
-            return self.read(t).squeeze(2)
+            return self.parse_plane(t)
         elif self.region.dof == 3 and self.coords == FieldView.Cylindrical:
             return self.parse_cyl(t)
         return self.read(t)[:, :, self.comp]
+
+    def parse_plane(self, t: int):
+        data = self.read(t)
+        if (len(data.shape) == 2):
+            return data
+        elif (len(data.shape) == 3):
+            if (self.plane == "X"):
+                return data.squeeze(0)
+            elif (self.plane == "Y"):
+                return data.squeeze(1)
+            elif (self.plane == "Z"):
+                return data.squeeze(2)
+        return data
 
     def parse_cyl(self, t: int):
         if self.plane == "Z" and self.comp in (0, 1):

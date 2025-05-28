@@ -13,8 +13,6 @@ namespace ecsim {
 /// @see https://doi.org/10.1016/j.jcp.2017.01.002
 class Simulation : public interfaces::Simulation {
 public:
-  DEFAULT_MOVABLE(Simulation);
-
   Simulation() = default;
   PetscErrorCode finalize() override;
 

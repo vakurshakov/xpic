@@ -46,8 +46,8 @@ void Configuration::save_sources(const std::string& out_dir)
       std::filesystem::copy_options::recursive);
 }
 
-void Configuration::save(const std::string& from,
-  const std::string& to, std::filesystem::copy_options options)
+void Configuration::save(const std::string& from, const std::string& to,
+  std::filesystem::copy_options options)
 {
   PetscInt rank;
   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);

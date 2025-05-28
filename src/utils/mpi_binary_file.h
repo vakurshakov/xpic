@@ -9,8 +9,6 @@
 /// Currently it is tightly coupled with our diagnostics.
 class MPI_BinaryFile {
 public:
-  DEFAULT_MOVABLE(MPI_BinaryFile);
-
   MPI_BinaryFile() = default;
   ~MPI_BinaryFile();
 

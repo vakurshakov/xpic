@@ -8,7 +8,7 @@ namespace interfaces {
 
 class Diagnostic {
 public:
-  DEFAULT_MOVABLE(Diagnostic);
+  virtual ~Diagnostic() = default;
 
   Diagnostic();
   Diagnostic(const std::string& out_dir);

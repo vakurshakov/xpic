@@ -7,9 +7,6 @@
 /// @todo Rewrite the class as a wrapper around `PetscViewer`
 class SyncFile {
 public:
-  /// @warning std::ofstream is not copyable.
-  DEFAULT_MOVABLE(SyncFile);
-
   SyncFile() = default;
   ~SyncFile() = default;
 

@@ -4,6 +4,7 @@
 #include "src/diagnostics/builders/field_view_builder.h"
 #include "src/diagnostics/builders/log_view_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
+#include "src/diagnostics/builders/velocity_distribution_builder.h"
 #include "src/utils/geometries.h"
 
 DiagnosticBuilder::DiagnosticBuilder(
@@ -47,6 +48,9 @@ PetscErrorCode build_diagnostics(
     }
     else if (name == "DistributionMoment") {
       PetscCall(Builder::use_impl<DistributionMomentBuilder>(info, simulation, result));
+    }
+    else if (name == "VelocityDistribution") {
+      PetscCall(Builder::use_impl<VelocityDistributionBuilder>(info, simulation, result));
     }
     else if (name == "LogView") {
       PetscCall(Builder::use_impl<LogViewBuilder>(info, simulation, result));

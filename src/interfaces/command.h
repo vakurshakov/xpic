@@ -13,9 +13,8 @@ namespace interfaces {
  */
 class Command {
 public:
-  DEFAULT_MOVABLE(Command);
-
   Command() = default;
+  virtual ~Command() = default;
 
   /// @brief Explicit finalize should be called to end up the command.
   virtual PetscErrorCode finalize()

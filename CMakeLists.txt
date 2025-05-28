@@ -17,8 +17,8 @@ set(CMAKE_CONFIGURATION_TYPES
   "Release"
 )
 
-set(CMAKE_CXX_FLAGS "-fpic -fopenmp")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
 
 set(PETSC_ARCH_OPT linux-mpi-opt)
@@ -52,12 +52,14 @@ set(diagnostics
   src/diagnostics/simulation_backup.cpp
   src/diagnostics/energy_conservation.cpp
   src/diagnostics/charge_conservation.cpp
+  src/diagnostics/velocity_distribution.cpp
   src/diagnostics/utils/table_diagnostic.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
   src/diagnostics/builders/log_view_builder.cpp
   src/diagnostics/builders/simulation_backup_builder.cpp
+  src/diagnostics/builders/velocity_distribution_builder.cpp
 )
 
 set(commands

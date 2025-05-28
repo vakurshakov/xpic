@@ -18,6 +18,17 @@ bool WithinCylinder::operator()(const Vector3R& r)
     ((x * x + y * y) <= POW2(geom.radius));
 }
 
+bool WithinAnnulus::operator()(const Vector3R& r)
+{
+  PetscReal x = r[X] - geom.center[X];
+  PetscReal y = r[Y] - geom.center[Y];
+  PetscReal z = r[Z] - geom.center[Z];
+  return (std::abs(z) < 0.5 * geom.height) &&
+    (POW2(geom.inner_r) <= (x * x + y * y) &&
+      (x * x + y * y) <= POW2(geom.outer_r));
+}
+
+
 bool is_point_within_bounds(
   const Vector3I& point, const Vector3I& b_start, const Vector3I& b_size)
 {

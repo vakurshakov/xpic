@@ -8,8 +8,6 @@ namespace ricketson {
 
 class Simulation final : public interfaces::Simulation {
 public:
-  DEFAULT_MOVABLE(Simulation);
-
   Simulation() = default;
   PetscErrorCode finalize() override;
 

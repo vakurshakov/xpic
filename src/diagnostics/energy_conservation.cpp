@@ -17,7 +17,8 @@ EnergyConservation::EnergyConservation( //
 }
 
 EnergyConservation::EnergyConservation(const interfaces::Simulation& simulation)
-  : TableDiagnostic(CONFIG().out_dir + "/temporal/energy_conservation.txt"), simulation(simulation)
+  : TableDiagnostic(CONFIG().out_dir + "/temporal/energy_conservation.txt"),
+    simulation(simulation)
 {
 }
 

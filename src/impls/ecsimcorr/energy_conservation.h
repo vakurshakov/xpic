@@ -8,8 +8,6 @@ namespace ecsimcorr {
 
 class EnergyConservation : public ::EnergyConservation {
 public:
-  DEFAULT_MOVABLE(EnergyConservation);
-
   EnergyConservation(const ecsimcorr::Simulation& simulation);
 
   EnergyConservation( //

@@ -8,8 +8,6 @@
 #include "src/utils/vector3.h"
 
 struct World {
-  DEFAULT_MOVABLE(World);
-
   World();
   ~World();
 

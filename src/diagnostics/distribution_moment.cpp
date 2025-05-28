@@ -5,13 +5,10 @@
 #include "src/utils/utils.h"
 #include "src/utils/vector_utils.h"
 
-/// @note Do not move this into header file, this will pollute global namespace
-using Particles = interfaces::Particles;
-
 
 std::unique_ptr<DistributionMoment> DistributionMoment::create(
-  const std::string& out_dir, const Particles& particles, const Moment& moment,
-  const Region& region)
+  const std::string& out_dir, const interfaces::Particles& particles,
+  const Moment& moment, const Region& region)
 {
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
@@ -24,19 +21,18 @@ std::unique_ptr<DistributionMoment> DistributionMoment::create(
   PetscFunctionReturn(std::unique_ptr<DistributionMoment>(diagnostic));
 }
 
-DistributionMoment::DistributionMoment(const Particles& particles)
+DistributionMoment::DistributionMoment(const interfaces::Particles& particles)
   : FieldView(particles.world.da, nullptr), particles_(particles)
 {
 }
 
 DistributionMoment::DistributionMoment(const std::string& out_dir,
-  const Particles& particles, const Moment& moment, MPI_Comm newcomm)
+  const interfaces::Particles& particles, const Moment& moment, MPI_Comm newcomm)
   : FieldView(out_dir, particles.world.da, nullptr, newcomm),
     particles_(particles),
     moment_(moment)
 {
 }
-
 
 PetscErrorCode DistributionMoment::finalize()
 {
@@ -46,7 +42,6 @@ PetscErrorCode DistributionMoment::finalize()
   PetscCall(VecDestroy(&field_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 PetscErrorCode DistributionMoment::set_data_views(const Region& region)
 {
@@ -58,7 +53,6 @@ PetscErrorCode DistributionMoment::set_data_views(const Region& region)
   PetscCall(FieldView::set_data_views(region));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 PetscErrorCode DistributionMoment::set_local_da(const Region& region)
 {
@@ -155,14 +149,6 @@ struct DistributionMoment::Shape {
   }
 };
 
-/**
- * @note Communication is needed to prevent data losses. Moreover, the type of
- * data exchanges is dictated by the coordinates of the moment (`Projector`).
- * For example, if we collect particles density on (x, y, z) coordinates, we
- * need to exchange the values that are placed in ghost cells. But if we are
- * collecting velocity distribution on (Vx, Vy, Vz) coordinates, the equivalent
- * of `MPI_Allreduce()` operation is needed.
- */
 PetscErrorCode DistributionMoment::collect()
 {
   PetscFunctionBeginUser;
@@ -219,13 +205,13 @@ PetscErrorCode DistributionMoment::collect()
 }
 
 inline std::vector<PetscReal> get_density(
-  const Particles& /* particles */, const Point& /* point */)
+  const interfaces::Particles& /* particles */, const Point& /* point */)
 {
   return {1.0};
 }
 
 inline std::vector<PetscReal> get_current(
-  const Particles& particles, const Point& point)
+  const interfaces::Particles& particles, const Point& point)
 {
   auto&& q = particles.parameters.q;
   auto&& v = point.p;
@@ -233,7 +219,7 @@ inline std::vector<PetscReal> get_current(
 }
 
 inline std::vector<PetscReal> get_momentum_flux(
-  const Particles& particles, const Point& point)
+  const interfaces::Particles& particles, const Point& point)
 {
   auto&& m = particles.parameters.m;
   auto&& v = point.p;
@@ -248,7 +234,7 @@ inline std::vector<PetscReal> get_momentum_flux(
 }
 
 inline std::vector<PetscReal> get_momentum_flux_diag(
-  const Particles& particles, const Point& point)
+  const interfaces::Particles& particles, const Point& point)
 {
   auto&& m = particles.parameters.m;
   auto&& v = point.p;
@@ -279,7 +265,7 @@ inline std::vector<PetscReal> _get_v_cyl(const Point& point)
 }
 
 inline std::vector<PetscReal> get_momentum_flux_cyl(
-  const Particles& particles, const Point& point)
+  const interfaces::Particles& particles, const Point& point)
 {
   auto&& m = particles.parameters.m;
   auto&& v = _get_v_cyl(point);
@@ -294,7 +280,7 @@ inline std::vector<PetscReal> get_momentum_flux_cyl(
 }
 
 inline std::vector<PetscReal> get_momentum_flux_diag_cyl(
-  const Particles& particles, const Point& point)
+  const interfaces::Particles& particles, const Point& point)
 {
   auto&& m = particles.parameters.m;
   auto&& v = _get_v_cyl(point);

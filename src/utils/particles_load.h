@@ -27,13 +27,8 @@ struct CoordinateInCylinder {
 };
 
 struct CoordinateOnAnnulus {
-  CoordinateOnAnnulus(const Vector3R& center, //
-    PetscReal inner_r, PetscReal outer_r, PetscReal height);
   Vector3R operator()();
-  Vector3R center;
-  PetscReal inner_r2;
-  PetscReal outer_r2;
-  PetscReal height;
+  AnnulusGeometry ann;
 };
 
 
