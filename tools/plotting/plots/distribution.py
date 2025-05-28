@@ -10,7 +10,9 @@ view.region = FieldView.Region(1, (0, 0), (200, 200))
 view.coords = FieldView.Cartesian
 view.comp = 0
 
-plot = PlotIm(view, (0, 1), unsigned_cmap)
+vmax = round(1.5 / (2 * np.pi * np.sqrt(T_e)))
+
+plot = PlotIm(view, (0, vmax), unsigned_cmap)
 
 bx = -1
 ex = +1

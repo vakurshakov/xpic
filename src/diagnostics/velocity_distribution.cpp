@@ -86,18 +86,19 @@ PetscErrorCode VelocityDistribution::set_regions(
 // `FieldView::set_data_views()` is simplified because the whole `field_` will be written
 PetscErrorCode VelocityDistribution::set_data_views(const Region& /* reg */)
 {
-  PetscInt m_start[2] = {vstart[Y], vstart[X]};
-  PetscInt m_size[2] = {vsize[Y], vsize[X]};
+  PetscInt m_start[2] = {0, 0};
+  PetscInt g_start[2] = {vstart[Y], vstart[X]};
+  PetscInt g_size[2] = {vsize[Y], vsize[X]};
 
   PetscInt l_start[2];
   PetscInt l_size[2];
   PetscCall(DMDAGetCorners(da_, REP2_AP(&l_start), nullptr, REP2_AP(&l_size), nullptr));
 
-  l_start[X] -= m_start[X];
-  l_start[Y] -= m_start[Y];
+  l_start[X] -= g_start[X];
+  l_start[Y] -= g_start[Y];
 
-  PetscCall(file_.set_memview_subarray(2, m_size, l_size, l_start));
-  PetscCall(file_.set_fileview_subarray(2, m_size, l_size, l_start));
+  PetscCall(file_.set_memview_subarray(2, l_size, l_size, m_start));
+  PetscCall(file_.set_fileview_subarray(2, g_size, l_size, l_start));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
