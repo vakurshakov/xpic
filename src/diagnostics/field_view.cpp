@@ -49,6 +49,13 @@ FieldView::FieldView(
 {
 }
 
+PetscErrorCode FieldView::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(file_.finalize());
+  PetscCallMPI(MPI_Comm_free(&comm_));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 PetscErrorCode FieldView::set_data_views(const Region& region)
 {
