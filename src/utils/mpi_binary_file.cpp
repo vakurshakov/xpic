@@ -5,19 +5,21 @@ MPI_BinaryFile::MPI_BinaryFile(MPI_Comm comm, const std::string& filename)
   PetscCallAbort(PETSC_COMM_WORLD, open(comm, filename));
 }
 
-MPI_BinaryFile::~MPI_BinaryFile()
+PetscErrorCode MPI_BinaryFile::finalize()
 {
+  PetscFunctionBeginUser;
   if (memview_ != MPI_DATATYPE_NULL)
-    MPI_Type_free(&memview_);
+    PetscCallMPI(MPI_Type_free(&memview_));
 
   if (fileview_ != MPI_DATATYPE_NULL)
-    MPI_Type_free(&fileview_);
+    PetscCallMPI(MPI_Type_free(&fileview_));
 
   if (file_ != MPI_FILE_NULL)
-    close();
+    PetscCall(close());
 
   if (comm_ != MPI_COMM_NULL)
-    MPI_Comm_free(&comm_);
+    PetscCallMPI(MPI_Comm_free(&comm_));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode MPI_BinaryFile::open(MPI_Comm comm, const std::string& filename)

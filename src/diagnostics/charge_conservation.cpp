@@ -8,7 +8,7 @@ ParticlesChargeDensity::ParticlesChargeDensity(
   const interfaces::Particles& particles)
   : DistributionMoment(particles)
 {
-  comm_ = PETSC_COMM_WORLD;
+  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Comm_dup(PETSC_COMM_WORLD, &comm_));
 
   FieldView::Region region{
     .dim = 3,

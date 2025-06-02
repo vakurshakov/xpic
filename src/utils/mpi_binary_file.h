@@ -10,10 +10,10 @@
 class MPI_BinaryFile {
 public:
   MPI_BinaryFile() = default;
-  ~MPI_BinaryFile();
 
   /// @brief Construct a new binary file and its directory path recursively.
   MPI_BinaryFile(MPI_Comm comm, const std::string& filename);
+  PetscErrorCode finalize();
 
   /// @brief Creates directories in its `directory_path` and opens a new binary file.
   PetscErrorCode open(MPI_Comm comm, const std::string& filename);
