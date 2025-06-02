@@ -111,11 +111,6 @@ set(impls_ecsimcorr
   src/impls/ecsimcorr/energy_conservation.cpp
 )
 
-set(impls_ricketson
-  src/impls/ricketson/simulation.cpp
-  src/impls/ricketson/particles.cpp
-)
-
 set(impls_eccapfim
   src/impls/eccapfim/simulation.cpp
   src/impls/eccapfim/particles.cpp
