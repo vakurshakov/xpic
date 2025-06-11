@@ -26,8 +26,12 @@ PetscErrorCode Simulation::initialize_implementation()
   }
   currents.emplace_back(currJe);
 
+  // EnergyConservation from ecsim
+  auto& diag = diagnostics_.back();
+  PetscCall(diag->finalize());
+  diagnostics_.pop_back();
+
   // clang-format off
-  diagnostics_.pop_back();  // EnergyConservation from ecsim
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(world.da, currents, particles));
   // clang-format on

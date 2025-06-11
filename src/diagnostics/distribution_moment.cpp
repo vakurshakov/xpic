@@ -38,9 +38,9 @@ PetscErrorCode DistributionMoment::finalize()
 {
   PetscFunctionBeginUser;
   PetscCall(FieldView::finalize());
-  PetscCall(DMDestroy(&da_));
   PetscCall(VecDestroy(&local_));
   PetscCall(VecDestroy(&field_));
+  PetscCall(DMDestroy(&da_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
