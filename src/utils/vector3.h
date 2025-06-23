@@ -47,6 +47,18 @@ struct Vector3 {
     return data;
   }
 
+  // clang-format off: access specifiers
+  constexpr T& x() { return data[X]; }
+  constexpr T& y() { return data[Y]; }
+  constexpr T& z() { return data[Z]; }
+  constexpr const T& x() const { return data[X]; }
+  constexpr const T& y() const { return data[Y]; }
+  constexpr const T& z() const { return data[Z]; }
+
+  constexpr T& operator[](PetscInt i) { return data[i]; }
+  constexpr const T& operator[](PetscInt i) const { return data[i]; }
+  // clang-format on
+
   bool operator==(const Vector3& other) const
     requires std::is_integral_v<T>
   {
@@ -192,15 +204,6 @@ struct Vector3 {
   {
     std::swap(data[X], data[Z]);
   }
-
-  // clang-format off: access specifiers
-  T& x() { return data[X]; }
-  T& y() { return data[Y]; }
-  T& z() { return data[Z]; }
-  const T& x() const { return data[X]; }
-  const T& y() const { return data[Y]; }
-  const T& z() const { return data[Z]; }
-  // clang-format on
 
   Vector3 cross(const Vector3& other) const
   {
