@@ -21,17 +21,36 @@ private:
   };
 
   struct Shape {
-    static constexpr PetscReal shr1 = 1.0;
-    static constexpr PetscReal shr2 = 1.5;
-    static constexpr PetscInt shw1 = (PetscInt)(2 * shr1) + 1;
-    static constexpr PetscInt shw2 = (PetscInt)(2 * shr2) + 1;
+    static constexpr PetscInt shw1 = 2;
+    static constexpr PetscInt shw2 = 3;
     static constexpr PetscInt shc = Vector3R::dim;
-    static constexpr PetscInt shm = POW3(shw2) * shc;
-    static constexpr PetscReal (&sfunc1)(PetscReal) = spline_of_1st_order;
-    static constexpr PetscReal (&sfunc2)(PetscReal) = spline_of_2nd_order;
+    static constexpr PetscInt shm = POW2(shw2) * shw1 * shc;
 
-    Vector3I start, size;
-    Vector3R cache[shm];
+    static constexpr PetscReal sfunc_1(PetscReal s)
+    {
+      return 1.0 - std::abs(s);
+    }
+
+    static constexpr PetscReal sfunc_21(PetscReal s)
+    {
+      s = std::abs(s);
+      return (0.75 - s * s);
+    }
+
+    static constexpr PetscReal sfunc_22(PetscReal s)
+    {
+      s = std::abs(s);
+      return 0.5 * POW2(1.5 - s);
+    }
+
+    static constexpr PetscReal (*sfunc_2[3])(PetscReal) = {
+      sfunc_22,
+      sfunc_21,
+      sfunc_22,
+    };
+
+    Vector3I start;
+    PetscReal cache[shm];
 
     void setup(const Vector3R& rn, const Vector3R& r0, Type t);
   };

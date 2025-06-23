@@ -11,49 +11,58 @@ ImplicitEsirkepov::ImplicitEsirkepov(
 void ImplicitEsirkepov::Shape::setup(
   const Vector3R& rn, const Vector3R& r0, Type t)
 {
-  Vector3R p_rn = ::Shape::make_r(rn);
-  Vector3R p_r0 = ::Shape::make_r(r0);
+  Vector3R prn = ::Shape::make_r(rn);
+  Vector3R pr0 = ::Shape::make_r(r0);
+  Vector3R prh = 0.5 * (prn + pr0);
 
-  start = ::Shape::make_start(min(p_r0, p_rn), shr2);
-  size = ::Shape::make_end(max(p_r0, p_rn), shr2);
-  size -= start;
+  Vector3R gc{
+    std::round(prh[X]),
+    std::round(prh[Y]),
+    std::round(prh[Z]),
+  };
 
-  Vector3R sn, s0, sh;
+  start = {
+    (PetscInt)gc[X] - 1,
+    (PetscInt)gc[Y] - 1,
+    (PetscInt)gc[Z] - 1,
+  };
 
-  static constexpr PetscReal alpha = 1.0 / 6.0;
+  Vector3R gv{
+    gc[X] + 0.5,
+    gc[Y] + 0.5,
+    gc[Z] + 0.5,
+  };
 
-  for (PetscInt i = 0; i < size.elements_product(); ++i) {
-    auto gc_x = (PetscReal)(start[X] + i % size[X]);
-    auto gc_y = (PetscReal)(start[Y] + (i / size[X]) % size[Y]);
-    auto gc_z = (PetscReal)(start[Z] + (i / size[X]) / size[Y]);
+  if (t == magnetic) {
+    std::swap(gc[X], gv[X]);
+    std::swap(gc[Y], gv[Y]);
+    std::swap(gc[Z], gv[Z]);
+  }
 
-    auto gv_x = gc_x + 0.5;
-    auto gv_y = gc_y + 0.5;
-    auto gv_z = gc_z + 0.5;
+  PetscInt i, j, k, cx, cy, cz, m = 0;
+  PetscReal shx, sny, s0y, snz, s0z;
 
-    if (t == magnetic) {
-      std::swap(gc_x, gv_x);
-      std::swap(gc_y, gv_y);
-      std::swap(gc_z, gv_z);
+  static constexpr PetscReal sixth = 1.0 / 6.0;
+
+  for (cx = 0; cx < 3; cx++) {
+    cy = (cx + 1) % 3;
+    cz = (cx + 2) % 3;
+
+    for (i = 0; i < 2; i++) {
+      shx = sixth * sfunc_1(gv[cx] + (i - 1) - prh[cx]);
+
+      for (j = 0; j < 3; j++) {
+        sny = sfunc_2[j](gc[cy] + (j - 1) - prn[cy]);
+        s0y = sfunc_2[j](gc[cy] + (j - 1) - pr0[cy]);
+
+        for (k = 0; k < 3; k++) {
+          snz = sfunc_2[k](gc[cz] + (k - 1) - prn[cz]);
+          s0z = sfunc_2[k](gc[cz] + (k - 1) - pr0[cz]);
+
+          cache[m++] = shx * (sny * (2.0 * snz + s0z) + s0y * (2.0 * s0z + snz));
+        }
+      }
     }
-
-    sn[X] = sfunc2(gc_x - p_rn[X]);
-    sn[Y] = sfunc2(gc_y - p_rn[Y]);
-    sn[Z] = sfunc2(gc_z - p_rn[Z]);
-
-    s0[X] = sfunc2(gc_x - p_r0[X]);
-    s0[Y] = sfunc2(gc_y - p_r0[Y]);
-    s0[Z] = sfunc2(gc_z - p_r0[Z]);
-
-    sh[X] = alpha * sfunc1(gv_x - 0.5 * (p_rn[X] + p_r0[X]));
-    sh[Y] = alpha * sfunc1(gv_y - 0.5 * (p_rn[Y] + p_r0[Y]));
-    sh[Z] = alpha * sfunc1(gv_z - 0.5 * (p_rn[Z] + p_r0[Z]));
-
-    // clang-format off
-    cache[i][X] = sh[X] * (sn[Y] * (2.0 * sn[Z] + s0[Z]) + s0[Y] * (2.0 * s0[Z] + sn[Z]));
-    cache[i][Y] = sh[Y] * (sn[Z] * (2.0 * sn[X] + s0[X]) + s0[Z] * (2.0 * s0[X] + sn[X]));
-    cache[i][Z] = sh[Z] * (sn[X] * (2.0 * sn[Y] + s0[Y]) + s0[X] * (2.0 * s0[Y] + sn[Y]));
-    // clang-format on
   }
 }
 
@@ -61,18 +70,29 @@ void ImplicitEsirkepov::Shape::setup(
 void ImplicitEsirkepov::interpolate(
   Vector3R& E_p, Vector3R& B_p, const Vector3R& rn, const Vector3R& r0)
 {
+  auto& sh = shape[0];
   shape[0].setup(rn, r0, electric);
   shape[1].setup(rn, r0, magnetic);
 
-  auto& sh = shape[0];
+  PetscInt gx, gy, gz, cx, cy, cz, i[3], m = 0;
 
-  for (PetscInt i = 0; i < sh.size.elements_product(); ++i) {
-    PetscInt g_x = sh.start[X] + i % sh.size[X];
-    PetscInt g_y = sh.start[Y] + (i / sh.size[X]) % sh.size[Y];
-    PetscInt g_z = sh.start[Z] + (i / sh.size[X]) / sh.size[Y];
+  for (cx = 0; cx < 3; cx++) {
+    cy = (cx + 1) % 3;
+    cz = (cx + 2) % 3;
 
-    E_p += E_g[g_z][g_y][g_x].elementwise_product(shape[electric].cache[i]);
-    B_p += B_g[g_z][g_y][g_x].elementwise_product(shape[magnetic].cache[i]);
+    for (i[cx] = 0; i[cx] < 2; i[cx]++) {
+      for (i[cy] = 0; i[cy] < 3; i[cy]++) {
+        for (i[cz] = 0; i[cz] < 3; i[cz]++) {
+          gx = sh.start[X] + i[X];
+          gy = sh.start[Y] + i[Y];
+          gz = sh.start[Z] + i[Z];
+
+          E_p[cx] += E_g[gz][gy][gx][cx] * shape[electric].cache[m];
+          B_p[cx] += B_g[gz][gy][gx][cx] * shape[magnetic].cache[m];
+          m++;
+        }
+      }
+    }
   }
 }
 
@@ -82,20 +102,23 @@ void ImplicitEsirkepov::decompose(
   auto& sh = shape[0];
   sh.setup(rn, r0, electric);
 
-  for (PetscInt i = 0; i < sh.size.elements_product(); ++i) {
-    PetscInt g_x = sh.start[X] + i % sh.size[X];
-    PetscInt g_y = sh.start[Y] + (i / sh.size[X]) % sh.size[Y];
-    PetscInt g_z = sh.start[Z] + (i / sh.size[X]) / sh.size[Y];
+  PetscInt gx, gy, gz, cx, cy, cz, i[3], m = 0;
 
-    Vector3R J_p = alpha * v.elementwise_product(shape[electric].cache[i]);
+  for (cx = 0; cx < 3; cx++) {
+    cy = (cx + 1) % 3;
+    cz = (cx + 2) % 3;
+
+    for (i[cx] = 0; i[cx] < 2; i[cx]++) {
+      for (i[cy] = 0; i[cy] < 3; i[cy]++) {
+        for (i[cz] = 0; i[cz] < 3; i[cz]++) {
+          gx = sh.start[X] + i[X];
+          gy = sh.start[Y] + i[Y];
+          gz = sh.start[Z] + i[Z];
 
 #pragma omp atomic
-    J_g[g_z][g_y][g_x][X] += J_p[X];
-
-#pragma omp atomic
-    J_g[g_z][g_y][g_x][Y] += J_p[Y];
-
-#pragma omp atomic
-    J_g[g_z][g_y][g_x][Z] += J_p[Z];
+          J_g[gz][gy][gx][cx] += alpha * v[cx] * sh.cache[m++];
+        }
+      }
+    }
   }
 }
