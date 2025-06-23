@@ -33,8 +33,9 @@ void CrankNicolsonPush::process(PetscReal dt, Point& pn, const Point& p0)
   PetscAssertAbort((bool)set_fields, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "CrankNicolsonPush::set_fields have to be specified");
 
-  PetscReal r0 = 0, rn = 0;
+  PetscReal rn, r0;
 
+  update_r(dt, pn, p0);
   set_fields(pn.r, p0.r, E_p, B_p);
   r0 = get_residue(dt, pn, p0);
 
