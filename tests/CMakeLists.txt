@@ -6,5 +6,6 @@ add_subdirectory(crank_nicolson_push)
 add_subdirectory(diagnostics)
 
 add_subdirectory(basic)
+add_subdirectory(eccapfim)
 add_subdirectory(ecsim)
 add_subdirectory(ecsimcorr)

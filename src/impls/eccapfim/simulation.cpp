@@ -211,6 +211,7 @@ PetscErrorCode Simulation::from_snes(Vec v, Vec vE, Vec vB)
   PetscCall(DMDAVecGetArrayDOFWrite(da, vB, &arr_B));
   PetscCall(DMDAVecGetArrayDOFRead(da_EB, v, &arr_v));
 
+#pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     PetscInt x = world.start[X] + g % world.size[X];
     PetscInt y = world.start[Y] + (g / world.size[X]) % world.size[Y];
@@ -242,6 +243,7 @@ PetscErrorCode Simulation::to_snes(Vec vE, Vec vB, Vec v)
   PetscCall(DMDAVecGetArrayDOFRead(da, vB, &arr_B));
   PetscCall(DMDAVecGetArrayDOFWrite(da_EB, v, &arr_v));
 
+#pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     PetscInt x = world.start[X] + g % world.size[X];
     PetscInt y = world.start[Y] + (g / world.size[X]) % world.size[Y];
@@ -317,7 +319,7 @@ PetscErrorCode Simulation::init_snes_solver()
   static constexpr PetscReal rtol = 1e-7;
   static constexpr PetscReal stol = 1e-7;
   static constexpr PetscReal divtol = 1e+1;
-  static constexpr PetscInt maxit = 50;
+  static constexpr PetscInt maxit = 100;
   static constexpr PetscInt maxf = PETSC_UNLIMITED;
 
   conv_hist.resize(maxit);

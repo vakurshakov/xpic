@@ -36,21 +36,16 @@ PetscErrorCode Particles::form_iteration()
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(world.da, local_J, &J));
 
-  ImplicitEsirkepov util(E, B, J);
-
   avgit = 0.0;
   avgcell = 0.0;
 
-  PetscReal path;
-  std::vector<Vector3R> coords;
+  const PetscReal xb = (world.start[X] - 0.5) * dx;
+  const PetscReal yb = (world.start[Y] - 0.5) * dy;
+  const PetscReal zb = (world.start[Z] - 0.5) * dz;
 
-  PetscReal xb = (world.start[X] - 0.5) * dx;
-  PetscReal yb = (world.start[Y] - 0.5) * dy;
-  PetscReal zb = (world.start[Z] - 0.5) * dz;
-
-  PetscReal xe = xb + (world.size[X] + 1.0) * dx;
-  PetscReal ye = yb + (world.size[Y] + 1.0) * dy;
-  PetscReal ze = zb + (world.size[Z] + 1.0) * dz;
+  const PetscReal xe = (world.end[X] + 0.5) * dx;
+  const PetscReal ye = (world.end[Y] + 0.5) * dy;
+  const PetscReal ze = (world.end[Z] + 0.5) * dz;
 
   static const PetscReal max = std::numeric_limits<double>::max();
 
@@ -63,12 +58,16 @@ PetscErrorCode Particles::form_iteration()
       return max;
   };
 
-// #pragma omp parallel for firstprivate(util)
+#pragma omp parallel for reduction(+ : avgit, avgcell)
   for (PetscInt g = 0; g < (PetscInt)storage.size(); ++g) {
+    PetscReal path;
+    std::vector<Vector3R> coords;
+
     for (PetscInt i = 0; auto& curr : storage[g]) {
       const auto& prev(previous_storage[g][i]);
 
       CrankNicolsonPush push(q_m(prev));
+      ImplicitEsirkepov util(E, B, J);
 
       push.set_fields_callback(  //
         [&](const Vector3R& rn, const Vector3R& r0, Vector3R& E_p, Vector3R& B_p) {
