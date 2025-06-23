@@ -65,10 +65,10 @@ PetscErrorCode Particles::form_iteration()
 
 // #pragma omp parallel for firstprivate(util)
   for (PetscInt g = 0; g < (PetscInt)storage.size(); ++g) {
-    for (PetscInt i = 0; auto& point : storage[g]) {
-      const auto& point_0(previous_storage[g][i]);
+    for (PetscInt i = 0; auto& curr : storage[g]) {
+      const auto& prev(previous_storage[g][i]);
 
-      CrankNicolsonPush push(q_m(point));
+      CrankNicolsonPush push(q_m(prev));
 
       push.set_fields_callback(  //
         [&](const Vector3R& rn, const Vector3R& r0, Vector3R& E_p, Vector3R& B_p) {
@@ -88,22 +88,22 @@ PetscErrorCode Particles::form_iteration()
           }
         });
 
-      for (PetscReal dtau = 0.0, dtau_sum = 0.0; dtau_sum < dt; dtau_sum += dtau) {
-        PetscReal dtx = process_bound(point.px(), point.x(), xb, xe);
-        PetscReal dty = process_bound(point.py(), point.y(), yb, ye);
-        PetscReal dtz = process_bound(point.pz(), point.z(), zb, ze);
+      for (PetscReal dtau = 0.0, tau = 0.0; tau < dt; tau += dtau) {
+        PetscReal dtx = process_bound(curr.px(), curr.x(), xb, xe);
+        PetscReal dty = process_bound(curr.py(), curr.y(), yb, ye);
+        PetscReal dtz = process_bound(curr.pz(), curr.z(), zb, ze);
 
-        dtau = std::min({dt - dtau_sum, dtx, dty, dtz});
+        dtau = std::min({dt - tau, dtx, dty, dtz});
 
-        push.process(dtau, point, point_0);
+        push.process(dtau, curr, prev);
         avgit += (PetscReal)(push.get_iteration_number() + 1) / size;
 
-        path = (point.r - point_0.r).length();
-        coords = cell_traversal(point.r, point_0.r);
+        path = (curr.r - prev.r).length();
+        coords = cell_traversal(curr.r, prev.r);
         avgcell += (PetscReal)(coords.size() - 1) / size;
 
-        PetscReal a0 = qn_Np(point);
-        Vector3R vh = 0.5 * (point.p + point_0.p);
+        PetscReal a0 = qn_Np(curr);
+        Vector3R vh = 0.5 * (curr.p + prev.p);
 
         for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
           auto&& rs0 = coords[s - 1];
@@ -113,7 +113,7 @@ PetscErrorCode Particles::form_iteration()
           util.decompose(a, vh, rsn, rs0);
         }
 
-        correct_coordinates(point);
+        correct_coordinates(curr);
       }
 
       i++;
