@@ -17,6 +17,7 @@
   "cSpell.words": [
     "aabb",
     "Allreduce",
+    "avgcell",
     "avgit",
     "AXPBY",
     "AXPBYPCZ",
@@ -32,6 +33,7 @@
     "divtol",
     "DMDA",
     "dprr",
+    "dtau",
     "EBLF",
     "eccapfim",
     "ecsim",
