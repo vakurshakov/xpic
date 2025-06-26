@@ -39,6 +39,7 @@ set(algorithms
   src/algorithms/esirkepov_decomposition.cpp
   src/algorithms/boris_push.cpp
   src/algorithms/crank_nicolson_push.cpp
+  src/algorithms/drift_kinetic_push.cpp
 )
 
 set(diagnostics
