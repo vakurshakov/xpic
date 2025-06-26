@@ -30,7 +30,7 @@ public:
 
 private:
     // NEW
-    Vector3R get_Vd(const PointByField& p0, const Vector3R& h, const PetscReal& Vh , const PetscReal& Bh, const Vector3R& gradBh, const PetscReal& Eh) const;
+    Vector3R get_Vd(const PointByField& p0, const Vector3R& h, const PetscReal& Vh , const PetscReal& Bh, const Vector3R& gradBh, const Vector3R& Eh) const;
     void update_r(PetscReal dt, PointByField& pn, const PointByField& p0, const Vector3R& Vh, const Vector3R& Vd) const;
     void update_v_perp(PointByField& pn, const PointByField& p0, const Vector3R& B0) const;
     void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0, const PetscReal& Vh, const Vector3R& h, const Vector3R& Vd, const Vector3R& B0, const Vector3R& Eh) const;

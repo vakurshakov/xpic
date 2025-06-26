@@ -81,7 +81,7 @@ void DriftKineticPush::process(PetscReal dt, PointByField& pn, const PointByFiel
 }
 
 
-Vector3R DriftKineticPush::get_Vd(const PointByField& p0, const Vector3R& h, const PetscReal& Vh, const PetscReal& Bh, const Vector3R& gradBh, const PetscReal& Eh) const
+Vector3R DriftKineticPush::get_Vd(const PointByField& p0, const Vector3R& h, const PetscReal& Vh, const PetscReal& Bh, const Vector3R& gradBh, const Vector3R& Eh) const
 {
   return Eh.cross(h)/Bp.length()
           + 1./qm * (Vh*Vh/Bh + p0.mu_p/mp) * h.cross(gradBh/Bh);
