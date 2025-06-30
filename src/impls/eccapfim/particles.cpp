@@ -78,12 +78,12 @@ PetscErrorCode Particles::form_iteration()
             auto&& rs0 = coords[s - 1];
             auto&& rsn = coords[s - 0];
 
-            Vector3R Ei_p, Bi_p;
-            util.interpolate(Ei_p, Bi_p, rsn, rs0);
+            Vector3R Es_p, Bs_p;
+            util.interpolate(Es_p, Bs_p, rsn, rs0);
 
             PetscReal beta = path > 0 ? (rsn - rs0).length() / path : 1.0;
-            E_p += Ei_p * beta;
-            B_p += Bi_p * beta;
+            E_p += Es_p * beta;
+            B_p += Bs_p * beta;
           }
         });
 
