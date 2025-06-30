@@ -35,7 +35,7 @@ PetscErrorCode EnergyConservation::add_titles()
   PetscFunctionBeginUser;
   PetscCall(::EnergyConservation::add_titles());
 
-  PetscInt off = 2;
+  PetscInt off = 3;
   for (const auto& sort : simulation.particles_) {
     const auto& name = sort->parameters.sort_name;
     add_title("λδK_" + name, ++off);
@@ -54,7 +54,7 @@ PetscErrorCode EnergyConservation::add_args(PetscInt t)
   PetscCall(VecAXPY(B, -1.0, B0));
   PetscCall(::EnergyConservation::add_args(t));
 
-  PetscInt off = 2;
+  PetscInt off = 3;
   for (const auto& sort : simulation.particles_) {
     auto* particles = dynamic_cast<ecsimcorr::Particles*>(sort.get());
     add_arg(particles->lambda_dK, ++off);

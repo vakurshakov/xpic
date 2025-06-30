@@ -122,6 +122,8 @@ PetscErrorCode ChargeConservation::initialize()
 PetscErrorCode ChargeConservation::add_titles()
 {
   PetscFunctionBeginUser;
+  add_title("time");
+
   for (const auto& rho : charge_densities) {
     const auto& name = rho->particles_.parameters.sort_name;
     add_title("N1δQ_" + name);
@@ -133,9 +135,11 @@ PetscErrorCode ChargeConservation::add_titles()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode ChargeConservation::add_args(PetscInt /* t */)
+PetscErrorCode ChargeConservation::add_args(PetscInt t)
 {
   PetscFunctionBeginUser;
+  add_arg(t);
+
   // It is important to get `da` from `DistributionMoment` as it is reduced in dof
   DM da = charge_densities[0]->da_;
 

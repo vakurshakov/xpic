@@ -33,6 +33,7 @@ PetscErrorCode EnergyConservation::initialize()
 PetscErrorCode EnergyConservation::add_titles()
 {
   PetscFunctionBeginUser;
+  add_title("time");
   add_title("δE");
   add_title("δB");
 
@@ -57,9 +58,11 @@ PetscErrorCode EnergyConservation::add_titles()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode EnergyConservation::add_args(PetscInt /* t */)
+PetscErrorCode EnergyConservation::add_args(PetscInt t)
 {
   PetscFunctionBeginUser;
+  add_arg(t);
+
   PetscReal prev_E = fields_energy->get_electric_energy();
   PetscReal prev_B = fields_energy->get_magnetic_energy();
   fields_energy->calculate_energies();
