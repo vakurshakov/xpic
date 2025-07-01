@@ -28,11 +28,10 @@ PetscErrorCode Simulation::initialize_implementation()
   }
   currents.emplace_back(J);
 
-  auto&& f_diag = std::make_unique<FieldsEnergy>(E, B);
-  auto&& p_diag = std::make_unique<ParticlesEnergy>(sorts);
+  auto&& e_diag = std::make_unique<Energy>(E, B, sorts);
 
-  diagnostics_.emplace_back(std::make_unique<EnergyConservation>(
-    *this, std::move(f_diag), std::move(p_diag)));
+  diagnostics_.emplace_back(
+    std::make_unique<EnergyConservation>(*this, std::move(e_diag)));
 
   diagnostics_.emplace_back(
     std::make_unique<ChargeConservation>(world.da, currents, sorts));

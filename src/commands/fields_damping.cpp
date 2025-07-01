@@ -1,6 +1,6 @@
 #include "fields_damping.h"
 
-#include "src/diagnostics/fields_energy.h"
+#include "src/diagnostics/energy.h"
 
 FieldsDamping::FieldsDamping(
   DM da, Vec E, Vec B, Vec B0, Tester&& test, Damping&& damp)
@@ -51,7 +51,7 @@ PetscErrorCode FieldsDamping::damping_implementation(Vec f)
     PetscReal damping = damp_(r);
     Vector3R& f = arr[z][y][x];
 
-    damped_energy_ += FieldsEnergy::get(f) * (1.0 - POW2(damping));
+    damped_energy_ += Energy::get_field(f) * (1.0 - POW2(damping));
     f *= damping;
   }
 

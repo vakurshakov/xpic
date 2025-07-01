@@ -4,7 +4,6 @@
 #include "src/algorithms/esirkepov_decomposition.h"
 #include "src/algorithms/simple_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
-#include "src/diagnostics/particles_energy.h"
 #include "src/impls/ecsim/simulation.h"
 
 namespace ecsim {

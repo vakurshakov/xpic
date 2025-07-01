@@ -1,6 +1,6 @@
 #include "remove_particles.h"
 
-#include "src/diagnostics/particles_energy.h"
+#include "src/diagnostics/energy.h"
 #include "src/utils/configuration.h"
 
 RemoveParticles::RemoveParticles(interfaces::Particles& particles, Tester&& test)
@@ -32,7 +32,7 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
       continue;
 
     for (const auto& [_, p] : cell)
-      removed_energy_ += ParticlesEnergy::get(p, m, Np);
+      removed_energy_ += Energy::get_kinetic(p, m, Np);
 
     removed_particles_ += cell.size();
     cell.clear();

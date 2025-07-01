@@ -1,6 +1,6 @@
 #include "inject_particles.h"
 
-#include "src/diagnostics/particles_energy.h"
+#include "src/diagnostics/energy.h"
 #include "src/utils/configuration.h"
 #include "src/utils/random_generator.h"
 
@@ -51,8 +51,8 @@ PetscErrorCode InjectParticles::execute(PetscInt t)
     ejected_.add_particle(Point(shared_coordinate, pe), &is_added);
 
     if (is_added) {
-      energy_i_ += ParticlesEnergy::get(pi, mi, Npi);
-      energy_e_ += ParticlesEnergy::get(pe, me, Npe);
+      energy_i_ += Energy::get_kinetic(pi, mi, Npi);
+      energy_e_ += Energy::get_kinetic(pe, me, Npe);
       added_particles_++;
     }
   }

@@ -11,23 +11,11 @@ EnergyConservation::EnergyConservation(const Simulation& simulation)
   B = simulation.B;
   B0 = simulation.B0;
 
-  fields_energy = std::make_unique<FieldsEnergy>(simulation.E, simulation.B);
-
   std::vector<const interfaces::Particles*> storage;
   for (const auto& particles : simulation.particles_)
     storage.push_back(particles.get());
-  particles_energy = std::make_unique<ParticlesEnergy>(storage);
-}
 
-EnergyConservation::EnergyConservation( //
-  const interfaces::Simulation& simulation,
-  std::shared_ptr<FieldsEnergy> fields_energy,
-  std::shared_ptr<ParticlesEnergy> particles_energy)
-  : ::EnergyConservation(simulation, fields_energy, particles_energy)
-{
-  auto&& _simulation = dynamic_cast<const ecsimcorr::Simulation&>(simulation);
-  B = _simulation.B;
-  B0 = _simulation.B0;
+  energy = std::make_unique<Energy>(simulation.E, simulation.B, storage);
 }
 
 PetscErrorCode EnergyConservation::add_titles()

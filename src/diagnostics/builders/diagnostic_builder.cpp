@@ -39,11 +39,7 @@ PetscErrorCode build_diagnostics(
     std::string name;
     info.at("diagnostic").get_to(name);
 
-    if (name == "FieldsEnergy") {
-      // PetscCall(build_diagnostic<FieldsEnergyBuilder>(info, simulation, result));
-      continue;
-    }
-    else if (name == "FieldView") {
+    if (name == "FieldView") {
       PetscCall(Builder::use_impl<FieldViewBuilder>(info, simulation, result));
     }
     else if (name == "DistributionMoment") {

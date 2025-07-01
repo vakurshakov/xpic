@@ -44,8 +44,7 @@ set(algorithms
 
 set(diagnostics
   src/diagnostics/field_view.cpp
-  src/diagnostics/fields_energy.cpp
-  src/diagnostics/particles_energy.cpp
+  src/diagnostics/energy.cpp
   src/diagnostics/distribution_moment.cpp
   src/diagnostics/mat_dump.cpp
   src/diagnostics/log_view.cpp

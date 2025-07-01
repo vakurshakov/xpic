@@ -7,7 +7,7 @@
 class TableDiagnostic : public interfaces::Diagnostic {
 public:
   TableDiagnostic(const std::string& filename);
-  PetscErrorCode diagnose(PetscInt t) final;
+  PetscErrorCode diagnose(PetscInt t) override;
 
 protected:
   virtual PetscErrorCode initialize();

@@ -10,11 +10,6 @@ class EnergyConservation : public ::EnergyConservation {
 public:
   EnergyConservation(const ecsimcorr::Simulation& simulation);
 
-  EnergyConservation( //
-    const interfaces::Simulation& simulation,
-    std::shared_ptr<FieldsEnergy> fields_energy,
-    std::shared_ptr<ParticlesEnergy> particles_energy);
-
 private:
   PetscErrorCode add_titles() override;
   PetscErrorCode add_args(PetscInt t) override;

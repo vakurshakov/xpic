@@ -4,7 +4,6 @@
 #include "src/algorithms/implicit_esirkepov.h"
 #include "src/algorithms/simple_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
-#include "src/diagnostics/particles_energy.h"
 #include "src/impls/eccapfim/cell_traversal.h"
 #include "src/impls/eccapfim/simulation.h"
 
