@@ -95,6 +95,11 @@ PetscErrorCode Simulation::calc_iteration()
   }
 
   PetscCall(clock.pop());
+
+  SNESConvergedReason reason;
+  PetscCall(SNESGetConvergedReason(snes, &reason));
+  PetscCheck(reason >= 0, PetscObjectComm((PetscObject)snes), PETSC_ERR_NOT_CONVERGED, "SNESSolve has not converged");
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -317,19 +322,25 @@ PetscErrorCode Simulation::init_snes_solver()
   static constexpr PetscReal atol = 1e-7;
   static constexpr PetscReal rtol = 1e-7;
   static constexpr PetscReal stol = 1e-7;
-  static constexpr PetscReal divtol = 1e+1;
+  static constexpr PetscReal divtol = PETSC_DETERMINE;
   static constexpr PetscInt maxit = 100;
   static constexpr PetscInt maxf = PETSC_UNLIMITED;
+
+  static constexpr PetscInt ew_version = 3;
+  static constexpr PetscReal ew_rtol_0 = 0.8;
+  static constexpr PetscReal ew_gamma = 0.9;
+  static constexpr PetscReal ew_alpha = 1.5;
 
   conv_hist.resize(maxit);
 
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
   PetscCall(SNESSetType(snes, SNESNGMRES));
-  PetscCall(SNESSetErrorIfNotConverged(snes, PETSC_TRUE));
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
   PetscCall(SNESSetConvergenceHistory(snes, conv_hist.data(), nullptr, maxit, PETSC_TRUE));
   PetscCall(SNESSetFunction(snes, nullptr, Simulation::form_iteration, this));
+  PetscCall(SNESKSPSetUseEW(snes, PETSC_TRUE));
+  PetscCall(SNESKSPSetParametersEW(snes, ew_version, ew_rtol_0, ew_rtol_0, ew_gamma, ew_alpha, PETSC_CURRENT, PETSC_CURRENT));
   PetscCall(SNESSetFromOptions(snes));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
