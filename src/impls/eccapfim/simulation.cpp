@@ -2,6 +2,7 @@
 
 #include "src/diagnostics/charge_conservation.h"
 #include "src/diagnostics/energy_conservation.h"
+#include "src/diagnostics/momentum_conservation.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
@@ -35,6 +36,9 @@ PetscErrorCode Simulation::initialize_implementation()
 
   diagnostics_.emplace_back(
     std::make_unique<ChargeConservation>(world.da, currents, sorts));
+
+  diagnostics_.emplace_back(
+    std::make_unique<MomentumConservation>(world.da, E, sorts));
 
   PetscCall(init_clock.pop());
   LOG("Initialization took {:6.4e} seconds", init_clock.get(__FUNCTION__));

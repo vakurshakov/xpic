@@ -61,6 +61,9 @@ struct ParticlesChargeDensity::Shape {
   }
 };
 
+/// @todo Maybe it would be better to inline the calculation of
+/// continuity equation into charge gathering so that in each cell
+/// we will (1) substract the previous density, (2) calculate divergence.
 PetscErrorCode ParticlesChargeDensity::collect()
 {
   PetscFunctionBeginUser;

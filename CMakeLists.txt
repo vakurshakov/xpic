@@ -51,6 +51,7 @@ set(diagnostics
   src/diagnostics/simulation_backup.cpp
   src/diagnostics/energy_conservation.cpp
   src/diagnostics/charge_conservation.cpp
+  src/diagnostics/momentum_conservation.cpp
   src/diagnostics/velocity_distribution.cpp
   src/diagnostics/utils/table_diagnostic.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
