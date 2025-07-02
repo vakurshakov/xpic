@@ -115,6 +115,7 @@ set(impls_eccapfim
   src/impls/eccapfim/simulation.cpp
   src/impls/eccapfim/particles.cpp
   src/impls/eccapfim/cell_traversal.cpp
+  src/impls/eccapfim/convergence_history.cpp
 )
 
 add_library(

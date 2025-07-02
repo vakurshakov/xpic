@@ -71,6 +71,8 @@ protected:
   std::vector<PetscReal> conv_hist;
 
   SyncClock clock;
+
+  friend class ConvergenceHistory;
 };
 
 }  // namespace eccapfim
