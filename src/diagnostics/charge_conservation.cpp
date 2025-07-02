@@ -122,26 +122,10 @@ PetscErrorCode ChargeConservation::initialize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode ChargeConservation::add_titles()
+PetscErrorCode ChargeConservation::add_columns(PetscInt t)
 {
   PetscFunctionBeginUser;
-  add_title("time");
-
-  for (const auto& rho : charge_densities) {
-    const auto& name = rho->particles_.parameters.sort_name;
-    add_title("N1δQ_" + name);
-    add_title("N2δQ_" + name);
-  }
-
-  add_title("Norm1(δQ)");
-  add_title("Norm2(δQ)");
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode ChargeConservation::add_args(PetscInt t)
-{
-  PetscFunctionBeginUser;
-  add_arg(t);
+  add(6, "Time", "{:d}", t);
 
   // It is important to get `da` from `DistributionMoment` as it is reduced in dof
   DM da = charge_densities[0]->da_;
@@ -167,8 +151,10 @@ PetscErrorCode ChargeConservation::add_args(PetscInt t)
     const auto& currJe = current_densities[i];
     PetscCall(MatMultAdd(divE, currJe, diff, diff));
     PetscCall(VecNorm(diff, NORM_1_AND_2, norm));
-    add_arg(norm[0]);
-    add_arg(norm[1]);
+
+    const auto& name = rho->particles_.parameters.sort_name;
+    add(13, "N1dQ_" + name, "{: .6e}", norm[0]);
+    add(13, "N2dQ_" + name, "{: .6e}", norm[1]);
   }
 
   PetscCall(DMRestoreGlobalVector(da, &diff));
@@ -176,8 +162,9 @@ PetscErrorCode ChargeConservation::add_args(PetscInt t)
   const auto& currJe = current_densities[i];
   PetscCall(MatMultAdd(divE, currJe, sum, sum));
   PetscCall(VecNorm(sum, NORM_1_AND_2, norm));
-  add_arg(norm[0]);
-  add_arg(norm[1]);
+
+  add(13, "N1dQ_tot", "{: .6e}", norm[0]);
+  add(13, "N2dQ_tot", "{: .6e}", norm[1]);
 
   PetscCall(DMRestoreGlobalVector(da, &sum));
   PetscFunctionReturn(PETSC_SUCCESS);

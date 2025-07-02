@@ -20,37 +20,24 @@ PetscErrorCode Energy::initialize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Energy::add_titles()
+PetscErrorCode Energy::add_columns(PetscInt t)
 {
   PetscFunctionBeginUser;
-  add_title("time");
-  add_title("E");
-  add_title("B");
-  for (const auto& particles : particles)
-    add_title("K_" + particles->parameters.sort_name);
+  add(6, "Time", "{:d}", t);
 
-  add_title("σE");
-  add_title("σB");
-  for (const auto& particles : particles)
-    add_title("σK_" + particles->parameters.sort_name);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Energy::add_args(PetscInt t)
-{
-  PetscFunctionBeginUser;
   PetscCall(calculate_energies());
 
-  add_arg(t);
-  add_arg(w_E);
-  add_arg(w_B);
-  for (const auto& norm : w_K)
-    add_arg(norm);
+  PetscInt i, size = (PetscInt)particles.size();
 
-  add_arg(std_E);
-  add_arg(std_B);
-  for (const auto& std : std_K)
-    add_arg(std);
+  add(13, "wE", "{: .6e}", w_E);
+  add(13, "wB", "{: .6e}", w_B);
+  for (i = 0; i < size; ++i)
+    add(13, "wK_" + particles[i]->parameters.sort_name, "{: .6e}", w_K[i]);
+
+  add(13, "sE", "{: .6e}", std_E);
+  add(13, "sB", "{: .6e}", std_B);
+  for (i = 0; i < size; ++i)
+    add(13, "sK_" + particles[i]->parameters.sort_name, "{: .6e}", std_K[i]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -90,7 +77,8 @@ PetscErrorCode Energy::calculate_energies()
     }
 
     w_K[i] = frac * w;
-    std_K[i] = frac * std::sqrt(std::abs(w - Vector3R{vx, vy, vz}.squared() / n) / n);
+    std_K[i] =
+      frac * std::sqrt(std::abs(w - Vector3R{vx, vy, vz}.squared() / n) / n);
   }
 
   std::vector<PetscReal> buf(2 * particles.size());

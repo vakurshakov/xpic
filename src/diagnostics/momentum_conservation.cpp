@@ -27,57 +27,41 @@ PetscErrorCode MomentumConservation::initialize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode MomentumConservation::add_titles()
-{
-  PetscFunctionBeginUser;
-  add_title("time");
-
-  for (const auto& sort : particles) {
-    const auto& name = sort->parameters.sort_name;
-    add_title("Px_" + name);
-    add_title("Py_" + name);
-    add_title("Pz_" + name);
-    add_title("QEx_" + name);
-    add_title("QEy_" + name);
-    add_title("QEz_" + name);
-    add_title("N2δP_" + name);
-    add_title("νP_" + name);
-  }
-
-  add_title("N2δP");
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode MomentumConservation::add_args(PetscInt t)
+PetscErrorCode MomentumConservation::add_columns(PetscInt t)
 {
   PetscFunctionBeginUser;
   PetscCall(calculate());
 
-  add_arg(t);
+  add(6, "Time", "{:d}", t);
 
   Vector3R err, sum;
+  PetscReal freq;
 
   for (PetscInt i = 0; i < (PetscInt)particles.size(); ++i) {
+    auto&& name = particles[i]->parameters.sort_name;
     auto&& p0 = P0[i];
     auto&& p1 = P1[i];
     auto&& qe = QE[i];
-    add_arg(p1[X]);
-    add_arg(p1[Y]);
-    add_arg(p1[Z]);
-    add_arg(qe[X]);
-    add_arg(qe[Y]);
-    add_arg(qe[Z]);
+
+    add(13, "Px_" + name, "{: .6e}", p1[X]);
+    add(13, "Py_" + name, "{: .6e}", p1[Y]);
+    add(13, "Pz_" + name, "{: .6e}", p1[Z]);
+    add(13, "QEx_" + name, "{: .6e}", qe[X]);
+    add(13, "QEy_" + name, "{: .6e}", qe[Y]);
+    add(13, "QEz_" + name, "{: .6e}", qe[Z]);
 
     err = (p1 - p0) / dt - qe;
     sum += err;
 
-    add_arg(err.length());
-    add_arg(((p1 - p0).length() / (p1 + p0).length()) / (0.5 * dt));
+    freq = ((p1 - p0).length() / (p1 + p0).length()) / (0.5 * dt);
+
+    add(13, "N2dP_" + name, "{: .6e}", err.length());
+    add(13, "fP_" + name, "{: .6e}", freq);
 
     p0 = p1;
   }
 
-  add_arg(sum.length());
+  add(13, "N2dP", "{: .6e}", sum.length());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

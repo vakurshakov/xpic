@@ -22,8 +22,7 @@ public:
 
 private:
   PetscErrorCode initialize() override;
-  PetscErrorCode add_titles() override;
-  PetscErrorCode add_args(PetscInt t) override;
+  PetscErrorCode add_columns(PetscInt t) override;
 
   Mat divE;
   std::vector<Vec> current_densities;

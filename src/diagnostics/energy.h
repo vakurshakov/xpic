@@ -14,8 +14,7 @@ public:
   Energy(Vec E, Vec B, std::vector<const interfaces::Particles*> particles);
 
   PetscErrorCode initialize() override;
-  PetscErrorCode add_titles() override;
-  PetscErrorCode add_args(PetscInt t) override;
+  PetscErrorCode add_columns(PetscInt t) override;
   PetscErrorCode calculate_energies();
 
   PetscReal get_electric_energy() const;

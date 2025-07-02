@@ -11,12 +11,11 @@ public:
   ConvergenceHistory(const Simulation& simulation);
 
 private:
-  PetscErrorCode add_titles() override;
-  PetscErrorCode add_args(PetscInt t) override;
+  PetscErrorCode add_columns(PetscInt t) override;
 
   const Simulation& simulation;
 };
 
-}
+}  // namespace eccapfim
 
 #endif  // SRC_DIAGNOSTICS_MOMENTUM_CONSERVATION_H

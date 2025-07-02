@@ -13,8 +13,7 @@ public:
 private:
   PetscErrorCode calculate();
   PetscErrorCode initialize() override;
-  PetscErrorCode add_titles() override;
-  PetscErrorCode add_args(PetscInt t) override;
+  PetscErrorCode add_columns(PetscInt t) override;
 
   DM da;
   Vec E;

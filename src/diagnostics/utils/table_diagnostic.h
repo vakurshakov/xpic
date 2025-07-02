@@ -11,46 +11,36 @@ public:
 
 protected:
   virtual PetscErrorCode initialize();
-  virtual PetscErrorCode add_titles() = 0;
-  virtual PetscErrorCode add_args(PetscInt t) = 0;
+  virtual PetscErrorCode add_columns(PetscInt t) = 0;
 
   template<typename T>
-  PetscErrorCode write_formatted(
-    std::format_string<const T&> fmt, const std::vector<T>& container)
-  {
-    PetscFunctionBeginUser;
-    for (PetscInt i = 0; i < (PetscInt)container.size() - 1; ++i) {
-      file_() << std::format(fmt, container[i]);
-    }
-
-    auto last = std::format(fmt, container.back());
-    while (last.back() == ' ') {
-      last.pop_back();
-    }
-
-    file_() << last << "\n";
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-
-  void add_arg(PetscReal arg, PetscInt pos = -1);
-  void add_title(std::string title, PetscInt pos = -1);
+  using Format = std::format_string<T&>;
 
   template<typename T>
-  void add(T value, std::vector<T>& container, PetscInt pos = -1)
+  void add(
+    PetscInt w, std::string title, Format<T> fmt, T value, PetscInt pos = -1)
   {
+    title = std::format("{:<{}.{}s}", title, w, w);
+
+    std::string fvalue;
+    fvalue = std::format(fmt, value);
+    fvalue = std::format("{:^{}.{}s}", fvalue, w, w);
+
     if (pos >= 0) {
-      auto it = container.begin();
-      std::advance(it, pos);
-      container.insert(it, value);
+      titles_.insert(titles_.begin() + pos, title);
+      values_.insert(values_.begin() + pos, fvalue);
     }
     else {
-      container.push_back(value);
+      titles_.push_back(title);
+      values_.push_back(fvalue);
     }
   }
 
+  PetscErrorCode write_formatted(const std::vector<std::string>& container);
+
   SyncFile file_;
-  std::vector<PetscReal> args_;
   std::vector<std::string> titles_;
+  std::vector<std::string> values_;
 };
 
 #endif  // SRC_DIAGNOSTICS_UTILS_TABLE_DIAGNOSTIC_H

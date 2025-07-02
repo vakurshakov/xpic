@@ -15,8 +15,7 @@ protected:
 
   PetscErrorCode diagnose(PetscInt t) override;
   PetscErrorCode initialize() override;
-  PetscErrorCode add_titles() override;
-  PetscErrorCode add_args(PetscInt t) override;
+  PetscErrorCode add_columns(PetscInt t) override;
 
   PetscReal E0, B0, dE, dB, dF, dK;
   std::vector<PetscReal> K0, K;

@@ -11,8 +11,7 @@ public:
   EnergyConservation(const ecsimcorr::Simulation& simulation);
 
 private:
-  PetscErrorCode add_titles() override;
-  PetscErrorCode add_args(PetscInt t) override;
+  PetscErrorCode add_columns(PetscInt t) override;
 
   Vec B, B0;
 };

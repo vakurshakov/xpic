@@ -8,32 +8,17 @@ ConvergenceHistory::ConvergenceHistory(const Simulation& simulation)
 {
 }
 
-PetscErrorCode ConvergenceHistory::add_titles()
+PetscErrorCode ConvergenceHistory::add_columns(PetscInt t)
 {
   PetscFunctionBeginUser;
-  add_title("time");
+  add(6, "Time", "{:d}", t);
 
   for (const auto& sort : simulation.particles_) {
     const auto& name = sort->parameters.sort_name;
-    add_title("AvgCN_" + name);
-    add_title("AvgCL_" + name);
-  }
-
-  add_title("SnesFuncEvals");
-  add_title("SnesIterNum");
-  add_title("SnesConvHist");
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-/// @todo Here, the natural need in different formatting is visible
-PetscErrorCode ConvergenceHistory::add_args(PetscInt t)
-{
-  PetscFunctionBeginUser;
-  add_arg(t);
-
-  for (const auto& sort : simulation.particles_) {
-    add_arg(sort->get_average_iteration_number());
-    add_arg(sort->get_average_number_of_traversed_cells());
+    auto cn = sort->get_average_iteration_number();
+    auto cl = sort->get_average_number_of_traversed_cells();
+    add(8, "AvgCN_" + name, "{:.3f}", cn);
+    add(8, "AvgCL_" + name, "{:.3f}", cl);
   }
 
   SNES snes = simulation.snes;
@@ -45,11 +30,16 @@ PetscErrorCode ConvergenceHistory::add_args(PetscInt t)
   PetscCall(SNESGetNumberFunctionEvals(snes, &fev));
   PetscCall(SNESGetConvergenceHistory(snes, &hist, nullptr, &len));
 
-  add_arg(fev);
-  add_arg(it);
+  add(6, "FEvals", "{:d}", fev);
+  add(6, "ItNum", "{:d}", it);
 
-  for (PetscInt i = 0; i < len; ++i)
-    add_arg(hist[i]);
+  if (len == 0) {
+    add(12, "ConvHist", "{}", "");
+  }
+  else {
+    for (PetscInt i = 0; i < len; ++i)
+      add(12, "ConvHist", "{:8.6e}", hist[i]);
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
