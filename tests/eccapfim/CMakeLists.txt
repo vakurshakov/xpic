@@ -10,4 +10,5 @@ foreach(test ${tests})
 
   add_test(NAME "${test}" COMMAND ./${test}.out)
   set_property(TEST "${test}" PROPERTY LABELS impls eccapfim)
+  set_property(TEST "${test}" PROPERTY RUN_SERIAL true)
 endforeach()

@@ -9,8 +9,10 @@ foreach(test ${tests})
   target_link_libraries(${test}.out ${PROJECT_NAME})
 
   add_test(NAME "${test}" COMMAND ./${test}.out)
-  add_test(NAME "${test}_mpi_x2" COMMAND mpiexec -np 2 ./${test}.out -da_processors_x 2)
-
   set_property(TEST "${test}" PROPERTY LABELS impls basic)
+  set_property(TEST "${test}" PROPERTY RUN_SERIAL true)
+
+  add_test(NAME "${test}_mpi_x2" COMMAND mpiexec -np 2 ./${test}.out -da_processors_x 2)
   set_property(TEST "${test}_mpi_x2" PROPERTY LABELS impls basic mpi)
+  set_property(TEST "${test}_mpi_x2" PROPERTY RUN_SERIAL true)
 endforeach()
