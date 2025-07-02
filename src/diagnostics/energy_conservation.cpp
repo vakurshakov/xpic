@@ -11,24 +11,22 @@ EnergyConservation::EnergyConservation( //
     simulation(simulation),
     energy(energy)
 {
-  E0 = B0 = dE = dB = dF = dK = 0.0;
-  std::fill_n(std::back_inserter(K0), energy->particles.size(), 0.0);
-  std::fill_n(std::back_inserter(K), energy->particles.size(), 0.0);
 }
 
 EnergyConservation::EnergyConservation(const interfaces::Simulation& simulation)
   : TableDiagnostic(CONFIG().out_dir + "/temporal/energy_conservation.txt"),
     simulation(simulation)
 {
-  E0 = B0 = dE = dB = dF = dK = 0.0;
-  std::fill_n(std::back_inserter(K0), energy->particles.size(), 0.0);
-  std::fill_n(std::back_inserter(K), energy->particles.size(), 0.0);
 }
 
 PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   if (t == 0) {
+    E0 = B0 = dE = dB = dF = dK = 0.0;
+    std::fill_n(std::back_inserter(K0), energy->particles.size(), 0.0);
+    std::fill_n(std::back_inserter(K), energy->particles.size(), 0.0);
+
     PetscCall(initialize());
     E0 = energy->get_electric_energy();
     B0 = energy->get_magnetic_energy();
