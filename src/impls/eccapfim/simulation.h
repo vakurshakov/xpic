@@ -28,8 +28,9 @@ protected:
   PetscErrorCode timestep_implementation(PetscInt t) override;
 
   PetscErrorCode init_vectors();
-  PetscErrorCode init_snes_solver();
   PetscErrorCode init_matrices();
+  PetscErrorCode init_snes_solver();
+  PetscErrorCode init_log_stages();
 
   // Iterative solution procedures
   PetscErrorCode init_iteration();
@@ -69,6 +70,10 @@ protected:
   Vec sol;
   SNES snes;
   std::vector<PetscReal> conv_hist;
+
+  PetscClassId classid;
+  PetscLogEvent events[5];
+  PetscLogStage stagenums[4];
 
   SyncClock clock;
 

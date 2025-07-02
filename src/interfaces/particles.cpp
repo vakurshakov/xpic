@@ -39,6 +39,9 @@ Particles::Particles(const World& world, const SortParameters& parameters)
   update_cells = (size == 1) //
     ? std::bind(std::mem_fn(&Particles::update_cells_seq), this)
     : std::bind(std::mem_fn(&Particles::update_cells_mpi), this);
+
+  PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("interfaces::Particles", &classid));
+  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("update_cells", classid, &events[0]));
 }
 
 PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
@@ -76,6 +79,8 @@ PetscErrorCode Particles::correct_coordinates()
 PetscErrorCode Particles::update_cells_seq()
 {
   PetscFunctionBeginUser;
+  PetscLogEventBegin(events[0], 0, 0, 0, 0);
+
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto it = storage[g].begin();
     while (it != storage[g].end()) {
@@ -100,6 +105,8 @@ PetscErrorCode Particles::update_cells_seq()
     }
   }
 
+  PetscLogEventEnd(events[0], 0, 0, 0, 0);
+
   PetscInt sum = 0;
   for (const auto& cell : storage)
     sum += cell.size();
@@ -116,6 +123,8 @@ PetscErrorCode Particles::update_cells_mpi()
 
   std::vector<Point> outgoing[neighbors_num];
   std::vector<Point> incoming[neighbors_num];
+
+  PetscLogEventBegin(events[0], 0, 0, 0, 0);
 
   LOG("  Starting MPI cells update for \"{}\"", parameters.sort_name);
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
@@ -211,6 +220,8 @@ PetscErrorCode Particles::update_cells_mpi()
       storage[g].emplace_back(std::move(point));
     }
   }
+
+  PetscLogEventEnd(events[0], 0, 0, 0, 0);
 
   // Statistics of the transferred particles
   const std::vector<std::pair<std::string, size_t*>> map{
