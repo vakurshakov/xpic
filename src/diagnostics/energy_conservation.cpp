@@ -26,12 +26,12 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
     E0 = B0 = dE = dB = dF = dK = 0.0;
     std::fill_n(std::back_inserter(K0), energy->particles.size(), 0.0);
     std::fill_n(std::back_inserter(K), energy->particles.size(), 0.0);
-
     PetscCall(initialize());
-    E0 = energy->get_electric_energy();
-    B0 = energy->get_magnetic_energy();
-    K0 = energy->get_kinetic_energies();
   }
+
+  E0 = energy->get_electric_energy();
+  B0 = energy->get_magnetic_energy();
+  K0 = energy->get_kinetic_energies();
 
   PetscCall(energy->diagnose(t));
   PetscCall(TableDiagnostic::diagnose(t));
