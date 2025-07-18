@@ -138,6 +138,53 @@ private:
   }
 };
 
+class PointByFieldTrace : public TableDiagnostic {
+public:
+  PointByFieldTrace(std::string_view file, std::string_view id,  
+    const PointByField& point, PetscInt skip = 1)
+    : TableDiagnostic(get_outputfile(file, id)), skip(skip), point(point)
+  {
+  }
+
+private:
+  PetscInt skip;
+  const PointByField& point;
+
+  PetscErrorCode add_titles() override
+  {
+    PetscFunctionBeginUser;
+    add_title("t_[1/wpe]");
+    add_title("x_[c/wpe]");
+    add_title("y_[c/wpe]");
+    add_title("z_[c/wpe]");
+    add_title("p_par_[mc]");
+    add_title("p_perp_[mc]");
+    add_title("mu_p_[]");    // или укажи единицы, если у тебя приняты (например, [mc^2/B])
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  PetscErrorCode add_args(PetscInt t) override
+  {
+    if (t % skip != 0)
+      return PETSC_SUCCESS;
+
+    PetscFunctionBeginUser;
+    add_arg(t * dt);
+    add_arg(point.x());
+    add_arg(point.y());
+    add_arg(point.z());
+    add_arg(point.p_par());
+    add_arg(point.p_perp_ref());
+    add_arg(point.mu());
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  static std::filesystem::path get_outputfile(std::string_view file, std::string_view id)
+  {
+    return std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id);
+  }
+};
+
 void update_counter_clockwise(  //
   const Vector3R& old_r, const Vector3R& new_r,  //
   const Vector3R& B_p, PetscReal& counter_clockwise)

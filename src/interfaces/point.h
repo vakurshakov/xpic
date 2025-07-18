@@ -53,6 +53,22 @@ struct PointByField {
     mu_p = mp * p_perp * p_perp / (2. * Bp.length());
   }
 
+  PetscReal& x() { return r.x(); }
+  PetscReal& y() { return r.y(); }
+  PetscReal& z() { return r.z(); }
+
+  PetscReal x() const { return r.x(); }
+  PetscReal y() const { return r.y(); }
+  PetscReal z() const { return r.z(); }
+
+  PetscReal& p_par() { return p_parallel; }
+  PetscReal& p_perp_ref() { return p_perp; }
+  PetscReal p_par() const { return p_parallel; }
+  PetscReal p_perp_ref() const { return p_perp; }
+
+  PetscReal& mu() { return mu_p; }
+  PetscReal mu() const { return mu_p; }
+
 };
 
 void g_bound_reflective(Point& point, Axis axis);

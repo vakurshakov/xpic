@@ -18,6 +18,10 @@ public:
     /// @brief Sets mass, assumed to be constant during the iteration.
     void set_mp(PetscReal mp);
 
+    PetscReal get_mp() const;
+
+    PetscReal get_qm() const;
+
     /// @brief Once `process()` is complete, this will return the number of nonlinear iterations used.
     PetscInt get_iteration_number() const;
 
@@ -39,8 +43,8 @@ private:
 
     PetscInt it = 0;
     PetscInt maxit = 30;
-    PetscReal eps = 1e-7;
-    PetscReal delta = 1e-7;
+    PetscReal eps = 1e-12;
+    PetscReal delta = 1e-12;
 
     PetscReal qm = 0;
     PetscReal mp = 0;
