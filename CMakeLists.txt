@@ -40,6 +40,7 @@ set(algorithms
   src/algorithms/boris_push.cpp
   src/algorithms/crank_nicolson_push.cpp
   src/algorithms/drift_kinetic_push.cpp
+  src/algorithms/implicit_esirkepov.cpp
 )
 
 set(diagnostics
