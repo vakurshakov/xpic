@@ -1,10 +1,10 @@
 #include "particles.h"
 
 #include "src/algorithms/crank_nicolson_push.h"
-#include "src/algorithms/esirkepov_decomposition.h"
+#include "src/algorithms/implicit_esirkepov.h"
 #include "src/algorithms/simple_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
-#include "src/diagnostics/particles_energy.h"
+#include "src/impls/eccapfim/cell_traversal.h"
 #include "src/impls/eccapfim/simulation.h"
 
 namespace eccapfim {
@@ -24,43 +24,95 @@ PetscReal Particles::get_average_iteration_number() const
   return avgit;
 }
 
+PetscReal Particles::get_average_number_of_traversed_cells() const
+{
+  return avgcell;
+}
+
+
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(world.da, local_J, &J));
 
-  // #pragma omp parallel for
+  avgit = 0.0;
+  avgcell = 0.0;
+
+  const PetscReal xb = (world.start[X] - 0.5) * dx;
+  const PetscReal yb = (world.start[Y] - 0.5) * dy;
+  const PetscReal zb = (world.start[Z] - 0.5) * dz;
+
+  const PetscReal xe = (world.end[X] + 0.5) * dx;
+  const PetscReal ye = (world.end[Y] + 0.5) * dy;
+  const PetscReal ze = (world.end[Z] + 0.5) * dz;
+
+  static const PetscReal max = std::numeric_limits<double>::max();
+
+  auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe) {
+    if (vh > 0)
+      return (xe - x) / vh;
+    else if (vh < 0)
+      return (xb - x) / vh;
+    else
+      return max;
+  };
+
+#pragma omp parallel for reduction(+ : avgit, avgcell)
   for (PetscInt g = 0; g < (PetscInt)storage.size(); ++g) {
-    for (PetscInt i = 0; auto& point : storage[g]) {
-      const auto& point_0(previous_storage[g][i]);
+    PetscReal path;
+    std::vector<Vector3R> coords;
 
-      CrankNicolsonPush push(q_m(point));
+    for (PetscInt i = 0; auto& curr : storage[g]) {
+      const auto& prev(previous_storage[g][i]);
 
-      /// @todo This `Shape` and `SimpleInterpolation`, `SimpleDecomposition` below
-      /// should be replaced with charge-conserving ones, using non-symmetric particle shape
-      Shape shape;
+      CrankNicolsonPush push(q_m(prev));
+      ImplicitEsirkepov util(E, B, J);
 
-      push.set_fields_callback(
-        [&](const Vector3R& r, Vector3R& E_p, Vector3R& B_p) {
-          shape.setup(r, shape_radius, shape_func);
+      push.set_fields_callback(  //
+        [&](const Vector3R& rn, const Vector3R& r0, Vector3R& E_p, Vector3R& B_p) {
+          path = (rn - r0).length();
+          coords = cell_traversal(rn, r0);
 
-          SimpleInterpolation interpolation(shape);
-          interpolation.process({{E_p, E}}, {{B_p, B}});
+          for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
+            auto&& rs0 = coords[s - 1];
+            auto&& rsn = coords[s - 0];
+
+            Vector3R Es_p, Bs_p;
+            util.interpolate(Es_p, Bs_p, rsn, rs0);
+
+            PetscReal beta = path > 0 ? (rsn - rs0).length() / path : 1.0;
+            E_p += Es_p * beta;
+            B_p += Bs_p * beta;
+          }
         });
 
-      /// @todo This `dt` can be different from the global one, if we introduce sub-stepping
-      push.process(dt, point, point_0);
+      for (PetscReal dtau = 0.0, tau = 0.0; tau < dt; tau += dtau) {
+        PetscReal dtx = process_bound(curr.px(), curr.x(), xb, xe);
+        PetscReal dty = process_bound(curr.py(), curr.y(), yb, ye);
+        PetscReal dtz = process_bound(curr.pz(), curr.z(), zb, ze);
 
-      /// @todo For now, we have to check that particle doesn't pass the cell boundaries
-      PetscAssertAbort((point.r - point_0.r).abs_max() < dx, PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "Particle cannot move farther than one cell at a time");
+        dtau = std::min({dt - tau, dtx, dty, dtz});
 
-      avgit += push.get_iteration_number() / size;
+        push.process(dtau, curr, prev);
+        avgit += (PetscReal)(push.get_iteration_number() + 1) / size;
 
-      /// @todo Separate particle advancement and current decomposition onto different stages?
-      Vector3R J_p = qn_Np(point) * 0.5 * (point.p + point_0.p);
-      SimpleDecomposition decomposition(shape, J_p);
-      decomposition.process(J);
+        path = (curr.r - prev.r).length();
+        coords = cell_traversal(curr.r, prev.r);
+        avgcell += (PetscReal)(coords.size() - 1) / size;
+
+        PetscReal a0 = qn_Np(curr);
+        Vector3R vh = 0.5 * (curr.p + prev.p);
+
+        for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
+          auto&& rs0 = coords[s - 1];
+          auto&& rsn = coords[s - 0];
+
+          PetscReal a = a0 * (rsn - rs0).length() / path;
+          util.decompose(a, vh, rsn, rs0);
+        }
+
+        correct_coordinates(curr);
+      }
 
       i++;
     }
@@ -82,6 +134,8 @@ PetscErrorCode Particles::clear_sources()
 PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
+  size = 0;
+
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto&& curr = storage[g];
     if (curr.empty())

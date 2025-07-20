@@ -26,8 +26,12 @@ PetscErrorCode Simulation::initialize_implementation()
   }
   currents.emplace_back(currJe);
 
+  // EnergyConservation from ecsim
+  auto& diag = diagnostics_.back();
+  PetscCall(diag->finalize());
+  diagnostics_.pop_back();
+
   // clang-format off
-  diagnostics_.pop_back();  // EnergyConservation from ecsim
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   diagnostics_.emplace_back(std::make_unique<ChargeConservation>(world.da, currents, particles));
   // clang-format on
@@ -181,11 +185,11 @@ PetscErrorCode Simulation::init_log_stages()
   PetscFunctionBeginUser;
   PetscCall(ecsim::Simulation::init_log_stages());
 
-  stagenums[0] = ecsim::Simulation::stagenums[0]; // Initialization
-  stagenums[1] = ecsim::Simulation::stagenums[1]; // Clear sources
-  stagenums[2] = ecsim::Simulation::stagenums[2]; // First push
-  stagenums[4] = ecsim::Simulation::stagenums[4]; // Second push
-  stagenums[6] = ecsim::Simulation::stagenums[5]; // Final update
+  stagenums[0] = ecsim::Simulation::stagenums[0];  // Initialization
+  stagenums[1] = ecsim::Simulation::stagenums[1];  // Clear sources
+  stagenums[2] = ecsim::Simulation::stagenums[2];  // First push
+  stagenums[4] = ecsim::Simulation::stagenums[4];  // Second push
+  stagenums[6] = ecsim::Simulation::stagenums[5];  // Final update
   PetscCall(PetscLogStageRegister("Predict field", &stagenums[3]));
   PetscCall(PetscLogStageRegister("Correct fields", &stagenums[5]));
   PetscFunctionReturn(PETSC_SUCCESS);

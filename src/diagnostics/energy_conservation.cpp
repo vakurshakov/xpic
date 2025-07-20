@@ -6,95 +6,88 @@
 #include "src/utils/configuration.h"
 
 EnergyConservation::EnergyConservation( //
-  const interfaces::Simulation& simulation,
-  std::shared_ptr<FieldsEnergy> fields_energy,
-  std::shared_ptr<ParticlesEnergy> particles_energy)
+  const interfaces::Simulation& simulation, std::shared_ptr<Energy> energy)
   : TableDiagnostic(CONFIG().out_dir + "/temporal/energy_conservation.txt"),
     simulation(simulation),
-    fields_energy(fields_energy),
-    particles_energy(particles_energy)
+    energy(energy)
 {
 }
 
 EnergyConservation::EnergyConservation(const interfaces::Simulation& simulation)
-  : TableDiagnostic(CONFIG().out_dir + "/temporal/energy_conservation.txt"), simulation(simulation)
+  : TableDiagnostic(CONFIG().out_dir + "/temporal/energy_conservation.txt"),
+    simulation(simulation)
 {
+}
+
+PetscErrorCode EnergyConservation::diagnose(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  if (t == 0) {
+    E0 = B0 = dE = dB = dF = dK = 0.0;
+    std::fill_n(std::back_inserter(K0), energy->particles.size(), 0.0);
+    std::fill_n(std::back_inserter(K), energy->particles.size(), 0.0);
+    PetscCall(initialize());
+  }
+
+  E0 = energy->get_electric_energy();
+  B0 = energy->get_magnetic_energy();
+  K0 = energy->get_kinetic_energies();
+
+  PetscCall(energy->diagnose(t));
+  PetscCall(TableDiagnostic::diagnose(t));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode EnergyConservation::initialize()
 {
   PetscFunctionBeginUser;
-  PetscCall(fields_energy->calculate_energies());
-  PetscCall(particles_energy->calculate_energies());
+  PetscCall(energy->initialize());
+  PetscCall(TableDiagnostic::initialize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode EnergyConservation::add_titles()
+PetscErrorCode EnergyConservation::add_columns(PetscInt t)
 {
   PetscFunctionBeginUser;
-  add_title("δE");
-  add_title("δB");
+  add(6, "Time", "{:d}", t);
 
-  for (const auto& particles : particles_energy->particles_) {
-    add_title("δK_" + particles->parameters.sort_name);
-  }
-
-  for (const auto& command : simulation.step_presets_) {
-    if (dynamic_cast<FieldsDamping*>(command.get())) {
-      add_title("Damped(δE+δB)");
-    }
-    if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
-      add_title("Inj_" + injection->get_ionized_name());
-      add_title("Inj_" + injection->get_ejected_name());
-    }
-    if (auto&& remove = dynamic_cast<RemoveParticles*>(command.get())) {
-      add_title("Rm_" + remove->get_particles_name());
-    }
-  }
-
-  add_title("δE+δB+δK");
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode EnergyConservation::add_args(PetscInt /* t */)
-{
-  PetscFunctionBeginUser;
-  PetscReal prev_E = fields_energy->get_electric_energy();
-  PetscReal prev_B = fields_energy->get_magnetic_energy();
-  fields_energy->calculate_energies();
-  PetscReal dE = fields_energy->get_electric_energy() - prev_E;
-  PetscReal dB = fields_energy->get_magnetic_energy() - prev_B;
+  dE = energy->get_electric_energy() - E0;
+  dB = energy->get_magnetic_energy() - B0;
+  K = energy->get_kinetic_energies();
 
   dF = dE + dB;
-  add_arg(dE);
-  add_arg(dB);
+  add(13, "dE", "{: .6e}", dE);
+  add(13, "dB", "{: .6e}", dB);
 
   dK = 0.0;
-  auto&& K0 = particles_energy->get_energies();
-  particles_energy->calculate_energies();
-  auto&& K = particles_energy->get_energies();
-
   for (PetscInt i = 0; i < (PetscInt)K.size(); ++i) {
-    add_arg(K[i] - K0[i]);
+    auto&& n = energy->particles[i]->parameters.sort_name;
+    add(13, "dK_" + n, "{: .6e}", K[i] - K0[i]);
     dK += K[i] - K0[i];
   }
 
   for (const auto& command : simulation.step_presets_) {
     if (auto&& damp = dynamic_cast<FieldsDamping*>(command.get())) {
-      add_arg(damp->get_damped_energy());
+      add(13, "Damped(E+B)", "{: .6e}", damp->get_damped_energy());
       dF += damp->get_damped_energy();
     }
     if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
-      add_arg(injection->get_ionized_energy());
-      add_arg(injection->get_ejected_energy());
-      dK -= injection->get_ionized_energy() + injection->get_ejected_energy();
+      auto&& ni = injection->get_ionized_name();
+      auto&& ne = injection->get_ejected_name();
+      auto&& wi = injection->get_ionized_energy();
+      auto&& we = injection->get_ejected_energy();
+      add(13, "Inj_" + ni, "{: .6e}", wi);
+      add(13, "Inj_" + ne, "{: .6e}", we);
+      dK -= wi + we;
     }
     if (auto&& remove = dynamic_cast<RemoveParticles*>(command.get())) {
-      add_arg(remove->get_removed_energy());
+      auto&& n = remove->get_particles_name();
+      auto&& w = remove->get_removed_energy();
+      add(13, "Rm_" + n, "{: .6e}", w);
       dK += remove->get_removed_energy();
     }
   }
 
-  add_arg(dF + dK);
+  add(13, "dE+dB+dK", "{: .6e}", dF + dK);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

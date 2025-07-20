@@ -82,19 +82,6 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
 #define CAT(a, b) CAT_IMPL(a, b)
 
 
-#define DEFAULT_COPYABLE(Class)                   \
-  Class(const Class& other) = default;            \
-  Class& operator=(const Class& other) = default; \
-  Class(Class&& other) = delete;                  \
-  Class& operator=(Class&& other) = delete
-
-#define DEFAULT_MOVABLE(Class)                   \
-  Class(const Class& other) = delete;            \
-  Class& operator=(const Class& other) = delete; \
-  Class(Class&& other) = default;                \
-  Class& operator=(Class&& other) = default
-
-
 #if LOGGING
   #define LOG_FLUSH()   std::cout.flush()
   #define LOG_IMPL(...) std::cout << std::format(__VA_ARGS__) << "\n";

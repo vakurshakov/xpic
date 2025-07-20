@@ -1,5 +1,6 @@
 #include "distribution_moment_builder.h"
 
+#include "src/diagnostics/distribution_moment.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector_utils.h"
 

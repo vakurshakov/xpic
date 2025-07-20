@@ -49,5 +49,17 @@ private:
   PetscReal get_integ_z(PetscReal z, PetscReal r, PetscReal R);
 };
 
+struct SetApproximateMirrorField {
+  PetscReal D;
+  PetscReal R;
+  PetscReal I;
+
+  SetApproximateMirrorField(PetscReal D, PetscReal R, PetscReal I);
+  PetscErrorCode operator()(Vec vec);
+
+private:
+  PetscReal get_B0(PetscReal z, PetscReal sign);
+  PetscReal get_B1(PetscReal z, PetscReal sign);
+};
 
 #endif // SRC_COMMANDS_SET_MAGNETIC_FIELD_H

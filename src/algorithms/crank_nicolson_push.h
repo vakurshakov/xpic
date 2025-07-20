@@ -20,8 +20,12 @@ public:
 
   /// @brief Used during the internal iteration process to obtain
   /// fields acting on particle at time-centered coordinate.
-  using SetFields = std::function<void(const Vector3R&, Vector3R&, Vector3R&)>;
+  using SetFields =
+    std::function<void(const Vector3R&, const Vector3R&, Vector3R&, Vector3R&)>;
+
   void set_fields_callback(SetFields&& callback);
+
+  // using ConvergenceTest;
 
   /// @brief Nonlinear move of point `pn` by timestep shift `dt`.
   /// @warning `pn` and `p0` cannot be the same as `pn` will be updated.

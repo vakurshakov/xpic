@@ -11,8 +11,6 @@
 /// @brief Utility class to create constant operators on a `DMDA` grid.
 class Operator {
 public:
-  DEFAULT_MOVABLE(Operator);
-
   Operator() = default;
   virtual ~Operator() = default;
 
@@ -84,7 +82,6 @@ private:
 
 class NonRectangularOperator : public FiniteDifferenceOperator {
 public:
-  DEFAULT_MOVABLE(NonRectangularOperator);
   ~NonRectangularOperator() override;
 
 protected:

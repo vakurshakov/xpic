@@ -17,8 +17,8 @@ set(CMAKE_CONFIGURATION_TYPES
   "Release"
 )
 
-set(CMAKE_CXX_FLAGS "-fpic -fopenmp")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
 
 set(PETSC_ARCH_OPT linux-mpi-opt)
@@ -39,26 +39,31 @@ set(algorithms
   src/algorithms/esirkepov_decomposition.cpp
   src/algorithms/boris_push.cpp
   src/algorithms/crank_nicolson_push.cpp
+<<<<<<< HEAD
   src/algorithms/drift_kinetic_push.cpp
+=======
+>>>>>>> master
   src/algorithms/implicit_esirkepov.cpp
 )
 
 set(diagnostics
   src/diagnostics/field_view.cpp
-  src/diagnostics/fields_energy.cpp
-  src/diagnostics/particles_energy.cpp
+  src/diagnostics/energy.cpp
   src/diagnostics/distribution_moment.cpp
   src/diagnostics/mat_dump.cpp
   src/diagnostics/log_view.cpp
   src/diagnostics/simulation_backup.cpp
   src/diagnostics/energy_conservation.cpp
   src/diagnostics/charge_conservation.cpp
+  src/diagnostics/momentum_conservation.cpp
+  src/diagnostics/velocity_distribution.cpp
   src/diagnostics/utils/table_diagnostic.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
   src/diagnostics/builders/log_view_builder.cpp
   src/diagnostics/builders/simulation_backup_builder.cpp
+  src/diagnostics/builders/velocity_distribution_builder.cpp
 )
 
 set(commands
@@ -110,14 +115,11 @@ set(impls_ecsimcorr
   src/impls/ecsimcorr/energy_conservation.cpp
 )
 
-set(impls_ricketson
-  src/impls/ricketson/simulation.cpp
-  src/impls/ricketson/particles.cpp
-)
-
 set(impls_eccapfim
   src/impls/eccapfim/simulation.cpp
   src/impls/eccapfim/particles.cpp
+  src/impls/eccapfim/cell_traversal.cpp
+  src/impls/eccapfim/convergence_history.cpp
 )
 
 add_library(

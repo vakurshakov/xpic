@@ -1,6 +1,6 @@
 #include "set_particles.h"
 
-#include "src/diagnostics/particles_energy.h"
+#include "src/diagnostics/energy.h"
 #include "src/utils/configuration.h"
 #include "src/utils/random_generator.h"
 
@@ -33,7 +33,7 @@ PetscErrorCode SetParticles::execute(PetscInt /* t */)
     particles_.add_particle(Point(coordinate, momentum), &is_added);
 
     if (is_added) {
-      added_energy_ += ParticlesEnergy::get(momentum, m, Np);
+      added_energy_ += Energy::get_kinetic(momentum, m, Np);
       added_particles_++;
     }
   }

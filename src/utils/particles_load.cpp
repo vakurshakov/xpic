@@ -29,25 +29,17 @@ Vector3R CoordinateInCylinder::operator()()
   };
 }
 
-
-CoordinateOnAnnulus::CoordinateOnAnnulus(const Vector3R& center,
-  PetscReal inner_r, PetscReal outer_r, PetscReal height)
-  : center(center),
-    inner_r2(POW2(inner_r)),
-    outer_r2(POW2(outer_r)),
-    height(height)
-{
-}
-
 Vector3R CoordinateOnAnnulus::operator()()
 {
-  PetscReal r = std::sqrt(inner_r2 + (outer_r2 - inner_r2) * random_01());
+  PetscReal r = std::sqrt(POW2(ann.inner_r) +  //
+    (POW2(ann.outer_r) - POW2(ann.inner_r)) * random_01());
+
   PetscReal phi = 2.0 * M_PI * random_01();
 
   return Vector3R{
-    center[X] + r * std::cos(phi),
-    center[Y] + r * std::sin(phi),
-    center[Z] + height * (random_01() - 0.5),
+    ann.center[X] + r * std::cos(phi),
+    ann.center[Y] + r * std::sin(phi),
+    ann.center[Z] + ann.height * (random_01() - 0.5),
   };
 }
 

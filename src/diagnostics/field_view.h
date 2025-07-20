@@ -27,6 +27,7 @@ public:
   static std::unique_ptr<FieldView> create(
     const std::string& out_dir, DM da, Vec field, const Region& region);
 
+  PetscErrorCode finalize() override;
   PetscErrorCode diagnose(PetscInt t) override;
 
 protected:

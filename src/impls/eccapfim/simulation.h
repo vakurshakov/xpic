@@ -11,8 +11,6 @@ namespace eccapfim {
 
 class Simulation : public interfaces::Simulation {
 public:
-  DEFAULT_MOVABLE(Simulation);
-
   Simulation() = default;
   PetscErrorCode finalize() override;
 
@@ -30,8 +28,9 @@ protected:
   PetscErrorCode timestep_implementation(PetscInt t) override;
 
   PetscErrorCode init_vectors();
-  PetscErrorCode init_snes_solver();
   PetscErrorCode init_matrices();
+  PetscErrorCode init_snes_solver();
+  PetscErrorCode init_log_stages();
 
   // Iterative solution procedures
   PetscErrorCode init_iteration();
@@ -72,7 +71,13 @@ protected:
   SNES snes;
   std::vector<PetscReal> conv_hist;
 
+  PetscClassId classid;
+  PetscLogEvent events[5];
+  PetscLogStage stagenums[4];
+
   SyncClock clock;
+
+  friend class ConvergenceHistory;
 };
 
 }  // namespace eccapfim

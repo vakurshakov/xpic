@@ -9,7 +9,8 @@ static constexpr char help[] =
 constexpr Vector3R E0(0, 0, 1);
 constexpr Vector3R B0(20, 0, 0);
 
-void interpolated_fields(const Vector3R& r, Vector3R& E_p, Vector3R& B_p);
+void interpolated_fields(
+  const Vector3R& rn, const Vector3R& r0, Vector3R& E_p, Vector3R& B_p);
 
 int main(int argc, char** argv)
 {
@@ -68,7 +69,8 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void interpolated_fields(const Vector3R&, Vector3R& E_p, Vector3R& B_p)
+void interpolated_fields(
+  const Vector3R&, const Vector3R&, Vector3R& E_p, Vector3R& B_p)
 {
   E_p = E0;
   B_p = B0;

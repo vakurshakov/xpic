@@ -49,6 +49,12 @@ FieldView::FieldView(
 {
 }
 
+PetscErrorCode FieldView::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(file_.finalize());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 PetscErrorCode FieldView::set_data_views(const Region& region)
 {
@@ -77,7 +83,7 @@ PetscErrorCode FieldView::set_data_views(const Region& region)
   // memory start is in local coordinates
   m_start -= l_start;
 
-  if (region_.dim > 3) {
+  if (region_.dof > 1) {
     f_start[3] = 0;
     m_start[3] = g_start[3];
     l_size[3] = f_size[3];
@@ -99,10 +105,12 @@ PetscErrorCode FieldView::diagnose(PetscInt t)
   const PetscReal* arr;
   PetscCall(VecGetArrayRead(field_, &arr));
 
+  PetscInt dof;
   Vector3I size;
+  PetscCall(DMDAGetDof(da_, &dof));
   PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
 
-  PetscCall(file_.write_floats((size[X] * size[Y] * size[Z] * region_.dof), arr));
+  PetscCall(file_.write_floats((size[X] * size[Y] * size[Z] * dof), arr));
   PetscCall(file_.close());
 
   PetscCall(VecRestoreArrayRead(field_, &arr));

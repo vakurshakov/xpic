@@ -41,12 +41,30 @@ class Constants:
         self.dy = geometry.get("dy")
         self.dz = geometry.get("dz")
         self.dt = geometry.get("dt")
-        self.Nx = round(geometry.get("x") / self.dx)
-        self.Ny = round(geometry.get("y") / self.dy)
-        self.Nz = round(geometry.get("z") / self.dz)
-        self.Nt = round(geometry.get("t") / self.dt)
 
-        self.diagnose_period  = geometry["diagnose_period"]  # 1/wpe
+        def read_scalar(c, n):
+            s = c.get(n)
+            if type(s) != str:
+                return s
+
+            if s.endswith(" [dx]"):
+                return float(s[:-5]) * self.dx
+            if s.endswith(" [dy]"):
+                return float(s[:-5]) * self.dy
+            if s.endswith(" [dz]"):
+                return float(s[:-5]) * self.dz
+            if s.endswith(" [dt]"):
+                return float(s[:-5]) * self.dt
+
+            if (s.endswith(" [c/w_pe]") or s.endswith(" [1/w_pe]")):
+                return float(s[:-9])
+
+        self.Nx = round(read_scalar(geometry, "x") / self.dx)
+        self.Ny = round(read_scalar(geometry, "y") / self.dy)
+        self.Nz = round(read_scalar(geometry, "z") / self.dz)
+        self.Nt = round(read_scalar(geometry, "t") / self.dt)
+
+        self.diagnose_period  = read_scalar(geometry, "diagnose_period")  # 1/wpe
 
         self.plot_init = 0
         self.plot_time = self.Nt

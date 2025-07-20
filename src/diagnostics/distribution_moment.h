@@ -17,8 +17,6 @@ class DistributionMoment : public FieldView {
   friend class ChargeConservation;
 
 public:
-  DEFAULT_MOVABLE(DistributionMoment);
-
   static std::unique_ptr<DistributionMoment> create(const std::string& out_dir,
     const interfaces::Particles& particles, const Moment& moment,
     const Region& region);

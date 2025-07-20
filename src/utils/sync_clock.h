@@ -9,8 +9,6 @@
 
 class SyncClock {
 public:
-  DEFAULT_COPYABLE(SyncClock);
-
   SyncClock() = default;
   ~SyncClock() = default;
 

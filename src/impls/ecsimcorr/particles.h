@@ -9,8 +9,6 @@ class Simulation;
 
 class Particles : public ecsim::Particles {
 public:
-  DEFAULT_MOVABLE(Particles);
-
   Particles(Simulation& simulation, const SortParameters& parameters);
   PetscErrorCode finalize() override;
 

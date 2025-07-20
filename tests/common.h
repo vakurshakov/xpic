@@ -103,32 +103,19 @@ private:
   PetscInt skip;
   const Point& point;
 
-  PetscErrorCode add_titles() override
-  {
-    PetscFunctionBeginUser;
-    add_title("t_[1/wpe]");
-    add_title("x_[c/wpe]");
-    add_title("y_[c/wpe]");
-    add_title("z_[c/wpe]");
-    add_title("vx_[c]");
-    add_title("vy_[c]");
-    add_title("vz_[c]");
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-
-  PetscErrorCode add_args(PetscInt t) override
+  PetscErrorCode add_columns(PetscInt t) override
   {
     if (t % skip != 0)
       return PETSC_SUCCESS;
 
     PetscFunctionBeginUser;
-    add_arg(t * dt);
-    add_arg(point.x());
-    add_arg(point.y());
-    add_arg(point.z());
-    add_arg(point.px());
-    add_arg(point.py());
-    add_arg(point.pz());
+    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
+    add(13, "x_[c/wpe]", "{: .6e}", point.x());
+    add(13, "y_[c/wpe]", "{: .6e}", point.y());
+    add(13, "z_[c/wpe]", "{: .6e}", point.z());
+    add(13, "vx_[c]", "{: .6e}", point.px());
+    add(13, "vy_[c]", "{: .6e}", point.py());
+    add(13, "vz_[c]", "{: .6e}", point.pz());
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 

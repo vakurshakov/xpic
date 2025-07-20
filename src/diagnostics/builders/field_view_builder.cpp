@@ -32,7 +32,7 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
 
   check_region(region, field);
 
-  LOG("  Field view diagnostic is added for {}, suffix: {}", field, suffix.empty() ? "<empty>" : suffix);
+  LOG("  field view diagnostic is added for {}, suffix: {}", field, suffix.empty() ? "<empty>" : suffix);
 
   if (!suffix.empty())
     suffix = "_" + suffix;

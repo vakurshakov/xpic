@@ -137,3 +137,55 @@ PetscReal SetCoilsField::get_integ_z(PetscReal z, PetscReal r, PetscReal R)
   }
   return hp * integral;
 }
+
+
+PetscErrorCode SetApproximateMirrorField::operator()(Vec vec)
+{
+  PetscFunctionBeginUser;
+  DM da;
+  PetscCall(VecGetDM(vec, &da));
+
+  Vector3I start, size;
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+
+  Vector3R*** arr;
+  PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
+
+  PetscReal sz, sm;
+
+#pragma omp parallel for private(sz, sm)
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    PetscInt x = start[X] + g % size[X];
+    PetscInt y = start[Y] + (g / size[X]) % size[Y];
+    PetscInt z = start[Z] + (g / size[X]) / size[Y];
+
+    sz = (z + 0.5) * dz;
+    sm = 1.5 * (x * dx - 0.5 * geom_x);
+    arr[z][y][x][X] += get_B0(sz, +1) * sm * get_B1(sz, +1);
+    arr[z][y][x][X] += get_B0(sz, -1) * sm * get_B1(sz, -1);
+
+    sz = (z + 0.5) * dz;
+    sm = 1.5 * (y * dy - 0.5 * geom_y);
+    arr[z][y][x][X] += get_B0(sz, +1) * sm * get_B1(sz, +1);
+    arr[z][y][x][X] += get_B0(sz, -1) * sm * get_B1(sz, -1);
+
+    sz = z * dz;
+    arr[z][y][x][Z] += get_B0(sz, +1);
+    arr[z][y][x][Z] += get_B0(sz, -1);
+  }
+
+  PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
+
+  LOG("  Approximate magnetic mirror field is set!");
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscReal SetApproximateMirrorField::get_B0(PetscReal z, PetscReal sign)
+{
+  return 0.5 * I * POW2(R) / std::pow(POW2(R) + POW2(z + 0.5 * sign * D), 1.5);
+}
+
+PetscReal SetApproximateMirrorField::get_B1(PetscReal z, PetscReal sign)
+{
+  return (z + 0.5 * sign * D) / (POW2(R) + POW2(z + 0.5 * sign * D));
+}

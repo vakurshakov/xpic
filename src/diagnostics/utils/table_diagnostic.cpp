@@ -8,18 +8,18 @@ TableDiagnostic::TableDiagnostic(const std::string& filename)
 PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t == 0) {
+  if (t == 0)
     PetscCall(initialize());
-    PetscCall(add_titles());
-    PetscCall(write_formatted("{:15s}  ", titles_));
+
+  PetscCall(add_columns(t));
+
+  if (!values_.empty()) {
+    if (t == 0)
+      PetscCall(write_formatted(titles_));
+    PetscCall(write_formatted(values_));
+
     titles_.clear();
-  }
-
-  PetscCall(add_args(t));
-
-  if (!args_.empty()) {
-    PetscCall(write_formatted("{: .6e}    ", args_));
-    args_.clear();
+    values_.clear();
   }
 
   if (t % diagnose_period_ == 0)
@@ -33,12 +33,21 @@ PetscErrorCode TableDiagnostic::initialize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void TableDiagnostic::add_arg(PetscReal arg, PetscInt pos)
+PetscErrorCode TableDiagnostic::write_formatted(
+  const std::vector<std::string>& container)
 {
-  add(arg, args_, pos);
-}
+  PetscFunctionBeginUser;
+  PetscInt i = 0, size = (PetscInt)container.size();
 
-void TableDiagnostic::add_title(std::string title, PetscInt pos)
-{
-  add(title, titles_, pos);
+  for (; i < size - 1; ++i) {
+    file_() << container[i] << "  ";
+  }
+
+  auto last = container.back();
+  while (!last.empty() && last.back() == ' ') {
+    last.pop_back();
+  }
+
+  file_() << last << "\n";
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

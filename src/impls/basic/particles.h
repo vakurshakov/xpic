@@ -11,8 +11,6 @@ class Simulation;
 
 class Particles final : public interfaces::Particles {
 public:
-  DEFAULT_MOVABLE(Particles);
-
   Particles(Simulation& simulation, const SortParameters& parameters);
   PetscErrorCode finalize() override;
 

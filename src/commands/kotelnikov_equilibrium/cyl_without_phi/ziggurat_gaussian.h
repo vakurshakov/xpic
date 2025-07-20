@@ -20,10 +20,8 @@
  * the scenario described above.
  *
  * For a detailed explanation of the method see
- *  Marsaglia, George, and Wai Wan Tsang.
- *  "The Ziggurat Method for Generating Random Variables",
- *  Journal of Statistical Software 5, no. 8 (2000).
- *  https://doi.org/10.18637/jss.v005.i08.
+ * Marsaglia, George, and Wai Wan Tsang. "The Ziggurat Method for Generating Random Variables", Journal of Statistical Software 5, no. 8 (2000).
+ * https://doi.org/10.18637/jss.v005.i08.
  */
 class ZigguratGaussian {
 public:

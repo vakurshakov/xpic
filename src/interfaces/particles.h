@@ -10,9 +10,8 @@ namespace interfaces {
 
 class Particles {
 public:
-  DEFAULT_MOVABLE(Particles);
-
   Particles(const World& world, const SortParameters& parameters);
+  virtual ~Particles() = default;
 
   /// @brief Inheritors should override this finalize, to clear the internal petsc data
   virtual PetscErrorCode finalize()
@@ -66,8 +65,10 @@ public:
 protected:
   static constexpr PetscInt MPI_TAG_NUMBERS = 2;
   static constexpr PetscInt MPI_TAG_POINTS = 4;
-
   static constexpr PetscInt OMP_CHUNK_SIZE = 16;
+
+  PetscClassId classid;
+  PetscLogEvent events[1];
 };
 
 }  // namespace interfaces

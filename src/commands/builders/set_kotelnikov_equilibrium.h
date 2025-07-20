@@ -35,7 +35,7 @@ public:
       "\n"
       "\"SetKotelnikovEquilibrium\" step preset description:\n"
       "\"buffer\" -- width of buffer to leave along cylinder radius\n"
-      "\"damping_coefficient\" -- the coefficient to pass to \"FieldsDamping\"\n";
+      "\"damping_coefficient\" -- the coefficient of \"FieldsDamping\"\n";
     return help;
   }
 };

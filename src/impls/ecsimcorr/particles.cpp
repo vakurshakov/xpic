@@ -4,7 +4,7 @@
 #include "src/algorithms/esirkepov_decomposition.h"
 #include "src/algorithms/simple_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
-#include "src/diagnostics/particles_energy.h"
+#include "src/diagnostics/energy.h"
 #include "src/impls/ecsimcorr/simulation.h"
 
 namespace ecsimcorr {
@@ -145,7 +145,7 @@ PetscErrorCode Particles::calculate_energy()
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& cell : storage)
     for (auto& point : cell)
-      energy += ParticlesEnergy::get(point.p, m, Np);
+      energy += Energy::get_kinetic(point.p, m, Np);
 
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
