@@ -73,7 +73,7 @@ BorisPush::AnglePair BorisPush::get_theta_c1(PetscReal dt) const
 {
   PetscReal theta = get_theta(dt);
   return std::make_pair(
-    theta * std::sqrt(1.0 - 0.25 * POW2(theta)), (1 - 0.5 * POW2(theta)));
+    theta * std::sqrt(1.0 - 0.25 * POW2(theta)), 1 - 0.5 * POW2(theta));
 }
 
 BorisPush::AnglePair BorisPush::get_theta_c2(PetscReal dt) const

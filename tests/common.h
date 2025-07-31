@@ -125,6 +125,41 @@ private:
   }
 };
 
+class PointByFieldTrace : public TableDiagnostic {
+public:
+  PointByFieldTrace(std::string_view file, std::string_view id,
+    const PointByField& point, PetscInt skip = 1)
+    : TableDiagnostic(get_outputfile(file, id)), skip(skip), point(point)
+  {
+  }
+
+private:
+  PetscInt skip;
+  const PointByField& point;
+
+  PetscErrorCode add_columns(PetscInt t) override
+  {
+    if (t % skip != 0)
+      return PETSC_SUCCESS;
+
+    PetscFunctionBeginUser;
+    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
+    add(13, "x_[c/wpe]", "{: .6e}", point.x());
+    add(13, "y_[c/wpe]", "{: .6e}", point.y());
+    add(13, "z_[c/wpe]", "{: .6e}", point.z());
+    add(13, "p_par_[mc]", "{: .6e}", point.p_par());
+    add(13, "p_perp_[mc]", "{: .6e}", point.p_perp_ref());
+    add(13, "mu_p_[mc^2/B]", "{: .6e}", point.mu());
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  static std::filesystem::path get_outputfile(
+    std::string_view file, std::string_view id)
+  {
+    return std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id);
+  }
+};
+
 void update_counter_clockwise(  //
   const Vector3R& old_r, const Vector3R& new_r,  //
   const Vector3R& B_p, PetscReal& counter_clockwise)

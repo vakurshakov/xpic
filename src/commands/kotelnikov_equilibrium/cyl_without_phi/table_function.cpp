@@ -67,7 +67,7 @@ void TableFunction::scale_values(PetscReal scale)
 PetscReal TableFunction::get_value(PetscReal x) const
 {
   PetscFunctionBeginUser;
-  PetscCheckAbort((xmin_ <= x && x <= xmax_), PETSC_COMM_WORLD, PETSC_ERR_USER,
+  PetscCheckAbort(xmin_ <= x && x <= xmax_, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Given x = %f [c/wpe] misses the boundaries of table function; xmin: %f, xmax: %f", x, xmin_, xmax_);
 
   x -= xmin_;
