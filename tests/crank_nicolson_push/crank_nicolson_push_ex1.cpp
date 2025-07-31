@@ -22,8 +22,6 @@ int main(int argc, char** argv)
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
 
-  std::string id = std::format("omega_dt_{:.1f}", omega_dt);
-
   dt = omega_dt / B0.length();
   geom_nt = 100'000;
   diagnose_period = geom_nt / 4;
@@ -32,6 +30,7 @@ int main(int argc, char** argv)
   PetscReal check_mean_radius = 0.0;
   Vector3R check_mean_coord;
 
+  auto id = std::format("omega_dt_{:.1f}", omega_dt);
   PointTrace trace(__FILE__, id, point_n, geom_nt / 123);
 
   CrankNicolsonPush push;

@@ -42,17 +42,21 @@ struct PointByField {
 
   PointByField() = default;
 
-  PointByField(const Vector3R& r, const PetscReal& p_perp, const PetscReal& p_parallel,const PetscReal& mu_p)
+  PointByField(
+    const Vector3R& r, PetscReal p_perp, PetscReal p_parallel, PetscReal mu_p)
     : r(r), p_parallel(p_parallel), p_perp(p_perp), mu_p(mu_p)
   {
   }
 
-  PointByField(const Point& point, const Vector3R& Bp, const PetscReal& mp)
-    : r(point.r), p_parallel(point.p.parallel_to(Bp).length()), p_perp(point.p.transverse_to(Bp).length()), mu_p(0.)
+  PointByField(const Point& point, const Vector3R& Bp, PetscReal mp)
+    : r(point.r),
+      p_parallel(point.p.parallel_to(Bp).length()),
+      p_perp(point.p.transverse_to(Bp).length()),
+      mu_p(mp * p_perp * p_perp / (2.0 * Bp.length()))
   {
-    mu_p = mp * p_perp * p_perp / (2. * Bp.length());
   }
 
+  // clang-format off: access modifiers
   PetscReal& x() { return r.x(); }
   PetscReal& y() { return r.y(); }
   PetscReal& z() { return r.z(); }
@@ -68,7 +72,7 @@ struct PointByField {
 
   PetscReal& mu() { return mu_p; }
   PetscReal mu() const { return mu_p; }
-
+  // clang-format off: access modifiers
 };
 
 void g_bound_reflective(Point& point, Axis axis);

@@ -86,6 +86,7 @@
     "numparts",
     "openmp",
     "OUTOFRANGE",
+    "paraxial",
     "PETSC",
     "petscerror",
     "petscsys",

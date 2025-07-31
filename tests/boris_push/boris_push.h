@@ -98,7 +98,7 @@ void process_M2A(BorisPush& push, Point& point, const Interpolator& interpolate)
   Vector3R E_p, B_p;
   interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
-  push.update_vM((dt / 2.0), point);
+  push.update_vM(dt / 2.0, point);
 
   // r_0 + dt * v_{1/2} -> r_1
   push.update_r(dt, point);
@@ -106,13 +106,13 @@ void process_M2A(BorisPush& push, Point& point, const Interpolator& interpolate)
   // v_B(r_1, v_{1/2}, dt / 2) ;-> v_1
   interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
-  push.update_vM((dt / 2.0), point);
+  push.update_vM(dt / 2.0, point);
 }
 
 void process_M2B(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
   // r_0 + (dt / 2) * v_0 -> r_{1/2}
-  push.update_r((dt / 2.0), point);
+  push.update_r(dt / 2.0, point);
 
   // v_B(r_{1/2}, v_0, dt) -> v_1
   Vector3R E_p, B_p;
@@ -121,7 +121,7 @@ void process_M2B(BorisPush& push, Point& point, const Interpolator& interpolate)
   push.update_vM(dt, point);
 
   // r_{1/2} + (dt / 2) * v_1 -> r_1
-  push.update_r((dt / 2.0), point);
+  push.update_r(dt / 2.0, point);
 }
 
 void process_C2A(BorisPush& push, Point& point, const Interpolator& interpolate)
@@ -130,7 +130,7 @@ void process_C2A(BorisPush& push, Point& point, const Interpolator& interpolate)
   Vector3R E_p, B_p;
   interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
-  push.update_vC2((dt / 2.0), point);
+  push.update_vC2(dt / 2.0, point);
 
   // r_0 + dt * v_{1/2} -> r_1
   push.update_r(dt, point);
@@ -138,13 +138,13 @@ void process_C2A(BorisPush& push, Point& point, const Interpolator& interpolate)
   // v_B(r_1, v_{1/2}, dt / 2) ;-> v_1
   interpolate(point.r, E_p, B_p);
   push.set_fields(E_p, B_p);
-  push.update_vC2((dt / 2.0), point);
+  push.update_vC2(dt / 2.0, point);
 }
 
 void process_B2B(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
   // r_0 + (dt / 2) * v_0 -> r_{1/2}
-  push.update_r((dt / 2.0), point);
+  push.update_r(dt / 2.0, point);
 
   // v_B(r_{1/2}, v_0, dt) -> v_1
   Vector3R E_p, B_p;
@@ -153,7 +153,7 @@ void process_B2B(BorisPush& push, Point& point, const Interpolator& interpolate)
   push.update_vB(dt, point);
 
   // r_{1/2} + (dt / 2) * v_1 -> r_1
-  push.update_r((dt / 2.0), point);
+  push.update_r(dt / 2.0, point);
 }
 
 // Electro-magnetic field integrators
@@ -185,7 +185,7 @@ void process_EBLF(BorisPush& push, Point& point, const Interpolator& interpolate
 void process_EB2B(BorisPush& push, Point& point, const Interpolator& interpolate)
 {
   // r_0 + (dt / 2) * v_0 -> r_{1/2}
-  push.update_r((dt / 2.0), point);
+  push.update_r(dt / 2.0, point);
 
   // v_B(r_{1/2}, v_0, dt) -> v_1
   Vector3R E_p, B_p;
@@ -194,7 +194,7 @@ void process_EB2B(BorisPush& push, Point& point, const Interpolator& interpolate
   push.update_vEB(dt, point);
 
   // r_{1/2} + (dt / 2) * v_1 -> r_1
-  push.update_r((dt / 2.0), point);
+  push.update_r(dt / 2.0, point);
 }
 
 

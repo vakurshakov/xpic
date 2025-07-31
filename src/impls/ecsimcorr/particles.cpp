@@ -33,7 +33,7 @@ PetscErrorCode Particles::first_push()
   for (auto& cell : storage) {
     for (auto& point : cell) {
       const Vector3R old_r = point.r;
-      BorisPush::update_r((0.5 * dt), point);
+      BorisPush::update_r(0.5 * dt, point);
 
       Shape shape;
       shape.setup(old_r, point.r, shape_radius2, shape_func2);
@@ -71,7 +71,7 @@ PetscErrorCode Particles::second_push()
 
       BorisPush push(q_m(point), E_p, B_p);
       push.update_vEB(dt, point);
-      push.update_r((0.5 * dt), point);
+      push.update_r(0.5 * dt, point);
 
       shape.setup(old_r, point.r, shape_radius2, shape_func2);
       decompose_esirkepov_current(shape, point);
