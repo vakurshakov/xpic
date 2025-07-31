@@ -140,12 +140,12 @@ PetscInt FiniteDifferenceOperator::ind(PetscInt c, PetscInt i) const
 
 std::tuple<REP3(PetscInt)> get_positive_offsets(PetscInt x, PetscInt y, PetscInt z)
 {
-  return std::make_tuple((x + 1), (y + 1), (z + 1));
+  return std::make_tuple(x + 1, y + 1, z + 1);
 }
 
 std::tuple<REP3(PetscInt)> get_negative_offsets(PetscInt x, PetscInt y, PetscInt z)
 {
-  return std::make_tuple((x - 1), (y - 1), (z - 1));
+  return std::make_tuple(x - 1, y - 1, z - 1);
 }
 
 

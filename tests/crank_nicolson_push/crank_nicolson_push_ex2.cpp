@@ -24,8 +24,6 @@ int main(int argc, char** argv)
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
 
-  std::string id = std::format("omega_dt_{:.1f}", omega_dt);
-
   PetscReal omega = B0.length();
   dt = omega_dt / omega;
   geom_t = 100'000 * (2.0 * M_PI / omega);
@@ -35,6 +33,7 @@ int main(int argc, char** argv)
   PetscReal check_energy_conservation = 0.0;
   Vector3R check_drift_velocity;
 
+  auto id = std::format("omega_dt_{:.1f}", omega_dt);
   PointTrace trace(__FILE__, id, point_n, geom_nt / 123);
 
   CrankNicolsonPush push;

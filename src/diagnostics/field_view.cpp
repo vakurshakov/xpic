@@ -110,7 +110,7 @@ PetscErrorCode FieldView::diagnose(PetscInt t)
   PetscCall(DMDAGetDof(da_, &dof));
   PetscCall(DMDAGetCorners(da_, REP3(nullptr), REP3_A(&size)));
 
-  PetscCall(file_.write_floats((size[X] * size[Y] * size[Z] * dof), arr));
+  PetscCall(file_.write_floats(size[X] * size[Y] * size[Z] * dof, arr));
   PetscCall(file_.close());
 
   PetscCall(VecRestoreArrayRead(field_, &arr));
