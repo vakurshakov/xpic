@@ -6,3 +6,4 @@ Welcome to xpic's documentation!
   :caption: Содержание
 
   src/installation
+  src/structure
