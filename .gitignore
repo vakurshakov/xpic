@@ -1,6 +1,7 @@
 external/json
 external/petsc
 
+.cache/**
 **/__pycache__/**
 
 build/
