@@ -23,3 +23,11 @@ foreach(test ${tests})
   add_test(NAME "${test}_omega_dt_${omega_dt}" COMMAND ./${test}.out -omega_dt ${omega_dt})
   set_property(TEST "${test}_omega_dt_${omega_dt}" PROPERTY LABELS drift_kinetic)
 endforeach()
+
+set(test drift_kinetic_push_ex9)
+
+add_executable(${test}.out ${test}.cpp)
+target_link_libraries(${test}.out ${PROJECT_NAME})
+
+# Python script runs the binary and creates the images of trajectories
+add_test(NAME "${test}" COMMAND ${CMAKE_SOURCE_DIR}/tests/drift_kinetic_push/${test}_comparison.py)
