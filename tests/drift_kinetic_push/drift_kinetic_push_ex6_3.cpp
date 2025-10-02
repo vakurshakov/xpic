@@ -4,30 +4,19 @@ static constexpr char help[] =
   "Test: magnetic mirror and constant azimuthal E_phi.\n"
   "Check that particle is pushed toward axis due to ExB drift.\n";
 
+using namespace quadratic_magnetic_mirror;
+
 constexpr PetscReal E_phi = 0.3;
-constexpr PetscReal B_min = 1.0;
-constexpr PetscReal B_max = 4.0;
-constexpr PetscReal L = 10.0;
-constexpr PetscReal q = 1.0;
-constexpr PetscReal m = 1.0;
 
 void get_fields(const Vector3R& r, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
-  auto get_B = [](PetscReal z) {
-    return B_min + (B_max - B_min) * (z * z) / (L * L);
-  };
-
-  auto get_gradB = [](PetscReal z) {
-    return 2 * (B_max - B_min) * z / (L * L);
-  };
-
   PetscReal x = r.x();
   PetscReal y = r.y();
   PetscReal d = std::hypot(x, y);
 
   E_p = Vector3R{+E_phi * y / d, -E_phi * x / d, 0};
-  B_p = Vector3R{0, 0, get_B(r.z())};
-  gradB_p = Vector3R{0, 0, get_gradB(r.z())};
+  B_p = Vector3R{0, 0, get_Bz(r.z())};
+  gradB_p = Vector3R{0, 0, get_dBz_dz(r.z())};
 }
 
 int main(int argc, char** argv)

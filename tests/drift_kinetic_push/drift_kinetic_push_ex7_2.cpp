@@ -4,20 +4,9 @@ static constexpr char help[] =
   "Test: Magnetic mirror field with radial well.\n"
   "Particle should remain trapped in the well; energy conserved.\n";
 
-constexpr PetscReal phi = 2.0;
-constexpr PetscReal B_min = 1.0;
-constexpr PetscReal B_max = 4.0;
-constexpr PetscReal L = 10.0;   // half-length of the mirror
-constexpr PetscReal Rc = 20.0;  // width of the radial well
+using namespace quadratic_magnetic_mirror;
 
-PetscReal get_Bz(PetscReal z)
-{
-  return B_min + (B_max - B_min) * (z * z) / (L * L);
-}
-PetscReal get_B(PetscReal r, PetscReal z)
-{
-  return get_Bz(z) * (1.0 + 0.5 * (r * r) / (Rc * Rc));
-}
+constexpr PetscReal phi = 2.0;
 
 PetscReal get_Ez(PetscReal z)
 {
@@ -27,24 +16,8 @@ PetscReal get_Ez(PetscReal z)
 void get_fields(
   const Vector3R& pos, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
-  PetscReal x = pos.x();
-  PetscReal y = pos.y();
-  PetscReal z = pos.z();
-  PetscReal r = std::sqrt(x * x + y * y);
-
-  PetscReal Bz = get_Bz(z);
-  PetscReal B = get_B(r, z);
-
-  E_p = Vector3R{0, 0, get_Ez(z)};
-  B_p = Vector3R{0, 0, B};
-
-  PetscReal dBz_dz = 2.0 * (B_max - B_min) * z / (L * L);
-  PetscReal dBmod_dz = dBz_dz * (1.0 + 0.5 * (r * r) / (Rc * Rc));
-  PetscReal dBmod_dr = Bz * r / (Rc * Rc);
-
-  gradB_p = (r > 1e-10) //
-    ? Vector3R{x / r * dBmod_dr, y / r * dBmod_dr, dBmod_dz}
-    : Vector3R{0, 0, dBmod_dz};
+  E_p = Vector3R{0, 0, get_Ez(pos.z())};
+  get_mirror_fields(pos, B_p, gradB_p);
 }
 
 int main(int argc, char** argv)

@@ -8,17 +8,25 @@ static constexpr char help[] =
   "comparison between different pushers. Sweep in critical pitch angle\n"
   "fraction and pusher time step (in Omega * dt units) is added.\n";
 
+PetscReal pitch_frac = 1.005;
+PetscReal Omega_dt = 0.1;
+
+auto format(const char* push)
+{
+  return std::format("{}_omega_dt_{:.1f}_pf_{:.3f}", push, Omega_dt, pitch_frac);
+}
+
 int main(int argc, char** argv)
 {
-  using namespace magnetic_mirror;
+  using namespace gaussian_magnetic_mirror;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
 
-  PetscReal mirror_R = get_Bz(0) / get_Bz(L);
-
-  PetscReal pitch_frac = 1.005;
+  PetscCall(PetscOptionsGetReal(NULL, NULL, "-omega_dt", &Omega_dt, NULL));
   PetscCall(PetscOptionsGetReal(NULL, NULL, "-pitch_frac", &pitch_frac, NULL));
+
+  PetscReal mirror_R = get_Bz(0) / get_Bz(L);
 
   PetscReal v_abs = 0.1;
   PetscReal v_pitch = pitch_frac * asin(sqrt(mirror_R));
@@ -27,9 +35,6 @@ int main(int argc, char** argv)
 
   Vector3R r0(0.1, 0, 0);
   Vector3R v0(v_perp, 0, v_par);
-
-  PetscReal Omega_dt = 0.1;
-  PetscCall(PetscOptionsGetReal(NULL, NULL, "-omega_dt", &Omega_dt, NULL));
 
   PetscReal Omega = get_Bz(r0.z());
   dt = Omega_dt / Omega;
@@ -69,9 +74,10 @@ int main(int argc, char** argv)
   Point cn_p(r0, v0);
   CrankNicolsonPush cn_push;
   cn_push.set_qm(1.0);
-  cn_push.set_fields_callback([&](const Vector3R& r0, const Vector3R& r1, Vector3R& E, Vector3R& B) {
-    get_fields((r1 + r0) / 2, E, B, dB_p);
-  });
+  cn_push.set_fields_callback(
+    [&](const Vector3R& r0, const Vector3R& r1, Vector3R& E, Vector3R& B) {
+      get_fields((r1 + r0) / 2, E, B, dB_p);
+    });
 
   Vector3R R = r0 + v0.cross(B) / Omega;
 
@@ -80,10 +86,6 @@ int main(int argc, char** argv)
   dk_push.set_qm(1.0);
   dk_push.set_mp(1.0);
   dk_push.set_fields_callback(get_fields);
-
-  auto format = [&](const char* push) {
-    return std::format("{}_omega_dt_{:.1f}_pf_{:.3f}", push, Omega_dt, pitch_frac);
-  };
 
   PointTrace b_d(__FILE__, format("boris"), b_p);
   PointTrace cn_d(__FILE__, format("crank_nicolson"), cn_p);

@@ -4,25 +4,12 @@ static constexpr char help[] =
   "Test: magnetic mirror. Particle should be reflected at mirror\n"
   "points, center stays between plugs.\n";
 
-constexpr PetscReal B_min = 1.0;
-constexpr PetscReal B_max = 4.0;
-constexpr PetscReal L = 10.0;
-constexpr PetscReal q = 1.0;
-constexpr PetscReal m = 1.0;
+using namespace quadratic_magnetic_mirror;
 
-void get_fields(
-  const Vector3R& r, Vector3R&, Vector3R& B_p, Vector3R& gradB_p)
+void get_fields(const Vector3R& r, Vector3R&, Vector3R& B_p, Vector3R& gradB_p)
 {
-  auto get_B = [](PetscReal z) {
-    return B_min + (B_max - B_min) * (z * z) / (L * L);
-  };
-
-  auto get_gradB = [](PetscReal z) {
-    return 2.0 * (B_max - B_min) * z / (L * L);
-  };
-
-  B_p = Vector3R{0, 0, get_B(r.z())};
-  gradB_p = Vector3R{0, 0, get_gradB(r.z())};
+  B_p = Vector3R{0, 0, get_Bz(r.z())};
+  gradB_p = Vector3R{0, 0, get_dBz_dz(r.z())};
 }
 
 int main(int argc, char** argv)

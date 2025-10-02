@@ -20,8 +20,8 @@ foreach(test ${tests})
   add_executable(${test}.out ${test}.cpp)
   target_link_libraries(${test}.out ${PROJECT_NAME})
 
-  add_test(NAME "${test}_omega_dt_${omega_dt}" COMMAND ./${test}.out -omega_dt ${omega_dt})
-  set_property(TEST "${test}_omega_dt_${omega_dt}" PROPERTY LABELS drift_kinetic)
+  add_test(NAME "${test}" COMMAND ./${test}.out -omega_dt ${omega_dt})
+  set_property(TEST "${test}" PROPERTY LABELS drift_kinetic)
 endforeach()
 
 set(test drift_kinetic_push_ex9)

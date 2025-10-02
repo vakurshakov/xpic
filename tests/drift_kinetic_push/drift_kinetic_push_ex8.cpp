@@ -6,7 +6,7 @@ static constexpr char help[] =
 
 int main(int argc, char** argv)
 {
-  using namespace magnetic_mirror;
+  using namespace gaussian_magnetic_mirror;
 
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));

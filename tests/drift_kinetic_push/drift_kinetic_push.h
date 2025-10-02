@@ -2,6 +2,9 @@
 #include "src/utils/vector3.h"
 #include "tests/common.h"
 
+constexpr PetscReal q = 1.0;
+constexpr PetscReal m = 1.0;
+
 PetscErrorCode get_omega_dt(PetscReal& omega_dt)
 {
   PetscFunctionBeginUser;
@@ -11,7 +14,52 @@ PetscErrorCode get_omega_dt(PetscReal& omega_dt)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-namespace magnetic_mirror {
+namespace quadratic_magnetic_mirror {
+
+constexpr PetscReal B_min = 1.0;
+constexpr PetscReal B_max = 4.0;
+constexpr PetscReal L = 10.0;   // half-length of the mirror
+constexpr PetscReal Rc = 20.0;  // width of the radial well
+
+PetscReal get_Bz(PetscReal z)
+{
+  return B_min + (B_max - B_min) * (z * z) / (L * L);
+}
+
+PetscReal get_B(PetscReal r, PetscReal z)
+{
+  return get_Bz(z) * (1.0 + 0.5 * (r * r) / (Rc * Rc));
+}
+
+PetscReal get_dBz_dz(PetscReal z)
+{
+  return 2 * (B_max - B_min) * z / (L * L);
+}
+
+void get_mirror_fields(const Vector3R& pos, Vector3R& B_p, Vector3R& gradB_p)
+{
+  PetscReal x = pos.x();
+  PetscReal y = pos.y();
+  PetscReal z = pos.z();
+  PetscReal r = std::sqrt(x * x + y * y);
+
+  PetscReal Bz = get_Bz(z);
+  PetscReal B = get_B(r, z);
+
+  B_p = Vector3R{0.0, 0.0, B};
+
+  PetscReal dBz_dz = get_dBz_dz(z);
+  PetscReal dB_dz = dBz_dz * (1.0 + 0.5 * (r * r) / (Rc * Rc));
+  PetscReal dB_dr = Bz * r / (Rc * Rc);
+
+  gradB_p = (r > 1e-10) //
+    ? Vector3R{x / r * dB_dr, y / r * dB_dr, dB_dz}
+    : Vector3R{0.0, 0.0, dB_dz};
+}
+
+}  // namespace quadratic_magnetic_mirror
+
+namespace gaussian_magnetic_mirror {
 
 constexpr PetscReal B_min = 1.0;
 constexpr PetscReal B_max = 4.0;
@@ -93,4 +141,4 @@ void get_fields(const Vector3R& pos, Vector3R&, Vector3R& B_p, Vector3R& gradB_p
     : Vector3R{0, 0, dB_dz};
 }
 
-}  // namespace magnetic_mirror
+}  // namespace gaussian_magnetic_mirror

@@ -5,30 +5,15 @@ static constexpr char help[] =
   "Particle should be reflected at mirror points, center stays\n"
   "between plugs.\n";
 
+using namespace quadratic_magnetic_mirror;
+
 constexpr PetscReal phi = 2.0;
-constexpr PetscReal B_min = 1.0;
-constexpr PetscReal B_max = 4.0;
-constexpr PetscReal L = 10.0;
-constexpr PetscReal q = 1.0;
-constexpr PetscReal m = 1.0;
 
 void get_fields(const Vector3R& r, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
-  auto get_E = [](PetscReal z) {
-    return -phi * M_PI / L * std::sin(M_PI * z / L);
-  };
-
-  auto get_B = [](PetscReal z) {
-    return B_min + (B_max - B_min) * (z * z) / (L * L);
-  };
-
-  auto get_gradB = [](PetscReal z) {
-    return 2.0 * (B_max - B_min) * z / (L * L);
-  };
-
-  E_p = Vector3R{0, 0, get_E(r.z())};
-  B_p = Vector3R{0, 0, get_B(r.z())};
-  gradB_p = Vector3R{0, 0, get_gradB(r.z())};
+  E_p = Vector3R{0, 0, -phi * M_PI / L * std::sin(M_PI * r.z() / L)};
+  B_p = Vector3R{0, 0, get_Bz(r.z())};
+  gradB_p = Vector3R{0, 0, get_dBz_dz(r.z())};
 }
 
 int main(int argc, char** argv)
