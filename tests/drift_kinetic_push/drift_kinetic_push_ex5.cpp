@@ -5,6 +5,7 @@ static constexpr char help[] =
   "Particle should remain trapped in the well; energy conserved.\n";
 
 constexpr PetscReal phi = 2.0;
+constexpr PetscReal E_phi = 0.3;
 constexpr PetscReal B_min = 1.0;
 constexpr PetscReal B_max = 4.0;
 constexpr PetscReal L = 10.0;   // half-length of the mirror
@@ -18,14 +19,13 @@ PetscReal get_B(PetscReal r, PetscReal z)
 {
   return get_Bz(z) * (1.0 + 0.5 * (r * r) / (Rc * Rc));
 }
-
 PetscReal get_Ez(PetscReal z)
 {
   return -phi * M_PI / L * std::sin(M_PI * z / L);
 }
 
 void get_fields(
-  const Vector3R& pos, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
+  const Vector3R&, const Vector3R& pos, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
   PetscReal x = pos.x();
   PetscReal y = pos.y();
@@ -35,16 +35,16 @@ void get_fields(
   PetscReal Bz = get_Bz(z);
   PetscReal B = get_B(r, z);
 
-  E_p = Vector3R{0, 0, get_Ez(z)};
-  B_p = Vector3R{0, 0, B};
+  E_p = Vector3R{E_phi * y, -E_phi * x, get_Ez(z)};
+  B_p = Vector3R{0.0, 0.0, B};
 
   PetscReal dBz_dz = 2.0 * (B_max - B_min) * z / (L * L);
-  PetscReal dBmod_dz = dBz_dz * (1.0 + 0.5 * (r * r) / (Rc * Rc));
-  PetscReal dBmod_dr = Bz * r / (Rc * Rc);
+  PetscReal dB_dz = dBz_dz * (1.0 + 0.5 * (r * r) / (Rc * Rc));
+  PetscReal dB_dr = Bz * r / (Rc * Rc);
 
   gradB_p = (r > 1e-10) //
-    ? Vector3R{x / r * dBmod_dr, y / r * dBmod_dr, dBmod_dz}
-    : Vector3R{0, 0, dBmod_dz};
+    ? Vector3R{x / r * dB_dr, y / r * dB_dr, dB_dz}
+    : Vector3R{0.0, 0.0, dB_dz};
 }
 
 int main(int argc, char** argv)
@@ -52,22 +52,22 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  constexpr PetscReal v_perp = 1.0;
-  constexpr PetscReal v_par = 1.7;
   constexpr Vector3R r0(0.5, 0.0, 0.0);
+  constexpr PetscReal v_perp = 1.0;
+  constexpr PetscReal v_par = 1.0;
   constexpr Vector3R v0(v_perp, 0.0, v_par);
   Point point_init(r0, v0);
-  PointByField point_n(point_init, {0, 0, get_B(r0.length(), r0.z())}, 1);
+  PointByField point_n(point_init, {0.0, 0.0, get_B(r0.length(), r0.z())}, 1.0);
 
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
 
   dt = omega_dt / get_B(r0.length(), r0.z());
-  geom_nt = 100'000;
+  geom_nt = 10'000;
   diagnose_period = geom_nt / 4;
 
   auto id = std::format("omega_dt_{:.1f}", omega_dt);
-  PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 123);
+  PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 1000);
 
   DriftKineticPush push;
   push.set_qm(1.0);

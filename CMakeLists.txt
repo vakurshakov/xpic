@@ -41,6 +41,7 @@ set(algorithms
   src/algorithms/crank_nicolson_push.cpp
   src/algorithms/drift_kinetic_push.cpp
   src/algorithms/implicit_esirkepov.cpp
+  src/algorithms/drift_kinetic_implicit.cpp
 )
 
 set(diagnostics

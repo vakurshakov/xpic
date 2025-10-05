@@ -13,6 +13,7 @@
     ".clang-format": "yaml",
     ".clang-tidy": "yaml",
     "*.tpp": "cpp",
+    "iostream": "cpp"
   },
   "cSpell.words": [
     "aabb",

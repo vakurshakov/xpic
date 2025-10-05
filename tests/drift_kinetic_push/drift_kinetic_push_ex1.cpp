@@ -6,7 +6,7 @@ static constexpr char help[] =
 
 constexpr Vector3R B0(0.0, 0.0, 2.0);
 
-void get_magnetic_field(const Vector3R&, Vector3R&, Vector3R& B_p, Vector3R&)
+void get_magnetic_field(const Vector3R&, const Vector3R&, Vector3R&, Vector3R& B_p, Vector3R&)
 {
   B_p = B0;
 }
@@ -20,7 +20,7 @@ int main(int argc, char** argv)
   PetscCall(get_omega_dt(omega_dt));
 
   dt = omega_dt / B0.length();
-  geom_nt = 100'000;
+  geom_nt = 1'000;
   diagnose_period = geom_nt / 4;
 
   constexpr Vector3R r0(0.0, 0.0, 0.0);
