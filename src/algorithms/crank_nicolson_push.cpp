@@ -33,18 +33,19 @@ void CrankNicolsonPush::process(PetscReal dt, Point& pn, const Point& p0)
   PetscAssertAbort((bool)set_fields, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "CrankNicolsonPush::set_fields have to be specified");
 
-  PetscReal rn = 0, r0 = 0;
-
   Vector3R vh = 0.5 * (pn.p + p0.p);
-
-  auto calc_residue = [&] {
-    return ((pn.p - p0.p) / dt - qm * (E_p + vh.cross(B_p))).length();
-  };
+  pn.r = p0.r + dt * vh;
 
   set_fields(pn.r, p0.r, E_p, B_p);
-  r0 = calc_residue();
 
-  PetscReal alpha = 0.5 * dt * qm;
+  auto calc_residue = [&] {
+    return ((pn.p - p0.p) - dt * qm * (E_p + vh.cross(B_p))).length();
+  };
+
+  const PetscReal r0 = calc_residue();
+  PetscReal rn = 0;
+
+  const PetscReal alpha = 0.5 * dt * qm;
   Vector3R a, b, w;
 
   for (it = 0; it < maxit; ++it) {
