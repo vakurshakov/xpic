@@ -59,8 +59,11 @@ def annotate_y(axis, annotation):
         size=titlesize,
     )
 
-def figure(ncols: int, nrows: int, width_ratios: list[int] = None, height_ratios: list[int] = None):
-    fig = plt.figure(figsize=(8 * ncols * 1.2, 8 * nrows * 1.2))
+def figure(ncols: int, nrows: int, width_ratios: list[int] = None, height_ratios: list[int] = None, figsize=None):
+    if figsize == None:
+        figsize = (8 * ncols * 1.2, 8 * nrows * 1.2)
+
+    fig = plt.figure(figsize=figsize)
 
     if width_ratios == None:
         width_ratios = [1] * ncols

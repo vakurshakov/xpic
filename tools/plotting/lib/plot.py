@@ -66,7 +66,7 @@ class PlotIm:
         self.vmin: float = vmap[0]
         self.vmax: float = vmap[1]
         self.cmap: plt.Colormap = cmap
-    
+
     def set_axis(self, axis: plt.Axes):
         self.axis = axis
         self.info.axis = axis
@@ -76,7 +76,7 @@ class PlotIm:
 
         if self.bounds == None:
             self.bounds = (0, self.data.shape[1], 0, self.data.shape[0])
-        
+
         self.im = self.axis.imshow(
             self.data,
             cmap=self.cmap,
@@ -95,7 +95,7 @@ class PlotIm:
 
         self.draw_cbar(**kwargs)
         self.info.draw()
-    
+
     def draw_cbar(self, **kwargs):
         args = {
             "add": True,
@@ -113,7 +113,7 @@ class PlotIm:
         if not args["add"] or not self.cbar is None or \
             self.vmin is None or self.vmax is None:
             return
-    
+
         if (np.abs(self.vmin) > 0 and np.abs(self.vmin) < 1e-4) or \
             (np.abs(self.vmax) > 0 and np.abs(self.vmax) < 1e-4):
             args["exponential"] = True
@@ -145,7 +145,7 @@ class PlotIm:
 class PlotLinear:
     def __init__(
         self,
-        vmap: tuple[float] = (None, None),
+        vmap: tuple[float] = None,
         axis: plt.Axes = None):
 
         self.data: np.ndarray[np.float32] = None
@@ -154,25 +154,27 @@ class PlotLinear:
         self.plot: plt.Line2D = None
 
         self.info = PlotAxisInfo(axis)
-        self.info.args["ylim"] = vmap
-        self.info.args["yticks"] = np.linspace(vmap[0], vmap[1], 5)
+
+        if vmap != None:
+            self.info.args["ylim"] = vmap
+            self.info.args["yticks"] = np.linspace(vmap[0], vmap[1], 5)
 
         self.plot_info: dict[str, Any] = {}
 
     def set_axis(self, axis: plt.Axes):
         self.axis = axis
         self.info.axis = axis
-    
+
     def draw(self, x):
         self.plot = self.axis.plot(x, self.data, **self.plot_info)
         self.draw_info()
-        
+
     def draw_info(self):
         self.info.draw()
 
         if "label" in self.plot_info:
             self.axis.legend()
-        
+
         yax = self.axis.yaxis
         yax.OFFSETTEXTPAD = 8
         yax.get_offset_text().set_size(0.82 * ticksize)
