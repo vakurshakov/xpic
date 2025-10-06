@@ -11,6 +11,18 @@
 
 namespace eccapfim {
 
+static constexpr PetscReal atol = 1e-7;
+static constexpr PetscReal rtol = 1e-7;
+static constexpr PetscReal stol = 1e-7;
+static constexpr PetscReal divtol = PETSC_DETERMINE;
+static constexpr PetscInt maxit = 100;
+static constexpr PetscInt maxf = PETSC_UNLIMITED;
+
+static constexpr PetscInt ew_version = 3;
+static constexpr PetscReal ew_rtol_0 = 0.8;
+static constexpr PetscReal ew_gamma = 0.9;
+static constexpr PetscReal ew_alpha = 1.5;
+
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
@@ -359,18 +371,6 @@ PetscErrorCode Simulation::init_snes_solver()
   PetscCall(DMSetUp(da_EB));
 
   PetscCall(DMCreateGlobalVector(da_EB, &sol));
-
-  static constexpr PetscReal atol = 1e-7;
-  static constexpr PetscReal rtol = 1e-7;
-  static constexpr PetscReal stol = 1e-7;
-  static constexpr PetscReal divtol = PETSC_DETERMINE;
-  static constexpr PetscInt maxit = 100;
-  static constexpr PetscInt maxf = PETSC_UNLIMITED;
-
-  static constexpr PetscInt ew_version = 3;
-  static constexpr PetscReal ew_rtol_0 = 0.8;
-  static constexpr PetscReal ew_gamma = 0.9;
-  static constexpr PetscReal ew_alpha = 1.5;
 
   conv_hist.resize(maxit);
 
