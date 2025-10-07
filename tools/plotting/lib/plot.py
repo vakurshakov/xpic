@@ -4,6 +4,50 @@ from lib.data_format import FieldView
 from typing import Any
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+# Font sizes
+titlesize = 36
+labelsize = 34
+ticksize  = 30
+
+# Utilities to set font sizes externally
+def set_titlesize(new_titlesize):
+    global titlesize
+    titlesize = new_titlesize
+
+def set_labelsize(new_labelsize):
+    global labelsize
+    labelsize = new_labelsize
+
+def set_ticksize(new_ticksize):
+    global ticksize
+    ticksize = new_ticksize
+
+def annotate_x(axis, annotation, x=0.5, y=1, size=titlesize, ha="center", bbox=bbox):
+    axis.annotate(
+        annotation,
+        xy=(x, y),
+        xytext=(0, 1),
+        xycoords="axes fraction",
+        textcoords="offset points",
+        ha=ha,
+        va="baseline",
+        size=size,
+        bbox=bbox
+    )
+
+def annotate_y(axis, annotation):
+    axis.annotate(
+        annotation,
+        xy=(0, 0.5),
+        xytext=(-axis.yaxis.labelpad - 1, 0),
+        xycoords=axis.yaxis.label,
+        textcoords="offset points",
+        ha="right",
+        va="center",
+        rotation=90,
+        size=titlesize,
+    )
+
 # Main classes for plotting
 
 class PlotAxisInfo:

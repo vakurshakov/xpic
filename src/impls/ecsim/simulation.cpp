@@ -8,6 +8,9 @@
 
 namespace ecsim {
 
+static constexpr PetscReal atol = 1e-7;
+static constexpr PetscReal rtol = 1e-7;
+
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
@@ -451,9 +454,6 @@ PetscErrorCode Simulation::init_matrices()
 PetscErrorCode Simulation::init_ksp_solvers()
 {
   PetscFunctionBeginUser;
-  static constexpr PetscReal atol = 1e-10;
-  static constexpr PetscReal rtol = 1e-10;
-
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
   PetscCall(KSPSetErrorIfNotConverged(ksp, PETSC_TRUE));
   PetscCall(KSPSetReusePreconditioner(ksp, PETSC_TRUE));
