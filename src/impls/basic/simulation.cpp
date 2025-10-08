@@ -2,6 +2,7 @@
 
 #include "src/diagnostics/charge_conservation.h"
 #include "src/diagnostics/energy_conservation.h"
+#include "src/diagnostics/momentum_conservation.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
@@ -44,6 +45,9 @@ PetscErrorCode Simulation::initialize_implementation()
 
     diagnostics_.emplace_back(
       std::make_unique<ChargeConservation>(world.da, currents, sorts));
+
+    diagnostics_.emplace_back(
+      std::make_unique<MomentumConservation>(world.da, E, sorts));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

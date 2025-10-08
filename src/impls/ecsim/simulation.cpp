@@ -1,6 +1,7 @@
 #include "simulation.h"
 
 #include "src/diagnostics/energy_conservation.h"
+#include "src/diagnostics/momentum_conservation.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
@@ -35,6 +36,9 @@ PetscErrorCode Simulation::initialize_implementation()
 
   diagnostics_.emplace_back(
     std::make_unique<EnergyConservation>(*this, std::move(e_diag)));
+
+  diagnostics_.emplace_back(
+    std::make_unique<MomentumConservation>(world.da, E, sorts));
 
   PetscCall(PetscLogStagePop());
   PetscCall(init_clock.pop());
