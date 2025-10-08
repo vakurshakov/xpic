@@ -1,18 +1,18 @@
 {
   "Simulation": "eccapfim",
 
-  "OutputDirectory": "results/eccapfim/FGI_elimination",
+  "OutputDirectory": "results/FGI_elimination/eccapfim_dt0.25",
 
   "Geometry": {
     "x": "10 [dx]",
     "y": "10 [dy]",
     "z": "10 [dz]",
-    "t": "1000 [dt]",
+    "t": "4000 [dt]",
     "dx": 2.45,
     "dy": 2.45,
     "dz": 2.45,
-    "dt": 0.5,
-    "diagnose_period": "1 [dt]",
+    "dt": 0.25,
+    "diagnose_period": "100 [dt]",
     "da_boundary_x": "DM_BOUNDARY_PERIODIC",
     "da_boundary_y": "DM_BOUNDARY_PERIODIC",
     "da_boundary_z": "DM_BOUNDARY_PERIODIC"
