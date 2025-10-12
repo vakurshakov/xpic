@@ -76,7 +76,7 @@ int main(int argc, char** argv)
   cn_push.set_qm(1.0);
   cn_push.set_fields_callback(
     [&](const Vector3R& r0, const Vector3R& r1, Vector3R& E, Vector3R& B) {
-      get_fields((r1 + r0) / 2, E, B, dB_p);
+      get_fields(r0, (r1 + r0) / 2, E, B, dB_p);
     });
 
   Vector3R R = r0 + v0.cross(B) / Omega;
@@ -94,7 +94,7 @@ int main(int argc, char** argv)
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     Vector3R E_p, B_p;
     b_push.update_r(dt / 2.0, b_p);
-    get_fields(b_p.r, E_p, B_p, dB_p);
+    get_fields(b_p.r, b_p.r, E_p, B_p, dB_p);
     b_push.set_fields(E_p, B_p);
     b_push.update_vB(dt, b_p);
     b_push.update_r(dt / 2.0, b_p);

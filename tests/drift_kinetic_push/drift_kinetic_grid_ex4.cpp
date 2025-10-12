@@ -9,8 +9,6 @@ static constexpr char help[] =
 constexpr PetscReal B_min = 1.0;
 constexpr PetscReal B_max = 4.0;
 constexpr PetscReal L = 20.0;
-constexpr PetscReal q = 1.0;
-constexpr PetscReal m = 1.0;
 
 PetscReal get_B(PetscReal z) {
   return B_min + (B_max - B_min) * ((z-L) * (z-L)) / (L * L);
@@ -169,8 +167,6 @@ int main(int argc, char** argv)
   PointByFieldTrace trace_analytical(__FILE__, id + "_analytical", point_analytical, geom_nt / 1000);
   PointByFieldTrace trace_grid(__FILE__, id + "_grid", point_grid, geom_nt / 1000);
 
-
-  // Maximum value of z-coordinates of the particle
   PetscReal z_max = L;
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
@@ -182,8 +178,6 @@ int main(int argc, char** argv)
 
     push_analytical.process(dt, point_analytical, point_analytical_old);
     push_grid.process(dt, point_grid, point_grid_old);
-
-    /// @todo Check that `mu_p` is conserved in a mirror
 
     PetscCheck(std::abs(point_analytical.r.z()-L) <= z_max, PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Particle must not escape magnetic mirror! z = %.6e, allowed max = %.6e", point_analytical.r.z(), z_max);

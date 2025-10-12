@@ -7,7 +7,6 @@ external/petsc
 build/
 doc/build/
 
-tests/drift_kinetic_push/old/**
 tests/**/output/**
 (^tests)*.txt
 (^tests)*.png

@@ -216,13 +216,13 @@ int main(int argc, char** argv)
   PointByField point_grid(point_init, B0, 1.0);
 
   DriftKineticPush push_analytical;
-  push_analytical.set_qm(-1.0);
-  push_analytical.set_mp(1.0);
+  push_analytical.set_qm(-q/m);
+  push_analytical.set_mp(m);
   push_analytical.set_fields_callback(get_analytical_fields);
 
   DriftKineticPush push_grid;
-  push_grid.set_qm(-1.0);
-  push_grid.set_mp(1.0);
+  push_grid.set_qm(-q/m);
+  push_grid.set_mp(m);
   push_grid.set_fields_callback([&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p) {
     esirkepov->interpolate(E_p, B_p, gradB_p, rn, r0);
   });

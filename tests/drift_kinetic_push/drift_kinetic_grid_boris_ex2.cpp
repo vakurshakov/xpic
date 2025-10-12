@@ -16,8 +16,6 @@ constexpr PetscReal B_min = 1.0;
 constexpr PetscReal B_max = 4.0;
 constexpr PetscReal L = 5.0;          // half-length of the trap and grid shift
 constexpr PetscReal D = 1.0;          // mirror width squared
-constexpr PetscReal q = 1.0;
-constexpr PetscReal m = 1.0;
 
 constexpr PetscReal axis_x = L;
 constexpr PetscReal axis_y = L;
@@ -302,8 +300,8 @@ int main(int argc, char** argv)
 
   auto esirkepov = std::make_unique<DriftKineticEsirkepov>(E_arr, B_arr, nullptr, gradB_arr);
 
-  constexpr PetscReal v_perp = 0.1/std::sqrt(2.);
-  constexpr PetscReal v_par = 0.1/std::sqrt(2.);
+  constexpr PetscReal v_perp = 0.1/ M_SQRT2;
+  constexpr PetscReal v_par = 0.1/ M_SQRT2;
   const Vector3R r0(axis_x + 0.1, axis_y, axis_z);
   const Vector3R v0(v_perp, 0.0, v_par);
 
@@ -345,9 +343,6 @@ int main(int argc, char** argv)
   PointByFieldTrace trace_grid(__FILE__, id + "_grid", point_grid, geom_nt / 1000);
   PointTrace trace_boris(__FILE__, id + "_boris", point_boris, geom_nt / 1000);
 
-  //const PetscReal z_limit = 2*L + 1e-2;
-  //const PetscReal r_limit = 2*L + 1e-2;
-
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     const PointByField point_analytical_old = point_analytical;
     const PointByField point_grid_old = point_grid;
@@ -359,23 +354,6 @@ int main(int argc, char** argv)
     push_analytical.process(dt, point_analytical, point_analytical_old);
     push_grid.process(dt, point_grid, point_grid_old);
     boris_step(push_boris, point_boris, particles);
-
-    //PetscCheck(std::abs(point_analytical.r.z() - axis_z) <= z_limit, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    //  "Particle escaped magnetic mirror (analytic). z = %.6e, allowed = %.6e",
-    //  point_analytical.r.z() - axis_z, z_limit);
-//
-    //PetscCheck(std::abs(point_grid.r.z() - axis_z) <= z_limit, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    //  "Particle escaped magnetic mirror (grid). z = %.6e, allowed = %.6e",
-    //  point_grid.r.z() - axis_z, z_limit);
-//
-    //PetscCheck(std::abs(point_boris.r.z() - axis_z) <= z_limit, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    //  "Particle escaped magnetic mirror (Boris). z = %.6e, allowed = %.6e",
-    //  point_boris.r.z() - axis_z, z_limit);
-
-    //PetscCheck((point_boris.r - Vector3R{axis_x, axis_y, axis_z}).length() <= r_limit,
-    //  PETSC_COMM_WORLD, PETSC_ERR_USER,
-    //  "Particle escaped radial well. r = %.6e, allowed = %.6e",
-    //  (point_boris.r - Vector3R{axis_x, axis_y, axis_z}).length(), r_limit);
 
     const PetscReal position_error = (point_analytical.r - point_grid.r).length();
     drift_stats.max_position_error = std::max(drift_stats.max_position_error, position_error);

@@ -35,8 +35,8 @@ int main(int argc, char** argv)
   PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 123);
 
   DriftKineticPush push;
-  push.set_qm(-1.0);
-  push.set_mp(1.0);
+  push.set_qm(-q/m);
+  push.set_mp(m);
   push.set_fields_callback(get_ExB_field);
 
   Vector3R start_r = point_n.r;

@@ -14,7 +14,6 @@ public:
   void decompose(PetscReal alpha, const Vector3R& v, //
     const Vector3R& rn, const Vector3R& r0);
 
-//private:
 protected:
   enum Type {
     electric,
@@ -53,7 +52,7 @@ protected:
     Vector3I start;
     PetscReal cache[shm];
 
-    virtual void setup(const Vector3R& rn, const Vector3R& r0, Type t);
+    void setup(const Vector3R& rn, const Vector3R& r0, Type t);
   };
 
   Vector3R*** E_g;

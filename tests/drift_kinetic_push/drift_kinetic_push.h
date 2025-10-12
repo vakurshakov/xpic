@@ -112,7 +112,7 @@ PetscReal get_Bz_corr(const Vector3R& r)
   return get_Bz(r.z()) - 0.25 * (POW2(r.x()) + POW2(r.y())) * get_d2Bz_dz2(r.z());
 }
 
-void get_fields(const Vector3R& pos, Vector3R&, Vector3R& B_p, Vector3R& gradB_p)
+void get_fields(const Vector3R&, const Vector3R& pos, Vector3R&, Vector3R& B_p, Vector3R& gradB_p)
 {
   PetscReal x = pos.x();
   PetscReal y = pos.y();

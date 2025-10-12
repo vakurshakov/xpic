@@ -3,9 +3,6 @@
 #include "src/algorithms/boris_push.h"
 #include "src/interfaces/particles.h"
 
-#include <algorithm>
-#include <cmath>
-
 static constexpr char help[] =
   "Test: magnetic mirror. Particle should be reflected at mirror\n"
   "points, center stays between plugs. Additionally compares guiding\n"
@@ -14,8 +11,6 @@ static constexpr char help[] =
 constexpr PetscReal B_min = 0.1;
 constexpr PetscReal B_max = 0.4;
 constexpr PetscReal L = 1.0;
-constexpr PetscReal q = 1.0;
-constexpr PetscReal m = 1.0;
 
 constexpr PetscReal axis_x = L;
 constexpr PetscReal axis_y = L;
@@ -318,7 +313,7 @@ int main(int argc, char** argv)
   PointByFieldTrace trace_grid(__FILE__, id + "_grid", point_grid, geom_nt / 1000);
   PointTrace trace_boris(__FILE__, id + "_boris", point_boris, geom_nt / 1000);
 
-  const PetscReal z_max = 2*L;
+  const PetscReal z_max = L;
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     const PointByField point_analytical_old = point_analytical;
@@ -327,14 +322,6 @@ int main(int argc, char** argv)
     PetscCall(trace_analytical.diagnose(t));
     PetscCall(trace_grid.diagnose(t));
     PetscCall(trace_boris.diagnose(t));
-
-    std::cout << "Аналитические поля" << std::endl;
-    push_analytical.process(dt, point_analytical, point_analytical_old);
-    std::cout << "Сетка" << std::endl;
-    push_grid.process(dt, point_grid, point_grid_old);
-    std::cout << "Борис до" << point_boris.r.z() << " " << point_boris.r.x() << " " << point_boris.r.y() << std::endl;
-    boris_step(push_boris, point_boris, particles);
-    std::cout << "Борис после"<< point_boris.r.z() << " " << point_boris.r.x() << " " << point_boris.r.y() << std::endl;
 
     PetscCheck(std::abs(point_analytical.r.z() - L) <= z_max, PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Particle must not escape magnetic mirror! z = %.6e, allowed max = %.6e",
@@ -369,33 +356,21 @@ int main(int argc, char** argv)
 
     const PetscReal z_error = std::abs(point_grid.r.z() - point_boris.r.z());
     boris_stats.max_z_error = std::max(boris_stats.max_z_error, z_error);
-    //PetscCheck(z_error < z_tolerance, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    //  "Guiding center and Boris particle diverged in z: %.6e", z_error);
 
     const PetscReal parallel_velocity_boris = compute_parallel_velocity(point_boris);
     const PetscReal parallel_error = std::abs(point_grid.p_par() - parallel_velocity_boris);
     boris_stats.max_parallel_error = std::max(boris_stats.max_parallel_error, parallel_error);
-    //PetscCheck(parallel_error < parallel_tolerance, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    //  "Parallel velocity mismatch: drift %.6e vs boris %.6e",
-    //  point_grid.p_par(), parallel_velocity_boris);
 
     const PetscReal mu_boris = compute_mu(point_boris);
     const PetscReal mu_error = std::abs(point_grid.mu() - mu_boris);
     boris_stats.max_mu_error = std::max(boris_stats.max_mu_error, mu_error);
-    //PetscCheck(mu_error < mu_tolerance, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    //  "Magnetic moment mismatch: drift %.6e vs boris %.6e",
-    //  point_grid.mu(), mu_boris);
+
 
     const PetscReal energy_drift = compute_kinetic_energy(point_grid);
     const PetscReal energy_boris = compute_kinetic_energy(point_boris);
-    //PetscCall(PetscPrintf(PETSC_COMM_WORLD,
-    //  "boris_step %5d: z=%.6e p_par=%.6e mu=%.6e energy=%.6e\n",
-    //  t, point_boris.r.z(), parallel_velocity_boris, mu_boris, energy_boris));
 
     const PetscReal energy_error = std::abs(energy_drift - energy_boris);
     boris_stats.max_energy_error = std::max(boris_stats.max_energy_error, energy_error);
-    //PetscCheck(energy_error < energy_tolerance, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    //  "Energy mismatch: drift %.6e vs boris %.6e", energy_drift, energy_boris);
   }
 
   drift_stats.simulation_time = dt * geom_nt;

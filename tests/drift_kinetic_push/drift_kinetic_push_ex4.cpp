@@ -7,8 +7,6 @@ static constexpr char help[] =
 constexpr PetscReal B_min = 1.0;
 constexpr PetscReal B_max = 4.0;
 constexpr PetscReal L = 10.0;
-constexpr PetscReal q = 1.0;
-constexpr PetscReal m = 1.0;
 
 void get_fields(
   const Vector3R&, const Vector3R& rn, Vector3R&, Vector3R& B_p, Vector3R& gradB_p)
