@@ -25,77 +25,7 @@ void get_analytical_fields(
   gradB_p = Vector3R{0, 0, get_gradB(rn.z())};
 }
 
-struct TestStatistics {
-  PetscInt total_steps = 0;
-  PetscReal simulation_time = 0.0;
-
-  PetscReal max_position_error = 0.0;
-  PetscReal max_field_error_B = 0.0;
-  PetscReal max_field_error_gradB = 0.0;
-
-  Vector3R final_position_analytical;
-  Vector3R final_position_grid;
-};
-
-PetscErrorCode print_statistics(const TestStatistics& stats)
-{
-  PetscFunctionBeginUser;
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n=== TEST STATISTICS ===\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Simulation time: %.6e\n", stats.simulation_time));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Total steps: %d\n", stats.total_steps));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nField comparison errors:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max B field error:     %.8e\n", stats.max_field_error_B));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max gradB field error: %.8e\n", stats.max_field_error_gradB));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nTrajectory comparison:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max position error:    %.8e\n", stats.max_position_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Final pos analytical:  (%.6e %.6e %.6e)\n",
-           REP3_A(stats.final_position_analytical)));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Final pos grid:        (%.6e %.6e %.6e)\n",
-           REP3_A(stats.final_position_grid)));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode initialize_grid_fields(DM da, const Vector3R& dr, Vec E_vec, Vec B_vec, Vec gradB_vec)
-{
-  PetscFunctionBeginUser;
-
-  Vector3R*** E_arr, ***B_arr, ***gradB_arr;
-
-  PetscCall(DMDAVecGetArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, gradB_vec, &gradB_arr));
-
-  Vector3I start, size;
-  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
-
-  for (PetscInt k = start[Z]; k < start[Z] + size[Z]; k++) {
-    for (PetscInt j = start[Y]; j < start[Y] + size[Y]; j++) {
-      for (PetscInt i = start[X]; i < start[X] + size[X]; i++) {
-        const PetscReal z_bz = (k) * dr.z();
-
-        E_arr[k][j][i] = Vector3R{0.0, 0.0, 0.0};
-
-        B_arr[k][j][i].x() = 0.0;
-        B_arr[k][j][i].y() = 0.0;
-        B_arr[k][j][i].z() = get_B(z_bz);
-
-        gradB_arr[k][j][i].x() = 0.0;
-        gradB_arr[k][j][i].y() = 0.0;
-        gradB_arr[k][j][i].z() = get_gradB(z_bz);
-      }
-    }
-  }
-
-  PetscCall(DMDAVecRestoreArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, gradB_vec, &gradB_arr));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+using namespace drift_kinetic_test_utils;
 
 
 int main(int argc, char** argv)
@@ -130,7 +60,17 @@ int main(int argc, char** argv)
   PetscCall(DMCreateGlobalVector(world.da, &B_vec));
   PetscCall(DMCreateGlobalVector(world.da, &gradB_vec));
 
-  PetscCall(initialize_grid_fields(world.da, {dx,dy,dz}, E_vec, B_vec, gradB_vec));
+  PetscCall(initialize_grid_fields(
+    world.da,
+    E_vec,
+    B_vec,
+    gradB_vec,
+    [&](PetscInt, PetscInt, PetscInt k, Vector3R& E_cell, Vector3R& B_cell, Vector3R& gradB_cell) {
+      const PetscReal z_bz = k * dz;
+      E_cell = {0.0, 0.0, 0.0};
+      B_cell = {0.0, 0.0, get_B(z_bz)};
+      gradB_cell = {0.0, 0.0, get_gradB(z_bz)};
+    }));
 
   Vector3R*** E_arr, ***B_arr, ***gradB_arr;
   PetscCall(DMDAVecGetArrayRead(world.da, E_vec, &E_arr));
@@ -149,7 +89,7 @@ int main(int argc, char** argv)
   PointByField point_analytical(point_init, {0.0, 0.0, B_min}, m);
   PointByField point_grid(point_init, {0.0, 0.0, B_min}, m);
 
-  TestStatistics stats;
+  DriftComparisonStats stats;
 
   DriftKineticPush push_analytical;
   push_analytical.set_qm(q/m);
@@ -214,7 +154,7 @@ int main(int argc, char** argv)
   PetscCall(VecDestroy(&B_vec));
   PetscCall(VecDestroy(&gradB_vec));
 
-  PetscCall(print_statistics(stats));
+  PetscCall(print_drift_statistics(stats));
 
   PetscCall(world.finalize());
   PetscCall(PetscFinalize());

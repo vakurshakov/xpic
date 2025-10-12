@@ -12,247 +12,41 @@ static constexpr char help[] =
   "Test: magnetic mirror with double-Gaussian mirrors.\n"
   "Guiding-center push (analytic/grid) should match the Boris pusher.\n";
 
-constexpr PetscReal B_min = 1.0;
-constexpr PetscReal B_max = 4.0;
-constexpr PetscReal L = 5.0;          // half-length of the trap and grid shift
-constexpr PetscReal D = 1.0;          // mirror width squared
+using gaussian_magnetic_mirror::get_Bz;
+using gaussian_magnetic_mirror::get_fields;
+using namespace drift_kinetic_test_utils;
 
-constexpr PetscReal axis_x = L;
-constexpr PetscReal axis_y = L;
-constexpr PetscReal axis_z = L;
+constexpr PetscReal mirror_L = gaussian_magnetic_mirror::L;
+constexpr Vector3R mirror_axis{mirror_L, mirror_L, mirror_L};
 
-inline PetscReal gauss_profile(PetscReal z, PetscReal z0)
-{
-  return std::exp(-POW2(z - z0) / D);
-}
-
-PetscReal get_Bz(PetscReal z)
-{
-  return B_min + (B_max - B_min) * (gauss_profile(z, -L) + gauss_profile(z, +L));
-}
-
-PetscReal get_dBz_dz(PetscReal z)
-{
-  const PetscReal coeff = (B_max - B_min);
-  return coeff * ((-2.0 * (z + L) / D * gauss_profile(z, -L)) +
-                  (-2.0 * (z - L) / D * gauss_profile(z, +L)));
-}
-
-PetscReal get_d2Bz_dz2(PetscReal z)
-{
-  const PetscReal coeff = (B_max - B_min);
-  const PetscReal t1 = (z + L);
-  const PetscReal t2 = (z - L);
-  return coeff * ((-2.0 / D + 4.0 * POW2(t1 / D)) * gauss_profile(z, -L) +
-                  (-2.0 / D + 4.0 * POW2(t2 / D)) * gauss_profile(z, +L));
-}
-
-PetscReal get_d3Bz_dz3(PetscReal z)
-{
-  const PetscReal coeff = (B_max - B_min);
-  const PetscReal t1 = (z + L);
-  const PetscReal t2 = (z - L);
-  return coeff * ((12.0 * t1 / (D * D) - 8.0 * POW3(t1 / D)) * gauss_profile(z, -L) +
-                  (12.0 * t2 / (D * D) - 8.0 * POW3(t2 / D)) * gauss_profile(z, +L));
-}
-
-Vector3R to_magnetic_axis(const Vector3R& r)
-{
-  return {r.x() - axis_x, r.y() - axis_y, r.z() - axis_z};
-}
+const auto gaussian_fields = make_translated_field_getter(
+  [](const Vector3R& local_pos, Vector3R& B_p, Vector3R& gradB_p) {
+    Vector3R E_dummy;
+    get_fields(Vector3R{}, local_pos, E_dummy, B_p, gradB_p);
+  },
+  mirror_axis);
 
 Vector3R get_B_vector(const Vector3R& r)
 {
-  const Vector3R local = to_magnetic_axis(r);
-  const PetscReal x = local.x();
-  const PetscReal y = local.y();
-  const PetscReal z = local.z();
-  const PetscReal r2 = x * x + y * y;
-
-  const PetscReal dBz_dz = get_dBz_dz(z);
-  const PetscReal d2Bz_dz2 = get_d2Bz_dz2(z);
-  const PetscReal Bz = get_Bz(z) - 0.25 * r2 * d2Bz_dz2;
-
-  return {
-    -0.5 * x * dBz_dz,
-    -0.5 * y * dBz_dz,
-     Bz,
-  };
+  Vector3R B_p;
+  Vector3R gradB_p;
+  gaussian_fields(r, B_p, gradB_p);
+  return B_p;
 }
 
 Vector3R get_gradB_vector(const Vector3R& r)
 {
-  const Vector3R local = to_magnetic_axis(r);
-  const PetscReal x = local.x();
-  const PetscReal y = local.y();
-  const PetscReal z = local.z();
-  const PetscReal r2 = x * x + y * y;
-  const PetscReal radial = std::sqrt(r2);
-
-  const PetscReal d2Bz_dz2 = get_d2Bz_dz2(z);
-  const PetscReal d3Bz_dz3 = get_d3Bz_dz3(z);
-
-  const PetscReal dB_dr = -0.5 * radial * d2Bz_dz2;
-  const PetscReal dB_dz = get_dBz_dz(z) - 0.25 * r2 * d3Bz_dz3;
-
-  if (radial > 1e-12) {
-    const PetscReal inv_r = 1.0 / radial;
-    return {x * inv_r * dB_dr, y * inv_r * dB_dr, dB_dz};
-  }
-
-  return {0.0, 0.0, dB_dz};
+  Vector3R B_p;
+  Vector3R gradB_p;
+  gaussian_fields(r, B_p, gradB_p);
+  return gradB_p;
 }
 
 void get_analytical_fields(
   const Vector3R&, const Vector3R& rn, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
   E_p = {0.0, 0.0, 0.0};
-  B_p = get_B_vector(rn);
-  gradB_p = get_gradB_vector(rn);
-}
-
-struct DriftComparisonStats {
-  PetscInt total_steps = 0;
-  PetscReal simulation_time = 0.0;
-
-  PetscReal max_position_error = 0.0;
-  PetscReal max_field_error_B = 0.0;
-  PetscReal max_field_error_gradB = 0.0;
-
-  Vector3R final_position_analytical;
-  Vector3R final_position_grid;
-};
-
-struct BorisComparisonStats {
-  PetscReal mu_reference = 0.0;
-  PetscReal energy_reference = 0.0;
-
-  PetscReal max_z_error = 0.0;
-  PetscReal max_parallel_error = 0.0;
-  PetscReal max_mu_error = 0.0;
-  PetscReal max_energy_error = 0.0;
-
-  Vector3R final_position_boris;
-};
-
-PetscErrorCode print_statistics(
-  const DriftComparisonStats& drift_stats, const BorisComparisonStats& boris_stats)
-{
-  PetscFunctionBeginUser;
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n=== DRIFT VS GRID STATISTICS ===\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Simulation time: %.6e\n", drift_stats.simulation_time));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Total steps: %d\n", drift_stats.total_steps));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nField comparison errors:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max B field error:     %.8e\n", drift_stats.max_field_error_B));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max gradB field error: %.8e\n", drift_stats.max_field_error_gradB));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nTrajectory comparison:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max position error:    %.8e\n", drift_stats.max_position_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Final pos analytical:  (%.6e %.6e %.6e)\n",
-           REP3_A(drift_stats.final_position_analytical)));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Final pos grid:        (%.6e %.6e %.6e)\n",
-           REP3_A(drift_stats.final_position_grid)));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n=== DRIFT VS BORIS STATISTICS ===\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Reference mu:      %.8e\n", boris_stats.mu_reference));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Reference energy:  %.8e\n", boris_stats.energy_reference));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Max z error:       %.8e\n", boris_stats.max_z_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Max p_parallel err %.8e\n", boris_stats.max_parallel_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Max mu error:      %.8e\n", boris_stats.max_mu_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Max energy error:  %.8e\n", boris_stats.max_energy_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Final pos boris:   (%.6e %.6e %.6e)\n",
-           REP3_A(boris_stats.final_position_boris)));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode initialize_grid_fields(
-  DM da, const Vector3R& dr, Vec E_vec, Vec B_vec, Vec gradB_vec)
-{
-  PetscFunctionBeginUser;
-
-  Vector3R*** E_arr;
-  Vector3R*** B_arr;
-  Vector3R*** gradB_arr;
-
-  PetscCall(DMDAVecGetArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, gradB_vec, &gradB_arr));
-
-  Vector3I start, size;
-  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
-
-  for (PetscInt k = start[Z]; k < start[Z] + size[Z]; ++k) {
-    for (PetscInt j = start[Y]; j < start[Y] + size[Y]; ++j) {
-      for (PetscInt i = start[X]; i < start[X] + size[X]; ++i) {
-        const PetscReal x_i = i * dr.x();
-        const PetscReal y_j = j * dr.y();
-        const PetscReal z_k = k * dr.z();
-
-        E_arr[k][j][i] = {0.0, 0.0, 0.0};
-
-        const Vector3R pos_bx{x_i, (j + 0.5) * dr.y(), (k + 0.5) * dr.z()};
-        const Vector3R pos_by{(i + 0.5) * dr.x(), y_j, (k + 0.5) * dr.z()};
-        const Vector3R pos_bz{(i + 0.5) * dr.x(), (j + 0.5) * dr.y(), z_k};
-
-        const Vector3R Bx_vec = get_B_vector(pos_bx);
-        const Vector3R By_vec = get_B_vector(pos_by);
-        const Vector3R Bz_vec = get_B_vector(pos_bz);
-        B_arr[k][j][i].x() = Bx_vec.x();
-        B_arr[k][j][i].y() = By_vec.y();
-        B_arr[k][j][i].z() = Bz_vec.z();
-
-        const Vector3R gradBx_vec = get_gradB_vector(pos_bx);
-        const Vector3R gradBy_vec = get_gradB_vector(pos_by);
-        const Vector3R gradBz_vec = get_gradB_vector(pos_bz);
-        gradB_arr[k][j][i].x() = gradBx_vec.x();
-        gradB_arr[k][j][i].y() = gradBy_vec.y();
-        gradB_arr[k][j][i].z() = gradBz_vec.z();
-      }
-    }
-  }
-
-  PetscCall(DMDAVecRestoreArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, gradB_vec, &gradB_arr));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscReal compute_kinetic_energy(const PointByField& point)
-{
-  const PetscReal p_perp = point.p_perp_ref();
-  const PetscReal p_parallel = point.p_par();
-  return 0.5 * (p_perp * p_perp + p_parallel * p_parallel);
-}
-
-PetscReal compute_kinetic_energy(const Point& point)
-{
-  return 0.5 * point.p.squared();
-}
-
-PetscReal compute_mu(const Point& point)
-{
-  const Vector3R B = get_B_vector(point.r);
-  const PetscReal p_perp = point.p.transverse_to(B).length();
-  return 0.5 * m * p_perp * p_perp / B.length();
-}
-
-PetscReal compute_parallel_velocity(const Point& point)
-{
-  const Vector3R B = get_B_vector(point.r);
-  const Vector3R b = B.normalized();
-  return point.p.dot(b);
-}
-
-void boris_step(BorisPush& push, Point& point, interfaces::Particles& particles)
-{
-  const Vector3R E_p = {0.0, 0.0, 0.0};
-  const Vector3R B_p = get_B_vector(point.r);
-  push.set_fields(E_p, B_p);
-  push.process(dt, point, particles);
+  gaussian_fields(rn, B_p, gradB_p);
 }
 
 int main(int argc, char** argv)
@@ -264,12 +58,12 @@ int main(int argc, char** argv)
   PetscCall(get_omega_dt(omega_dt));
 
   const PetscReal d = 0.05;
-  dt = omega_dt / get_Bz(L);
+  dt = omega_dt / get_Bz(mirror_L);
   geom_nt = 20'000;
   diagnose_period = geom_nt / 10;
-  geom_nx = static_cast<PetscInt>(2 * L / d);
-  geom_ny = static_cast<PetscInt>(2 * L / d);
-  geom_nz = static_cast<PetscInt>(2 * L / d);
+  geom_nx = static_cast<PetscInt>(2 * mirror_L / d);
+  geom_ny = static_cast<PetscInt>(2 * mirror_L / d);
+  geom_nz = static_cast<PetscInt>(2 * mirror_L / d);
   dx = d;
   dy = d;
   dz = d;
@@ -289,7 +83,8 @@ int main(int argc, char** argv)
   PetscCall(DMCreateGlobalVector(world.da, &B_vec));
   PetscCall(DMCreateGlobalVector(world.da, &gradB_vec));
 
-  PetscCall(initialize_grid_fields(world.da, {dx, dy, dz}, E_vec, B_vec, gradB_vec));
+  PetscCall(initialize_staggered_grid_fields(
+    world.da, {dx, dy, dz}, E_vec, B_vec, gradB_vec, get_B_vector, get_gradB_vector));
 
   Vector3R*** E_arr;
   Vector3R*** B_arr;
@@ -302,7 +97,7 @@ int main(int argc, char** argv)
 
   constexpr PetscReal v_perp = 0.1/ M_SQRT2;
   constexpr PetscReal v_par = 0.1/ M_SQRT2;
-  const Vector3R r0(axis_x + 0.1, axis_y, axis_z);
+  const Vector3R r0(mirror_axis.x() + 0.1, mirror_axis.y(), mirror_axis.z());
   const Vector3R v0(v_perp, 0.0, v_par);
 
   const PetscReal B_mag = get_B_vector(r0).length();
@@ -353,7 +148,7 @@ int main(int argc, char** argv)
 
     push_analytical.process(dt, point_analytical, point_analytical_old);
     push_grid.process(dt, point_grid, point_grid_old);
-    boris_step(push_boris, point_boris, particles);
+    boris_step(push_boris, point_boris, particles, get_B_vector);
 
     const PetscReal position_error = (point_analytical.r - point_grid.r).length();
     drift_stats.max_position_error = std::max(drift_stats.max_position_error, position_error);
@@ -369,26 +164,17 @@ int main(int argc, char** argv)
       E_analytical, B_analytical, gradB_analytical);
     esirkepov->interpolate(E_grid, B_grid, gradB_grid, point_grid.r, point_grid_old.r);
 
-    const PetscReal error_B = (B_analytical - B_grid).length();
-    const PetscReal error_gradB = (gradB_analytical - gradB_grid).length();
-    drift_stats.max_field_error_B = std::max(drift_stats.max_field_error_B, error_B);
-    drift_stats.max_field_error_gradB = std::max(drift_stats.max_field_error_gradB, error_gradB);
-
-    const PetscReal z_error = std::abs((point_grid.r.z() - axis_z) - (point_boris.r.z() - axis_z));
-    boris_stats.max_z_error = std::max(boris_stats.max_z_error, z_error);
-
-    const PetscReal parallel_velocity_boris = compute_parallel_velocity(point_boris);
-    const PetscReal parallel_error = std::abs(point_grid.p_par() - parallel_velocity_boris);
-    boris_stats.max_parallel_error = std::max(boris_stats.max_parallel_error, parallel_error);
-
-    const PetscReal mu_boris = compute_mu(point_boris);
-    const PetscReal mu_error = std::abs(point_grid.mu() - mu_boris);
-    boris_stats.max_mu_error = std::max(boris_stats.max_mu_error, mu_error);
-
-    const PetscReal energy_drift = compute_kinetic_energy(point_grid);
-    const PetscReal energy_boris = compute_kinetic_energy(point_boris);
-    const PetscReal energy_error = std::abs(energy_drift - energy_boris);
-    boris_stats.max_energy_error = std::max(boris_stats.max_energy_error, energy_error);
+    update_boris_comparison_step(
+      point_grid,
+      point_boris,
+      B_analytical,
+      gradB_analytical,
+      B_grid,
+      gradB_grid,
+      get_B_vector,
+      drift_stats,
+      boris_stats,
+      mirror_axis.z());
   }
 
   drift_stats.simulation_time = dt * geom_nt;

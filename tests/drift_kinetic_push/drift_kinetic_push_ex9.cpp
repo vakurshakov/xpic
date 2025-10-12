@@ -13,7 +13,7 @@ PetscReal Omega_dt = 0.1;
 
 auto format(const char* push)
 {
-  return std::format("{}_omega_dt_{:.1f}_pf_{:.3f}", push, Omega_dt, pitch_frac);
+  return std::format("{}_omega_dt_{:.4f}_pf_{:.3f}", push, Omega_dt, pitch_frac);
 }
 
 int main(int argc, char** argv)

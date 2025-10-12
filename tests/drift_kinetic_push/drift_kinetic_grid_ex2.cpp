@@ -9,22 +9,6 @@ constexpr Vector3R E0(0.0, 1.0, -1.0);
 constexpr Vector3R B0(0.0, 0.0, 1.0);
 constexpr Vector3R gradB0(0.0, 0.0, 0.0);
 
-struct TestStatistics {
-  PetscReal max_field_error_E = 0.0;
-  PetscReal max_field_error_B = 0.0;
-  PetscReal max_field_error_gradB = 0.0;
-  PetscReal max_position_error = 0.0;
-  PetscReal max_displacement_per_step = 0.0;
-  PetscInt total_iterations_analytical = 0;
-  PetscInt total_iterations_grid = 0;
-  PetscInt boundary_violations = 0;
-  PetscInt cell_size_violations = 0;
-  Vector3R final_position_analytical;
-  Vector3R final_position_grid;
-  PetscReal simulation_time = 0.0;
-  PetscInt total_steps = 0;
-};
-
 void get_analytical_fields(const Vector3R&, const Vector3R&, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
   E_p = E0;
@@ -32,138 +16,7 @@ void get_analytical_fields(const Vector3R&, const Vector3R&, Vector3R& E_p, Vect
   gradB_p = gradB0;
 }
 
-PetscErrorCode initialize_grid_fields(DM da, Vec E_vec, Vec B_vec, Vec gradB_vec)
-{
-  PetscFunctionBeginUser;
-
-  Vector3R*** E_arr, ***B_arr, ***gradB_arr;
-
-  PetscCall(DMDAVecGetArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, gradB_vec, &gradB_arr));
-
-  Vector3I start, size;
-  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
-
-  for (PetscInt k = start[Z]; k < start[Z] + size[Z]; k++) {
-    for (PetscInt j = start[Y]; j < start[Y] + size[Y]; j++) {
-      for (PetscInt i = start[X]; i < start[X] + size[X]; i++) {
-        E_arr[k][j][i] = E0;
-        B_arr[k][j][i] = B0;
-        gradB_arr[k][j][i] = gradB0;
-      }
-    }
-  }
-
-  PetscCall(DMDAVecRestoreArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, gradB_vec, &gradB_arr));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode check_boundaries(const PointByField& point, const Vector3R& domain_min,
-                               const Vector3R& domain_max, TestStatistics& stats)
-{
-  PetscFunctionBeginUser;
-
-  bool violation = false;
-  if (point.r.x() < domain_min.x() || point.r.x() > domain_max.x() ||
-      point.r.y() < domain_min.y() || point.r.y() > domain_max.y() ||
-      point.r.z() < domain_min.z() || point.r.z() > domain_max.z()) {
-    violation = true;
-    stats.boundary_violations++;
-  }
-
-  PetscCheck(!violation, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Particle exceeded domain boundaries at position (%.6e, %.6e, %.6e)",
-    REP3_A(point.r));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode check_displacement(const PointByField& point_new, const PointByField& point_old,
-                                 PetscReal min_cell_size, TestStatistics& stats)
-{
-  PetscFunctionBeginUser;
-
-  PetscReal displacement = (point_new.r - point_old.r).length();
-  stats.max_displacement_per_step = std::max(stats.max_displacement_per_step, displacement);
-
-  if (displacement >= min_cell_size) {
-    stats.cell_size_violations++;
-    PetscCheck(false, PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "Particle displacement (%.6e) exceeds cell size (%.6e)", displacement, min_cell_size);
-  }
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode compare_fields_and_update_stats(const Vector3R& E_analytical, const Vector3R& B_analytical,
-                                              const Vector3R& gradB_analytical, const Vector3R& E_grid,
-                                              const Vector3R& B_grid, const Vector3R& gradB_grid,
-                                              TestStatistics& stats, PetscReal tolerance)
-{
-  PetscFunctionBeginUser;
-
-  PetscReal error_E = (E_analytical - E_grid).length();
-  PetscReal error_B = (B_analytical - B_grid).length();
-  PetscReal error_gradB = (gradB_analytical - gradB_grid).length();
-
-  stats.max_field_error_E = std::max(stats.max_field_error_E, error_E);
-  stats.max_field_error_B = std::max(stats.max_field_error_B, error_B);
-  stats.max_field_error_gradB = std::max(stats.max_field_error_gradB, error_gradB);
-
-  PetscCheck(equal_tol(E_analytical, E_grid, tolerance), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Electric field mismatch. Analytical: (%.8e %.8e %.8e), Grid: (%.8e %.8e %.8e), Error: %.8e",
-    REP3_A(E_analytical), REP3_A(E_grid), error_E);
-
-  PetscCheck(equal_tol(B_analytical, B_grid, tolerance), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Magnetic field mismatch. Analytical: (%.8e %.8e %.8e), Grid: (%.8e %.8e %.8e), Error: %.8e",
-    REP3_A(B_analytical), REP3_A(B_grid), error_B);
-
-  PetscCheck(equal_tol(gradB_analytical, gradB_grid, tolerance), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Gradient B field mismatch. Analytical: (%.8e %.8e %.8e), Grid: (%.8e %.8e %.8e), Error: %.8e",
-    REP3_A(gradB_analytical), REP3_A(gradB_grid), error_gradB);
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode print_statistics(const TestStatistics& stats)
-{
-  PetscFunctionBeginUser;
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n=== TEST STATISTICS ===\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Simulation time: %.6e\n", stats.simulation_time));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Total steps: %d\n", stats.total_steps));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nField comparison errors:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max E field error:     %.8e\n", stats.max_field_error_E));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max B field error:     %.8e\n", stats.max_field_error_B));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max gradB field error: %.8e\n", stats.max_field_error_gradB));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nTrajectory comparison:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max position error:    %.8e\n", stats.max_position_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Final pos analytical:  (%.6e %.6e %.6e)\n",
-           REP3_A(stats.final_position_analytical)));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Final pos grid:        (%.6e %.6e %.6e)\n",
-           REP3_A(stats.final_position_grid)));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nIteration statistics:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Total iterations (analytical): %d\n", stats.total_iterations_analytical));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Total iterations (grid):       %d\n", stats.total_iterations_grid));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Avg iterations (analytical):   %.2f\n",
-           (PetscReal)stats.total_iterations_analytical / stats.total_steps));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Avg iterations (grid):         %.2f\n",
-           (PetscReal)stats.total_iterations_grid / stats.total_steps));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nConstraint violations:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Boundary violations:    %d\n", stats.boundary_violations));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Cell size violations:   %d\n", stats.cell_size_violations));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max displacement/step:  %.8e\n", stats.max_displacement_per_step));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+using namespace drift_kinetic_test_utils;
 
 int main(int argc, char** argv)
 {
@@ -197,7 +50,16 @@ int main(int argc, char** argv)
   PetscCall(DMCreateGlobalVector(world.da, &B_vec));
   PetscCall(DMCreateGlobalVector(world.da, &gradB_vec));
 
-  PetscCall(initialize_grid_fields(world.da, E_vec, B_vec, gradB_vec));
+  PetscCall(initialize_grid_fields(
+    world.da,
+    E_vec,
+    B_vec,
+    gradB_vec,
+    [&](PetscInt, PetscInt, PetscInt, Vector3R& E_cell, Vector3R& B_cell, Vector3R& gradB_cell) {
+      E_cell = E0;
+      B_cell = B0;
+      gradB_cell = gradB0;
+    }));
 
   Vector3R*** E_arr, ***B_arr, ***gradB_arr;
   PetscCall(DMDAVecGetArrayRead(world.da, E_vec, &E_arr));
@@ -233,9 +95,9 @@ int main(int argc, char** argv)
 
   Vector3R domain_min(0.0, 0.0, 0.0);
   Vector3R domain_max(geom_nx*dx, geom_ny*dy, geom_nz*dz);
-  PetscReal min_cell_size = std::min({dx, dy, dz});
+  PetscReal min_cell_size = 2 * std::min({dx, dy, dz});
 
-  TestStatistics stats;
+  FieldComparisonStats stats;
   constexpr PetscReal field_tolerance = 1e-10;
   constexpr PetscReal position_tolerance = 1e-6;
 
@@ -256,32 +118,29 @@ int main(int argc, char** argv)
     push_analytical.process(dt, point_analytical, point_analytical_old);
     push_grid.process(dt, point_grid, point_grid_old);
 
-
-    stats.total_iterations_analytical += push_analytical.get_iteration_number();
-    stats.total_iterations_grid += push_grid.get_iteration_number();
-
-
-    PetscCall(check_boundaries(point_analytical, domain_min, domain_max, stats));
-    PetscCall(check_boundaries(point_grid, domain_min, domain_max, stats));
-
-    PetscCall(check_displacement(point_analytical, point_analytical_old, min_cell_size, stats));
-    PetscCall(check_displacement(point_grid, point_grid_old, min_cell_size, stats));
-
-    Vector3R E_analytical, B_analytical, gradB_analytical;
-    Vector3R E_grid, B_grid, gradB_grid;
-
-    get_analytical_fields(point_analytical.r, point_analytical.r, E_analytical, B_analytical, gradB_analytical);
-    esirkepov->interpolate(E_grid, B_grid, gradB_grid, point_grid.r, point_grid_old.r);
-
-    PetscCall(compare_fields_and_update_stats(E_analytical, B_analytical, gradB_analytical,
-                                            E_grid, B_grid, gradB_grid, stats, field_tolerance));
-
-    PetscReal position_error = (point_analytical.r - point_grid.r).length();
-    stats.max_position_error = std::max(stats.max_position_error, position_error);
-
-    PetscCheck(equal_tol(point_analytical.r, point_grid.r, position_tolerance), PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "Position mismatch at step %d. Analytical: (%.8e %.8e %.8e), Grid: (%.8e %.8e %.8e), Error: %.8e",
-      t, REP3_A(point_analytical.r), REP3_A(point_grid.r), position_error);
+    PetscCall(update_grid_comparison_step(
+      point_analytical,
+      point_analytical_old,
+      point_grid,
+      point_grid_old,
+      push_analytical.get_iteration_number(),
+      push_grid.get_iteration_number(),
+      min_cell_size,
+      domain_min,
+      domain_max,
+      position_tolerance,
+      field_tolerance,
+      stats,
+      [&](const PointByField& old_point, const PointByField& new_point,
+          Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p) {
+        get_analytical_fields(old_point.r, new_point.r, E_p, B_p, gradB_p);
+        return PETSC_SUCCESS;
+      },
+      [&](const PointByField& old_point, const PointByField& new_point,
+          Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p) {
+        esirkepov->interpolate(E_p, B_p, gradB_p, new_point.r, old_point.r);
+        return PETSC_SUCCESS;
+      }));
 
     if (t % (geom_nt / 10) == 0) {
       PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Step %d/%d, max position error: %.8e\n",
@@ -294,7 +153,7 @@ int main(int argc, char** argv)
   stats.final_position_analytical = point_analytical.r;
   stats.final_position_grid = point_grid.r;
 
-  PetscCall(print_statistics(stats));
+  PetscCall(print_field_statistics(stats));
 
   PetscReal T = dt * (PetscReal)(geom_nt+1);
   PetscReal q = push_analytical.get_qm();
