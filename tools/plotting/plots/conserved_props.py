@@ -25,6 +25,7 @@ def draw_impl(plot, s, d, l, dt, n=-1):
     plot.data = np.abs(np.loadtxt(f"{const.input_path}/../{s}/temporal/{d}.txt", skiprows=1)[:, n])
     if d == "energy":
         plot.plot_info["label"] = l
+
     plot.plot_info["linewidth"] = 2
     plot.draw(np.arange(len(plot.data)) * dt)
     plot.info.draw()
@@ -35,13 +36,14 @@ def draw(s, l, dt):
     draw_impl(charge, s, "charge_conservation", l, dt)
     draw_impl(energy_cons, s, "energy_conservation", l, dt)
 
-    energy.axis.legend(fontsize=0.75 * labelsize, loc="upper left", framealpha=1)
+    energy.axis.legend(fontsize=0.55 * labelsize, loc="upper left", framealpha=1)
     energy_cons.axis.set_yscale("log")
 
-draw("basic", "basic", 0.5)
-draw("ecsimcorr", "ecsimcorr", 0.5)
-draw("eccapfim_dt0.5", "eccapfim, $\\Delta t = 0.5$", 0.5)
-draw("eccapfim_dt0.25", "eccapfim, $\\Delta t = 0.25$", 0.25)
+draw("basic", "explicit", 0.5)
+draw("ecsimcorr", "sim, $\\Delta t = 0.5, N_p = 50$", 0.5)
+draw("eccapfim_dt0.5_np50", "fim, $\\Delta t = 0.5, N_p = 50$", 0.5)
+draw("eccapfim_dt0.5_np100", "fim, $\\Delta t = 0.5, N_p = 100$", 0.5)
+draw("eccapfim_dt0.25_np50", "fim, $\\Delta t = 0.25, N_p = 50$", 0.25)
 
 energy_cons.axis.plot([0, Lt], [1e-7]*2, linestyle="--", linewidth=2, color="black")
 
