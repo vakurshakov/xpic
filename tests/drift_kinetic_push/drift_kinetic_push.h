@@ -1,9 +1,7 @@
-#include <algorithm>
-#include <type_traits>
-#include <utility>
-
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/drift_kinetic_implicit.h" 
+#include "src/algorithms/boris_push.h"
+#include "src/interfaces/particles.h"
 #include "src/utils/vector3.h"
 #include "tests/common.h"
 #include "src/utils/world.h"
@@ -162,6 +160,22 @@ auto make_translated_field_getter(Func&& func, Vector3R offset)
     return func(pos - offset, std::forward<decltype(rest)>(rest)...);
   };
 }
+
+struct FieldComparisonStats {
+  PetscReal max_field_error_E = 0.0;
+  PetscReal max_field_error_B = 0.0;
+  PetscReal max_field_error_gradB = 0.0;
+  PetscReal max_position_error = 0.0;
+  PetscReal max_displacement_per_step = 0.0;
+  PetscInt total_iterations_analytical = 0;
+  PetscInt total_iterations_grid = 0;
+  PetscInt boundary_violations = 0;
+  PetscInt cell_size_violations = 0;
+  Vector3R final_position_analytical;
+  Vector3R final_position_grid;
+  PetscReal simulation_time = 0.0;
+  PetscInt total_steps = 0;
+};
 
 struct DriftComparisonStats {
   PetscInt total_steps = 0;
@@ -342,22 +356,6 @@ inline PetscErrorCode initialize_staggered_grid_fields(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-struct FieldComparisonStats {
-  PetscReal max_field_error_E = 0.0;
-  PetscReal max_field_error_B = 0.0;
-  PetscReal max_field_error_gradB = 0.0;
-  PetscReal max_position_error = 0.0;
-  PetscReal max_displacement_per_step = 0.0;
-  PetscInt total_iterations_analytical = 0;
-  PetscInt total_iterations_grid = 0;
-  PetscInt boundary_violations = 0;
-  PetscInt cell_size_violations = 0;
-  Vector3R final_position_analytical;
-  Vector3R final_position_grid;
-  PetscReal simulation_time = 0.0;
-  PetscInt total_steps = 0;
-};
-
 template <typename FillFunc>
 inline PetscErrorCode initialize_grid_fields(
   DM da,
@@ -473,11 +471,13 @@ inline PetscErrorCode compare_fields_and_update_stats(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-inline PetscErrorCode print_field_statistics(const FieldComparisonStats& stats)
+inline PetscErrorCode print_field_statistics(
+  const FieldComparisonStats& stats,
+  const char* header = "\n=== TEST STATISTICS ===\n")
 {
   PetscFunctionBeginUser;
 
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n=== TEST STATISTICS ===\n"));
+  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%s", header));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Simulation time: %.6e\n", stats.simulation_time));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Total steps: %d\n", stats.total_steps));
 
@@ -620,6 +620,93 @@ inline void update_boris_comparison_step(
   const PetscReal energy_boris = compute_kinetic_energy(point_boris);
   const PetscReal energy_error = std::abs(energy_drift - energy_boris);
   boris_stats.max_energy_error = std::max(boris_stats.max_energy_error, energy_error);
+}
+
+inline PetscErrorCode log_progress(
+  const char* label,
+  PetscInt step,
+  PetscInt total_steps,
+  PetscReal metric_value,
+  const char* metric_name = "max position error")
+{
+  PetscFunctionBeginUser;
+
+  const char* tag = (label && label[0] != '\0') ? label : "progress";
+  PetscCall(PetscPrintf(
+    PETSC_COMM_WORLD,
+    "[%s] Step %d/%d, %s: %.8e\n",
+    tag,
+    step,
+    total_steps,
+    metric_name,
+    metric_value));
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+inline void finalize_drift_stats(
+  DriftComparisonStats& stats,
+  PetscReal dt_local,
+  PetscInt total_steps,
+  const PointByField& point_analytical,
+  const PointByField& point_grid)
+{
+  stats.simulation_time = dt_local * total_steps;
+  stats.total_steps = total_steps;
+  stats.final_position_analytical = point_analytical.r;
+  stats.final_position_grid = point_grid.r;
+}
+
+inline void finalize_boris_stats(
+  BorisComparisonStats& stats,
+  const Point& point_boris)
+{
+  stats.final_position_boris = point_boris.r;
+}
+
+inline void finalize_field_stats(
+  FieldComparisonStats& stats,
+  PetscReal dt_local,
+  PetscInt total_steps,
+  const PointByField& point_analytical,
+  const PointByField& point_grid)
+{
+  stats.simulation_time = dt_local * total_steps;
+  stats.total_steps = total_steps;
+  stats.final_position_analytical = point_analytical.r;
+  stats.final_position_grid = point_grid.r;
+}
+
+inline PetscErrorCode finalize_and_print_statistics(
+  DriftComparisonStats& drift_stats,
+  const PointByField& point_analytical,
+  const PointByField& point_grid,
+  PetscReal dt_local,
+  PetscInt total_steps,
+  BorisComparisonStats* boris_stats = nullptr,
+  const Point* point_boris = nullptr,
+  FieldComparisonStats* field_stats = nullptr,
+  const char* header = "\n=== TEST STATISTICS ===\n")
+{
+  PetscFunctionBeginUser;
+
+  finalize_drift_stats(drift_stats, dt_local, total_steps, point_analytical, point_grid);
+  if (field_stats) {
+    finalize_field_stats(*field_stats, dt_local, total_steps, point_analytical, point_grid);
+  }
+
+  if (boris_stats && point_boris) {
+    finalize_boris_stats(*boris_stats, *point_boris);
+    PetscCall(print_statistics(drift_stats, *boris_stats));
+  } else {
+    PetscCall(print_drift_statistics(drift_stats, header));
+  }
+
+  if (field_stats) {
+    PetscCall(print_field_statistics(*field_stats));
+  }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 }  // namespace drift_kinetic_test_utils

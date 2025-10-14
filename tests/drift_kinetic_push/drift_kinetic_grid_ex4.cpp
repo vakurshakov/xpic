@@ -1,7 +1,5 @@
 #include "drift_kinetic_push.h"
 
-#include <algorithm>
-
 static constexpr char help[] =
   "Test: magnetic mirror. Particle should be reflected at mirror\n"
   "points, center stays between plugs.\n";
@@ -128,10 +126,15 @@ int main(int argc, char** argv)
     const PetscReal position_error = (point_analytical.r - point_grid.r).length();
     stats.max_position_error = std::max(stats.max_position_error, position_error);
 
-    Vector3R E_analytical, B_analytical, gradB_analytical;
-    Vector3R E_grid, B_grid, gradB_grid;
+    Vector3R E_analytical;
+    Vector3R B_analytical;
+    Vector3R gradB_analytical;
+    Vector3R E_grid;
+    Vector3R B_grid;
+    Vector3R gradB_grid;
 
-    get_analytical_fields(point_analytical_old.r, point_analytical.r, E_analytical, B_analytical, gradB_analytical);
+    get_analytical_fields(point_analytical_old.r, point_analytical.r,
+      E_analytical, B_analytical, gradB_analytical);
     esirkepov->interpolate(E_grid, B_grid, gradB_grid, point_grid.r, point_grid_old.r);
 
     const PetscReal error_B = (B_analytical - B_grid).length();
@@ -141,11 +144,6 @@ int main(int argc, char** argv)
     stats.max_field_error_gradB = std::max(stats.max_field_error_gradB, error_gradB);
   }
 
-  stats.simulation_time = dt * geom_nt;
-  stats.total_steps = geom_nt;
-  stats.final_position_analytical = point_analytical.r;
-  stats.final_position_grid = point_grid.r;
-
   PetscCall(DMDAVecRestoreArrayRead(world.da, E_vec, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(world.da, B_vec, &B_arr));
   PetscCall(DMDAVecRestoreArrayRead(world.da, gradB_vec, &gradB_arr));
@@ -153,6 +151,11 @@ int main(int argc, char** argv)
   PetscCall(VecDestroy(&E_vec));
   PetscCall(VecDestroy(&B_vec));
   PetscCall(VecDestroy(&gradB_vec));
+
+  stats.simulation_time = dt * geom_nt;
+  stats.total_steps = geom_nt;
+  stats.final_position_analytical = point_analytical.r;
+  stats.final_position_grid = point_grid.r;
 
   PetscCall(print_drift_statistics(stats));
 

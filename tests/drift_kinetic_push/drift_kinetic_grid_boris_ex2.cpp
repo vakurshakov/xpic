@@ -3,11 +3,6 @@
 #include "src/algorithms/boris_push.h"
 #include "src/interfaces/particles.h"
 
-#include <algorithm>
-#include <cmath>
-#include <format>
-#include <memory>
-
 static constexpr char help[] =
   "Test: magnetic mirror with double-Gaussian mirrors.\n"
   "Guiding-center push (analytic/grid) should match the Boris pusher.\n";
@@ -175,13 +170,11 @@ int main(int argc, char** argv)
       drift_stats,
       boris_stats,
       mirror_axis.z());
-  }
 
-  drift_stats.simulation_time = dt * geom_nt;
-  drift_stats.total_steps = geom_nt;
-  drift_stats.final_position_analytical = point_analytical.r;
-  drift_stats.final_position_grid = point_grid.r;
-  boris_stats.final_position_boris = point_boris.r;
+    if (t % (geom_nt / 10) == 0) {
+      PetscCall(log_progress(id.c_str(), t, geom_nt, drift_stats.max_position_error));
+    }
+  }
 
   PetscCall(DMDAVecRestoreArrayRead(world.da, E_vec, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(world.da, B_vec, &B_arr));
@@ -192,6 +185,12 @@ int main(int argc, char** argv)
   PetscCall(VecDestroy(&gradB_vec));
 
   PetscCall(particles.finalize());
+  drift_stats.simulation_time = dt * geom_nt;
+  drift_stats.total_steps = geom_nt;
+  drift_stats.final_position_analytical = point_analytical.r;
+  drift_stats.final_position_grid = point_grid.r;
+  boris_stats.final_position_boris = point_boris.r;
+
   PetscCall(print_statistics(drift_stats, boris_stats));
 
   PetscCall(world.finalize());

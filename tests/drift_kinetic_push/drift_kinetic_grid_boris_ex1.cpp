@@ -1,8 +1,5 @@
 #include "drift_kinetic_push.h"
 
-#include "src/algorithms/boris_push.h"
-#include "src/interfaces/particles.h"
-
 static constexpr char help[] =
   "Test: magnetic mirror. Particle should be reflected at mirror\n"
   "points, center stays between plugs. Additionally compares guiding\n"
@@ -179,13 +176,11 @@ int main(int argc, char** argv)
       drift_stats,
       boris_stats,
       mirror_L);
-  }
 
-  drift_stats.simulation_time = dt * geom_nt;
-  drift_stats.total_steps = geom_nt;
-  drift_stats.final_position_analytical = point_analytical.r;
-  drift_stats.final_position_grid = point_grid.r;
-  boris_stats.final_position_boris = point_boris.r;
+    if (t % (geom_nt / 10) == 0) {
+      PetscCall(log_progress(id.c_str(), t, geom_nt, drift_stats.max_position_error));
+    }
+  }
 
   PetscCall(DMDAVecRestoreArrayRead(world.da, E_vec, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(world.da, B_vec, &B_arr));
@@ -196,6 +191,12 @@ int main(int argc, char** argv)
   PetscCall(VecDestroy(&gradB_vec));
 
   PetscCall(particles.finalize());
+  drift_stats.simulation_time = dt * geom_nt;
+  drift_stats.total_steps = geom_nt;
+  drift_stats.final_position_analytical = point_analytical.r;
+  drift_stats.final_position_grid = point_grid.r;
+  boris_stats.final_position_boris = point_boris.r;
+
   PetscCall(print_statistics(drift_stats, boris_stats));
 
   PetscCall(world.finalize());

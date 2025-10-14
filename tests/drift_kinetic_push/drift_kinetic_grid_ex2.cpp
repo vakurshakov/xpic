@@ -101,12 +101,6 @@ int main(int argc, char** argv)
   constexpr PetscReal field_tolerance = 1e-10;
   constexpr PetscReal position_tolerance = 1e-6;
 
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Starting simulation with %d steps, dt = %.6e\n", geom_nt, dt));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Domain: [%.1f, %.1f] x [%.1f, %.1f] x [%.1f, %.1f]\n",
-           domain_min.x(), domain_max.x(), domain_min.y(), domain_max.y(), domain_min.z(), domain_max.z()));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Min cell size: %.6e\n", min_cell_size));
-
-
   Vector3R start_r = point_analytical.r;
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
@@ -143,17 +137,9 @@ int main(int argc, char** argv)
       }));
 
     if (t % (geom_nt / 10) == 0) {
-      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Step %d/%d, max position error: %.8e\n",
-               t, geom_nt, stats.max_position_error));
+      PetscCall(log_progress(id.c_str(), t, geom_nt, stats.max_position_error));
     }
   }
-
-  stats.simulation_time = dt * geom_nt;
-  stats.total_steps = geom_nt;
-  stats.final_position_analytical = point_analytical.r;
-  stats.final_position_grid = point_grid.r;
-
-  PetscCall(print_field_statistics(stats));
 
   PetscReal T = dt * (PetscReal)(geom_nt+1);
   PetscReal q = push_analytical.get_qm();
@@ -194,6 +180,13 @@ int main(int argc, char** argv)
   PetscCall(VecDestroy(&E_vec));
   PetscCall(VecDestroy(&B_vec));
   PetscCall(VecDestroy(&gradB_vec));
+
+  stats.simulation_time = dt * geom_nt;
+  stats.total_steps = geom_nt;
+  stats.final_position_analytical = point_analytical.r;
+  stats.final_position_grid = point_grid.r;
+
+  PetscCall(print_field_statistics(stats));
 
   PetscCall(world.finalize());
   PetscCall(PetscFinalize());
