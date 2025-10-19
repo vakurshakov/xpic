@@ -29,13 +29,14 @@ int main(int argc, char** argv)
   constexpr PetscReal v_perp = 1.0;
   constexpr PetscReal v_par = 1.0;
   constexpr Vector3R v0(v_perp, 0.0, v_par);
-  Point point_init(r0, v0);
-  PointByField point_n(point_init, {0.0, 0.0, get_B(r0.length(), r0.z())}, 1.0);
+  PetscReal B_start = get_B(r0.length(), r0.z());
+  Point point_init(r0+correction::rho(v0, Vector3R(0.0, 0.0, B_start), q/m), v0);
+  PointByField point_n(point_init, {0.0, 0.0, B_start}, 1.0, q/m);
 
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
 
-  dt = omega_dt / get_B(r0.length(), r0.z());
+  dt = omega_dt / B_start;
   geom_nt = 10'000;
   diagnose_period = geom_nt / 4;
 

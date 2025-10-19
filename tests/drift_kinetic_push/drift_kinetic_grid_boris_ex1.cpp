@@ -85,19 +85,16 @@ int main(int argc, char** argv)
   std::unique_ptr<DriftKineticEsirkepov> esirkepov =
     std::make_unique<DriftKineticEsirkepov>(E_arr, B_arr, nullptr, gradB_arr);
 
-  constexpr Vector3R r0(mirror_L, mirror_L - 0.05, mirror_L);
+  Vector3R r0(mirror_L, mirror_L - 0.05, mirror_L);
   constexpr PetscReal v_perp = 0.001;
   constexpr PetscReal v_par = 0.001;
   Vector3R B0(get_B_vector(r0));
-  PetscReal Bn = B0.length();
-  PetscReal ro = v_par/Bn;
   constexpr Vector3R v0(v_perp, 0.0, v_par);
 
-  Point point_init(r0, v0);
-  PointByField point_analytical(point_init, get_B_vector(r0), m);
-  PointByField point_grid(point_init, get_B_vector(r0), m);
-  Point point_init_2(r0+Vector3R{0., ro, 0.}, v0);
-  Point point_boris(point_init_2);
+  Point point_init(r0 + correction::rho(v0, B0, q/m), v0);
+  PointByField point_analytical(point_init, B0, m, q/m);
+  PointByField point_grid(point_init, B0, m, q/m);
+  Point point_boris(point_init);
 
   DriftComparisonStats drift_stats;
   BorisComparisonStats boris_stats;

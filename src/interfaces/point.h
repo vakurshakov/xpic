@@ -4,6 +4,12 @@
 #include "src/pch.h"
 #include "src/utils/vector3.h"
 
+//namespace utils_point {
+//  Vector3R R_correction(const Vector3R& vp, const Vector3R& Bp, PetscReal qm) {
+//    return vp.cross(Bp.normalized())/(qm*Bp.length());
+//  }
+//}
+
 struct Point {
   Vector3R r;
   Vector3R p;
@@ -37,6 +43,7 @@ struct Point {
 struct PointByField {
   Vector3R r;
   PetscReal p_parallel;
+  /// @todo del p_perp or mu_p
   PetscReal p_perp;
   PetscReal mu_p;
 
@@ -48,8 +55,8 @@ struct PointByField {
   {
   }
 
-  PointByField(const Point& point, const Vector3R& Bp, PetscReal mp)
-    : r(point.r),
+  PointByField(const Point& point, const Vector3R& Bp, PetscReal mp, PetscReal qm)
+    : r(point.r - point.p.cross(Bp.normalized())/(qm*Bp.length())),
       p_parallel(point.p.parallel_to(Bp).length()),
       p_perp(point.p.transverse_to(Bp).length()),
       mu_p(mp * p_perp * p_perp / (2.0 * Bp.length()))

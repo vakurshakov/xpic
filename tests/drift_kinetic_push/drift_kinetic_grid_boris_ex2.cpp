@@ -92,16 +92,14 @@ int main(int argc, char** argv)
 
   constexpr PetscReal v_perp = 0.1/ M_SQRT2;
   constexpr PetscReal v_par = 0.1/ M_SQRT2;
-  const Vector3R r0(mirror_axis.x() + 0.1, mirror_axis.y(), mirror_axis.z());
-  const Vector3R v0(v_perp, 0.0, v_par);
+  Vector3R r0(mirror_axis.x() + 0.1, mirror_axis.y(), mirror_axis.z());
+  constexpr Vector3R v0(v_perp, 0.0, v_par);
 
-  const PetscReal B_mag = get_B_vector(r0).length();
-  const PetscReal rho = v_perp / B_mag;
-  Point point_init(r0 - Vector3R{0.0, rho, 0.0}, v0);
-  PointByField point_analytical(point_init, get_B_vector(r0), m);
-  PointByField point_grid(point_init, get_B_vector(r0), m);
-
-  Point point_boris(r0, v0);
+  Vector3R B0(get_B_vector(r0));
+  Point point_init(r0 + correction::rho(v0, B0, q/m), v0);
+  PointByField point_analytical(point_init, B0, m, q/m);
+  PointByField point_grid(point_init, B0, m, q/m);
+  Point point_boris(point_init);
 
   DriftComparisonStats drift_stats;
   BorisComparisonStats boris_stats;
@@ -117,7 +115,7 @@ int main(int argc, char** argv)
   push_analytical.set_fields_callback(get_analytical_fields);
 
   DriftKineticPush push_grid;
-  push_grid.set_qm(q / m);
+  push_grid.set_qm(q/m);
   push_grid.set_mp(m);
   push_grid.set_fields_callback([
     &](const Vector3R& r0_local, const Vector3R& rn_local, Vector3R& E_p,

@@ -83,9 +83,9 @@ int main(int argc, char** argv)
   constexpr PetscReal v_perp = 1.0;
   constexpr PetscReal v_par = 1.0;
   constexpr Vector3R v0(v_perp, 0.0, v_par);
-  Point point_init(r0, v0);
-  PointByField point_analytical(point_init, {0.0, 0.0, B_min}, m);
-  PointByField point_grid(point_init, {0.0, 0.0, B_min}, m);
+  Point point_init(r0+correction::rho(v0, {0.0, 0.0, B_min}, q/m), v0);
+  PointByField point_analytical(point_init, {0.0, 0.0, B_min}, m, q/m);
+  PointByField point_grid(point_init, {0.0, 0.0, B_min}, m, q/m);
 
   DriftComparisonStats stats;
 

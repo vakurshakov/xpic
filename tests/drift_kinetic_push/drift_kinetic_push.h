@@ -19,6 +19,12 @@ PetscErrorCode get_omega_dt(PetscReal& omega_dt)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+namespace correction {
+  Vector3R rho(const Vector3R& vp, const Vector3R& Bp, PetscReal qm) {
+    return vp.cross(Bp.normalized())/(qm*Bp.length());
+  }
+}
+
 namespace quadratic_magnetic_mirror {
 
 constexpr PetscReal B_min = 1.0;

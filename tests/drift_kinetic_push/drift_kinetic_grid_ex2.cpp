@@ -69,13 +69,11 @@ int main(int argc, char** argv)
   std::unique_ptr<DriftKineticEsirkepov> esirkepov =
     std::make_unique<DriftKineticEsirkepov>(E_arr, B_arr, nullptr, gradB_arr);
 
-
-
   constexpr Vector3R r0(2.0, 2.0, 2.0);
   constexpr Vector3R v0(0.0, 1.0, 0.0);
-  Point point_init(r0, v0);
-  PointByField point_analytical(point_init, B0, 1.0);
-  PointByField point_grid(point_init, B0, 1.0);
+  Point point_init(r0+correction::rho(v0, B0, -q/m), v0);
+  PointByField point_analytical(point_init, B0, 1.0, -q/m);
+  PointByField point_grid(point_init, B0, 1.0, -q/m);
 
   DriftKineticPush push_analytical;
   push_analytical.set_qm(-q/m);

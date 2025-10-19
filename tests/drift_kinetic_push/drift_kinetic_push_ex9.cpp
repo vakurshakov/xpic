@@ -79,9 +79,7 @@ int main(int argc, char** argv)
       get_fields(r0, (r1 + r0) / 2, E, B, dB_p);
     });
 
-  Vector3R R = r0 + v0.cross(B) / Omega;
-
-  PointByField dk_p({R, v0}, {0.0, 0.0, get_Bz_corr(R)}, 1.0);
+  PointByField dk_p({r0, v0}, {0.0, 0.0, get_Bz_corr(r0)}, 1.0, q/m);
   DriftKineticPush dk_push;
   dk_push.set_qm(1.0);
   dk_push.set_mp(1.0);

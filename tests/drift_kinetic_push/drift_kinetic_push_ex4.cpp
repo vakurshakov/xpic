@@ -36,12 +36,12 @@ int main(int argc, char** argv)
   diagnose_period = geom_nt / 4;
 
   // Starting at the minimum of the magnetic field
-  constexpr Vector3R r0(0.0, 0.0, 0.0);
   constexpr PetscReal v_perp = 1.0;
   constexpr PetscReal v_par = 1.73;
   constexpr Vector3R v0(v_perp, 0.0, v_par);
+  Vector3R r0(correction::rho(v0, B_min, q/m));
   Point point_init(r0, v0);
-  PointByField point_n(point_init, {0.0, 0.0, B_min}, m);
+  PointByField point_n(point_init, {0.0, 0.0, B_min}, m, q/m);
 
   auto id = std::format("omega_dt_{:.1f}", omega_dt);
   PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 10);
