@@ -7,11 +7,9 @@ class DriftKineticEsirkepov : public ImplicitEsirkepov {
 public:
   DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** gradB_g);
 
-  // Расширенная интерполяция с градиентом B
   void interpolate(Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p,
     const Vector3R& rn, const Vector3R& r0);
 
-  // Наследуем базовые методы
   using ImplicitEsirkepov::interpolate;
   using ImplicitEsirkepov::decompose;
 

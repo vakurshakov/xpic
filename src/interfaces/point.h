@@ -4,12 +4,6 @@
 #include "src/pch.h"
 #include "src/utils/vector3.h"
 
-//namespace utils_point {
-//  Vector3R R_correction(const Vector3R& vp, const Vector3R& Bp, PetscReal qm) {
-//    return vp.cross(Bp.normalized())/(qm*Bp.length());
-//  }
-//}
-
 struct Point {
   Vector3R r;
   Vector3R p;
