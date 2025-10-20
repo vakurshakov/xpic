@@ -16,7 +16,7 @@ targs = dict(xlim=(0, Lt), xticks=np.linspace(0, Lt, 7), xlabel="$\\omega_{pe}t$
 
 energy = PlotLinear(axis=subplot(fig, gs, 0, 0))#, vmap=(26, 28))
 # energy.info.set_args(title="Electrons energy", ylabel="$K = \\sum\\limits_p m_p v_p^2 / 2$", **targs)
-energy.info.set_args(title="Electric energy", ylabel="$W_E = \\sum\\limits_g E_g^2 / 2$", **targs)
+energy.info.set_args(title="Electric energy", ylabel="$W_E = \\sum\\limits_g {\\bf E}_g^2 / 2$", **targs)
 
 energy_cons = PlotLinear(axis=subplot(fig, gs, 0, 1))
 energy_cons.info.set_args(title="Energy conservation", ylabel="$\\Delta(W_E + W_B + K)$", **targs)
