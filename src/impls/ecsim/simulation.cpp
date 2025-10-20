@@ -32,13 +32,13 @@ PetscErrorCode Simulation::initialize_implementation()
     sorts.emplace_back(sort.get());
   }
 
+  diagnostics_.emplace_back(
+    std::make_unique<MomentumConservation>(world.da, E, sorts));
+
   auto&& e_diag = std::make_unique<Energy>(E, B, sorts);
 
   diagnostics_.emplace_back(
     std::make_unique<EnergyConservation>(*this, std::move(e_diag)));
-
-  diagnostics_.emplace_back(
-    std::make_unique<MomentumConservation>(world.da, E, sorts));
 
   PetscCall(PetscLogStagePop());
   PetscCall(init_clock.pop());

@@ -75,6 +75,31 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
   return result;
 }
 
+Vector3R MaxwellCosinePerturbation::operator()(const Vector3R& coordinate)
+{
+  static const PetscReal Lx = (box.max[X] - box.min[X]);
+  static const PetscReal Ly = (box.max[Y] - box.min[Y]);
+  static const PetscReal Lz = (box.max[Z] - box.min[Z]);
+
+  Vector3R v_m{
+    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tx, params.m),
+    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Ty, params.m),
+    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tz, params.m),
+  };
+
+  Vector3R v_0{
+    a[X] * sqrt(params.Tz / (params.m * mec2)),
+    a[Y] * sqrt(params.Tz / (params.m * mec2)),
+    a[Z] * sqrt(params.Tz / (params.m * mec2)),
+  };
+
+  v_m[X] += v_0[X] * std::cos(2.0 * M_PI * m[X] * coordinate[X] / Lx);
+  v_m[Y] += v_0[Y] * std::cos(2.0 * M_PI * m[Y] * coordinate[Y] / Ly);
+  v_m[Z] += v_0[Z] * std::cos(2.0 * M_PI * m[Z] * coordinate[Z] / Lz);
+
+  return v_m;
+}
+
 Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
 {
   PetscReal x = coordinate.x() - center[X];

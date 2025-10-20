@@ -43,6 +43,15 @@ struct MaxwellianMomentum {
   bool tov = false;
 };
 
+struct MaxwellCosinePerturbation {
+  Vector3R operator()(const Vector3R& coordinate);
+  SortParameters params;
+  BoxGeometry box;
+  Vector3R a;
+  Vector3R m;
+};
+
+
 struct AngularMomentum {
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params;

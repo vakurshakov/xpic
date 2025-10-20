@@ -59,9 +59,9 @@ PetscErrorCode Simulation::init_particles(
     };
 
     Vector3R CH{
-      Dx[X] / V[X],
-      Dx[Y] / V[Y],
-      Dx[Z] / V[Z],
+      V[X] / Dx[X],
+      V[Y] / Dx[Y],
+      V[Z] / Dx[Z],
     };
 
     Vector3R CT{
@@ -73,7 +73,7 @@ PetscErrorCode Simulation::init_particles(
     LOG("  {} are added:", parameters.sort_name);
     LOG("    temperature (avg.),  T = {:.3e} [KeV]", T.length());
     LOG("    thermal velocity, v_th = {:.3e} [c]", V.length());
-    LOG("    cell-heating, Δx / λ_d = {:.3e} [unit]", CH.abs_max());
+    LOG("    cell-heating, λ_d / Δx = {:.3e} [unit]", CH.abs_max());
     LOG("    cell-traverse, v_th * Δt / Δx = {:.3e} [unit]", CT.abs_max());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
