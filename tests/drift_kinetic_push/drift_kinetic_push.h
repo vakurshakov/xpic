@@ -1,3 +1,4 @@
+#include <array>
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/drift_kinetic_implicit.h" 
 #include "src/algorithms/boris_push.h"
@@ -167,22 +168,6 @@ auto make_translated_field_getter(Func&& func, Vector3R offset)
   };
 }
 
-struct FieldComparisonStats {
-  PetscReal max_field_error_E = 0.0;
-  PetscReal max_field_error_B = 0.0;
-  PetscReal max_field_error_gradB = 0.0;
-  PetscReal max_position_error = 0.0;
-  PetscReal max_displacement_per_step = 0.0;
-  PetscInt total_iterations_analytical = 0;
-  PetscInt total_iterations_grid = 0;
-  PetscInt boundary_violations = 0;
-  PetscInt cell_size_violations = 0;
-  Vector3R final_position_analytical;
-  Vector3R final_position_grid;
-  PetscReal simulation_time = 0.0;
-  PetscInt total_steps = 0;
-};
-
 struct DriftComparisonStats {
   PetscInt total_steps = 0;
   PetscReal simulation_time = 0.0;
@@ -213,26 +198,24 @@ inline PetscErrorCode print_drift_statistics(
 {
   PetscFunctionBeginUser;
 
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%s", header));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Simulation time: %.6e\n", stats.simulation_time));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Total steps: %d\n", stats.total_steps));
+  if (0) {
+    LOG("%s", header);
+    LOG("Simulation time: %.6e", stats.simulation_time);
+    LOG("Total steps: %d", stats.total_steps);
 
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nField comparison errors:\n"));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD, "  Max B field error:     %.8e\n", stats.max_field_error_B));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD, "  Max gradB field error: %.8e\n", stats.max_field_error_gradB));
+    LOG("\nField comparison errors:");
+    LOG("  Max B field error:     %.8e", stats.max_field_error_B);
+    LOG("  Max gradB field error: %.8e", stats.max_field_error_gradB);
 
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nTrajectory comparison:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max position error:    %.8e\n", stats.max_position_error));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Final pos analytical:  (%.6e %.6e %.6e)\n",
-    REP3_A(stats.final_position_analytical)));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Final pos grid:        (%.6e %.6e %.6e)\n",
-    REP3_A(stats.final_position_grid)));
+    LOG("\nTrajectory comparison:");
+    LOG("  Max position error:    %.8e", stats.max_position_error);
+    LOG(
+      "  Final pos analytical:  (%.6e %.6e %.6e)",
+      REP3_A(stats.final_position_analytical));
+    LOG(
+      "  Final pos grid:        (%.6e %.6e %.6e)",
+      REP3_A(stats.final_position_grid));
+  }
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -245,17 +228,18 @@ inline PetscErrorCode print_statistics(
 
   PetscCall(print_drift_statistics(drift_stats, "\n=== DRIFT VS GRID STATISTICS ===\n"));
 
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\n=== DRIFT VS BORIS STATISTICS ===\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Reference mu:      %.8e\n", boris_stats.mu_reference));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Reference energy:  %.8e\n", boris_stats.energy_reference));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Max z error:       %.8e\n", boris_stats.max_z_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Max p_parallel err %.8e\n", boris_stats.max_parallel_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Max mu error:      %.8e\n", boris_stats.max_mu_error));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Max energy error:  %.8e\n", boris_stats.max_energy_error));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "Final pos boris:   (%.6e %.6e %.6e)\n",
-    REP3_A(boris_stats.final_position_boris)));
+  if (0) {
+    LOG("\n=== DRIFT VS BORIS STATISTICS ===");
+    LOG("Reference mu:      %.8e", boris_stats.mu_reference);
+    LOG("Reference energy:  %.8e", boris_stats.energy_reference);
+    LOG("Max z error:       %.8e", boris_stats.max_z_error);
+    LOG("Max p_parallel err %.8e", boris_stats.max_parallel_error);
+    LOG("Max mu error:      %.8e", boris_stats.max_mu_error);
+    LOG("Max energy error:  %.8e", boris_stats.max_energy_error);
+    LOG(
+      "Final pos boris:   (%.6e %.6e %.6e)",
+      REP3_A(boris_stats.final_position_boris));
+  }
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -301,66 +285,226 @@ inline void boris_step(
   push.process(dt, point, particles);
 }
 
-template <typename GetB, typename GetGradB>
-inline PetscErrorCode initialize_staggered_grid_fields(
-  DM da,
-  const Vector3R& dr,
-  Vec E_vec,
-  Vec B_vec,
-  Vec gradB_vec,
-  const GetB& get_B,
-  const GetGradB& get_gradB)
+inline std::array<Vector3R, 3> yee_E_positions(
+  PetscReal x_i,
+  PetscReal y_j,
+  PetscReal z_k,
+  const Vector3R& dr)
 {
-  PetscFunctionBeginUser;
+  return {
+    Vector3R{x_i + 0.5 * dr.x(), y_j, z_k},
+    Vector3R{x_i, y_j + 0.5 * dr.y(), z_k},
+    Vector3R{x_i, y_j, z_k + 0.5 * dr.z()},
+  };
+}
 
-  Vector3R*** E_arr;
-  Vector3R*** B_arr;
-  Vector3R*** gradB_arr;
+inline std::array<Vector3R, 3> yee_B_positions(
+  PetscReal x_i,
+  PetscReal y_j,
+  PetscReal z_k,
+  const Vector3R& dr)
+{
+  return {
+    Vector3R{x_i, y_j + 0.5 * dr.y(), z_k + 0.5 * dr.z()},
+    Vector3R{x_i + 0.5 * dr.x(), y_j, z_k + 0.5 * dr.z()},
+    Vector3R{x_i + 0.5 * dr.x(), y_j + 0.5 * dr.y(), z_k},
+  };
+}
 
-  PetscCall(DMDAVecGetArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, gradB_vec, &gradB_arr));
+namespace grid {
 
-  Vector3I start, size;
-  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+class FieldArrayReadHandle {
+public:
+  FieldArrayReadHandle(DM dm, Vec vec)
+    : dm_(dm)
+    , vec_(vec)
+  {
+    PetscErrorCode ierr = DMDAVecGetArrayRead(dm_, vec_, &array_);
+    if (PetscUnlikely(ierr != 0)) {
+      PetscCallAbort(PETSC_COMM_WORLD, ierr);
+    }
+  }
 
-  for (PetscInt k = start[Z]; k < start[Z] + size[Z]; ++k) {
-    for (PetscInt j = start[Y]; j < start[Y] + size[Y]; ++j) {
-      for (PetscInt i = start[X]; i < start[X] + size[X]; ++i) {
-        const PetscReal x_i = i * dr.x();
-        const PetscReal y_j = j * dr.y();
-        const PetscReal z_k = k * dr.z();
+  ~FieldArrayReadHandle()
+  {
+    PetscErrorCode ierr = restore();
+    if (PetscUnlikely(ierr != 0)) {
+      PetscCallAbort(PETSC_COMM_WORLD, ierr);
+    }
+  }
 
-        E_arr[k][j][i] = {0.0, 0.0, 0.0};
+  FieldArrayReadHandle(const FieldArrayReadHandle&) = delete;
+  FieldArrayReadHandle& operator=(const FieldArrayReadHandle&) = delete;
 
-        const Vector3R pos_bx{x_i, (j + 0.5) * dr.y(), (k + 0.5) * dr.z()};
-        const Vector3R pos_by{(i + 0.5) * dr.x(), y_j, (k + 0.5) * dr.z()};
-        const Vector3R pos_bz{(i + 0.5) * dr.x(), (j + 0.5) * dr.y(), z_k};
+  Vector3R*** get() const { return array_; }
 
-        const Vector3R Bx_vec = get_B(pos_bx);
-        const Vector3R By_vec = get_B(pos_by);
-        const Vector3R Bz_vec = get_B(pos_bz);
-        B_arr[k][j][i].x() = Bx_vec.x();
-        B_arr[k][j][i].y() = By_vec.y();
-        B_arr[k][j][i].z() = Bz_vec.z();
+  PetscErrorCode restore()
+  {
+    if (array_ != nullptr) {
+      PetscErrorCode ierr = DMDAVecRestoreArrayRead(dm_, vec_, &array_);
+      array_ = nullptr;
+      return ierr;
+    }
+    return PETSC_SUCCESS;
+  }
 
-        const Vector3R gradBx_vec = get_gradB(pos_bx);
-        const Vector3R gradBy_vec = get_gradB(pos_by);
-        const Vector3R gradBz_vec = get_gradB(pos_bz);
+private:
+  DM dm_;
+  Vec vec_;
+  Vector3R*** array_ = nullptr;
+};
 
-        gradB_arr[k][j][i].x() = gradBx_vec.x();
-        gradB_arr[k][j][i].y() = gradBy_vec.y();
-        gradB_arr[k][j][i].z() = gradBz_vec.z();
+class FieldArrayWriteHandle {
+public:
+  FieldArrayWriteHandle(DM dm, Vec vec)
+    : dm_(dm)
+    , vec_(vec)
+  {
+    PetscErrorCode ierr = DMDAVecGetArrayWrite(dm_, vec_, &array_);
+    if (PetscUnlikely(ierr != 0)) {
+      PetscCallAbort(PETSC_COMM_WORLD, ierr);
+    }
+  }
+
+  ~FieldArrayWriteHandle()
+  {
+    PetscErrorCode ierr = restore();
+    if (PetscUnlikely(ierr != 0)) {
+      PetscCallAbort(PETSC_COMM_WORLD, ierr);
+    }
+  }
+
+  FieldArrayWriteHandle(const FieldArrayWriteHandle&) = delete;
+  FieldArrayWriteHandle& operator=(const FieldArrayWriteHandle&) = delete;
+
+  Vector3R*** get() const { return array_; }
+
+  PetscErrorCode restore()
+  {
+    if (array_ != nullptr) {
+      PetscErrorCode ierr = DMDAVecRestoreArrayWrite(dm_, vec_, &array_);
+      array_ = nullptr;
+      return ierr;
+    }
+    return PETSC_SUCCESS;
+  }
+
+private:
+  DM dm_;
+  Vec vec_;
+  Vector3R*** array_ = nullptr;
+};
+
+class FieldArrayTripletRead {
+public:
+  FieldArrayTripletRead(DM dm, Vec E_vec, Vec B_vec, Vec gradB_vec): E_(dm, E_vec), B_(dm, B_vec), gradB_(dm, gradB_vec){}
+
+  Vector3R*** E() const { return E_.get(); }
+  Vector3R*** B() const { return B_.get(); }
+  Vector3R*** gradB() const { return gradB_.get(); }
+
+  PetscErrorCode restore()
+  {
+    PetscFunctionBeginUser;
+    PetscCall(E_.restore());
+    PetscCall(B_.restore());
+    PetscCall(gradB_.restore());
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+private:
+  FieldArrayReadHandle E_;
+  FieldArrayReadHandle B_;
+  FieldArrayReadHandle gradB_;
+};
+
+class FieldArrayTripletWrite {
+public:
+  FieldArrayTripletWrite(DM dm, Vec E_vec, Vec B_vec, Vec gradB_vec): E_(dm, E_vec), B_(dm, B_vec), gradB_(dm, gradB_vec) {}
+
+  Vector3R*** E() const { return E_.get(); }
+  Vector3R*** B() const { return B_.get(); }
+  Vector3R*** gradB() const { return gradB_.get(); }
+
+  PetscErrorCode restore()
+  {
+    PetscFunctionBeginUser;
+    PetscCall(E_.restore());
+    PetscCall(B_.restore());
+    PetscCall(gradB_.restore());
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+private:
+  FieldArrayWriteHandle E_;
+  FieldArrayWriteHandle B_;
+  FieldArrayWriteHandle gradB_;
+};
+
+class FieldWorldContext {
+public:
+  FieldWorldContext() = default;
+
+  FieldWorldContext(const FieldWorldContext&) = delete;
+  FieldWorldContext& operator=(const FieldWorldContext&) = delete;
+
+  ~FieldWorldContext()
+  {
+    if (initialized_) {
+      PetscErrorCode ierr = destroy();
+      if (PetscUnlikely(ierr != 0)) {
+        PetscCallAbort(PETSC_COMM_WORLD, ierr);
       }
     }
   }
 
-  PetscCall(DMDAVecRestoreArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, gradB_vec, &gradB_arr));
+  template <typename GeometrySetter>
+  PetscErrorCode init(GeometrySetter&& geometry_setter)
+  {
+    PetscFunctionBeginUser;
+    PetscCheck(!initialized_, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+      "FieldWorldContext is already initialized");
 
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+    geometry_setter();
+
+    PetscCall(world_.initialize());
+    PetscCall(DMCreateGlobalVector(world_.da, &E_vec_));
+    PetscCall(DMCreateGlobalVector(world_.da, &B_vec_));
+    PetscCall(DMCreateGlobalVector(world_.da, &gradB_vec_));
+
+    initialized_ = true;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  PetscErrorCode destroy()
+  {
+    PetscFunctionBeginUser;
+    if (!initialized_) {
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }
+
+    PetscCall(VecDestroy(&E_vec_));
+    PetscCall(VecDestroy(&B_vec_));
+    PetscCall(VecDestroy(&gradB_vec_));
+    PetscCall(world_.finalize());
+
+    initialized_ = false;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  DM dm() const { return world_.da; }
+  Vec E_vec() const { return E_vec_; }
+  Vec B_vec() const { return B_vec_; }
+  Vec gradB_vec() const { return gradB_vec_; }
+  World& world() { return world_; }
+
+private:
+  World world_;
+  Vec E_vec_ = nullptr;
+  Vec B_vec_ = nullptr;
+  Vec gradB_vec_ = nullptr;
+  bool initialized_ = false;
+};
 
 template <typename FillFunc>
 inline PetscErrorCode initialize_grid_fields(
@@ -372,15 +516,13 @@ inline PetscErrorCode initialize_grid_fields(
 {
   PetscFunctionBeginUser;
 
-  Vector3R*** E_arr;
-  Vector3R*** B_arr;
-  Vector3R*** gradB_arr;
+  FieldArrayTripletWrite arrays(da, E_vec, B_vec, gradB_vec);
+  Vector3R*** E_arr = arrays.E();
+  Vector3R*** B_arr = arrays.B();
+  Vector3R*** gradB_arr = arrays.gradB();
 
-  PetscCall(DMDAVecGetArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, gradB_vec, &gradB_arr));
-
-  Vector3I start, size;
+  Vector3I start;
+  Vector3I size;
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
 
   for (PetscInt k = start[Z]; k < start[Z] + size[Z]; ++k) {
@@ -391,205 +533,74 @@ inline PetscErrorCode initialize_grid_fields(
     }
   }
 
-  PetscCall(DMDAVecRestoreArrayWrite(da, E_vec, &E_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, B_vec, &B_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, gradB_vec, &gradB_arr));
-
+  PetscCall(arrays.restore());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-inline PetscErrorCode check_boundaries(
-  const PointByField& point,
-  const Vector3R& domain_min,
-  const Vector3R& domain_max,
-  FieldComparisonStats& stats)
+}  // namespace grid
+
+using grid::initialize_grid_fields;
+
+template <typename GetE, typename GetB, typename GetGradB>
+inline PetscErrorCode initialize_staggered_grid_fields(
+  DM da,
+  const Vector3R& dr,
+  Vec E_vec,
+  Vec B_vec,
+  Vec gradB_vec,
+  const GetE& get_E,
+  const GetB& get_B,
+  const GetGradB& get_gradB)
 {
   PetscFunctionBeginUser;
 
-  bool violation = false;
+  grid::FieldArrayTripletWrite arrays(da, E_vec, B_vec, gradB_vec);
+  Vector3R*** E_arr = arrays.E();
+  Vector3R*** B_arr = arrays.B();
+  Vector3R*** gradB_arr = arrays.gradB();
 
-  if (point.r.x() < domain_min.x() || point.r.x() > domain_max.x() ||
-      point.r.y() < domain_min.y() || point.r.y() > domain_max.y() ||
-      point.r.z() < domain_min.z() || point.r.z() > domain_max.z()) {
-    violation = true;
-    stats.boundary_violations++;
+  auto assign_components = [](Vector3R& cell, const auto& getter, const auto& positions) {
+    cell.x() = getter(positions[0]).x();
+    cell.y() = getter(positions[1]).y();
+    cell.z() = getter(positions[2]).z();
+  };
+
+  Vector3I start, size;
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+
+  for (PetscInt k = start[Z]; k < start[Z] + size[Z]; ++k) {
+    for (PetscInt j = start[Y]; j < start[Y] + size[Y]; ++j) {
+      for (PetscInt i = start[X]; i < start[X] + size[X]; ++i) {
+        const PetscReal x_i = i * dr.x();
+        const PetscReal y_j = j * dr.y();
+        const PetscReal z_k = k * dr.z();
+
+        const auto e_positions = yee_E_positions(x_i, y_j, z_k, dr);
+        assign_components(E_arr[k][j][i], get_E, e_positions);
+
+        const auto b_positions = yee_B_positions(x_i, y_j, z_k, dr);
+        assign_components(B_arr[k][j][i], get_B, b_positions);
+        assign_components(gradB_arr[k][j][i], get_gradB, b_positions);
+      }
+    }
   }
 
-  PetscCheck(!violation, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Particle exceeded domain boundaries at position (%.6e, %.6e, %.6e)",
-    REP3_A(point.r));
-
+  PetscCall(arrays.restore());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-inline PetscErrorCode check_displacement(
-  const PointByField& point_new,
-  const PointByField& point_old,
-  PetscReal min_cell_size,
-  FieldComparisonStats& stats)
+template <typename GetB, typename GetGradB>
+inline PetscErrorCode initialize_staggered_grid_fields(
+  DM da,
+  const Vector3R& dr,
+  Vec E_vec,
+  Vec B_vec,
+  Vec gradB_vec,
+  const GetB& get_B,
+  const GetGradB& get_gradB)
 {
-  PetscFunctionBeginUser;
-
-  PetscReal displacement = (point_new.r - point_old.r).length();
-  stats.max_displacement_per_step = std::max(stats.max_displacement_per_step, displacement);
-
-  if (displacement >= min_cell_size) {
-    stats.cell_size_violations++;
-    PetscCheck(false, PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "Particle displacement (%.6e) exceeds cell size (%.6e)", displacement, min_cell_size);
-  }
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-inline PetscErrorCode compare_fields_and_update_stats(
-  const Vector3R& E_analytical,
-  const Vector3R& B_analytical,
-  const Vector3R& gradB_analytical,
-  const Vector3R& E_grid,
-  const Vector3R& B_grid,
-  const Vector3R& gradB_grid,
-  FieldComparisonStats& stats,
-  PetscReal tolerance)
-{
-  PetscFunctionBeginUser;
-
-  PetscReal error_E = (E_analytical - E_grid).length();
-  PetscReal error_B = (B_analytical - B_grid).length();
-  PetscReal error_gradB = (gradB_analytical - gradB_grid).length();
-
-  stats.max_field_error_E = std::max(stats.max_field_error_E, error_E);
-  stats.max_field_error_B = std::max(stats.max_field_error_B, error_B);
-  stats.max_field_error_gradB = std::max(stats.max_field_error_gradB, error_gradB);
-
-  PetscCheck(equal_tol(E_analytical, E_grid, tolerance), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Electric field mismatch. Analytical: (%.8e %.8e %.8e), Grid: (%.8e %.8e %.8e), Error: %.8e",
-    REP3_A(E_analytical), REP3_A(E_grid), error_E);
-
-  PetscCheck(equal_tol(B_analytical, B_grid, tolerance), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Magnetic field mismatch. Analytical: (%.8e %.8e %.8e), Grid: (%.8e %.8e %.8e), Error: %.8e",
-    REP3_A(B_analytical), REP3_A(B_grid), error_B);
-
-  PetscCheck(equal_tol(gradB_analytical, gradB_grid, tolerance), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Gradient B field mismatch. Analytical: (%.8e %.8e %.8e), Grid: (%.8e %.8e %.8e), Error: %.8e",
-    REP3_A(gradB_analytical), REP3_A(gradB_grid), error_gradB);
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-inline PetscErrorCode print_field_statistics(
-  const FieldComparisonStats& stats,
-  const char* header = "\n=== TEST STATISTICS ===\n")
-{
-  PetscFunctionBeginUser;
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "%s", header));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Simulation time: %.6e\n", stats.simulation_time));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Total steps: %d\n", stats.total_steps));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nField comparison errors:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max E field error:     %.8e\n", stats.max_field_error_E));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max B field error:     %.8e\n", stats.max_field_error_B));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max gradB field error: %.8e\n", stats.max_field_error_gradB));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nTrajectory comparison:\n"));
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "  Max position error:    %.8e\n", stats.max_position_error));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Final pos analytical:  (%.6e %.6e %.6e)\n",
-    REP3_A(stats.final_position_analytical)));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Final pos grid:        (%.6e %.6e %.6e)\n",
-    REP3_A(stats.final_position_grid)));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nIteration statistics:\n"));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Total iterations (analytical): %d\n",
-    stats.total_iterations_analytical));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Total iterations (grid):       %d\n",
-    stats.total_iterations_grid));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Avg iterations (analytical):   %.2f\n",
-    (PetscReal)stats.total_iterations_analytical / stats.total_steps));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Avg iterations (grid):         %.2f\n",
-    (PetscReal)stats.total_iterations_grid / stats.total_steps));
-
-  PetscCall(PetscPrintf(PETSC_COMM_WORLD, "\nConstraint violations:\n"));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Boundary violations:    %d\n",
-    stats.boundary_violations));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Cell size violations:   %d\n",
-    stats.cell_size_violations));
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "  Max displacement/step:  %.8e\n",
-    stats.max_displacement_per_step));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-template <typename AnalyticalFieldsFunc, typename GridFieldsFunc>
-inline PetscErrorCode update_grid_comparison_step(
-  const PointByField& point_analytical,
-  const PointByField& point_analytical_old,
-  const PointByField& point_grid,
-  const PointByField& point_grid_old,
-  PetscInt iterations_analytical,
-  PetscInt iterations_grid,
-  PetscReal min_cell_size,
-  const Vector3R& domain_min,
-  const Vector3R& domain_max,
-  PetscReal position_tolerance,
-  PetscReal field_tolerance,
-  FieldComparisonStats& stats,
-  const AnalyticalFieldsFunc& analytical_fields_func,
-  const GridFieldsFunc& grid_fields_func)
-{
-  PetscFunctionBeginUser;
-
-  stats.total_iterations_analytical += iterations_analytical;
-  stats.total_iterations_grid += iterations_grid;
-
-  PetscCall(check_boundaries(point_analytical, domain_min, domain_max, stats));
-  PetscCall(check_boundaries(point_grid, domain_min, domain_max, stats));
-
-  PetscCall(check_displacement(point_analytical, point_analytical_old, min_cell_size, stats));
-  PetscCall(check_displacement(point_grid, point_grid_old, min_cell_size, stats));
-
-  Vector3R E_analytical;
-  Vector3R B_analytical;
-  Vector3R gradB_analytical;
-  Vector3R E_grid;
-  Vector3R B_grid;
-  Vector3R gradB_grid;
-
-  PetscCall(analytical_fields_func(
-    point_analytical_old, point_analytical, E_analytical, B_analytical, gradB_analytical));
-  PetscCall(grid_fields_func(point_grid_old, point_grid, E_grid, B_grid, gradB_grid));
-
-  PetscReal position_error = (point_analytical.r - point_grid.r).length();
-  stats.max_position_error = std::max(stats.max_position_error, position_error);
-
-  PetscCheck(equal_tol(point_analytical.r, point_grid.r, position_tolerance), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Position mismatch. Analytical: (%.8e %.8e %.8e), Grid: (%.8e %.8e %.8e), Error: %.8e",
-    REP3_A(point_analytical.r), REP3_A(point_grid.r), position_error);
-
-  PetscCall(compare_fields_and_update_stats(
-    E_analytical, B_analytical, gradB_analytical,
-    E_grid, B_grid, gradB_grid,
-    stats, field_tolerance));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
+  auto zero_E = [](const Vector3R&) { return Vector3R{0.0, 0.0, 0.0}; };
+  return initialize_staggered_grid_fields(da, dr, E_vec, B_vec, gradB_vec, zero_E, get_B, get_gradB);
 }
 
 template <typename GetBFunc>
@@ -628,28 +639,6 @@ inline void update_boris_comparison_step(
   boris_stats.max_energy_error = std::max(boris_stats.max_energy_error, energy_error);
 }
 
-inline PetscErrorCode log_progress(
-  const char* label,
-  PetscInt step,
-  PetscInt total_steps,
-  PetscReal metric_value,
-  const char* metric_name = "max position error")
-{
-  PetscFunctionBeginUser;
-
-  const char* tag = (label && label[0] != '\0') ? label : "progress";
-  PetscCall(PetscPrintf(
-    PETSC_COMM_WORLD,
-    "[%s] Step %d/%d, %s: %.8e\n",
-    tag,
-    step,
-    total_steps,
-    metric_name,
-    metric_value));
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 inline void finalize_drift_stats(
   DriftComparisonStats& stats,
   PetscReal dt_local,
@@ -670,19 +659,6 @@ inline void finalize_boris_stats(
   stats.final_position_boris = point_boris.r;
 }
 
-inline void finalize_field_stats(
-  FieldComparisonStats& stats,
-  PetscReal dt_local,
-  PetscInt total_steps,
-  const PointByField& point_analytical,
-  const PointByField& point_grid)
-{
-  stats.simulation_time = dt_local * total_steps;
-  stats.total_steps = total_steps;
-  stats.final_position_analytical = point_analytical.r;
-  stats.final_position_grid = point_grid.r;
-}
-
 inline PetscErrorCode finalize_and_print_statistics(
   DriftComparisonStats& drift_stats,
   const PointByField& point_analytical,
@@ -691,25 +667,17 @@ inline PetscErrorCode finalize_and_print_statistics(
   PetscInt total_steps,
   BorisComparisonStats* boris_stats = nullptr,
   const Point* point_boris = nullptr,
-  FieldComparisonStats* field_stats = nullptr,
   const char* header = "\n=== TEST STATISTICS ===\n")
 {
   PetscFunctionBeginUser;
 
   finalize_drift_stats(drift_stats, dt_local, total_steps, point_analytical, point_grid);
-  if (field_stats) {
-    finalize_field_stats(*field_stats, dt_local, total_steps, point_analytical, point_grid);
-  }
 
   if (boris_stats && point_boris) {
     finalize_boris_stats(*boris_stats, *point_boris);
     PetscCall(print_statistics(drift_stats, *boris_stats));
   } else {
     PetscCall(print_drift_statistics(drift_stats, header));
-  }
-
-  if (field_stats) {
-    PetscCall(print_field_statistics(*field_stats));
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);

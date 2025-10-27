@@ -69,11 +69,11 @@ int main(int argc, char** argv)
 
   Point b_p(r0, v0);
   BorisPush b_push;
-  b_push.set_qm(1.0);
+  b_push.set_qm(q/m);
 
   Point cn_p(r0, v0);
   CrankNicolsonPush cn_push;
-  cn_push.set_qm(1.0);
+  cn_push.set_qm(q/m);
   cn_push.set_fields_callback(
     [&](const Vector3R& r0, const Vector3R& r1, Vector3R& E, Vector3R& B) {
       get_fields(r0, (r1 + r0) / 2, E, B, dB_p);
@@ -81,8 +81,8 @@ int main(int argc, char** argv)
 
   PointByField dk_p({r0, v0}, {0.0, 0.0, get_Bz_corr(r0)}, 1.0, q/m);
   DriftKineticPush dk_push;
-  dk_push.set_qm(1.0);
-  dk_push.set_mp(1.0);
+  dk_push.set_qm(q/m);
+  dk_push.set_mp(m);
   dk_push.set_fields_callback(get_fields);
 
   PointTrace b_d(__FILE__, format("boris"), b_p);

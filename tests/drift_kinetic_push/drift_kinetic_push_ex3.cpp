@@ -49,7 +49,7 @@ int main(int argc, char** argv)
   }
 
   PetscReal m = push.get_mp();
-  PetscReal q = push.get_qm();
+  PetscReal q = push.get_qm()*m;
   PetscReal B = B0.length();
 
   Vector3R V_gradB;

@@ -26,8 +26,8 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   constexpr Vector3R r0(0.5, 0.0, 0.0);
-  constexpr PetscReal v_perp = 1.0;
-  constexpr PetscReal v_par = 1.0;
+  constexpr PetscReal v_perp = 0.1;
+  constexpr PetscReal v_par = 0.1;
   constexpr Vector3R v0(v_perp, 0.0, v_par);
   PetscReal B_start = get_B(r0.length(), r0.z());
   Point point_init(r0+correction::rho(v0, Vector3R(0.0, 0.0, B_start), q/m), v0);

@@ -47,45 +47,20 @@ int main(int argc, char** argv)
   PetscCall(get_omega_dt(omega_dt));
 
   const PetscReal d = 0.1;
-  dt = 2 * omega_dt / mirror_B_min;
-  geom_nt = 2'000;
-  diagnose_period = geom_nt / 10;
-  geom_nx = static_cast<PetscInt>(2 * mirror_L / d);
-  geom_ny = static_cast<PetscInt>(2 * mirror_L / d);
-  geom_nz = static_cast<PetscInt>(2 * mirror_L / d);
-  dx = d;
-  dy = d;
-  dz = d;
 
-  World::set_geometry(
-    geom_nx, geom_ny, geom_nz, geom_nt,
-    dx, dy, dz, dt,
-    diagnose_period);
+  drift_kinetic_test_utils::grid::FieldWorldContext context;
+  PetscCall(context.init([&]() {
+    World::set_geometry(static_cast<PetscInt>(2 * mirror_L / d), static_cast<PetscInt>(2 * mirror_L / d), static_cast<PetscInt>(2 * mirror_L / d), 2'000, d, d, d, 2 * omega_dt / mirror_B_min, 2 * omega_dt / mirror_B_min);
+  }));
 
-  World world;
-  PetscCall(world.initialize());
+  PetscCall(initialize_staggered_grid_fields(context.dm(),{dx, dy, dz},context.E_vec(),context.B_vec(),context.gradB_vec(),get_B_vector,get_gradB_vector));
 
-  Vec E_vec;
-  Vec B_vec;
-  Vec gradB_vec;
-  PetscCall(DMCreateGlobalVector(world.da, &E_vec));
-  PetscCall(DMCreateGlobalVector(world.da, &B_vec));
-  PetscCall(DMCreateGlobalVector(world.da, &gradB_vec));
+  drift_kinetic_test_utils::grid::FieldArrayTripletRead arrays(context.dm(), context.E_vec(), context.B_vec(), context.gradB_vec());
 
-  PetscCall(initialize_staggered_grid_fields(
-    world.da, {dx, dy, dz}, E_vec, B_vec, gradB_vec, get_B_vector, get_gradB_vector));
+  DriftKineticEsirkepov esirkepov(arrays.E(), arrays.B(), nullptr, arrays.gradB());
 
-  Vector3R*** E_arr;
-  Vector3R*** B_arr;
-  Vector3R*** gradB_arr;
-  PetscCall(DMDAVecGetArrayRead(world.da, E_vec, &E_arr));
-  PetscCall(DMDAVecGetArrayRead(world.da, B_vec, &B_arr));
-  PetscCall(DMDAVecGetArrayRead(world.da, gradB_vec, &gradB_arr));
-
-  std::unique_ptr<DriftKineticEsirkepov> esirkepov =
-    std::make_unique<DriftKineticEsirkepov>(E_arr, B_arr, nullptr, gradB_arr);
-
-  Vector3R r0(mirror_L, mirror_L - 0.05, mirror_L);
+  constexpr PetscReal r0_shift = 0.05;
+  Vector3R r0(mirror_L, mirror_L - r0_shift, mirror_L);
   constexpr PetscReal v_perp = 0.001;
   constexpr PetscReal v_par = 0.001;
   Vector3R B0(get_B_vector(r0));
@@ -102,7 +77,7 @@ int main(int argc, char** argv)
   boris_stats.energy_reference = compute_kinetic_energy(point_grid);
 
   SortParameters sort_parameters{"boris_sort", 1, 1.0, q, m};
-  interfaces::Particles particles(world, sort_parameters);
+  interfaces::Particles particles(context.world(), sort_parameters);
 
   DriftKineticPush push_analytical;
   push_analytical.set_qm(q / m);
@@ -112,10 +87,8 @@ int main(int argc, char** argv)
   DriftKineticPush push_grid;
   push_grid.set_qm(q / m);
   push_grid.set_mp(m);
-  push_grid.set_fields_callback([
-    &](const Vector3R& r0_local, const Vector3R& rn_local, Vector3R& E_p,
-        Vector3R& B_p, Vector3R& gradB_p) {
-    esirkepov->interpolate(E_p, B_p, gradB_p, rn_local, r0_local);
+  push_grid.set_fields_callback([&](const Vector3R& r0_local, const Vector3R& rn_local, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p) {
+    esirkepov.interpolate(E_p, B_p, gradB_p, rn_local, r0_local);
   });
 
   BorisPush push_boris;
@@ -127,6 +100,12 @@ int main(int argc, char** argv)
   PointTrace trace_boris(__FILE__, id + "_boris", point_boris, geom_nt / 1000);
 
   const PetscReal z_max = mirror_L;
+  Vector3R E_analytical;
+  Vector3R B_analytical;
+  Vector3R gradB_analytical;
+  Vector3R E_grid;
+  Vector3R B_grid;
+  Vector3R gradB_grid;
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     const PointByField point_analytical_old = point_analytical;
@@ -135,6 +114,10 @@ int main(int argc, char** argv)
     PetscCall(trace_analytical.diagnose(t));
     PetscCall(trace_grid.diagnose(t));
     PetscCall(trace_boris.diagnose(t));
+
+    push_analytical.process(dt, point_analytical, point_analytical_old);
+    push_grid.process(dt, point_grid, point_grid_old);
+    boris_step(push_boris, point_boris, particles, get_B_vector);
 
     PetscCheck(std::abs(point_analytical.r.z() - mirror_L) <= z_max, PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Particle must not escape magnetic mirror! z = %.6e, allowed max = %.6e",
@@ -151,52 +134,19 @@ int main(int argc, char** argv)
     const PetscReal position_error = (point_analytical.r - point_grid.r).length();
     drift_stats.max_position_error = std::max(drift_stats.max_position_error, position_error);
 
-    Vector3R E_analytical;
-    Vector3R B_analytical;
-    Vector3R gradB_analytical;
-    Vector3R E_grid;
-    Vector3R B_grid;
-    Vector3R gradB_grid;
+    get_analytical_fields(point_analytical_old.r, point_analytical.r, E_analytical, B_analytical, gradB_analytical);
+    esirkepov.interpolate(E_grid, B_grid, gradB_grid, point_grid.r, point_grid_old.r);
 
-    get_analytical_fields(point_analytical_old.r, point_analytical.r,
-      E_analytical, B_analytical, gradB_analytical);
-    esirkepov->interpolate(E_grid, B_grid, gradB_grid, point_grid.r, point_grid_old.r);
+    update_boris_comparison_step(point_grid, point_boris, B_analytical, gradB_analytical, B_grid,gradB_grid, get_B_vector, drift_stats, boris_stats, mirror_L);
 
-    update_boris_comparison_step(
-      point_grid,
-      point_boris,
-      B_analytical,
-      gradB_analytical,
-      B_grid,
-      gradB_grid,
-      get_B_vector,
-      drift_stats,
-      boris_stats,
-      mirror_L);
-
-    if (t % (geom_nt / 10) == 0) {
-      PetscCall(log_progress(id.c_str(), t, geom_nt, drift_stats.max_position_error));
-    }
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(world.da, E_vec, &E_arr));
-  PetscCall(DMDAVecRestoreArrayRead(world.da, B_vec, &B_arr));
-  PetscCall(DMDAVecRestoreArrayRead(world.da, gradB_vec, &gradB_arr));
-
-  PetscCall(VecDestroy(&E_vec));
-  PetscCall(VecDestroy(&B_vec));
-  PetscCall(VecDestroy(&gradB_vec));
-
+  PetscCall(arrays.restore());
   PetscCall(particles.finalize());
-  drift_stats.simulation_time = dt * geom_nt;
-  drift_stats.total_steps = geom_nt;
-  drift_stats.final_position_analytical = point_analytical.r;
-  drift_stats.final_position_grid = point_grid.r;
-  boris_stats.final_position_boris = point_boris.r;
 
-  PetscCall(print_statistics(drift_stats, boris_stats));
+  finalize_and_print_statistics(drift_stats, point_analytical, point_grid, dt, geom_nt, &boris_stats, &point_boris);
 
-  PetscCall(world.finalize());
+  PetscCall(context.destroy());
   PetscCall(PetscFinalize());
   return EXIT_SUCCESS;
 }

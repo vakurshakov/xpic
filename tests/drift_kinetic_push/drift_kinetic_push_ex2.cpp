@@ -51,7 +51,7 @@ int main(int argc, char** argv)
   }
 
   PetscReal T = dt * (PetscReal)(geom_nt + 1);
-  PetscReal q = push.get_qm();
+  PetscReal q = push.get_qm()*push.get_mp();
   PetscReal E_par = E0.z();
   PetscReal p_par_theory = q * E_par * T;
 
