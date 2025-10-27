@@ -87,9 +87,11 @@ Vector3R MaxwellCosinePerturbation::operator()(const Vector3R& coordinate)
     std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tz, params.m),
   };
 
+  v_m /= std::sqrt(params.m * params.m + v_m.squared());
+
   Vector3R v_0{
-    a[X] * sqrt(params.Tz / (params.m * mec2)),
-    a[Y] * sqrt(params.Tz / (params.m * mec2)),
+    a[X] * sqrt(params.Tx / (params.m * mec2)),
+    a[Y] * sqrt(params.Ty / (params.m * mec2)),
     a[Z] * sqrt(params.Tz / (params.m * mec2)),
   };
 

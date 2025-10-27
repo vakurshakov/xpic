@@ -37,6 +37,8 @@ struct PreciseMomentum {
   Vector3R value;
 };
 
+PetscReal temperature_momentum(PetscReal temperature, PetscReal mass);
+
 struct MaxwellianMomentum {
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params;
