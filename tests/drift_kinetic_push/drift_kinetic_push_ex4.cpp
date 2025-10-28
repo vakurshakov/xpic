@@ -9,8 +9,8 @@ using namespace quadratic_magnetic_mirror;
 constexpr PetscReal phi = 2.0;
 constexpr PetscReal E_phi = 0.3;
 
-void get_fields(
-  const Vector3R&, const Vector3R& pos, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
+void get_fields(const Vector3R&, const Vector3R& pos, Vector3R& E_p,
+  Vector3R& B_p, Vector3R& gradB_p)
 {
   PetscReal x = pos.x();
   PetscReal y = pos.y();
@@ -30,8 +30,9 @@ int main(int argc, char** argv)
   constexpr PetscReal v_par = 0.1;
   constexpr Vector3R v0(v_perp, 0.0, v_par);
   PetscReal B_start = get_B(r0.length(), r0.z());
-  Point point_init(r0+correction::rho(v0, Vector3R(0.0, 0.0, B_start), q/m), v0);
-  PointByField point_n(point_init, {0.0, 0.0, B_start}, 1.0, q/m);
+  Point point_init(
+    r0 + correction::rho(v0, Vector3R(0.0, 0.0, B_start), q / m), v0);
+  PointByField point_n(point_init, {0.0, 0.0, B_start}, 1.0, q / m);
 
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
@@ -44,7 +45,7 @@ int main(int argc, char** argv)
   PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 1000);
 
   DriftKineticPush push;
-  push.set_qm(q/m);
+  push.set_qm(q / m);
   push.set_mp(m);
   push.set_fields_callback(get_fields);
 

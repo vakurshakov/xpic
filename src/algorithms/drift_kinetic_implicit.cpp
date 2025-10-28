@@ -8,9 +8,8 @@ DriftKineticEsirkepov::DriftKineticEsirkepov(
 {
 }
 
-void DriftKineticEsirkepov::interpolate(
-  Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p,
-  const Vector3R& rn, const Vector3R& r0)
+void DriftKineticEsirkepov::interpolate(Vector3R& E_p, Vector3R& B_p,
+  Vector3R& gradB_p, const Vector3R& rn, const Vector3R& r0)
 {
   E_p = {};
   B_p = {};

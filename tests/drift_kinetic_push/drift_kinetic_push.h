@@ -1,12 +1,13 @@
 #include <array>
-#include "src/algorithms/drift_kinetic_push.h"
-#include "src/algorithms/drift_kinetic_implicit.h" 
-#include "src/algorithms/boris_push.h"
+
 #include "src/interfaces/particles.h"
-#include "src/utils/vector3.h"
-#include "tests/common.h"
-#include "src/utils/world.h"
+#include "src/algorithms/boris_push.h"
+#include "src/algorithms/drift_kinetic_implicit.h"
+#include "src/algorithms/drift_kinetic_push.h"
 #include "src/utils/utils.h"
+#include "src/utils/vector3.h"
+#include "src/utils/world.h"
+#include "tests/common.h"
 
 constexpr PetscReal q = 1.0;
 constexpr PetscReal m = 1.0;
@@ -21,9 +22,10 @@ PetscErrorCode get_omega_dt(PetscReal& omega_dt)
 }
 
 namespace correction {
-  Vector3R rho(const Vector3R& vp, const Vector3R& Bp, PetscReal qm) {
-    return vp.cross(Bp.normalized())/(qm*Bp.length());
-  }
+Vector3R rho(const Vector3R& vp, const Vector3R& Bp, PetscReal qm)
+{
+  return vp.cross(Bp.normalized()) / (qm * Bp.length());
+}
 }
 
 namespace quadratic_magnetic_mirror {
@@ -121,7 +123,8 @@ PetscReal get_Bz_corr(const Vector3R& r)
   return get_Bz(r.z()) - 0.25 * (POW2(r.x()) + POW2(r.y())) * get_d2Bz_dz2(r.z());
 }
 
-void get_fields(const Vector3R&, const Vector3R& pos, Vector3R&, Vector3R& B_p, Vector3R& gradB_p)
+void get_fields(const Vector3R&, const Vector3R& pos, Vector3R&, Vector3R& B_p,
+  Vector3R& gradB_p)
 {
   PetscReal x = pos.x();
   PetscReal y = pos.y();
@@ -157,13 +160,12 @@ void get_fields(const Vector3R&, const Vector3R& pos, Vector3R&, Vector3R& B_p, 
 
 namespace drift_kinetic_test_utils {
 
-template <typename Func>
+template<typename Func>
 auto make_translated_field_getter(Func&& func, Vector3R offset)
 {
   using FuncT = std::decay_t<Func>;
-  return [func = FuncT(std::forward<Func>(func)), offset](const Vector3R& pos, auto&&... rest)
-    -> decltype(auto)
-  {
+  return [func = FuncT(std::forward<Func>(func)), offset](
+           const Vector3R& pos, auto&&... rest) -> decltype(auto) {
     return func(pos - offset, std::forward<decltype(rest)>(rest)...);
   };
 }
@@ -192,8 +194,7 @@ struct BorisComparisonStats {
   Vector3R final_position_boris;
 };
 
-inline PetscErrorCode print_drift_statistics(
-  const DriftComparisonStats& stats,
+inline PetscErrorCode print_drift_statistics(const DriftComparisonStats& stats,
   const char* header = "\n=== TEST STATISTICS ===\n")
 {
   PetscFunctionBeginUser;
@@ -220,8 +221,7 @@ inline PetscErrorCode print_drift_statistics(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-inline PetscErrorCode print_statistics(
-  const DriftComparisonStats& drift_stats,
+inline PetscErrorCode print_statistics(const DriftComparisonStats& drift_stats,
   const BorisComparisonStats& boris_stats)
 {
   PetscFunctionBeginUser;
@@ -256,7 +256,7 @@ inline PetscReal compute_kinetic_energy(const Point& point)
   return 0.5 * point.p.squared();
 }
 
-template <typename GetB>
+template<typename GetB>
 inline PetscReal compute_mu(const Point& point, const GetB& get_B)
 {
   const Vector3R B = get_B(point.r);
@@ -264,7 +264,7 @@ inline PetscReal compute_mu(const Point& point, const GetB& get_B)
   return 0.5 * m * p_perp * p_perp / B.length();
 }
 
-template <typename GetB>
+template<typename GetB>
 inline PetscReal compute_parallel_velocity(const Point& point, const GetB& get_B)
 {
   const Vector3R B = get_B(point.r);
@@ -272,12 +272,9 @@ inline PetscReal compute_parallel_velocity(const Point& point, const GetB& get_B
   return point.p.dot(b);
 }
 
-template <typename BorisPushLike, typename PointType, typename ParticlesLike, typename GetB>
-inline void boris_step(
-  BorisPushLike& push,
-  PointType& point,
-  ParticlesLike& particles,
-  const GetB& get_B)
+template<typename BorisPushLike, typename PointType, typename ParticlesLike, typename GetB>
+inline void boris_step(BorisPushLike& push, PointType& point,
+  ParticlesLike& particles, const GetB& get_B)
 {
   const Vector3R E_p = {0.0, 0.0, 0.0};
   const Vector3R B_p = get_B(point.r);
@@ -286,10 +283,7 @@ inline void boris_step(
 }
 
 inline std::array<Vector3R, 3> yee_E_positions(
-  PetscReal x_i,
-  PetscReal y_j,
-  PetscReal z_k,
-  const Vector3R& dr)
+  PetscReal x_i, PetscReal y_j, PetscReal z_k, const Vector3R& dr)
 {
   return {
     Vector3R{x_i + 0.5 * dr.x(), y_j, z_k},
@@ -299,10 +293,7 @@ inline std::array<Vector3R, 3> yee_E_positions(
 }
 
 inline std::array<Vector3R, 3> yee_B_positions(
-  PetscReal x_i,
-  PetscReal y_j,
-  PetscReal z_k,
-  const Vector3R& dr)
+  PetscReal x_i, PetscReal y_j, PetscReal z_k, const Vector3R& dr)
 {
   return {
     Vector3R{x_i, y_j + 0.5 * dr.y(), z_k + 0.5 * dr.z()},
@@ -316,8 +307,7 @@ namespace grid {
 class FieldArrayReadHandle {
 public:
   FieldArrayReadHandle(DM dm, Vec vec)
-    : dm_(dm)
-    , vec_(vec)
+    : dm_(dm), vec_(vec)
   {
     PetscErrorCode ierr = DMDAVecGetArrayRead(dm_, vec_, &array_);
     if (PetscUnlikely(ierr != 0)) {
@@ -336,7 +326,10 @@ public:
   FieldArrayReadHandle(const FieldArrayReadHandle&) = delete;
   FieldArrayReadHandle& operator=(const FieldArrayReadHandle&) = delete;
 
-  Vector3R*** get() const { return array_; }
+  Vector3R*** get() const
+  {
+    return array_;
+  }
 
   PetscErrorCode restore()
   {
@@ -357,8 +350,7 @@ private:
 class FieldArrayWriteHandle {
 public:
   FieldArrayWriteHandle(DM dm, Vec vec)
-    : dm_(dm)
-    , vec_(vec)
+    : dm_(dm), vec_(vec)
   {
     PetscErrorCode ierr = DMDAVecGetArrayWrite(dm_, vec_, &array_);
     if (PetscUnlikely(ierr != 0)) {
@@ -377,7 +369,10 @@ public:
   FieldArrayWriteHandle(const FieldArrayWriteHandle&) = delete;
   FieldArrayWriteHandle& operator=(const FieldArrayWriteHandle&) = delete;
 
-  Vector3R*** get() const { return array_; }
+  Vector3R*** get() const
+  {
+    return array_;
+  }
 
   PetscErrorCode restore()
   {
@@ -397,11 +392,23 @@ private:
 
 class FieldArrayTripletRead {
 public:
-  FieldArrayTripletRead(DM dm, Vec E_vec, Vec B_vec, Vec gradB_vec): E_(dm, E_vec), B_(dm, B_vec), gradB_(dm, gradB_vec){}
+  FieldArrayTripletRead(DM dm, Vec E_vec, Vec B_vec, Vec gradB_vec)
+    : E_(dm, E_vec), B_(dm, B_vec), gradB_(dm, gradB_vec)
+  {
+  }
 
-  Vector3R*** E() const { return E_.get(); }
-  Vector3R*** B() const { return B_.get(); }
-  Vector3R*** gradB() const { return gradB_.get(); }
+  Vector3R*** E() const
+  {
+    return E_.get();
+  }
+  Vector3R*** B() const
+  {
+    return B_.get();
+  }
+  Vector3R*** gradB() const
+  {
+    return gradB_.get();
+  }
 
   PetscErrorCode restore()
   {
@@ -420,11 +427,23 @@ private:
 
 class FieldArrayTripletWrite {
 public:
-  FieldArrayTripletWrite(DM dm, Vec E_vec, Vec B_vec, Vec gradB_vec): E_(dm, E_vec), B_(dm, B_vec), gradB_(dm, gradB_vec) {}
+  FieldArrayTripletWrite(DM dm, Vec E_vec, Vec B_vec, Vec gradB_vec)
+    : E_(dm, E_vec), B_(dm, B_vec), gradB_(dm, gradB_vec)
+  {
+  }
 
-  Vector3R*** E() const { return E_.get(); }
-  Vector3R*** B() const { return B_.get(); }
-  Vector3R*** gradB() const { return gradB_.get(); }
+  Vector3R*** E() const
+  {
+    return E_.get();
+  }
+  Vector3R*** B() const
+  {
+    return B_.get();
+  }
+  Vector3R*** gradB() const
+  {
+    return gradB_.get();
+  }
 
   PetscErrorCode restore()
   {
@@ -458,7 +477,7 @@ public:
     }
   }
 
-  template <typename GeometrySetter>
+  template<typename GeometrySetter>
   PetscErrorCode init(GeometrySetter&& geometry_setter)
   {
     PetscFunctionBeginUser;
@@ -492,11 +511,26 @@ public:
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  DM dm() const { return world_.da; }
-  Vec E_vec() const { return E_vec_; }
-  Vec B_vec() const { return B_vec_; }
-  Vec gradB_vec() const { return gradB_vec_; }
-  World& world() { return world_; }
+  DM dm() const
+  {
+    return world_.da;
+  }
+  Vec E_vec() const
+  {
+    return E_vec_;
+  }
+  Vec B_vec() const
+  {
+    return B_vec_;
+  }
+  Vec gradB_vec() const
+  {
+    return gradB_vec_;
+  }
+  World& world()
+  {
+    return world_;
+  }
 
 private:
   World world_;
@@ -506,13 +540,9 @@ private:
   bool initialized_ = false;
 };
 
-template <typename FillFunc>
+template<typename FillFunc>
 inline PetscErrorCode initialize_grid_fields(
-  DM da,
-  Vec E_vec,
-  Vec B_vec,
-  Vec gradB_vec,
-  FillFunc&& fill_cell)
+  DM da, Vec E_vec, Vec B_vec, Vec gradB_vec, FillFunc&& fill_cell)
 {
   PetscFunctionBeginUser;
 
@@ -541,16 +571,10 @@ inline PetscErrorCode initialize_grid_fields(
 
 using grid::initialize_grid_fields;
 
-template <typename GetE, typename GetB, typename GetGradB>
-inline PetscErrorCode initialize_staggered_grid_fields(
-  DM da,
-  const Vector3R& dr,
-  Vec E_vec,
-  Vec B_vec,
-  Vec gradB_vec,
-  const GetE& get_E,
-  const GetB& get_B,
-  const GetGradB& get_gradB)
+template<typename GetE, typename GetB, typename GetGradB>
+inline PetscErrorCode initialize_staggered_grid_fields(DM da,
+  const Vector3R& dr, Vec E_vec, Vec B_vec, Vec gradB_vec, const GetE& get_E,
+  const GetB& get_B, const GetGradB& get_gradB)
 {
   PetscFunctionBeginUser;
 
@@ -559,7 +583,8 @@ inline PetscErrorCode initialize_staggered_grid_fields(
   Vector3R*** B_arr = arrays.B();
   Vector3R*** gradB_arr = arrays.gradB();
 
-  auto assign_components = [](Vector3R& cell, const auto& getter, const auto& positions) {
+  auto assign_components = [](Vector3R& cell, const auto& getter,
+                             const auto& positions) {
     cell.x() = getter(positions[0]).x();
     cell.y() = getter(positions[1]).y();
     cell.z() = getter(positions[2]).z();
@@ -589,45 +614,43 @@ inline PetscErrorCode initialize_staggered_grid_fields(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-template <typename GetB, typename GetGradB>
-inline PetscErrorCode initialize_staggered_grid_fields(
-  DM da,
-  const Vector3R& dr,
-  Vec E_vec,
-  Vec B_vec,
-  Vec gradB_vec,
-  const GetB& get_B,
+template<typename GetB, typename GetGradB>
+inline PetscErrorCode initialize_staggered_grid_fields(DM da,
+  const Vector3R& dr, Vec E_vec, Vec B_vec, Vec gradB_vec, const GetB& get_B,
   const GetGradB& get_gradB)
 {
-  auto zero_E = [](const Vector3R&) { return Vector3R{0.0, 0.0, 0.0}; };
-  return initialize_staggered_grid_fields(da, dr, E_vec, B_vec, gradB_vec, zero_E, get_B, get_gradB);
+  auto zero_E = [](const Vector3R&) {
+    return Vector3R{0.0, 0.0, 0.0};
+  };
+  return initialize_staggered_grid_fields(
+    da, dr, E_vec, B_vec, gradB_vec, zero_E, get_B, get_gradB);
 }
 
-template <typename GetBFunc>
-inline void update_boris_comparison_step(
-  const PointByField& point_grid,
-  const Point& point_boris,
-  const Vector3R& B_analytical,
-  const Vector3R& gradB_analytical,
-  const Vector3R& B_grid,
-  const Vector3R& gradB_grid,
-  const GetBFunc& get_B_vector,
-  DriftComparisonStats& drift_stats,
-  BorisComparisonStats& boris_stats,
+template<typename GetBFunc>
+inline void update_boris_comparison_step(const PointByField& point_grid,
+  const Point& point_boris, const Vector3R& B_analytical,
+  const Vector3R& gradB_analytical, const Vector3R& B_grid,
+  const Vector3R& gradB_grid, const GetBFunc& get_B_vector,
+  DriftComparisonStats& drift_stats, BorisComparisonStats& boris_stats,
   PetscReal reference_z = 0.0)
 {
   const PetscReal error_B = (B_analytical - B_grid).length();
   const PetscReal error_gradB = (gradB_analytical - gradB_grid).length();
-  drift_stats.max_field_error_B = std::max(drift_stats.max_field_error_B, error_B);
-  drift_stats.max_field_error_gradB = std::max(drift_stats.max_field_error_gradB, error_gradB);
+  drift_stats.max_field_error_B =
+    std::max(drift_stats.max_field_error_B, error_B);
+  drift_stats.max_field_error_gradB =
+    std::max(drift_stats.max_field_error_gradB, error_gradB);
 
-  const PetscReal z_error =
-    std::abs((point_grid.r.z() - reference_z) - (point_boris.r.z() - reference_z));
+  const PetscReal z_error = std::abs(
+    (point_grid.r.z() - reference_z) - (point_boris.r.z() - reference_z));
   boris_stats.max_z_error = std::max(boris_stats.max_z_error, z_error);
 
-  const PetscReal parallel_velocity_boris = compute_parallel_velocity(point_boris, get_B_vector);
-  const PetscReal parallel_error = std::abs(point_grid.p_par() - parallel_velocity_boris);
-  boris_stats.max_parallel_error = std::max(boris_stats.max_parallel_error, parallel_error);
+  const PetscReal parallel_velocity_boris =
+    compute_parallel_velocity(point_boris, get_B_vector);
+  const PetscReal parallel_error =
+    std::abs(point_grid.p_par() - parallel_velocity_boris);
+  boris_stats.max_parallel_error =
+    std::max(boris_stats.max_parallel_error, parallel_error);
 
   const PetscReal mu_boris = compute_mu(point_boris, get_B_vector);
   const PetscReal mu_error = std::abs(point_grid.mu() - mu_boris);
@@ -636,15 +659,13 @@ inline void update_boris_comparison_step(
   const PetscReal energy_drift = compute_kinetic_energy(point_grid);
   const PetscReal energy_boris = compute_kinetic_energy(point_boris);
   const PetscReal energy_error = std::abs(energy_drift - energy_boris);
-  boris_stats.max_energy_error = std::max(boris_stats.max_energy_error, energy_error);
+  boris_stats.max_energy_error =
+    std::max(boris_stats.max_energy_error, energy_error);
 }
 
-inline void finalize_drift_stats(
-  DriftComparisonStats& stats,
-  PetscReal dt_local,
-  PetscInt total_steps,
-  const PointByField& point_analytical,
-  const PointByField& point_grid)
+inline void finalize_drift_stats(DriftComparisonStats& stats,
+  PetscReal dt_local, PetscInt total_steps,
+  const PointByField& point_analytical, const PointByField& point_grid)
 {
   stats.simulation_time = dt_local * total_steps;
   stats.total_steps = total_steps;
@@ -653,30 +674,27 @@ inline void finalize_drift_stats(
 }
 
 inline void finalize_boris_stats(
-  BorisComparisonStats& stats,
-  const Point& point_boris)
+  BorisComparisonStats& stats, const Point& point_boris)
 {
   stats.final_position_boris = point_boris.r;
 }
 
 inline PetscErrorCode finalize_and_print_statistics(
-  DriftComparisonStats& drift_stats,
-  const PointByField& point_analytical,
-  const PointByField& point_grid,
-  PetscReal dt_local,
-  PetscInt total_steps,
-  BorisComparisonStats* boris_stats = nullptr,
-  const Point* point_boris = nullptr,
+  DriftComparisonStats& drift_stats, const PointByField& point_analytical,
+  const PointByField& point_grid, PetscReal dt_local, PetscInt total_steps,
+  BorisComparisonStats* boris_stats = nullptr, const Point* point_boris = nullptr,
   const char* header = "\n=== TEST STATISTICS ===\n")
 {
   PetscFunctionBeginUser;
 
-  finalize_drift_stats(drift_stats, dt_local, total_steps, point_analytical, point_grid);
+  finalize_drift_stats(
+    drift_stats, dt_local, total_steps, point_analytical, point_grid);
 
   if (boris_stats && point_boris) {
     finalize_boris_stats(*boris_stats, *point_boris);
     PetscCall(print_statistics(drift_stats, *boris_stats));
-  } else {
+  }
+  else {
     PetscCall(print_drift_statistics(drift_stats, header));
   }
 

@@ -23,8 +23,8 @@ public:
   /// @brief Once `process()` is complete, this will return the number of nonlinear iterations used.
   PetscInt get_iteration_number() const;
 
-  using SetFields =
-    std::function<void(const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
+  using SetFields = std::function<void(
+    const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
   void set_fields_callback(SetFields&& callback);
 
   /// @brief Nonlinear move of point `pn` by timestep shift `dt`.

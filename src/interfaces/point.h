@@ -50,7 +50,7 @@ struct PointByField {
   }
 
   PointByField(const Point& point, const Vector3R& Bp, PetscReal mp, PetscReal qm)
-    : r(point.r - point.p.cross(Bp.normalized())/(qm*Bp.length())),
+    : r(point.r - point.p.cross(Bp.normalized()) / (qm * Bp.length())),
       p_parallel(point.p.parallel_to(Bp).length()),
       p_perp(point.p.transverse_to(Bp).length()),
       mu_p(mp * p_perp * p_perp / (2.0 * Bp.length()))

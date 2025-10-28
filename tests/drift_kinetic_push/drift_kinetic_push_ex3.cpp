@@ -7,8 +7,8 @@ static constexpr char help[] =
 constexpr Vector3R B0(0.0, 0.0, 2.0);
 constexpr Vector3R gradB0(1.0, 0.0, 0.0);
 
-void get_gradB_field(
-  const Vector3R&, const Vector3R& rn, Vector3R&, Vector3R& B_p, Vector3R& gradB_p)
+void get_gradB_field(const Vector3R&, const Vector3R& rn, Vector3R&,
+  Vector3R& B_p, Vector3R& gradB_p)
 {
   B_p = B0 + rn.elementwise_product(gradB0);
   gradB_p = gradB0;
@@ -27,15 +27,15 @@ int main(int argc, char** argv)
   diagnose_period = geom_nt / 1;
 
   constexpr Vector3R v0(1.0, 0.0, 1.0);
-  Vector3R r0(correction::rho(v0, B0, q/m));
+  Vector3R r0(correction::rho(v0, B0, q / m));
   Point point_init(r0, v0);
-  PointByField point_n(point_init, B0, 1.0, q/m);
+  PointByField point_n(point_init, B0, 1.0, q / m);
 
   auto id = std::format("omega_dt_{:.1f}", omega_dt);
   PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 1);
 
   DriftKineticPush push;
-  push.set_qm(q/m);
+  push.set_qm(q / m);
   push.set_mp(m);
   push.set_fields_callback(get_gradB_field);
 
@@ -49,7 +49,7 @@ int main(int argc, char** argv)
   }
 
   PetscReal m = push.get_mp();
-  PetscReal q = push.get_qm()*m;
+  PetscReal q = push.get_qm() * m;
   PetscReal B = B0.length();
 
   Vector3R V_gradB;

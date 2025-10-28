@@ -4,7 +4,8 @@ static constexpr char help[] =
   "Test drift-kinetic Esirkepov interpolation: simple field interpolation.\n"
   "Tests interpolation of arbitrary E, B, and gradB fields on a particle.\n";
 
-void get_analytical_fields(Vector3R& r, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
+void get_analytical_fields(
+  Vector3R& r, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
   E_p = Vector3R(1.0, 1.0, 1.0);
 
@@ -17,7 +18,7 @@ PetscErrorCode initialize_grid_fields(DM da, Vec E_vec, Vec B_vec, Vec gradB_vec
 {
   PetscFunctionBeginUser;
 
-  Vector3R*** E_arr, ***B_arr, ***gradB_arr;
+  Vector3R ***E_arr, ***B_arr, ***gradB_arr;
 
   PetscCall(DMDAVecGetArrayWrite(da, E_vec, &E_arr));
   PetscCall(DMDAVecGetArrayWrite(da, B_vec, &B_arr));
@@ -53,10 +54,7 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  World::set_geometry(
-    10.0, 10.0, 10.0, 1.0, 
-    1., 1., 1., 1.0,         
-    1.0);                   
+  World::set_geometry(10.0, 10.0, 10.0, 1.0, 1., 1., 1., 1.0, 1.0);
 
   World world;
   PetscCall(world.initialize());
@@ -68,7 +66,7 @@ int main(int argc, char** argv)
 
   PetscCall(initialize_grid_fields(world.da, E_vec, B_vec, gradB_vec));
 
-  Vector3R*** E_arr, ***B_arr, ***gradB_arr;
+  Vector3R ***E_arr, ***B_arr, ***gradB_arr;
   PetscCall(DMDAVecGetArrayRead(world.da, E_vec, &E_arr));
   PetscCall(DMDAVecGetArrayRead(world.da, B_vec, &B_arr));
   PetscCall(DMDAVecGetArrayRead(world.da, gradB_vec, &gradB_arr));
@@ -82,14 +80,15 @@ int main(int argc, char** argv)
   Vector3R E_interpolated, B_interpolated, gradB_interpolated;
 
   esirkepov->interpolate(E_interpolated, B_interpolated, gradB_interpolated,
-                        test_position_new, test_position_old);
+    test_position_new, test_position_old);
 
   Vector3R E_p = E_interpolated;
   Vector3R B_p = B_interpolated;
   Vector3R gradB_p = gradB_interpolated;
 
   Vector3R E_expected, B_expected, gradB_expected;
-  get_analytical_fields(test_position_new, E_expected, B_expected, gradB_expected);
+  get_analytical_fields(
+    test_position_new, E_expected, B_expected, gradB_expected);
 
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Test position: (%.3f, %.3f, %.3f)\n",
                        REP3_A(test_position_new)));
