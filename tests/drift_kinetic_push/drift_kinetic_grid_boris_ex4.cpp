@@ -75,7 +75,7 @@ int main(int argc, char** argv)
   constexpr Vector3R v0(v_perp, 0.0, v_par);
 
   Vector3R B0(get_B_vector(r0));
-  Point point_init(r0 + correction::rho(v0, B0, q / m), v0);
+  Point point_init(r0, v0);
   PointByField point_analytical(point_init, B0, m, q / m);
   PointByField point_grid(point_init, B0, m, q / m);
   Point point_boris(point_init);
