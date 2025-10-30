@@ -1,5 +1,3 @@
-#include <array>
-
 #include "src/interfaces/particles.h"
 #include "src/algorithms/boris_push.h"
 #include "src/algorithms/drift_kinetic_implicit.h"
@@ -9,23 +7,16 @@
 #include "src/utils/world.h"
 #include "tests/common.h"
 
-constexpr PetscReal q = 1.0;
-constexpr PetscReal m = 1.0;
+constexpr PetscReal q = -1.0;
+constexpr PetscReal m = +1.0;
 
 PetscErrorCode get_omega_dt(PetscReal& omega_dt)
 {
   PetscFunctionBeginUser;
   PetscBool flg;
-  PetscCall(PetscOptionsGetReal(nullptr, nullptr, "-omega_dt", &omega_dt, &flg));
+  PetscCall(PetscOptionsGetReal(NULL, NULL, "-omega_dt", &omega_dt, &flg));
   PetscCheck(flg, PETSC_COMM_WORLD, PETSC_ERR_USER, "Must specify the timestep (Omega * dt) with '-omega_dt'");
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-namespace correction {
-Vector3R rho(const Vector3R& vp, const Vector3R& Bp, PetscReal qm)
-{
-  return vp.cross(Bp.normalized()) / (qm * Bp.length());
-}
 }
 
 namespace quadratic_magnetic_mirror {

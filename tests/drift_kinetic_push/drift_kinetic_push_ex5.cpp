@@ -11,13 +11,12 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  constexpr PetscReal v_perp = 1.0;
+  constexpr PetscReal v_perp = 1;
   constexpr PetscReal v_par = 0.6;
-  constexpr Vector3R r0(0.5, 0.0, 0.0);
-  constexpr Vector3R v0(v_perp, 0.0, v_par);
-  Point point_init(
-    r0 + correction::rho(v0, Vector3R(0.0, 0.0, get_Bz_corr(r0)), q / m), v0);
-  PointByField point_n(point_init, {0.0, 0.0, get_Bz_corr(r0)}, 1.0, q / m);
+  constexpr Vector3R r0(0.5, 0, 0);
+  constexpr Vector3R v0(v_perp, 0, v_par);
+  Point point_init(r0, v0);
+  PointByField point_n(point_init, {0, 0, get_Bz_corr(r0)}, 1, q / m);
 
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
@@ -37,9 +36,8 @@ int main(int argc, char** argv)
   PetscReal z_max = L + 1e-2;
   PetscReal r_max = L + 1e-2;
 
-  const PetscReal old_E = //
-    point_n.p_parallel * point_n.p_parallel + //
-    point_n.p_perp * point_n.p_perp;
+  const PetscReal old_E =
+    point_n.p_parallel * point_n.p_parallel + point_n.p_perp * point_n.p_perp;
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     const PointByField point_0 = point_n;
@@ -54,9 +52,8 @@ int main(int argc, char** argv)
       "Particle escaped radial well! r = %.6e, allowed = %.6e", point_n.r.length(), r_max);
   }
 
-  const PetscReal new_E = //
-    point_n.p_parallel * point_n.p_parallel + //
-    point_n.p_perp * point_n.p_perp;
+  const PetscReal new_E =
+    point_n.p_parallel * point_n.p_parallel + point_n.p_perp * point_n.p_perp;
 
   PetscCheck(equal_tol(new_E, old_E, 1e-6), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Energy not conserved: new = %.6e, old = %.6e", new_E, old_E);

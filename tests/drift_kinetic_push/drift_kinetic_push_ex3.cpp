@@ -4,8 +4,8 @@ static constexpr char help[] =
   "Test drift-kinetic pusher: grad-B drift in non-uniform B field.\n"
   "Guiding center should drift with classical grad-B velocity.\n";
 
-constexpr Vector3R B0(0.0, 0.0, 2.0);
-constexpr Vector3R gradB0(1.0, 0.0, 0.0);
+constexpr Vector3R B0(0, 0, 2);
+constexpr Vector3R gradB0(1, 0, 0);
 
 void get_gradB_field(const Vector3R&, const Vector3R& rn, Vector3R&,
   Vector3R& B_p, Vector3R& gradB_p)
@@ -26,10 +26,10 @@ int main(int argc, char** argv)
   geom_nt = 100;
   diagnose_period = geom_nt / 1;
 
-  constexpr Vector3R v0(1.0, 0.0, 1.0);
-  Vector3R r0(correction::rho(v0, B0, q / m));
+  constexpr Vector3R r0(0, 0, 0);
+  constexpr Vector3R v0(1, 0, 1);
   Point point_init(r0, v0);
-  PointByField point_n(point_init, B0, 1.0, q / m);
+  PointByField point_n(point_init, B0, 1, q / m);
 
   auto id = std::format("omega_dt_{:.1f}", omega_dt);
   PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 1);
@@ -48,14 +48,12 @@ int main(int argc, char** argv)
     push.process(dt, point_n, point_0);
   }
 
-  PetscReal m = push.get_mp();
-  PetscReal q = push.get_qm() * m;
   PetscReal B = B0.length();
 
   Vector3R V_gradB;
-  V_gradB += Vector3R(0.0, 0.0, v0.z());
-  V_gradB += POW2(v0.z()) / POW3(B) * B0.cross(gradB0);
-  V_gradB += point_n.mu_p / (m * q * POW2(B)) * B0.cross(gradB0);
+  V_gradB += Vector3R(0, 0, v0.z());
+  V_gradB += m * POW2(v0.z()) / (q * POW3(B)) * B0.cross(gradB0);
+  V_gradB += point_n.mu_p / (q * POW2(B)) * B0.cross(gradB0);
 
   PetscReal T = dt * (PetscReal)(geom_nt + 1);
   Vector3R r_theory = start_r + V_gradB * T;

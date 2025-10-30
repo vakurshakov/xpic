@@ -21,10 +21,10 @@ int main(int argc, char** argv)
   using namespace gaussian_magnetic_mirror;
 
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  PetscCall(PetscOptionsGetReal(NULL, NULL, "-omega_dt", &Omega_dt, NULL));
-  PetscCall(PetscOptionsGetReal(NULL, NULL, "-pitch_frac", &pitch_frac, NULL));
+  PetscCall(PetscOptionsGetReal(nullptr, nullptr, "-omega_dt", &Omega_dt, nullptr));
+  PetscCall(PetscOptionsGetReal(nullptr, nullptr, "-pitch_frac", &pitch_frac, nullptr));
 
   PetscReal mirror_R = get_Bz(0) / get_Bz(L);
 
