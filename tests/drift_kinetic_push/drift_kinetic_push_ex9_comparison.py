@@ -18,7 +18,7 @@ pitch_frac = [
 ]
 
 def draw_trajectory(push, dt, frac):
-    data = np.loadtxt(f"{dir}/output/drift_kinetic_push_ex9/temporal/{push}_omega_dt_{omega_dt:.1f}_pf_{frac:.3f}.txt", skiprows=1)
+    data = np.loadtxt(f"{dir}/output/drift_kinetic_push_ex9/temporal/{push}_omega_dt_{omega_dt:.4f}_pf_{frac:.3f}.txt", skiprows=1)
 
     x = data[:, 1]
     y = data[:, 2]
@@ -71,4 +71,4 @@ for frac in pitch_frac:
     fig.tight_layout()
 
     # plt.show()
-    fig.savefig(f"{dir}/output/drift_kinetic_push_ex9/temporal/omega_dt_{omega_dt:.1f}_pf_{frac:.3f}.png")
+    fig.savefig(f"{dir}/output/drift_kinetic_push_ex9/temporal/omega_dt_{omega_dt:.4f}_pf_{frac:.3f}.png")

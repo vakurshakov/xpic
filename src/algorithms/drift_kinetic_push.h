@@ -3,6 +3,8 @@
 
 #include "src/interfaces/particles.h"
 #include "src/interfaces/point.h"
+#include "src/utils/utils.h"
+
 
 class DriftKineticPush {
 public:
@@ -21,8 +23,8 @@ public:
   /// @brief Once `process()` is complete, this will return the number of nonlinear iterations used.
   PetscInt get_iteration_number() const;
 
-  using SetFields =
-    std::function<void(const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
+  using SetFields = std::function<void(
+    const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
   void set_fields_callback(SetFields&& callback);
 
   /// @brief Nonlinear move of point `pn` by timestep shift `dt`.
@@ -54,7 +56,7 @@ private:
   PetscReal mp = 0;
 
   SetFields set_fields;
-  Vector3R Ep;
+  Vector3R Eh;
   Vector3R Bp;
   Vector3R gradBp;
 };
