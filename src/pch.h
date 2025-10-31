@@ -4,6 +4,7 @@
 #include <mpi.h>
 #include <omp.h>
 
+#include <array>
 #include <cmath>
 #include <exception>
 #include <filesystem>

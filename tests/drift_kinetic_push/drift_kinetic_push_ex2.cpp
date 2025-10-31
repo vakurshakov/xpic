@@ -5,10 +5,11 @@ static constexpr char help[] =
   "E in constant magnetic field. Particle guiding center should drift with\n"
   "velocity (ExB/B^2).\n";
 
-constexpr Vector3R E0(0.0, 1.0, 1.0);
-constexpr Vector3R B0(0.0, 0.0, 1.0);
+constexpr Vector3R E0(0, 1, 1);
+constexpr Vector3R B0(0, 0, 1);
 
-void get_ExB_field(const Vector3R&, Vector3R& E_p, Vector3R& B_p, Vector3R&)
+void get_ExB_field(
+  const Vector3R&, const Vector3R&, Vector3R& E_p, Vector3R& B_p, Vector3R&)
 {
   E_p = E0;
   B_p = B0;
@@ -23,20 +24,20 @@ int main(int argc, char** argv)
   PetscCall(get_omega_dt(omega_dt));
 
   dt = omega_dt / B0.length();
-  geom_nt = 100'000;
+  geom_nt = 1000;
   diagnose_period = geom_nt / 4;
 
-  constexpr Vector3R r0(0.0, 0.0, 0.0);
-  constexpr Vector3R v0(0.0, 1.0, 0.0);
+  constexpr Vector3R r0(0, 0, 0);
+  constexpr Vector3R v0(0, 1, 0);
   Point point_init(r0, v0);
-  PointByField point_n(point_init, B0, 1.0);
+  PointByField point_n(point_init, B0, 1, q / m);
 
   auto id = std::format("omega_dt_{:.1f}", omega_dt);
   PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 123);
 
   DriftKineticPush push;
-  push.set_qm(-1.0);
-  push.set_mp(1.0);
+  push.set_qm(q / m);
+  push.set_mp(m);
   push.set_fields_callback(get_ExB_field);
 
   Vector3R start_r = point_n.r;
@@ -49,7 +50,7 @@ int main(int argc, char** argv)
   }
 
   PetscReal T = dt * (PetscReal)(geom_nt + 1);
-  PetscReal q = push.get_qm();
+  PetscReal q = push.get_qm() * push.get_mp();
   PetscReal E_par = E0.z();
   PetscReal p_par_theory = q * E_par * T;
 
@@ -58,8 +59,8 @@ int main(int argc, char** argv)
 
   PetscReal z_theory = 0.5 * q * E_par * T * T;
 
-  PetscCheck(equal_tol(point_n.r.z(), z_theory, 1e-4), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "z should be 0.5*q*E*t^2. Result: %.6e, theory: %.6e", point_n.r.z(), z_theory);
+  PetscCheck(equal_tol(point_n.z(), z_theory, 1e-4), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "z should be 0.5*q*E*t^2. Result: %.6e, theory: %.6e", point_n.z(), z_theory);
 
   Vector3R V_drift = E0.cross(B0) / (B0.length() * B0.length());
   Vector3R r_theory = start_r + V_drift * T + Vector3R{0, 0, z_theory};

@@ -14,7 +14,7 @@ public:
   void decompose(PetscReal alpha, const Vector3R& v, //
     const Vector3R& rn, const Vector3R& r0);
 
-private:
+protected:
   enum Type {
     electric,
     magnetic,

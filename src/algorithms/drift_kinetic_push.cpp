@@ -48,7 +48,7 @@ void DriftKineticPush::set_fields_callback(SetFields&& callback)
 void DriftKineticPush::process(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
-  set_fields(p0.r, Ep, Bp, gradBp);
+  set_fields(p0.r, pn.r, Eh, Bp, gradBp);
 
 #if 0
   LOG("=== DriftKineticPush::process START ===");
@@ -59,6 +59,7 @@ void DriftKineticPush::process(
   LOG("p0.mu_p = {}", p0.mu_p);
   LOG("B0 = {}, |B0| = {}", Bp, Bp.length());
   LOG("mp = {}, qm = {}", mp, qm);
+  LOG("Eh = {}", Eh);
 #endif
 
   PetscAssertAbort((bool)set_fields, PETSC_COMM_WORLD, PETSC_ERR_USER,
@@ -68,8 +69,6 @@ void DriftKineticPush::process(
   PetscReal Vh = 0.0;
 
   PetscReal R1 = 0.0, R2 = 0.0;
-
-  Vector3R Eh, E0 = Ep;
 
   Vector3R B0 = Bp, Bh = Bp;
   Vector3R gradB0 = gradBp, gradBh = gradBp;
@@ -85,7 +84,7 @@ void DriftKineticPush::process(
 
 #if 0
     LOG("--- Iteration {} ---", it);
-    LOG("R1 = {}, R2 = {}" << , R1, R2);
+    LOG("R1 = {}, R2 = {}", R1, R2);
 #endif
 
     if ((R1 < eps) && (R2 < delta) && it) {
@@ -94,8 +93,7 @@ void DriftKineticPush::process(
 
     update_r(dt, pn, p0, Vh * h, Vd);
 
-    set_fields(pn.r, Ep, Bp, gradBp);
-    Eh = 0.5 * (Ep + E0);
+    set_fields(p0.r, pn.r, Eh, Bp, gradBp);
     Bh = 0.5 * (Bp + B0);
     gradBh = 0.5 * (gradBp + gradB0);
     bp = Bp.normalized();
