@@ -1,12 +1,11 @@
 #include "drift_kinetic_push.h"
 
-#include "src/algorithms/boris_push.h"
-#include "src/algorithms/crank_nicolson_push.h"
-
 static constexpr char help[] =
   "Magnetic mirror field with realistic analytic mirrors, includes the\n"
   "comparison between different pushers. Sweep in critical pitch angle\n"
   "fraction and pusher time step (in Omega * dt units) is added.\n";
+
+  using namespace gaussian_magnetic_mirror;
 
 PetscReal pitch_frac = 1.005;
 PetscReal Omega_dt = 0.1;
@@ -18,8 +17,6 @@ auto format(const char* push)
 
 int main(int argc, char** argv)
 {
-  using namespace gaussian_magnetic_mirror;
-
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
@@ -33,25 +30,26 @@ int main(int argc, char** argv)
   PetscReal v_par = v_abs * cos(v_pitch);
   PetscReal v_perp = v_abs * sin(v_pitch);
 
-  Vector3R r0(0.1, 0, 0);
+  Vector3R r0(Rc + 0.1, Rc, L);
   Vector3R v0(v_perp, 0, v_par);
 
-  PetscReal Omega = get_Bz(r0.z());
+  PetscReal Omega = get_Bz(r0.z() - L);
   dt = Omega_dt / Omega;
   geom_nt = 5000;
   diagnose_period = 1;
 
   Vector3R B{
-    -0.5 * r0.x() * get_dBz_dz(r0.z()),
-    -0.5 * r0.y() * get_dBz_dz(r0.z()),
+    -0.5 * (r0.x() - Rc) * get_dBz_dz(r0.z() - L),
+    -0.5 * (r0.y() - Rc) * get_dBz_dz(r0.z() - L),
     get_Bz_corr(r0),
   };
 
 #if 0
   Vector3R gradB{
-    -0.5 * r0.x() * get_d2Bz_dz2(r0.z()),
-    -0.5 * r0.y() * get_d2Bz_dz2(r0.z()),
-    get_dBz_dz(r0.z()) - 0.25 * hypot(r0.x(), r0.y()) * get_d3Bz_dz3(r0.z()),
+    -0.5 * (r0.x() - Rc) * get_d2Bz_dz2(r0.z() - L),
+    -0.5 * (r0.y() - Rc) * get_d2Bz_dz2(r0.z() - L),
+    get_dBz_dz(r0.z() - L) -
+      0.25 * std::hypot(r0.x() - Rc, r0.y() - Rc) * get_d3Bz_dz3(r0.z() - L),
   };
 
   PetscReal rho = v_perp / B.length();

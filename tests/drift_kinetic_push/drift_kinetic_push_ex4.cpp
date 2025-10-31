@@ -6,19 +6,19 @@ static constexpr char help[] =
 
 using namespace quadratic_magnetic_mirror;
 
-constexpr PetscReal phi = 2.0;
+constexpr PetscReal phi = 0.5;
 constexpr PetscReal E_phi = 0.3;
 
 void get_fields(const Vector3R&, const Vector3R& rn, Vector3R& E_p,
   Vector3R& B_p, Vector3R& gradB_p)
 {
-  E_p = Vector3R{
-    +E_phi * rn[Y],
-    -E_phi * rn[X],
-    -phi * M_PI / L * std::sin(M_PI * rn[Z] / L),
-  };
+  quadratic_magnetic_mirror::get_fields(rn, rn, E_p, B_p, gradB_p);
 
-  get_mirror_fields(rn, B_p, gradB_p);
+  E_p = Vector3R{
+    +E_phi * (rn.y() - Rc),
+    -E_phi * (rn.x() - Rc),
+    +phi * M_PI / D * std::sin(M_PI * (rn.z() - L) / D),
+  };
 }
 
 int main(int argc, char** argv)
@@ -26,20 +26,20 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  constexpr Vector3R r0(0.5, 0.0, 0.0);
   constexpr PetscReal v_perp = 0.1;
   constexpr PetscReal v_par = 0.1;
+  constexpr Vector3R r0(Rc + 0.5, Rc, L);
   constexpr Vector3R v0(v_perp, 0.0, v_par);
 
-  PetscReal B_start = get_B(r0[X], r0[Z]);
+  PetscReal B = get_B(hypot(r0.x() - Rc, r0.y() - Rc), r0.z() - L);
 
   Point point_init(r0, v0);
-  PointByField point_n(point_init, {0.0, 0.0, B_start}, 1.0, -q / m);
+  PointByField point_n(point_init, {0.0, 0.0, B}, 1.0, q / m);
 
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
 
-  dt = omega_dt / B_start;
+  dt = omega_dt / B;
   geom_nt = 10'000;
   diagnose_period = geom_nt / 4;
 
@@ -47,12 +47,12 @@ int main(int argc, char** argv)
   PointByFieldTrace trace(__FILE__, id, point_n, geom_nt / 1000);
 
   DriftKineticPush push;
-  push.set_qm(-q / m);
+  push.set_qm(q / m);
   push.set_mp(m);
-  push.set_fields_callback(get_fields);
+  push.set_fields_callback(::get_fields);
 
-  PetscReal z_max = L + 1e-2;
-  PetscReal r_max = Rc + 1e-2;
+  PetscReal z_max = L;
+  PetscReal r_max = Rc * 1.5;
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     const PointByField point_0 = point_n;
@@ -60,11 +60,13 @@ int main(int argc, char** argv)
 
     PetscCall(trace.diagnose(t));
 
-    PetscCheck(std::abs(point_n.r.z()) < z_max, PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "Particle escaped mirror! z = %.6e, allowed = %.6e", point_n.r.z(), z_max);
+    PetscCheck(std::abs(point_n.z() - L) < z_max, PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Particle escaped mirror! z = %.6e, allowed = %.6e", point_n.z() - L, z_max);
 
-    PetscCheck(point_n.r.length() < r_max, PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "Particle escaped radial well! r = %.6e, allowed = %.6e", point_n.r.length(), r_max);
+    PetscReal r = std::hypot(point_n.x() - Rc, point_n.y() - Rc);
+
+    PetscCheck(r < r_max, PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Particle escaped radial well! r = %.6e, allowed = %.6e", r, r_max);
   }
 
   PetscCall(PetscFinalize());

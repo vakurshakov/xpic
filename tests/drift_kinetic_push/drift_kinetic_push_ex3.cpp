@@ -4,13 +4,15 @@ static constexpr char help[] =
   "Test drift-kinetic pusher: grad-B drift in non-uniform B field.\n"
   "Guiding center should drift with classical grad-B velocity.\n";
 
+constexpr Vector3R r0(0, 0, 0);
+constexpr Vector3R v0(1, 0, 1);
 constexpr Vector3R B0(0, 0, 2);
 constexpr Vector3R gradB0(1, 0, 0);
 
 void get_gradB_field(const Vector3R&, const Vector3R& rn, Vector3R&,
   Vector3R& B_p, Vector3R& gradB_p)
 {
-  B_p = B0 + rn.elementwise_product(gradB0);
+  B_p = B0 + (rn - r0).dot(gradB0) * gradB0.normalized();
   gradB_p = gradB0;
 }
 
@@ -26,8 +28,6 @@ int main(int argc, char** argv)
   geom_nt = 100;
   diagnose_period = geom_nt / 1;
 
-  constexpr Vector3R r0(0, 0, 0);
-  constexpr Vector3R v0(1, 0, 1);
   Point point_init(r0, v0);
   PointByField point_n(point_init, B0, 1, q / m);
 

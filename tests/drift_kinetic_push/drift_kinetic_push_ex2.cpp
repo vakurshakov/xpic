@@ -59,8 +59,8 @@ int main(int argc, char** argv)
 
   PetscReal z_theory = 0.5 * q * E_par * T * T;
 
-  PetscCheck(equal_tol(point_n.r.z(), z_theory, 1e-4), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "z should be 0.5*q*E*t^2. Result: %.6e, theory: %.6e", point_n.r.z(), z_theory);
+  PetscCheck(equal_tol(point_n.z(), z_theory, 1e-4), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "z should be 0.5*q*E*t^2. Result: %.6e, theory: %.6e", point_n.z(), z_theory);
 
   Vector3R V_drift = E0.cross(B0) / (B0.length() * B0.length());
   Vector3R r_theory = start_r + V_drift * T + Vector3R{0, 0, z_theory};
