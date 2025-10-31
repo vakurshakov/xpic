@@ -20,8 +20,8 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  PetscReal omega_dt = 0.1;
-  // PetscCall(get_omega_dt(omega_dt));
+  PetscReal omega_dt;
+  PetscCall(get_omega_dt(omega_dt));
 
   dx = dz = 0.1;
   dt = omega_dt / B_min;
