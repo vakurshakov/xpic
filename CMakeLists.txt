@@ -70,9 +70,6 @@ set(commands
   src/commands/set_magnetic_field.cpp
   src/commands/remove_particles.cpp
   src/commands/fields_damping.cpp
-  src/commands/kotelnikov_equilibrium/cyl_without_phi/set_cyl_without_phi.cpp
-  src/commands/kotelnikov_equilibrium/cyl_without_phi/table_function.cpp
-  src/commands/kotelnikov_equilibrium/cyl_without_phi/ziggurat_gaussian.cpp
   src/commands/builders/command_builder.cpp
   src/commands/builders/particles_builder.cpp
   src/commands/builders/inject_particles_builder.cpp
@@ -80,7 +77,6 @@ set(commands
   src/commands/builders/set_particles_builder.cpp
   src/commands/builders/set_magnetic_field_builder.cpp
   src/commands/builders/fields_damping_builder.cpp
-  src/commands/builders/set_kotelnikov_equilibrium.cpp
 )
 
 set(utils
@@ -95,6 +91,8 @@ set(utils
   src/utils/particles_load.cpp
   src/utils/geometries.cpp
   src/utils/world.cpp
+  src/utils/table_function.cpp
+  src/utils/ziggurat_gaussian.cpp
 )
 
 set(impls_basic
