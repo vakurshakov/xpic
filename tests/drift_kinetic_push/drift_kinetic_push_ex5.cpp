@@ -13,7 +13,7 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   constexpr PetscReal v_perp = 0.2;
-  constexpr PetscReal v_par = 0.3;
+  constexpr PetscReal v_par = 0.15;
   constexpr Vector3R r0(Rc + 0.5, Rc, L);
   constexpr Vector3R v0(v_perp, 0, v_par);
   Point point_init(r0, v0);

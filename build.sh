@@ -10,9 +10,9 @@ check_build() {
 }
 
 cmake -S . -B build/Debug -D CMAKE_BUILD_TYPE=Debug
-cmake --build build/Debug --parallel
+cmake --build build/Debug --parallel 4
 check_build
 
 cmake -S . -B build/Release -D CMAKE_BUILD_TYPE=Release
-cmake --build build/Release --parallel
+cmake --build build/Release --parallel 4
 check_build

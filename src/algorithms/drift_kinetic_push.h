@@ -23,6 +23,7 @@ public:
   /// @brief Once `process()` is complete, this will return the number of nonlinear iterations used.
   PetscInt get_iteration_number() const;
 
+  /// @brief Callback signature for supplying field values and gradients.
   using SetFields = std::function<void(
     const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
   void set_fields_callback(SetFields&& callback);
@@ -32,33 +33,54 @@ public:
   void process(PetscReal dt, PointByField& pn, const PointByField& p0);
 
 private:
-  Vector3R get_Vd(const PointByField& p0, const Vector3R& h, PetscReal Vh,
-    PetscReal Bh, const Vector3R& gradBh, const Vector3R& Eh) const;
-  void update_r(PetscReal dt, PointByField& pn, const PointByField& p0,
-    const Vector3R& Vh, const Vector3R& Vd) const;
-  void update_v_perp(
-    PointByField& pn, const PointByField& p0, const Vector3R& B0) const;
-  void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0,
-    PetscReal Vh, const Vector3R& h, const Vector3R& Vd, const Vector3R& B0,
-    const Vector3R& Eh) const;
-  PetscReal get_residue_r(PetscReal dt, const PointByField& pn,
-    const PointByField& p0, const Vector3R& Vh, const Vector3R& Vd) const;
-  PetscReal get_residue_v(PetscReal dt, const PointByField& pn,
-    const PointByField& p0, PetscReal Vh, const Vector3R& h, const Vector3R& Vd,
-    const Vector3R& B0, const Vector3R& Eh) const;
 
+  /// @brief Initializes cached fields and unit vectors before the nonlinear loop.
+  void pre_step(const PointByField& pn, const PointByField& p0);
+
+  /// @brief Evaluates drift velocity `Vp` for the current iteration.
+  void update_Vp(const PointByField& pn, const PointByField& p0);
+  Vector3R get_Vd(const PointByField& p0) const;
+
+  /// @brief Checks nonlinear residuals and determines convergence.
+  bool check_discrepancy(PetscReal dt,const PointByField& pn, const PointByField& p0);
+  PetscReal get_residue_r(PetscReal dt, const PointByField& pn, const PointByField& p0) const;
+  PetscReal get_residue_v(PetscReal dt, const PointByField& pn, const PointByField& p0) const;
+
+  /// @brief Updates the spatial position using drift velocity `Vp`.
+  void update_r(PetscReal dt, PointByField& pn, const PointByField& p0) const;
+  /// @brief Adjusts the perpendicular momentum using magnetic field magnitudes.
+  void update_v_perp(PointByField& pn, const PointByField& p0);
+  /// @brief Advances the parallel momentum using the drift-kinetic equation.
+  void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0) const;
+  PetscReal get_v_parallel(const PointByField& p0) const;
+
+  /// @brief Refreshes fields and derived quantities at the midpoint trajectory.
+  void update_fields(const PointByField& pn, const PointByField& p0);
+
+  /// @brief Iteration counters and tolerances.
   PetscInt it = 0;
   PetscInt maxit = 30;
   PetscReal eps = 1e-12;
   PetscReal delta = 1e-12;
+  PetscReal R1, R2;
 
+  /// @brief Particle parameters.
   PetscReal qm = 0;
   PetscReal mp = 0;
 
   SetFields set_fields;
+
+  /// @brief Cached velocities and fields.
+  PetscReal Vh;
+  Vector3R Vp;
   Vector3R Eh;
-  Vector3R Bp;
-  Vector3R gradBp;
+  Vector3R Bh;
+  Vector3R gradBh;
+
+  /// @brief Unit vector aligned with `Bh`.
+  Vector3R bh;
+  /// @brief Magnitude of the magnetic field.
+  PetscReal lenBh;
 };
 
 #endif  // SRC_ALGORITHMS_DRIFT_KINETIC_PUSH_H
