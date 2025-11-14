@@ -292,6 +292,40 @@ Vector3R Particles::velocity(const Point& point) const
   return p / std::sqrt(m * m + p.squared());
 }
 
+PetscErrorCode Particles::log_distribution() const
+{
+  PetscFunctionBeginUser;
+  static constexpr PetscInt hist_w = 1 << 7;
+  static constexpr PetscInt hist_h = hist_w / 2;
+  PetscInt hist[3][hist_w];
+
+  std::fill_n(hist[X], hist_w, 0);
+  std::fill_n(hist[Y], hist_w, 0);
+  std::fill_n(hist[Z], hist_w, 0);
+
+  for (const auto& cell : storage) {
+    for (const auto& point : cell) {
+      hist[X][(PetscInt)(point.p[X] * hist_h) + hist_h]++;
+      hist[Y][(PetscInt)(point.p[Y] * hist_h) + hist_h]++;
+      hist[Z][(PetscInt)(point.p[Z] * hist_h) + hist_h]++;
+    }
+  }
+
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, hist[X], hist_w, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, hist[Y], hist_w, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, hist[Z], hist_w, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+
+  LOG("    {} velocity distribution histogram:", parameters.sort_name);
+  LOG("    -------------------------------------------------");
+  LOG("    {:3s},  {:>6s}:  {:>9s}  {:>9s}  {:>9s}", "bin", "v[c]", "hist[X]", "hist[Y]", "hist[Z]");
+  for (PetscInt i = 0; i < hist_w; i++) {
+    LOG("    {:3d},  {: 5.3f}:  {:9d}  {:9d}  {:9d}", i,  i / (PetscReal)hist_h - 1, hist[X][i], hist[Y][i], hist[Z][i]);
+  }
+  LOG("    -------------------------------------------------");
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 PetscErrorCode Particles::correct_coordinates(Point& point)
 {
   PetscFunctionBeginUser;

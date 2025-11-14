@@ -62,6 +62,8 @@ public:
 
   Vector3R velocity(const Point& point) const;
 
+  PetscErrorCode log_distribution() const;
+
 protected:
   static constexpr PetscInt MPI_TAG_NUMBERS = 2;
   static constexpr PetscInt MPI_TAG_POINTS = 4;

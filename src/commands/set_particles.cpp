@@ -50,5 +50,6 @@ PetscErrorCode SetParticles::log_statistics()
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &added_energy_, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &added_particles_ , 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
   LOG("    energy: {:6.4e}", added_energy_);
+  PetscCall(particles_.log_distribution());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
