@@ -26,17 +26,25 @@ PetscErrorCode Particles::push()
     for (auto& point : cell) {
       const Vector3R old_r = point.r;
 
+      BorisPush push;
+      push.set_qm(parameters.q / parameters.m);
+
+      push.update_r(dt / 2.0, point);
+
       Shape shape;
-      shape.setup(point.r);
+      shape.setup(point.r, shr, sfunc);
 
-      Vector3R E_p;
-      Vector3R B_p;
-      interpolate(shape, E_p, B_p);
+      Vector3R E_p, B_p;
+      SimpleInterpolation interpolation(shape);
+      interpolation.process({{E_p, E}}, {{B_p, B}});
 
-      push(E_p, B_p, point);
+      push.set_fields(E_p, B_p);
+      push.update_vEB(dt, point);
+      push.update_r(dt / 2.0, point);
 
-      shape.setup(old_r, point.r);
-      decompose(shape, point);
+      shape.setup(old_r, point.r, shr, sfunc);
+      EsirkepovDecomposition decomposition(shape, qn_Np(point) / (6.0 * dt));
+      decomposition.process(J);
     }
   }
 
@@ -44,24 +52,6 @@ PetscErrorCode Particles::push()
   PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, global_J));
   PetscCall(VecAXPY(simulation_.J, 1.0, global_J));
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-void Particles::interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const
-{
-  SimpleInterpolation interpolation(shape);
-  interpolation.process({{E_p, E}}, {{B_p, B}});
-}
-
-void Particles::push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const
-{
-  BorisPush push(q_m(point), E_p, B_p);
-  push.process(dt, point, *this);
-}
-
-void Particles::decompose(const Shape& shape, const Point& point)
-{
-  EsirkepovDecomposition decomposition(shape, qn_Np(point) / (6.0 * dt));
-  decomposition.process(J);
 }
 
 PetscErrorCode Particles::finalize()

@@ -89,18 +89,3 @@ void BorisPush::update_v_impl(Vector3R& v, const BorisPush::AnglePair& pair) con
   Vector3R v_t = v.transverse_to(b);
   v = v_p + pair.second * v_t + pair.first * b.cross(v_t);
 }
-
-
-void BorisPush::process(PetscReal dt, Point& point,  //
-  const interfaces::Particles& particles) const
-{
-  PetscReal m = particles.mass(point);
-  PetscReal alpha = 0.5 * dt * qm;
-
-  Vector3R& u = point.p;
-  Vector3R t = u + alpha * E_p;
-  Vector3R b = alpha * B_p / std::sqrt(1.0 + t.squared() / POW2(m));
-
-  u = 2.0 * (t + t.cross(b) + b * t.dot(b)) / (1.0 + b.squared()) - u;
-  point.r += particles.velocity(point) * dt;
-}
