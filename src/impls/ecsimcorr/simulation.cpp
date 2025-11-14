@@ -9,6 +9,9 @@
 
 namespace ecsimcorr {
 
+static constexpr PetscReal atol = 1e-7;
+static constexpr PetscReal rtol = 1e-7;
+
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
@@ -160,9 +163,6 @@ PetscErrorCode Simulation::init_ksp_solvers()
     {"predict", ksp},
     {"correct", correct},
   };
-
-  static constexpr PetscReal atol = 1e-10;
-  static constexpr PetscReal rtol = 1e-10;
 
   for (auto&& [name, ksp] : map) {
     PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
