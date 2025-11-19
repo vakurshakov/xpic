@@ -1,7 +1,7 @@
 #ifndef SRC_CONSTANTS_H
 #define SRC_CONSTANTS_H
 
-#define PARTICLES_FORM_FACTOR 2
+#define PARTICLES_FORM_FACTOR 1
 #define RANDOM_SEED           false
 #define LOGGING               true
 

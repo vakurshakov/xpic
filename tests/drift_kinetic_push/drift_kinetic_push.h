@@ -8,6 +8,7 @@
 #include "src/utils/vector3.h"
 #include "src/utils/world.h"
 #include "tests/common.h"
+#include "src/utils/configuration.h"
 
 constexpr PetscReal q = -1.0;
 constexpr PetscReal m = +1.0;
@@ -160,6 +161,66 @@ namespace drift_kinetic_test_utils {
 
 using Arr = Vector3R***;
 
+void overwrite_config(//
+  PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
+  PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
+  PetscReal _dtp){
+
+  Configuration::overwrite({
+    {"Simulation", "eccapfim"},
+    {"OutputDirectory", get_out_dir(__FILE__)},
+    {
+      "Geometry",
+      {
+        {"x", _gx},
+        {"y", _gy},
+        {"z", _gz},
+        {"t", _gt},
+        {"dx", _dx},
+        {"dy", _dy},
+        {"dz", _dz},
+        {"dt", _dt},
+        {"diagnose_period", _dtp},
+        {"da_boundary_x", "DM_BOUNDARY_GHOSTED"},
+        {"da_boundary_y", "DM_BOUNDARY_GHOSTED"},
+        {"da_boundary_z", "DM_BOUNDARY_GHOSTED"},
+      },
+    },
+    {
+      "Particles",
+      {{
+        {"sort_name", "electrons"},
+        {"Np", 100},
+        {"n", +1.0},
+        {"q", -1.0},
+        {"m", +1.0},
+        {"T", +0.1},
+      }},
+    },
+    {
+      "Presets",
+      {{
+        {"command", "SetParticles"},
+        {"particles", "electrons"},
+        {"coordinate", {{"name", "CoordinateInBox"}}},
+        {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+      }},
+    },
+    {
+      "Diagnostics",
+      {
+        {{"diagnostic", "FieldView"}, {"field", "E"}},
+        {{"diagnostic", "FieldView"}, {"field", "B"}},
+        {
+          {"diagnostic", "DistributionMoment"},
+          {"particles", "electrons"},
+          {"moment", "density"},
+        },
+      },
+    },
+  });
+}
+
 class FieldContext {
 public:
   World world;
@@ -169,9 +230,17 @@ public:
   Vec B_vec = nullptr;
   Vec gradB_vec = nullptr;
 
+  Vec dBdx_vec = nullptr;
+  Vec dBdy_vec = nullptr;
+  Vec dBdz_vec = nullptr;
+
   Arr E_arr;
   Arr B_arr;
   Arr gradB_arr;
+
+  Arr dBdx_arr;
+  Arr dBdy_arr;
+  Arr dBdz_arr;
 
   template<typename FillFunc>
   PetscErrorCode initialize(FillFunc fill_func)
@@ -180,19 +249,30 @@ public:
     PetscCall(world.initialize());
     da = world.da;
 
-    PetscCall(DMCreateGlobalVector(da, &E_vec));
-    PetscCall(DMCreateGlobalVector(da, &B_vec));
-    PetscCall(DMCreateGlobalVector(da, &gradB_vec));
+    PetscCall(DMCreateLocalVector(da, &E_vec));
+    PetscCall(DMCreateLocalVector(da, &B_vec));
+    PetscCall(DMCreateLocalVector(da, &gradB_vec));
+    PetscCall(DMCreateGlobalVector(da, &dBdx_vec));
+    PetscCall(DMCreateGlobalVector(da, &dBdy_vec));
+    PetscCall(DMCreateGlobalVector(da, &dBdz_vec));
 
     PetscCall(DMDAVecGetArrayWrite(world.da, E_vec, &E_arr));
     PetscCall(DMDAVecGetArrayWrite(world.da, B_vec, &B_arr));
     PetscCall(DMDAVecGetArrayWrite(world.da, gradB_vec, &gradB_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, dBdx_vec, &dBdx_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, dBdy_vec, &dBdy_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, dBdz_vec, &dBdz_arr));
+
+    PetscInt xs, ys, zs, xm, ym, zm;
+    PetscInt gxs, gys, gzs, gxm, gym, gzm;
+    PetscCall(DMDAGetCorners(world.da, &xs, &ys, &zs, &xm, &ym, &zm));
+    PetscCall(DMDAGetGhostCorners(world.da, &gxs, &gys, &gzs, &gxm, &gym, &gzm));
 
     PetscInt i, j, k;
 
-    for (k = world.start[Z]; k < world.end[Z]; ++k) {
-      for (j = world.start[Y]; j < world.end[Y]; ++j) {
-        for (i = world.start[X]; i < world.end[X]; ++i) {
+    for (k = world.start[Z]; k < world.end[Z]+1; ++k) {
+      for (j = world.start[Y]; j < world.end[Y]+1; ++j) {
+        for (i = world.start[X]; i < world.end[X]+1; ++i) {
           fill_func(i, j, k, E_arr[k][j][i], B_arr[k][j][i], gradB_arr[k][j][i]);
         }
       }
@@ -214,10 +294,16 @@ public:
     PetscCall(DMDAVecRestoreArrayRead(world.da, E_vec, &E_arr));
     PetscCall(DMDAVecRestoreArrayRead(world.da, B_vec, &B_arr));
     PetscCall(DMDAVecRestoreArrayRead(world.da, gradB_vec, &gradB_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdx_vec, &dBdx_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdy_vec, &dBdy_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdz_vec, &dBdz_arr));
 
     PetscCall(VecDestroy(&E_vec));
     PetscCall(VecDestroy(&B_vec));
     PetscCall(VecDestroy(&gradB_vec));
+    PetscCall(VecDestroy(&dBdx_vec));
+    PetscCall(VecDestroy(&dBdy_vec));
+    PetscCall(VecDestroy(&dBdz_vec));
 
     PetscCall(world.finalize());
     PetscFunctionReturn(PETSC_SUCCESS);

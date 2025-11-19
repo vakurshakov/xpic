@@ -13,8 +13,8 @@ void get_analytical_fields(
   const Vector3R& r, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
   E_p = E0;
-  B_p = B0; /// @todo Should be `B0 + 0.5 * r.length() * r;`
-  gradB_p = r;
+  B_p = B0 + r;
+  gradB_p = {1.,1.,1.};
 }
 
 int main(int argc, char** argv)
@@ -22,7 +22,7 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  World::set_geometry(10.0, 10.0, 10.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+  overwrite_config(5.0, 5.0, 5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
 
   FieldContext context;
 
@@ -32,6 +32,8 @@ int main(int argc, char** argv)
 
   DriftKineticEsirkepov esirkepov(
     context.E_arr, context.B_arr, nullptr, context.gradB_arr);
+
+  esirkepov.set_dBidrj(context.dBdx_arr, context.dBdy_arr, context.dBdz_arr);
 
   Vector3R pos_old(1, 1, 1);
   Vector3R pos_new(2, 2, 2);
