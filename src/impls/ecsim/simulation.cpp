@@ -489,13 +489,13 @@ PetscErrorCode Simulation::fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j)
 
                     coo_ci[ind] = remap_stencil(MatStencil{REP3_AP(vg1), c1});
                     coo_cj[ind] = remap_stencil(MatStencil{REP3_AP(vg2), c2});
-                  }  // G'z
+                  }  // G'x
                 }  // G'y
-              }  // G'x
+              }  // G'z
             }
-          }  // Gz
+          }  // Gx
         }  // Gy
-      }  // Gx
+      }  // Gz
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);

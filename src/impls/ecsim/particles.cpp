@@ -161,12 +161,12 @@ void Particles::decompose_ecsim_current(const Point& point, PetscReal* coo_v)
                   coo_v[ind] += s1[c1] * s2[c2] * A_p * matB[c1][c2];
                 }
               }
-            }  // G'z
+            }  // G'x
           }  // G'y
-        }  // G'x
-      }  // Gz
+        }  // G'z
+      }  // Gx
     }  // Gy
-  }  // Gx
+  }  // Gz
   PetscFunctionReturnVoid();
 }
 
