@@ -12,6 +12,118 @@ namespace ecsim {
 static constexpr PetscReal atol = 1e-7;
 static constexpr PetscReal rtol = 1e-7;
 
+Vector3R interpolate_E_s1(Arr E_g, const Vector3R& r)
+{
+  Vector3R E_p;
+
+  /// @todo Create some weights calculator
+  PetscInt ixn, iyn, izn, ixs, iys, izs;
+  PetscReal xn, yn, zn, xs, ys, zs;
+  PetscReal wnx[2], wny[2], wnz[2], wsx[2], wsy[2], wsz[2];
+
+  xn = r[X] / dx;
+  yn = r[Y] / dy;
+  zn = r[Z] / dz;
+  xs = xn - 0.5;
+  ys = yn - 0.5;
+  zs = zn - 0.5;
+
+  ixn = (PetscInt)floor(xn);
+  iyn = (PetscInt)floor(yn);
+  izn = (PetscInt)floor(zn);
+  ixs = (PetscInt)floor(xs);
+  iys = (PetscInt)floor(ys);
+  izs = (PetscInt)floor(zs);
+
+  wnx[1] = (xn - ixn);
+  wny[1] = (yn - iyn);
+  wnz[1] = (zn - izn);
+  wnx[0] = 1 - wnx[1];
+  wny[0] = 1 - wny[1];
+  wnz[0] = 1 - wnz[1];
+
+  wsx[1] = (xs - ixs);
+  wsy[1] = (ys - iys);
+  wsz[1] = (zs - izs);
+  wsx[0] = 1 - wsx[1];
+  wsy[0] = 1 - wsy[1];
+  wsz[0] = 1 - wsz[1];
+
+  PetscInt i, j, k;
+  PetscReal s[3];
+
+  for (k = 0; k < 2; ++k) {
+    for (j = 0; j < 2; ++j) {
+      for (i = 0; i < 2; ++i) {
+        s[X] = wnz[k] * wny[j] * wsx[i];
+        s[Y] = wnz[k] * wsy[j] * wnx[i];
+        s[Z] = wsz[k] * wny[j] * wnx[i];
+
+        E_p[X] += E_g[izn + k][iyn + j][ixs + i][X] * s[X];
+        E_p[Y] += E_g[izn + k][iys + j][ixn + i][Y] * s[Y];
+        E_p[Z] += E_g[izs + k][iyn + j][ixn + i][Z] * s[Z];
+      }
+    }
+  }
+  return E_p;
+}
+
+Vector3R interpolate_B_s1(Arr B_g, const Vector3R& r)
+{
+  Vector3R B_p;
+
+  /// @todo Create some weights calculator
+  PetscInt ixn, iyn, izn, ixs, iys, izs;
+  PetscReal xn, yn, zn, xs, ys, zs;
+  PetscReal wnx[2], wny[2], wnz[2], wsx[2], wsy[2], wsz[2];
+
+  xn = r[X] / dx;
+  yn = r[Y] / dy;
+  zn = r[Z] / dz;
+  xs = xn - 0.5;
+  ys = yn - 0.5;
+  zs = zn - 0.5;
+
+  ixn = (PetscInt)floor(xn);
+  iyn = (PetscInt)floor(yn);
+  izn = (PetscInt)floor(zn);
+  ixs = (PetscInt)floor(xs);
+  iys = (PetscInt)floor(ys);
+  izs = (PetscInt)floor(zs);
+
+  wnx[1] = (xn - ixn);
+  wny[1] = (yn - iyn);
+  wnz[1] = (zn - izn);
+  wnx[0] = 1 - wnx[1];
+  wny[0] = 1 - wny[1];
+  wnz[0] = 1 - wnz[1];
+
+  wsx[1] = (xs - ixs);
+  wsy[1] = (ys - iys);
+  wsz[1] = (zs - izs);
+  wsx[0] = 1 - wsx[1];
+  wsy[0] = 1 - wsy[1];
+  wsz[0] = 1 - wsz[1];
+
+  PetscInt i, j, k;
+  PetscReal s[3];
+
+  for (k = 0; k < 2; ++k) {
+    for (j = 0; j < 2; ++j) {
+      for (i = 0; i < 2; ++i) {
+        s[X] = wsz[k] * wsy[j] * wnx[i];
+        s[Y] = wsz[k] * wny[j] * wsx[i];
+        s[Z] = wnz[k] * wsy[j] * wsx[i];
+
+        B_p[X] += B_g[izs + k][iys + j][ixn + i][X] * s[X];
+        B_p[Y] += B_g[izs + k][iyn + j][ixs + i][Y] * s[Y];
+        B_p[Z] += B_g[izn + k][iys + j][ixs + i][Z] * s[Z];
+      }
+    }
+  }
+  return B_p;
+}
+
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
@@ -46,7 +158,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
+PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 {
   PetscFunctionBeginUser;
   PetscCall(clear_sources());
@@ -55,6 +167,11 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscCall(second_push());
   PetscCall(final_update());
   PetscCall(clock.log_timings());
+
+  if (t % diagnose_period == 0) {
+    for (auto& sort : particles_)
+      PetscCall(sort->log_distribution());
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -175,8 +292,8 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscCall(DMGetGlobalVector(world.da, &rhs));
   PetscCall(VecAXPY(B, -1.0, B0));
 
-  PetscCall(VecCopy(curr, rhs));  // rhs = curr
-  PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - (dt * rhs)
+  PetscCall(VecCopy(curr, rhs));
+  PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - dt * rhs
   PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + dt * rotB(B^{n})
 
   PetscCall(KSPSolve(ksp, rhs, out));
@@ -280,13 +397,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
   PetscCall(fill_ecsim_current(coo_v.data()));
 
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
-  PetscCall(MatScale(matL, 0.5 * dt));
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
-{
-  return g * POW2(3) + (c1 * 3 + c2);
 }
 
 PetscErrorCode Simulation::fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j)
@@ -326,38 +437,65 @@ PetscErrorCode Simulation::fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j)
     PetscInt* coo_ci = coo_i + off;
     PetscInt* coo_cj = coo_j + off;
 
-    Vector3I vg{
+    const Vector3I vg{
       world.start[X] + g % world.size[X],
       world.start[Y] + (g / world.size[X]) % world.size[Y],
       world.start[Z] + (g / world.size[X]) / world.size[Y],
     };
 
-    for (PetscInt g1 = 0; g1 < m; ++g1) {
-      Vector3I vg1{
-        vg[X] + g1 % shw - shr,
-        vg[Y] + (g1 / shw) % shw - shr,
-        vg[Z] + (g1 / shw) / shw - shr,
-      };
+    PetscInt c1, si1, sj1, sk1, oi1, oj1, ok1, i1, j1, k1;
+    PetscInt c2, si2, sj2, sk2, oi2, oj2, ok2, i2, j2, k2;
+    PetscInt i, j, ind;
 
-      for (PetscInt g2 = 0; g2 < m; ++g2) {
-        PetscInt gg = g1 * m + g2;
+    for (c1 = 0; c1 < 3; ++c1) {
+      si1 = (c1 == 0 ? 3 : 2);
+      sj1 = (c1 == 1 ? 3 : 2);
+      sk1 = (c1 == 2 ? 3 : 2);
 
-        Vector3I vg2{
-          vg[X] + g2 % shw - shr,
-          vg[Y] + (g2 / shw) % shw - shr,
-          vg[Z] + (g2 / shw) / shw - shr,
-        };
+      oi1 = (c1 == 0 ? -1 : 0);
+      oj1 = (c1 == 1 ? -1 : 0);
+      ok1 = (c1 == 2 ? -1 : 0);
 
-        for (PetscInt c = 0; c < Vector3I::dim; ++c) {
-          coo_ci[ind(gg, X, c)] = remap_stencil(MatStencil{REP3_AP(vg1), X});
-          coo_ci[ind(gg, Y, c)] = remap_stencil(MatStencil{REP3_AP(vg1), Y});
-          coo_ci[ind(gg, Z, c)] = remap_stencil(MatStencil{REP3_AP(vg1), Z});
+      for (k1 = 0; k1 < sk1; ++k1) {
+        for (j1 = 0; j1 < sj1; ++j1) {
+          for (i1 = 0; i1 < si1; ++i1) {
+            const Vector3I vg1{
+              vg[X] + i1 + oi1,
+              vg[Y] + j1 + oj1,
+              vg[Z] + k1 + ok1,
+            };
 
-          coo_cj[ind(gg, c, X)] = remap_stencil(MatStencil{REP3_AP(vg2), X});
-          coo_cj[ind(gg, c, Y)] = remap_stencil(MatStencil{REP3_AP(vg2), Y});
-          coo_cj[ind(gg, c, Z)] = remap_stencil(MatStencil{REP3_AP(vg2), Z});
-        }
-      }
+            for (c2 = 0; c2 < 3; ++c2) {
+              si2 = (c2 == 0 ? 3 : 2);
+              sj2 = (c2 == 1 ? 3 : 2);
+              sk2 = (c2 == 2 ? 3 : 2);
+
+              oi2 = (c2 == 0 ? -1 : 0);
+              oj2 = (c2 == 1 ? -1 : 0);
+              ok2 = (c2 == 2 ? -1 : 0);
+
+              for (k2 = 0; k2 < sk2; ++k2) {
+                for (j2 = 0; j2 < sj2; ++j2) {
+                  for (i2 = 0; i2 < si2; ++i2) {
+                    const Vector3I vg2{
+                      vg[X] + i2 + oi2,
+                      vg[Y] + j2 + oj2,
+                      vg[Z] + k2 + ok2,
+                    };
+
+                    i = (k1 * sj1 + j1) * si1 + i1;
+                    j = (k2 * sj2 + j2) * si2 + i2;
+                    ind = (c1 * 3 + c2) * POW2(12) + (i * 12 + j);
+
+                    coo_ci[ind] = remap_stencil(MatStencil{REP3_AP(vg1), c1});
+                    coo_cj[ind] = remap_stencil(MatStencil{REP3_AP(vg2), c2});
+                  }  // G'z
+                }  // G'y
+              }  // G'x
+            }
+          }  // Gz
+        }  // Gy
+      }  // Gx
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -383,7 +521,7 @@ PetscErrorCode Simulation::fill_ecsim_current(PetscReal* coo_v)
 
 void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off)
 {
-  constexpr PetscInt shs = POW2(3 * POW3(3));
+  constexpr PetscInt shs = POW2(3 * 2 * 2 * 3);
   for (PetscInt g = begin_g; g < end_g; ++g)
     if (assembly_map[g])
       off += shs;
@@ -445,10 +583,10 @@ PetscErrorCode Simulation::init_matrices()
   PetscCall(MatProductSetType(matM, MATPRODUCT_AB));
   PetscCall(MatProductSetFromOptions(matM));
   PetscCall(MatProductSymbolic(matM));
-  PetscCall(MatProductNumeric(matM));  // matM = rotB(rotE())
+  PetscCall(MatProductNumeric(matM));
 
-  PetscCall(MatScale(matM, 0.5 * POW2(dt)));  // matM = dt^2 / 2 * matM
-  PetscCall(MatShift(matM, 2.0));  // matM = 2 * I + matM
+  PetscCall(MatScale(matM, 0.5 * POW2(dt)));
+  PetscCall(MatShift(matM, 2.0));
 
   PetscCall(MatScale(rotE, -dt));
   PetscCall(MatScale(rotB, +dt));

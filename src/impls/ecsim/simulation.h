@@ -9,6 +9,11 @@
 
 namespace ecsim {
 
+using Arr = Vector3R***;
+
+Vector3R interpolate_E_s1(Arr fieldE, const Vector3R& coord);
+Vector3R interpolate_B_s1(Arr fieldB, const Vector3R& coord);
+
 /// @note The following is a recreation of the published results,
 /// @see https://doi.org/10.1016/j.jcp.2017.01.002
 class Simulation : public interfaces::Simulation {

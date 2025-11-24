@@ -46,14 +46,7 @@ PetscErrorCode Particles::fill_ecsim_current(PetscReal* coo_v)
 
     PetscReal* coo_cv = coo_v + off;
     for (const auto& point : storage[g]) {
-      Shape shape;
-      shape.setup(point.r, shape_radius1, shape_func1);
-
-      Vector3R B_p;
-      SimpleInterpolation interpolation(shape);
-      interpolation.process({}, {{B_p, B}});
-
-      decompose_ecsim_current(shape, point, B_p, coo_cv);
+      decompose_ecsim_current(point, coo_cv);
     }
   }
 
@@ -63,96 +56,133 @@ PetscErrorCode Particles::fill_ecsim_current(PetscReal* coo_v)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-constexpr PetscInt ind(PetscInt g, PetscInt c1, PetscInt c2)
-{
-  return g * POW2(3) + (c1 * 3 + c2);
-}
-
 /// @note Also decomposes `Simulation::matL`
-void Particles::decompose_ecsim_current(
-  const Shape& shape, const Point& point, const Vector3R& B_p, PetscReal* coo_v)
+void Particles::decompose_ecsim_current(const Point& point, PetscReal* coo_v)
 {
   PetscFunctionBeginUser;
   const auto& [r, v] = point;
 
-  Vector3R b = 0.5 * dt * q_m(point) * B_p;
+  PetscReal q = parameters.q;
+  PetscReal m = parameters.m;
+  PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
 
-  PetscReal betaI = qn_Np(point) / (1.0 + b.squared());
-  PetscReal betaL = q_m(point) * betaI;
+  /// @todo Create some weights calculator
+  PetscInt ixn, iyn, izn, ixs, iys, izs, ox, oy, oz;
+  PetscReal xn, yn, zn, xs, ys, zs;
+  PetscReal wnx[2], wny[2], wnz[2], wsx[2], wsy[2], wsz[2];
 
-  Vector3R I_p = betaI * (v + v.cross(b) + b * v.dot(b));
+  xn = r[X] / dx;
+  yn = r[Y] / dy;
+  zn = r[Z] / dz;
+  xs = xn - 0.5;
+  ys = yn - 0.5;
+  zs = zn - 0.5;
 
-  SimpleDecomposition decomposition(shape, I_p);
-  PetscCallVoid(decomposition.process(currI));
+  ixn = (PetscInt)floor(xn);
+  iyn = (PetscInt)floor(yn);
+  izn = (PetscInt)floor(zn);
+  ixs = (PetscInt)floor(xs);
+  iys = (PetscInt)floor(ys);
+  izs = (PetscInt)floor(zs);
+  ox = ixs - ixn + 1;
+  oy = iys - iyn + 1;
+  oz = izs - izn + 1;
 
-  constexpr PetscInt shr = 1;
-  constexpr PetscInt shw = 2 * shr + 1;
-  constexpr PetscReal shape_tolerance = 1e-10;
+  wnx[1] = (xn - ixn);
+  wny[1] = (yn - iyn);
+  wnz[1] = (zn - izn);
+  wnx[0] = 1 - wnx[1];
+  wny[0] = 1 - wny[1];
+  wnz[0] = 1 - wnz[1];
 
-  /// @note It is an offset from particle `shape` indexing into `coo_v` one.
-  const Vector3I off{
-    shape.start[X] - (FLOOR_STEP(r.x(), dx) - shr),
-    shape.start[Y] - (FLOOR_STEP(r.y(), dy) - shr),
-    shape.start[Z] - (FLOOR_STEP(r.z(), dz) - shr),
-  };
+  wsx[1] = (xs - ixs);
+  wsy[1] = (ys - iys);
+  wsz[1] = (zs - izs);
+  wsx[0] = 1 - wsx[1];
+  wsy[0] = 1 - wsy[1];
+  wsz[0] = 1 - wsz[1];
 
-  auto s_gg = [&](PetscInt g1, PetscInt g2) {
-    Vector3I vg1{
-      off[X] + g1 % shape.size[X],
-      off[Y] + (g1 / shape.size[X]) % shape.size[Y],
-      off[Z] + (g1 / shape.size[X]) / shape.size[Y],
-    };
+  Vector3R b = interpolate_B_s1(B, r) * ((0.5 * dt) * q / m);
+  Vector3R I_p = q * mpw / (1. + b.squared()) * (v + v.cross(b) + b.dot(v) * b);
+  PetscReal A_p = 0.5 * dt * mpw * q * q / m / (1 + b.squared());
 
-    Vector3I vg2{
-      off[X] + g2 % shape.size[X],
-      off[Y] + (g2 / shape.size[X]) % shape.size[Y],
-      off[Z] + (g2 / shape.size[X]) / shape.size[Y],
-    };
-
-    return  //
-      ((vg1[Z] * shw + vg1[Y]) * shw + vg1[X]) * POW3(shw) +
-      ((vg2[Z] * shw + vg2[Y]) * shw + vg2[X]);
-  };
-
-  const PetscReal matB[Vector3R::dim][Vector3R::dim]{
+  const PetscReal matB[3][3]{
     {1.0 + b[X] * b[X], +b[Z] + b[X] * b[Y], -b[Y] + b[X] * b[Z]},
     {-b[Z] + b[Y] * b[X], 1.0 + b[Y] * b[Y], +b[X] + b[Y] * b[Z]},
     {+b[Y] + b[Z] * b[X], -b[X] + b[Z] * b[Y], 1.0 + b[Z] * b[Z]},
   };
 
-  for (PetscInt g1 = 0; g1 < shape.size.elements_product(); ++g1) {
-    for (PetscInt g2 = 0; g2 < shape.size.elements_product(); ++g2) {
-      Vector3R s1 = shape.electric(g1);
-      Vector3R s2 = shape.electric(g2);
+  PetscInt c1, i1, j1, k1;
+  PetscInt c2, i2, j2, k2;
+  PetscInt in, jn, kn, is, js, ks;
+  PetscInt i[3], j[3], ind;
+  PetscReal s1[3], s2[3];
 
-      if (s1.abs_max() < shape_tolerance || s2.abs_max() < shape_tolerance)
-        continue;
+  for (k1 = 0; k1 < 2; ++k1) {
+    for (j1 = 0; j1 < 2; ++j1) {
+      for (i1 = 0; i1 < 2; ++i1) {
+        in = ixn + i1;
+        jn = iyn + j1;
+        kn = izn + k1;
+        is = ixs + i1;
+        js = iys + j1;
+        ks = izs + k1;
 
-      PetscInt gg = s_gg(g1, g2);
+        s1[X] = wnz[k1] * wny[j1] * wsx[i1];
+        s1[Y] = wnz[k1] * wsy[j1] * wnx[i1];
+        s1[Z] = wsz[k1] * wny[j1] * wnx[i1];
 
-      for (PetscInt c1 = 0; c1 < Vector3R::dim; ++c1)
-        for (PetscInt c2 = 0; c2 < Vector3R::dim; ++c2)
-          coo_v[ind(gg, c1, c2)] += s1[c1] * s2[c2] * betaL * matB[c1][c2];
-    }
-  }
+#pragma omp atomic update
+        currI[kn][jn][is][X] += s1[X] * I_p[X];
+#pragma omp atomic update
+        currI[kn][js][in][Y] += s1[Y] * I_p[Y];
+#pragma omp atomic update
+        currI[ks][jn][in][Z] += s1[Z] * I_p[Z];
+
+
+        i[X] = (k1 * 2 + j1) * 3 + (ox + i1);
+        i[Y] = (k1 * 3 + (oy + j1)) * 2 + i1;
+        i[Z] = ((oz + k1) * 2 + j1) * 2 + i1;
+
+        for (k2 = 0; k2 < 2; ++k2) {
+          for (j2 = 0; j2 < 2; ++j2) {
+            for (i2 = 0; i2 < 2; ++i2) {
+              s2[X] = wsx[i2] * wny[j2] * wnz[k2];
+              s2[Y] = wnx[i2] * wsy[j2] * wnz[k2];
+              s2[Z] = wnx[i2] * wny[j2] * wsz[k2];
+
+              j[X] = (k2 * 2 + j2) * 3 + (ox + i2);
+              j[Y] = (k2 * 3 + (oy + j2)) * 2 + i2;
+              j[Z] = ((oz + k2) * 2 + j2) * 2 + i2;
+
+              for (c1 = 0; c1 < 3; c1++) {
+                for (c2 = 0; c2 < 3; c2++) {
+                  ind = (c1 * 3 + c2) * POW2(12) + (i[c1] * 12 + j[c2]);
+                  coo_v[ind] += s1[c1] * s2[c2] * A_p * matB[c1][c2];
+                }
+              }
+            }  // G'z
+          }  // G'y
+        }  // G'x
+      }  // Gz
+    }  // Gy
+  }  // Gx
   PetscFunctionReturnVoid();
 }
 
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
+  PetscReal q = parameters.q;
+  PetscReal m = parameters.m;
+
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& cell : storage) {
     for (auto& point : cell) {
-      Shape shape;
-      shape.setup(point.r, shape_radius1, shape_func1);
+      Vector3R E_p = interpolate_E_s1(E, point.r);
+      Vector3R B_p = interpolate_B_s1(B, point.r);
 
-      Vector3R E_p;
-      Vector3R B_p;
-      SimpleInterpolation interpolation(shape);
-      interpolation.process({{E_p, E}}, {{B_p, B}});
-
-      BorisPush push(q_m(point), E_p, B_p);
+      BorisPush push(q / m, E_p, B_p);
       push.update_vEB(dt, point);
     }
   }

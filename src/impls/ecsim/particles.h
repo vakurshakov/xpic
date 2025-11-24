@@ -31,8 +31,7 @@ protected:
   static constexpr const auto& shape_func1 = spline_of_1st_order;
   static constexpr const auto& shape_radius1 = 1.0;
 
-  void decompose_ecsim_current(const Shape& shape, const Point& point,
-    const Vector3R& B_p, PetscReal* coo_v);
+  void decompose_ecsim_current(const Point& point, PetscReal* coo_v);
 
   Simulation& simulation_;
 };
