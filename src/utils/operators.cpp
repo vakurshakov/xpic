@@ -108,13 +108,16 @@ PetscErrorCode FiniteDifferenceOperator::fill_matrix(Mat mat, Yee_shift shift)
   std::vector<PetscReal> coo_v;
   coo_v.reserve(size);
 
-  for (PetscInt g = 0; g < size_.elements_product(); ++g) {
-    PetscInt x = start_[X] + g % size_[X];
-    PetscInt y = start_[Y] + (g / size_[X]) % size_[Y];
-    PetscInt z = start_[Z] + (g / size_[X]) / size_[Y];
+  PetscInt g, x, y, z;
+  MatStencil *coo_ci, *coo_cj;
 
-    MatStencil* coo_ci = coo_i.data() + g * chunk;
-    MatStencil* coo_cj = coo_j.data() + g * chunk;
+  for (g = 0; g < size_.elements_product(); ++g) {
+    x = start_[X] + g % size_[X];
+    y = start_[Y] + (g / size_[X]) % size_[Y];
+    z = start_[Z] + (g / size_[X]) / size_[Y];
+
+    coo_ci = coo_i.data() + g * chunk;
+    coo_cj = coo_j.data() + g * chunk;
 
     // Periodic boundaries are handled by PETSc internally
     fill_stencil(shift, x, y, z, coo_ci, coo_cj);
@@ -152,9 +155,9 @@ std::tuple<REP3(PetscInt)> get_negative_offsets(PetscInt x, PetscInt y, PetscInt
 Rotor::Rotor(DM da)
   : FiniteDifferenceOperator(da, 3, 3,
       {
-        +1.0 / dz, -1.0 / dz, -1.0 / dy, +1.0 / dy,  //
-        -1.0 / dz, +1.0 / dz, +1.0 / dx, -1.0 / dx,  //
-        +1.0 / dy, -1.0 / dy, -1.0 / dx, +1.0 / dx,  //
+        +1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz,  //
+        -1.0 / dx, +1.0 / dx, +1.0 / dz, -1.0 / dz,  //
+        +1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy,  //
       })
 {
 }
@@ -172,40 +175,40 @@ void Rotor::fill_stencil(Yee_shift shift, PetscInt xc, PetscInt yc, PetscInt zc,
     case Yee_shift::Positive: {
       auto&& [xp, yp, zp] = get_positive_offsets(xc, yc, zc);
 
-      coo_j[ind(X, 0)] = {zp, yc, xc, Y};
-      coo_j[ind(X, 1)] = {zc, yc, xc, Y};
-      coo_j[ind(X, 2)] = {zc, yp, xc, Z};
-      coo_j[ind(X, 3)] = {zc, yc, xc, Z};
+      coo_j[ind(X, 0)] = {zc, yp, xc, Z};
+      coo_j[ind(X, 1)] = {zc, yc, xc, Z};
+      coo_j[ind(X, 2)] = {zp, yc, xc, Y};
+      coo_j[ind(X, 3)] = {zc, yc, xc, Y};
 
-      coo_j[ind(Y, 0)] = {zp, yc, xc, X};
-      coo_j[ind(Y, 1)] = {zc, yc, xc, X};
-      coo_j[ind(Y, 2)] = {zc, yc, xp, Z};
-      coo_j[ind(Y, 3)] = {zc, yc, xc, Z};
+      coo_j[ind(Y, 0)] = {zc, yc, xp, Z};
+      coo_j[ind(Y, 1)] = {zc, yc, xc, Z};
+      coo_j[ind(Y, 2)] = {zp, yc, xc, X};
+      coo_j[ind(Y, 3)] = {zc, yc, xc, X};
 
-      coo_j[ind(Z, 0)] = {zc, yp, xc, X};
-      coo_j[ind(Z, 1)] = {zc, yc, xc, X};
-      coo_j[ind(Z, 2)] = {zc, yc, xp, Y};
-      coo_j[ind(Z, 3)] = {zc, yc, xc, Y};
+      coo_j[ind(Z, 0)] = {zc, yc, xp, Y};
+      coo_j[ind(Z, 1)] = {zc, yc, xc, Y};
+      coo_j[ind(Z, 2)] = {zc, yp, xc, X};
+      coo_j[ind(Z, 3)] = {zc, yc, xc, X};
       return;
     }
 
     case Yee_shift::Negative: {
       auto&& [xm, ym, zm] = get_negative_offsets(xc, yc, zc);
 
-      coo_j[ind(X, 0)] = {zc, yc, xc, Y};
-      coo_j[ind(X, 1)] = {zm, yc, xc, Y};
-      coo_j[ind(X, 2)] = {zc, yc, xc, Z};
-      coo_j[ind(X, 3)] = {zc, ym, xc, Z};
+      coo_j[ind(X, 0)] = {zc, yc, xc, Z};
+      coo_j[ind(X, 1)] = {zc, ym, xc, Z};
+      coo_j[ind(X, 2)] = {zc, yc, xc, Y};
+      coo_j[ind(X, 3)] = {zm, yc, xc, Y};
 
-      coo_j[ind(Y, 0)] = {zc, yc, xc, X};
-      coo_j[ind(Y, 1)] = {zm, yc, xc, X};
-      coo_j[ind(Y, 2)] = {zc, yc, xc, Z};
-      coo_j[ind(Y, 3)] = {zc, yc, xm, Z};
+      coo_j[ind(Y, 0)] = {zc, yc, xc, Z};
+      coo_j[ind(Y, 1)] = {zc, yc, xm, Z};
+      coo_j[ind(Y, 2)] = {zc, yc, xc, X};
+      coo_j[ind(Y, 3)] = {zm, yc, xc, X};
 
-      coo_j[ind(Z, 0)] = {zc, yc, xc, X};
-      coo_j[ind(Z, 1)] = {zc, ym, xc, X};
-      coo_j[ind(Z, 2)] = {zc, yc, xc, Y};
-      coo_j[ind(Z, 3)] = {zc, yc, xm, Y};
+      coo_j[ind(Z, 0)] = {zc, yc, xc, Y};
+      coo_j[ind(Z, 1)] = {zc, yc, xm, Y};
+      coo_j[ind(Z, 2)] = {zc, yc, xc, X};
+      coo_j[ind(Z, 3)] = {zc, ym, xc, X};
       return;
     }
   }
