@@ -61,18 +61,14 @@ PetscErrorCode Particles::second_push()
       const Vector3R old_r = point.r;
       const Vector3R old_v = point.p;
 
-      Shape shape;
-      shape.setup(point.r, shape_radius1, shape_func1);
-
-      Vector3R E_p;
-      Vector3R B_p;
-      SimpleInterpolation interpolation(shape);
-      interpolation.process({{E_p, E}}, {{B_p, B}});
+      Vector3R E_p = interpolate_E_s1(E, point.r);
+      Vector3R B_p = interpolate_B_s1(B, point.r);
 
       BorisPush push(q_m(point), E_p, B_p);
       push.update_vEB(dt, point);
       push.update_r(0.5 * dt, point);
 
+      Shape shape;
       shape.setup(old_r, point.r, shape_radius2, shape_func2);
       decompose_esirkepov_current(shape, point);
 

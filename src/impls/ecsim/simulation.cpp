@@ -7,11 +7,6 @@
 #include "src/utils/utils.h"
 
 
-namespace ecsim {
-
-static constexpr PetscReal atol = 1e-7;
-static constexpr PetscReal rtol = 1e-7;
-
 Vector3R interpolate_E_s1(Arr E_g, const Vector3R& r)
 {
   Vector3R E_p;
@@ -123,6 +118,8 @@ Vector3R interpolate_B_s1(Arr B_g, const Vector3R& r)
   }
   return B_p;
 }
+
+namespace ecsim {
 
 PetscErrorCode Simulation::initialize_implementation()
 {
@@ -266,18 +263,7 @@ PetscErrorCode Simulation::final_update()
   PetscCall(clock.push("final_update1"));
   PetscCall(PetscLogStagePush(stagenums[5]));
 
-  Vec util;
-  PetscReal norm;
-  PetscCall(DMGetGlobalVector(world.da, &util));
-
-  PetscCall(VecSet(util, 0));
-  PetscCall(VecAXPBYPCZ(util, 2, -1, 1, Ep, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
-  PetscCall(VecNorm(util, NORM_2, &norm));
-  LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
-
-  PetscCall(VecSwap(util, E));
-  PetscCall(DMRestoreGlobalVector(world.da, &util));
-
+  PetscCall(VecAXPBY(E, 2, -1, Ep));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
   PetscCall(MatMultAdd(rotE, Ep, B, B));  // B^{n+1} -= dt * rot(E^{n+1/2})
 
   PetscCall(PetscLogStagePop());
@@ -290,16 +276,16 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscFunctionBeginUser;
   Vec rhs;
   PetscCall(DMGetGlobalVector(world.da, &rhs));
-  PetscCall(VecAXPY(B, -1.0, B0));
+  PetscCall(VecAXPY(B, -1, B0));
 
   PetscCall(VecCopy(curr, rhs));
-  PetscCall(VecAXPBY(rhs, 2.0, -dt, E));  // rhs = 2 * E^{n} - dt * rhs
+  PetscCall(VecAXPBY(rhs, 2, -dt, E));  // rhs = 2 * E^{n} - dt * rhs
   PetscCall(MatMultAdd(rotB, B, rhs, rhs));  // rhs = rhs + dt * rotB(B^{n})
 
   PetscCall(KSPSolve(ksp, rhs, out));
   PetscCall(KSPGetSolution(ksp, &out));
 
-  PetscCall(VecAXPY(B, +1.0, B0));
+  PetscCall(VecAXPY(B, +1, B0));
   PetscCall(DMRestoreGlobalVector(world.da, &rhs));
 
   // Convergence analysis

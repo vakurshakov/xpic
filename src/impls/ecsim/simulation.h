@@ -7,12 +7,15 @@
 #include "src/impls/ecsim/particles.h"
 #include "src/utils/sync_clock.h"
 
-namespace ecsim {
-
 using Arr = Vector3R***;
 
 Vector3R interpolate_E_s1(Arr E_g, const Vector3R& coord);
 Vector3R interpolate_B_s1(Arr B_g, const Vector3R& coord);
+
+namespace ecsim {
+
+static constexpr PetscReal atol = 1e-7;
+static constexpr PetscReal rtol = 1e-7;
 
 /// @note The following is a recreation of the published results,
 /// @see https://doi.org/10.1016/j.jcp.2017.01.002
