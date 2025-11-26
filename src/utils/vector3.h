@@ -150,7 +150,11 @@ struct Vector3 {
   Vector3<PetscReal> normalized() const
     requires std::is_floating_point_v<T>
   {
-    return operator/(length());
+    auto l = length();
+    if (l > 0)
+      return operator/(l);
+    else
+      return {0,0,0};
   }
 
   PetscReal length() const
