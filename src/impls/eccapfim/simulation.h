@@ -9,6 +9,8 @@
 
 namespace eccapfim {
 
+#define SNES_ITERATE_B 0
+
 class Simulation : public interfaces::Simulation {
 public:
   Simulation() = default;
@@ -54,19 +56,26 @@ protected:
   PetscErrorCode form_current();
   PetscErrorCode form_function(Vec vf);
 
+#if SNES_ITERATE_B
+  DM da_EB;
+  Vec B_hk;
   PetscErrorCode from_snes(Vec v, Vec vE, Vec vB);
   PetscErrorCode to_snes(Vec vE, Vec vB, Vec v);
+#else
+  Mat matM;
+#endif
 
   Vec B0;
   Vec E_hk;
-  Vec B_hk;
-  Vec local_E;
-  Vec local_B;
+  Vec E_loc;
+  Vec B_loc;
+
+  Vector3R*** E_arr;
+  Vector3R*** B_arr;
 
   Mat rotE;
   Mat rotB;
 
-  DM da_EB;
   Vec sol;
   SNES snes;
   std::vector<PetscReal> conv_hist;
