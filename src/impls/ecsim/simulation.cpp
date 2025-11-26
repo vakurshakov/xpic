@@ -181,7 +181,7 @@ PetscErrorCode Simulation::clear_sources()
   PetscCall(clock.push("clear_sources1"));
   PetscCall(PetscLogStagePush(stagenums[1]));
 
-  PetscCall(VecSet(currI, 0.0));
+  PetscCall(VecSet(currI, 0));
   PetscCall(MatZeroEntries(matL));
 
   for (auto& sort : particles_)
@@ -215,7 +215,7 @@ PetscErrorCode Simulation::advance_fields(Mat matA)
   PetscCall(clock.push(__FUNCTION__));
   PetscCall(PetscLogStagePush(stagenums[3]));
 
-  PetscCall(MatAYPX(matA, dt, matM, DIFFERENT_NONZERO_PATTERN));  // matA = matM + dt * matA
+  PetscCall(MatAXPY(matA, 1, matM, DIFFERENT_NONZERO_PATTERN));  // matA += matM
 
   // Note that we use `matM` to construct the preconditioning matrix
   PetscCall(KSPSetOperators(ksp, matA, matM));
@@ -270,7 +270,7 @@ PetscErrorCode Simulation::final_update()
   PetscReal norm;
   PetscCall(DMGetGlobalVector(world.da, &util));
 
-  PetscCall(VecSet(util, 0.0));  // util = 0.0
+  PetscCall(VecSet(util, 0));
   PetscCall(VecAXPBYPCZ(util, 2, -1, 1, Ep, E));  // E^{n+1} = 2 * E^{n+1/2} - E^{n}
   PetscCall(VecNorm(util, NORM_2, &norm));
   LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
@@ -585,7 +585,7 @@ PetscErrorCode Simulation::init_matrices()
   PetscCall(MatProductSymbolic(matM));
   PetscCall(MatProductNumeric(matM));
 
-  PetscCall(MatScale(matM, 0.5 * POW2(dt)));
+  PetscCall(MatScale(matM, 0.5 * dt * dt));
   PetscCall(MatShift(matM, 2.0));
 
   PetscCall(MatScale(rotE, -dt));

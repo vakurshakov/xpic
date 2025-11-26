@@ -103,8 +103,8 @@ void Particles::decompose_ecsim_current(const Point& point, PetscReal* coo_v)
   wsz[0] = 1 - wsz[1];
 
   Vector3R b = interpolate_B_s1(B, r) * ((0.5 * dt) * q / m);
-  Vector3R I_p = q * mpw / (1. + b.squared()) * (v + v.cross(b) + b.dot(v) * b);
-  PetscReal A_p = 0.5 * dt * mpw * q * q / m / (1 + b.squared());
+  Vector3R I_p = q * mpw / (1. + b.squared()) * (v + v.cross(b) + v.dot(b) * b);
+  PetscReal A_p = 0.5 * dt * dt * mpw * q * q / m / (1 + b.squared());
 
   const PetscReal matB[3][3]{
     {1.0 + b[X] * b[X], +b[Z] + b[X] * b[Y], -b[Y] + b[X] * b[Z]},
