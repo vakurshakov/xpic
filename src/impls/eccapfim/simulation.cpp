@@ -219,7 +219,7 @@ PetscErrorCode Simulation::form_current()
     sort->E = E_arr;
     sort->B = B_arr;
     PetscCall(sort->form_iteration());
-    PetscCall(VecAXPY(J, 1.0, sort->global_J));
+    PetscCall(VecAXPY(J, 1, sort->global_J));
   }
 
   PetscLogEventEnd(events[1], E_loc, B_loc, J, 0);
@@ -476,23 +476,6 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&B_hk));
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-Vec Simulation::get_named_vector(std::string_view name) const
-{
-  static const std::unordered_map<std::string_view, Vec> map{
-    {"E", E},
-    {"B", B},
-    {"J", J},
-    {"B0", B0},
-  };
-  return map.at(name);
-}
-
-Simulation::NamedValues<Vec> Simulation::get_backup_fields() const
-{
-  return {{"E", E}, {"B", B}, {"B0", B0}};
 }
 
 }  // namespace eccapfim

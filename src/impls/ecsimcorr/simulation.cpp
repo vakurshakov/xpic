@@ -202,19 +202,4 @@ PetscErrorCode Simulation::finalize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
-Vec Simulation::get_named_vector(std::string_view name) const
-{
-  static const std::unordered_map<std::string_view, Vec> map{
-    {"E", E},
-    {"E_pred", Ep},
-    {"E_corr", Ec},
-    {"B", B},
-    {"B0", B0},
-    {"J_ecsim", currI},
-    {"J_esirkepov", currJe},
-  };
-  return map.at(name);
-}
-
 }  // namespace ecsimcorr

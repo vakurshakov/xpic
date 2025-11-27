@@ -19,6 +19,10 @@ PetscErrorCode Simulation::initialize()
   LOG("Running initialize implementation");
   PetscCall(initialize_implementation());
 
+  PetscCall(PetscObjectSetName((PetscObject)E, "E"));
+  PetscCall(PetscObjectSetName((PetscObject)B, "B"));
+  PetscCall(PetscObjectSetName((PetscObject)B0, "B0"));
+
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
   PetscCall(build_commands(*this, "StepPresets", step_presets_));
@@ -95,7 +99,18 @@ PetscErrorCode Simulation::log_information() const
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Particles& Simulation::get_named_particles(std::string_view name) const
+
+Vec Simulation::get_named_vector(std::string_view name) const
+{
+  static const std::unordered_map<std::string_view, Vec> map{
+    {"E", E},
+    {"B", B},
+    {"B0", B0},
+  };
+  return map.at(name);
+}
+
+Particles& Simulation::get_named_particles(std::string_view name)
 {
   auto it = std::find_if(particles_.begin(), particles_.end(), //
     [&](const Particles_sp& sort) {
@@ -105,14 +120,6 @@ Particles& Simulation::get_named_particles(std::string_view name) const
   if (it == particles_.end())
     throw std::runtime_error("No particles with name " + std::string(name));
   return **it;
-}
-
-Simulation::NamedValues<Particles*> Simulation::get_backup_particles() const
-{
-  NamedValues<interfaces::Particles*> particles;
-  for (const Particles_sp& sort : particles_)
-    particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
-  return particles;
 }
 
 }  // namespace interfaces

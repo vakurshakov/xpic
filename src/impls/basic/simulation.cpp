@@ -52,7 +52,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::timestep_implementation(PetscInt /* timestep */)
+PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   PetscCall(VecSet(J, 0.0));
@@ -140,22 +140,6 @@ PetscErrorCode Simulation::finalize()
   PetscCall(MatDestroy(&rotE));
   PetscCall(MatDestroy(&rotB));
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-Vec Simulation::get_named_vector(std::string_view name) const
-{
-  static const std::unordered_map<std::string_view, Vec> map{
-    {"E", E},
-    {"B", B},
-    {"B0", B0},
-    {"J", J},
-  };
-  return map.at(name);
-}
-
-Simulation::NamedValues<Vec> Simulation::get_backup_fields() const
-{
-  return {{"E", E}, {"B", B}, {"B0", B0}};
 }
 
 }  // namespace basic

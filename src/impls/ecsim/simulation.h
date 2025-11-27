@@ -24,10 +24,7 @@ public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
-  Vec E;
   Vec Ep;
-  Vec B;
-  Vec B0;
   Vec currI;
 
   /**
@@ -42,9 +39,6 @@ public:
   Mat matL;
 
   std::vector<std::shared_ptr<Particles>> particles_;
-
-  Vec get_named_vector(std::string_view name) const override;
-  NamedValues<Vec> get_backup_fields() const override;
 
   void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
 

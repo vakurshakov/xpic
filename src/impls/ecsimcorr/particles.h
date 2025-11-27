@@ -19,13 +19,6 @@ public:
   PetscErrorCode second_push() override;
   PetscErrorCode final_update();
 
-  using ecsim::Particles::E;
-  using ecsim::Particles::B;
-
-  using ecsim::Particles::local_currI;
-  using ecsim::Particles::global_currI;
-  using ecsim::Particles::currI;
-
   Vec local_currJe;
   Vec global_currJe;
   Vector3R*** currJe;

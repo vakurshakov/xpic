@@ -16,14 +16,7 @@ public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
-  Vec E;
-  Vec B;
-  Vec J;
-
   std::vector<std::shared_ptr<Particles>> particles_;
-
-  Vec get_named_vector(std::string_view name) const override;
-  NamedValues<Vec> get_backup_fields() const override;
 
 protected:
   PetscErrorCode initialize_implementation() override;
@@ -65,7 +58,7 @@ protected:
   Mat matM;
 #endif
 
-  Vec B0;
+  Vec J;
   Vec E_hk;
   Vec E_loc;
   Vec B_loc;

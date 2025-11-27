@@ -21,6 +21,7 @@ int main(int argc, char** argv)
 
   Vec v;
   PetscCall(DMCreateGlobalVector(world.da, &v));
+  PetscCall(PetscObjectSetName((PetscObject)v, "field"));
 
   PetscRandom rnd;
   PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rnd));
@@ -42,7 +43,9 @@ int main(int argc, char** argv)
   };
 
   using Particles = interfaces::Particles;
-  auto particles = std::make_unique<Particles>(world, SortParameters{});
+
+  auto particles = std::make_unique<Particles>(world, //
+    SortParameters{.sort_name = "particles"});
 
   for (const auto& point : prepared_points)
     PetscCall(particles->add_particle(point));
@@ -51,8 +54,8 @@ int main(int argc, char** argv)
 
   /// @note We should create the diagnostic within some scope to properly run the destructors.
   {
-    std::map<std::string, Vec> _fields{{"field", v}};
-    std::map<std::string, Particles*> _particles{{"particles", particles.get()}};
+    std::vector<Vec> _fields{{v}};
+    std::vector<Particles*> _particles{{particles.get()}};
 
     auto&& diag =
       std::make_unique<SimulationBackup>(out_dir, 1, _fields, _particles);

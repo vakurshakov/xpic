@@ -29,6 +29,10 @@ public:
    */
   World world;
 
+  Vec E;
+  Vec B;
+  Vec B0;
+
   /**
    * @brief Container of abstract particles, the down-casted pointers to this
    * particles are stored in each `interfaces::Simulation` inheritor. The actual
@@ -43,15 +47,8 @@ public:
   PetscErrorCode calculate();
   virtual PetscErrorCode finalize();
 
-  virtual Vec get_named_vector(std::string_view name) const = 0;
-  Particles& get_named_particles(std::string_view name) const;
-
-  /// @todo Replace it with `std::vector<Vec>` and `PetscObjectSetName()`
-  template<typename T>
-  using NamedValues = std::map<std::string, T>;
-
-  virtual NamedValues<Vec> get_backup_fields() const = 0;
-  NamedValues<Particles*> get_backup_particles() const;
+  Vec get_named_vector(std::string_view name) const;
+  Particles& get_named_particles(std::string_view name);
 
 protected:
   template<class SimSpec, class PartSpec>

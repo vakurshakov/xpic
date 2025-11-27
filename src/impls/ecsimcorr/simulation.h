@@ -12,19 +12,10 @@ public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
-  using ecsim::Simulation::B;
-  using ecsim::Simulation::B0;
-  using ecsim::Simulation::currI;
-  using ecsim::Simulation::E;
-  using ecsim::Simulation::Ep;
-  using ecsim::Simulation::matL;
-
   Vec Ec;
   Vec currJe;
 
   std::vector<std::shared_ptr<Particles>> particles_;
-
-  Vec get_named_vector(std::string_view name) const override;
 
 private:
   PetscErrorCode initialize_implementation() override;
