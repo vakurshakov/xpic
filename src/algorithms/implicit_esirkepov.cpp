@@ -52,7 +52,7 @@ void ImplicitEsirkepov::Shape::setup(const Vector3R& rn, const Vector3R& r0)
           snz = sfunc_2[k](gc[cz] + (k - 1) - prn[cz]);
           s0z = sfunc_2[k](gc[cz] + (k - 1) - pr0[cz]);
 
-          cache[m++] = shx * (sny * (2.0 * snz + s0z) + s0y * (2.0 * s0z + snz));
+          cache[m++] = shx * (sny * (2 * snz + s0z) + s0y * (2 * s0z + snz));
         }
       }
     }
