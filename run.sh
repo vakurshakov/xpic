@@ -23,10 +23,10 @@ export OMP_DISPLAY_AFFINITY=false  # [true | false],           see https://www.o
 ipcrm --all
 $PETSC_DIR/lib/petsc/bin/petscfreesharedmemory
 
-MPI_NUM_PROC=4
+MPI_NUM_PROC=1
 
 # Running the main executable, namely `xpic.out` 
 $MPI_DIR/bin/mpiexec -n $MPI_NUM_PROC ./build/$build_type/xpic.out $@ \
-    -da_processors_x 2 \
-    -da_processors_y 2 \
+    # -da_processors_x 2 \
+    # -da_processors_y 2 \
     # -da_processors_z 2 \
