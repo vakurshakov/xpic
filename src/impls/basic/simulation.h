@@ -21,9 +21,6 @@ private:
   PetscErrorCode push_particles();
   PetscErrorCode push_fields();
 
-  Vec local_E;
-  Vec local_B;
-
   Mat rotE;
   Mat rotB;
 };

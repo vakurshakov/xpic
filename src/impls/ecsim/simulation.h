@@ -7,8 +7,6 @@
 #include "src/impls/ecsim/particles.h"
 #include "src/utils/sync_clock.h"
 
-using Arr = Vector3R***;
-
 Vector3R interpolate_E_s1(Arr E_g, const Vector3R& coord);
 Vector3R interpolate_B_s1(Arr B_g, const Vector3R& coord);
 
@@ -65,9 +63,6 @@ protected:
 
   PetscErrorCode fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j);
   PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
-
-  Vec local_E;
-  Vec local_B;
 
   Mat rotE;
   Mat rotB;

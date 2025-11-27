@@ -16,8 +16,8 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMCreateGlobalVector(da, &B));
   PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &J));
-  PetscCall(DMCreateLocalVector(da, &local_E));
-  PetscCall(DMCreateLocalVector(da, &local_B));
+  PetscCall(DMCreateLocalVector(da, &E_loc));
+  PetscCall(DMCreateLocalVector(da, &B_loc));
 
   Rotor rotor(da);
   PetscCall(rotor.create_positive(&rotE));
@@ -79,23 +79,21 @@ PetscErrorCode Simulation::push_particles()
     return PETSC_SUCCESS;
 
   DM da = world.da;
-  PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, local_E));
-  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, local_B));
+  PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, E_loc));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
 
-  Vector3R*** arr_E;
-  Vector3R*** arr_B;
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &arr_E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &arr_B));
+  PetscCall(DMDAVecGetArrayRead(da, E_loc, &E_arr));
+  PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
   for (auto& sort : particles_) {
-    sort->E = arr_E;
-    sort->B = arr_B;
+    sort->E = E_arr;
+    sort->B = B_arr;
     PetscCall(sort->push());
     PetscCall(sort->update_cells());
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &arr_E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
+  PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -135,8 +133,8 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&B));
   PetscCall(VecDestroy(&B0));
   PetscCall(VecDestroy(&J));
-  PetscCall(VecDestroy(&local_E));
-  PetscCall(VecDestroy(&local_B));
+  PetscCall(VecDestroy(&E_loc));
+  PetscCall(VecDestroy(&B_loc));
   PetscCall(MatDestroy(&rotE));
   PetscCall(MatDestroy(&rotB));
   PetscFunctionReturn(PETSC_SUCCESS);

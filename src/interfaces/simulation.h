@@ -9,6 +9,8 @@
 
 class EnergyConservation;
 
+using Arr = Vector3R***;
+
 namespace interfaces {
 
 class Simulation {
@@ -32,6 +34,12 @@ public:
   Vec E;
   Vec B;
   Vec B0;
+
+  Vec E_loc;
+  Vec B_loc;
+
+  Arr E_arr;
+  Arr B_arr;
 
   /**
    * @brief Container of abstract particles, the down-casted pointers to this

@@ -60,11 +60,6 @@ protected:
 
   Vec J;
   Vec E_hk;
-  Vec E_loc;
-  Vec B_loc;
-
-  Vector3R*** E_arr;
-  Vector3R*** B_arr;
 
   Mat rotE;
   Mat rotB;

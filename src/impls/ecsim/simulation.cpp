@@ -232,23 +232,21 @@ PetscErrorCode Simulation::second_push()
   PetscCall(PetscLogStagePush(stagenums[4]));
 
   DM da = world.da;
-  PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, local_E));
-  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, local_B));
+  PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, E_loc));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
 
-  Vector3R*** arr_E;
-  Vector3R*** arr_B;
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &arr_E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &arr_B));
+  PetscCall(DMDAVecGetArrayRead(da, E_loc, &E_arr));
+  PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
   for (auto& sort : particles_) {
-    sort->E = arr_E;
-    sort->B = arr_B;
+    sort->E = E_arr;
+    sort->B = B_arr;
     PetscCall(sort->second_push());
     PetscCall(sort->correct_coordinates());
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &arr_E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
+  PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
 
   PetscCall(update_cells_with_assembly());
 
@@ -493,15 +491,15 @@ PetscErrorCode Simulation::fill_ecsim_current(PetscReal* coo_v)
   Vector3R*** arr_B;
 
   DM da = world.da;
-  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, local_B));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &arr_B));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
+  PetscCall(DMDAVecGetArrayRead(da, B_loc, &arr_B));
 
   for (auto& sort : particles_) {
     sort->B = arr_B;
     PetscCall(sort->fill_ecsim_current(coo_v));
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
+  PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &arr_B));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -546,8 +544,8 @@ PetscErrorCode Simulation::init_vectors()
   PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &currI));
 
-  PetscCall(DMCreateLocalVector(da, &local_E));
-  PetscCall(DMCreateLocalVector(da, &local_B));
+  PetscCall(DMCreateLocalVector(da, &E_loc));
+  PetscCall(DMCreateLocalVector(da, &B_loc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -608,8 +606,8 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&B0));
   PetscCall(VecDestroy(&currI));
 
-  PetscCall(VecDestroy(&local_E));
-  PetscCall(VecDestroy(&local_B));
+  PetscCall(VecDestroy(&E_loc));
+  PetscCall(VecDestroy(&B_loc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
