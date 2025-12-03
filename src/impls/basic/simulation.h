@@ -11,7 +11,6 @@ public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
-  Vec J;
   std::vector<std::shared_ptr<Particles>> particles_;
 
 private:

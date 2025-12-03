@@ -12,22 +12,26 @@ class Particles {
 public:
   Particles(const World& world, const SortParameters& parameters);
   virtual ~Particles() = default;
+  static int counter;
 
-  /// @brief Inheritors should override this finalize, to clear the internal petsc data
-  virtual PetscErrorCode finalize()
-  {
-    PetscFunctionBeginUser;
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
+  Arr E_arr;
+  Arr B_arr;
+
+  Vec J;
+  Vec J_loc;
+  Arr J_arr;
 
   /// @brief Reference to outer `interfaces::Simulation::world`.
   const World& world;
+  const DM da;
 
   /// @brief Particles parameters, constant throughout the whole simulation run.
   const SortParameters parameters;
 
   /// @brief Points are stored in a contiguous 3d array of cells.
   std::vector<std::list<Point>> storage;
+
+  virtual PetscErrorCode finalize();
 
   /**
    * @brief The added `point` coordinate is first tested against local

@@ -9,8 +9,6 @@
 
 class EnergyConservation;
 
-using Arr = Vector3R***;
-
 namespace interfaces {
 
 class Simulation {
@@ -20,7 +18,6 @@ public:
   Simulation() = default;
   virtual ~Simulation() = default;
 
-  /// @brief From what timepoint the simulation starts, see `Simulation::calculate()`.
   PetscInt start = 0;
 
   /**
@@ -31,20 +28,26 @@ public:
    */
   World world;
 
+  DM da;
+
   Vec E;
+  Vec E_loc;
+  Arr E_arr;
+
   Vec B;
+  Vec B_loc;
+  Arr B_arr;
+
   Vec B0;
 
-  Vec E_loc;
-  Vec B_loc;
-
-  Arr E_arr;
-  Arr B_arr;
+  Vec J;
+  Vec J_loc;
+  Arr J_arr;
 
   /**
    * @brief Container of abstract particles, the down-casted pointers to this
    * particles are stored in each `interfaces::Simulation` inheritor. The actual
-   * memory for them is shared between `this` and inheritor.
+   * memory for them is shared between `this` and inheritors.
    *
    * @note It is used for general-purpose operations with particles, e.g.
    * `Simulation::get_named_particles()` as it returns `interfaces::Particles&`.

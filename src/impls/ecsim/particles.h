@@ -20,12 +20,9 @@ public:
 
   PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
 
-  Vector3R*** E;
-  Vector3R*** B;
-
-  Vec local_currI;
-  Vec global_currI;
-  Vector3R*** currI;
+  Vec currI;
+  Vec currI_loc;
+  Arr currI_arr;
 
 protected:
   static constexpr const auto& shape_func1 = spline_of_1st_order;

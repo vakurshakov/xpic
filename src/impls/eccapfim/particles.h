@@ -21,13 +21,6 @@ public:
   PetscReal get_average_iteration_number() const;
   PetscReal get_average_number_of_traversed_cells() const;
 
-  Vector3R*** E;
-  Vector3R*** B;
-
-  Vec local_J;
-  Vec global_J;
-  Vector3R*** J;
-
 protected:
   static constexpr const auto& shape_func = spline_of_2nd_order;
   static constexpr const auto& shape_radius = 1.5;

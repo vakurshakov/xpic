@@ -19,9 +19,9 @@ public:
   PetscErrorCode second_push() override;
   PetscErrorCode final_update();
 
-  Vec local_currJe;
-  Vec global_currJe;
-  Vector3R*** currJe;
+  Vec currJe;
+  Vec currJe_loc;
+  Arr currJe_arr;
 
 private:
   static constexpr auto& shape_func2 = spline_of_2nd_order;

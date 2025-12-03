@@ -2,8 +2,6 @@
 
 #include "src/algorithms/crank_nicolson_push.h"
 #include "src/algorithms/implicit_esirkepov.h"
-#include "src/algorithms/simple_decomposition.h"
-#include "src/algorithms/simple_interpolation.h"
 #include "src/impls/eccapfim/cell_traversal.h"
 #include "src/impls/eccapfim/simulation.h"
 
@@ -14,9 +12,8 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
     previous_storage(world.size.elements_product()),
     simulation_(simulation)
 {
-  DM da = world.da;
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &local_J));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &global_J));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &J));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &J_loc));
 }
 
 PetscReal Particles::get_average_iteration_number() const
@@ -33,7 +30,7 @@ PetscReal Particles::get_average_number_of_traversed_cells() const
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(DMDAVecGetArrayWrite(world.da, local_J, &J));
+  PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
 
   avgit = 0.0;
   avgcell = 0.0;
@@ -66,7 +63,7 @@ PetscErrorCode Particles::form_iteration()
       const auto& prev(previous_storage[g][i]);
 
       CrankNicolsonPush push(q_m(prev));
-      ImplicitEsirkepov util(E, B, J);
+      ImplicitEsirkepov util(E_arr, B_arr, J_arr);
 
       push.set_fields_callback(  //
         [&](const Vector3R& rn, const Vector3R& r0, Vector3R& E_p, Vector3R& B_p) {
@@ -118,16 +115,16 @@ PetscErrorCode Particles::form_iteration()
     }
   }
 
-  PetscCall(DMDAVecRestoreArrayWrite(world.da, local_J, &J));
-  PetscCall(DMLocalToGlobal(world.da, local_J, ADD_VALUES, global_J));
+  PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
+  PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecSet(local_J, 0.0));
-  PetscCall(VecSet(global_J, 0.0));
+  PetscCall(VecSet(J, 0.0));
+  PetscCall(VecSet(J_loc, 0.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -152,8 +149,8 @@ PetscErrorCode Particles::prepare_storage()
 PetscErrorCode Particles::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecDestroy(&local_J));
-  PetscCall(VecDestroy(&global_J));
+  PetscCall(VecDestroy(&J));
+  PetscCall(VecDestroy(&J_loc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

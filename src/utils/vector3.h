@@ -230,6 +230,8 @@ struct Vector3 {
 using Vector3R = Vector3<PetscReal>;
 using Vector3I = Vector3<PetscInt>;
 
+using Arr = Vector3R***;
+
 template<typename T>
 Vector3<T> operator*(const Vector3<T>& vector, T scalar)
 {

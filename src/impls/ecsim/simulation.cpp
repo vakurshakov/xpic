@@ -1,7 +1,5 @@
 #include "simulation.h"
 
-#include "src/diagnostics/energy_conservation.h"
-#include "src/diagnostics/momentum_conservation.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
@@ -136,18 +134,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_ksp_solvers());
   PetscCall(init_particles());
 
-  std::vector<const interfaces::Particles*> sorts;
-  for (const auto& sort : particles_) {
-    sorts.emplace_back(sort.get());
-  }
-
-  diagnostics_.emplace_back(
-    std::make_unique<MomentumConservation>(world.da, E, sorts));
-
-  auto&& e_diag = std::make_unique<Energy>(E, B, sorts);
-
-  diagnostics_.emplace_back(
-    std::make_unique<EnergyConservation>(*this, std::move(e_diag)));
+  J = currI;
 
   PetscCall(PetscLogStagePop());
   PetscCall(init_clock.pop());
@@ -231,7 +218,6 @@ PetscErrorCode Simulation::second_push()
   PetscCall(clock.push(__FUNCTION__));
   PetscCall(PetscLogStagePush(stagenums[4]));
 
-  DM da = world.da;
   PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, E_loc));
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
 
@@ -239,8 +225,8 @@ PetscErrorCode Simulation::second_push()
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
   for (auto& sort : particles_) {
-    sort->E = E_arr;
-    sort->B = B_arr;
+    sort->E_arr = E_arr;
+    sort->B_arr = B_arr;
     PetscCall(sort->second_push());
     PetscCall(sort->correct_coordinates());
   }
@@ -273,7 +259,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 {
   PetscFunctionBeginUser;
   Vec rhs;
-  PetscCall(DMGetGlobalVector(world.da, &rhs));
+  PetscCall(DMGetGlobalVector(da, &rhs));
   PetscCall(VecAXPY(B, -1, B0));
 
   PetscCall(VecCopy(curr, rhs));
@@ -284,7 +270,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
   PetscCall(KSPGetSolution(ksp, &out));
 
   PetscCall(VecAXPY(B, +1, B0));
-  PetscCall(DMRestoreGlobalVector(world.da, &rhs));
+  PetscCall(DMRestoreGlobalVector(da, &rhs));
 
   // Convergence analysis
   const char* name;
@@ -488,18 +474,15 @@ PetscErrorCode Simulation::fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j)
 PetscErrorCode Simulation::fill_ecsim_current(PetscReal* coo_v)
 {
   PetscFunctionBeginUser;
-  Vector3R*** arr_B;
-
-  DM da = world.da;
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
-  PetscCall(DMDAVecGetArrayRead(da, B_loc, &arr_B));
+  PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
   for (auto& sort : particles_) {
-    sort->B = arr_B;
+    sort->B_arr = B_arr;
     PetscCall(sort->fill_ecsim_current(coo_v));
   }
 
-  PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &arr_B));
+  PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -537,7 +520,6 @@ PetscErrorCode Simulation::init_particles()
 PetscErrorCode Simulation::init_vectors()
 {
   PetscFunctionBeginUser;
-  DM da = world.da;
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &Ep));
   PetscCall(DMCreateGlobalVector(da, &B));
@@ -552,7 +534,6 @@ PetscErrorCode Simulation::init_vectors()
 PetscErrorCode Simulation::init_matrices()
 {
   PetscFunctionBeginUser;
-  DM da = world.da;
   PetscCall(DMSetMatrixPreallocateOnly(da, PETSC_FALSE));
   PetscCall(DMSetMatrixPreallocateSkip(da, PETSC_TRUE));
 

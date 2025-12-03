@@ -1,6 +1,5 @@
 #include "simulation.h"
 
-#include "src/diagnostics/charge_conservation.h"
 #include "src/impls/ecsimcorr/energy_conservation.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
@@ -14,31 +13,10 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionBeginUser;
   PetscCall(ecsim::Simulation::initialize_implementation());
 
-  SyncClock init_clock;
-  PetscCall(init_clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[0]));
+  J = currJe;
 
-  std::vector<Vec> currents;
-  std::vector<const interfaces::Particles*> particles;
-  for (const auto& sort : particles_) {
-    currents.emplace_back(sort->global_currJe);
-    particles.emplace_back(sort.get());
-  }
-  currents.emplace_back(currJe);
-
-  // EnergyConservation from ecsim
-  auto& diag = diagnostics_.back();
-  PetscCall(diag->finalize());
-  diagnostics_.pop_back();
-
-  // clang-format off
+  /// @todo This would work incorrectly, shared pointers should be used for this
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
-  diagnostics_.emplace_back(std::make_unique<ChargeConservation>(world.da, currents, particles));
-  // clang-format on
-
-  PetscCall(PetscLogStagePop());
-  PetscCall(init_clock.pop());
-  LOG("Initialization of ecsimcorr took {:6.4e} seconds", init_clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

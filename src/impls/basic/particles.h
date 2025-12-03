@@ -13,15 +13,7 @@ class Particles final : public interfaces::Particles {
 public:
   Particles(Simulation& simulation, const SortParameters& parameters);
   PetscErrorCode finalize() override;
-
   PetscErrorCode push();
-
-  Vector3R*** E;
-  Vector3R*** B;
-
-  Vec global_J;
-  Vec local_J;
-  Vector3R*** J;
 
   Simulation& simulation_;
 

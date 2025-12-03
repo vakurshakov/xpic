@@ -2,6 +2,9 @@
 
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
+#include "src/diagnostics/charge_conservation.h"
+#include "src/diagnostics/energy_conservation.h"
+#include "src/diagnostics/momentum_conservation.h"
 #include "src/impls/basic/simulation.h"
 #include "src/impls/eccapfim/simulation.h"
 #include "src/impls/ecsim/simulation.h"
@@ -16,12 +19,33 @@ PetscErrorCode Simulation::initialize()
   PetscCall(world.initialize());
   PetscCall(log_information());
 
+  da = world.da;
+
   LOG("Running initialize implementation");
   PetscCall(initialize_implementation());
 
   PetscCall(PetscObjectSetName((PetscObject)E, "E"));
   PetscCall(PetscObjectSetName((PetscObject)B, "B"));
+  PetscCall(PetscObjectSetName((PetscObject)J, "J"));
   PetscCall(PetscObjectSetName((PetscObject)B0, "B0"));
+
+  std::vector<Vec> currents;
+  std::vector<const interfaces::Particles*> particles;
+  for (const auto& sort : particles_) {
+    currents.emplace_back(sort->J);
+    particles.emplace_back(sort.get());
+  }
+  currents.emplace_back(J);
+
+  diagnostics_.emplace_back( //
+    std::make_unique<EnergyConservation>(
+      *this, std::move(std::make_unique<Energy>(E, B, particles))));
+
+  diagnostics_.emplace_back(
+    std::make_unique<ChargeConservation>(da, currents, particles));
+
+  diagnostics_.emplace_back(
+    std::make_unique<MomentumConservation>(da, E, particles));
 
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));

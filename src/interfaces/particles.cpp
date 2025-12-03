@@ -32,7 +32,7 @@ constexpr PetscMPIInt get_neighbor(PetscInt i, const World& world)
 
 
 Particles::Particles(const World& world, const SortParameters& parameters)
-  : world(world), parameters(parameters), storage(world.size.elements_product())
+  : world(world), da(world.da), parameters(parameters), storage(world.size.elements_product())
 {
   PetscMPIInt size;
   PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_size(PETSC_COMM_WORLD, &size));
@@ -335,6 +335,12 @@ PetscErrorCode Particles::correct_coordinates(Point& point)
     g_bound_periodic(point, Y);
   if (world.bounds[Z] == DM_BOUNDARY_PERIODIC)
     g_bound_periodic(point, Z);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Particles::finalize()
+{
+  PetscFunctionBeginUser;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

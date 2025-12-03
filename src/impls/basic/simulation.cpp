@@ -11,7 +11,6 @@ namespace basic {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-  DM da = world.da;
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &B));
   PetscCall(DMCreateGlobalVector(da, &B0));
@@ -28,27 +27,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(MatScale(rotB, +(1.0 * dt)));
 
   PetscCall(init_particles(*this, particles_));
-
-  std::vector<Vec> currents;
-  std::vector<const interfaces::Particles*> sorts;
-  for (const auto& sort : particles_) {
-    currents.emplace_back(sort->global_J);
-    sorts.emplace_back(sort.get());
-  }
-  currents.emplace_back(J);
-
-  if (!currents.empty() && !sorts.empty()) {
-    auto&& e_diag = std::make_unique<Energy>(E, B, sorts);
-
-    diagnostics_.emplace_back(
-      std::make_unique<EnergyConservation>(*this, std::move(e_diag)));
-
-    diagnostics_.emplace_back(
-      std::make_unique<ChargeConservation>(world.da, currents, sorts));
-
-    diagnostics_.emplace_back(
-      std::make_unique<MomentumConservation>(world.da, E, sorts));
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -58,8 +36,8 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscCall(VecSet(J, 0.0));
 
   for (auto& sort : particles_) {
-    PetscCall(VecSet(sort->global_J, 0.0));
-    PetscCall(VecSet(sort->local_J, 0.0));
+    PetscCall(VecSet(sort->J, 0.0));
+    PetscCall(VecSet(sort->J_loc, 0.0));
   }
 
   PetscCall(push_particles());
@@ -78,7 +56,6 @@ PetscErrorCode Simulation::push_particles()
   if (particles_.empty())
     return PETSC_SUCCESS;
 
-  DM da = world.da;
   PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, E_loc));
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
 
@@ -86,8 +63,8 @@ PetscErrorCode Simulation::push_particles()
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
   for (auto& sort : particles_) {
-    sort->E = E_arr;
-    sort->B = B_arr;
+    sort->E_arr = E_arr;
+    sort->B_arr = B_arr;
     PetscCall(sort->push());
     PetscCall(sort->update_cells());
   }
@@ -102,7 +79,7 @@ PetscErrorCode Simulation::push_fields()
   PetscFunctionBeginUser;
   Vec util;
   PetscReal norm;
-  PetscCall(DMGetGlobalVector(world.da, &util));
+  PetscCall(DMGetGlobalVector(da, &util));
 
   PetscCall(VecSet(util, 0.0));
   PetscCall(VecCopy(E, util));
@@ -121,7 +98,7 @@ PetscErrorCode Simulation::push_fields()
   PetscCall(VecNorm(util, NORM_2, &norm));
   LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
 
-  PetscCall(DMRestoreGlobalVector(world.da, &util));
+  PetscCall(DMRestoreGlobalVector(da, &util));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

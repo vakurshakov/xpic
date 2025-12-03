@@ -10,16 +10,14 @@ namespace basic {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
-  DM da = world.da;
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &global_J));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &local_J));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &J));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &J_loc));
 }
 
 PetscErrorCode Particles::push()
 {
   PetscFunctionBeginUser;
-  DM da = world.da;
-  PetscCall(DMDAVecGetArrayWrite(da, local_J, &J));
+  PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& cell : storage) {
@@ -36,7 +34,7 @@ PetscErrorCode Particles::push()
 
       Vector3R E_p, B_p;
       SimpleInterpolation interpolation(shape);
-      interpolation.process({{E_p, E}}, {{B_p, B}});
+      interpolation.process({{E_p, E_arr}}, {{B_p, B_arr}});
 
       push.set_fields(E_p, B_p);
       push.update_vEB(dt, point);
@@ -44,21 +42,21 @@ PetscErrorCode Particles::push()
 
       shape.setup(old_r, point.r, shr, sfunc);
       EsirkepovDecomposition decomposition(shape, qn_Np(point) / (6.0 * dt));
-      decomposition.process(J);
+      decomposition.process(J_arr);
     }
   }
 
-  PetscCall(DMDAVecRestoreArrayWrite(da, local_J, &J));
-  PetscCall(DMLocalToGlobal(da, local_J, ADD_VALUES, global_J));
-  PetscCall(VecAXPY(simulation_.J, 1.0, global_J));
+  PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
+  PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
+  PetscCall(VecAXPY(simulation_.J, 1.0, J));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecDestroy(&global_J));
-  PetscCall(VecDestroy(&local_J));
+  PetscCall(VecDestroy(&J));
+  PetscCall(VecDestroy(&J_loc));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
