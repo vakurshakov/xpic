@@ -57,12 +57,18 @@ PetscErrorCode Energy::calculate_energies()
   std_E = std::sqrt((w_E - 0.5 * mean_E.squared() / g3) / g3);
   std_B = std::sqrt((w_B - 0.5 * mean_B.squared() / g3) / g3);
 
+  PetscReal frac, m, mpw, vx, vy, vz, w;
+  PetscInt n;
+
   for (std::size_t i = 0; i < particles.size(); ++i) {
     auto&& sort = particles[i];
 
-    PetscReal frac = 0.5 * sort->parameters.m / sort->parameters.Np;
-    PetscReal vx = 0.0, vy = 0.0, vz = 0.0, w = 0.0;
-    PetscInt n = 0;
+    m = sort->parameters.m;
+    mpw = sort->parameters.n / (PetscReal)sort->parameters.Np;
+
+    frac = 0.5 * m * mpw;
+    vx = vy = vz = w = 0.0;
+    n = 0;
 
 #pragma omp parallel for reduction(+ : vx, vy, vz, w, n)
     for (auto&& cell : sort->storage) {
