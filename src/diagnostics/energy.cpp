@@ -54,8 +54,8 @@ PetscErrorCode Energy::calculate_energies()
   PetscCall(VecStrideSumAll(B, mean_B));
 
   PetscReal g3 = (geom_nx * geom_ny * geom_nz);
-  std_E = std::sqrt((w_E - 0.5 * mean_E.squared() / g3) / g3);
-  std_B = std::sqrt((w_B - 0.5 * mean_B.squared() / g3) / g3);
+  std_E = sqrt((w_E - 0.5 * mean_E.squared() / g3) / g3);
+  std_B = sqrt((w_B - 0.5 * mean_B.squared() / g3) / g3);
 
   PetscReal frac, m, mpw, vx, vy, vz, w;
   PetscInt n;
@@ -83,22 +83,16 @@ PetscErrorCode Energy::calculate_energies()
     }
 
     w_K[i] = frac * w;
-    std_K[i] =
-      frac * std::sqrt(std::abs(w - Vector3R{vx, vy, vz}.squared() / n) / n);
+
+    PetscReal v[4] = {vx, vy, vz, w};
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, v, 4, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &n, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+
+    PetscReal s = v[3] - (v[X] * v[X] + v[Y] * v[Y] + v[Z] * v[Z]) / n;
+    std_K[i] = frac * sqrt(abs(s) / n);
   }
 
-  std::vector<PetscReal> buf(2 * particles.size());
-
-  for (std::size_t i = 0; i < particles.size(); ++i) {
-    buf[i * 2 + 0] = w_K[i];
-    buf[i * 2 + 1] = std_K[i];
-  }
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, buf.data(), buf.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-
-  for (std::size_t i = 0; i < buf.size(); i += 2) {
-    w_K[i / 2] = buf[i + 0];
-    std_K[i / 2] = buf[i + 1];
-  }
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, w_K.data(), w_K.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
