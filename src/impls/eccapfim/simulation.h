@@ -58,7 +58,6 @@ protected:
   Mat matM;
 #endif
 
-  Vec J;
   Vec E_hk;
 
   Mat rotE;
