@@ -37,9 +37,19 @@ PetscErrorCode Simulation::initialize()
   }
   currents.emplace_back(J);
 
-  diagnostics_.emplace_back( //
-    std::make_unique<EnergyConservation>(
-      *this, std::move(std::make_unique<Energy>(E, B, particles))));
+  /// @todo Use a shared pointers for diagnostics
+  bool append_energy_conservation = true;
+
+  for (auto& diagnostic : diagnostics_) {
+    if (dynamic_cast<EnergyConservation*>(diagnostic.get()))
+      append_energy_conservation = false;
+  }
+
+  if (append_energy_conservation) {
+    diagnostics_.emplace_back( //
+      std::make_unique<EnergyConservation>(
+        *this, std::move(std::make_unique<Energy>(E, B, particles))));
+  }
 
   diagnostics_.emplace_back(
     std::make_unique<ChargeConservation>(da, currents, particles));

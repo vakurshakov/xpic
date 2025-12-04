@@ -15,7 +15,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   J = currJe;
 
-  /// @todo This would work incorrectly, shared pointers should be used for this
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
