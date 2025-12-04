@@ -58,7 +58,7 @@ DriftKineticEsirkepov::DriftKineticEsirkepov(
 DriftKineticEsirkepov::DriftKineticEsirkepov(
   Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** M_g, //
   Vector3R*** dBidx_g, Vector3R*** dBidy_g, Vector3R*** dBidz_g)
-  : E_g(E_g), B_g(B_g), J_g(J_g)
+  : E_g(E_g), B_g(B_g), J_g(J_g), M_g(M_g)
 {
   set_dBidrj(dBidx_g, dBidy_g, dBidz_g);
 }
@@ -93,7 +93,8 @@ PetscErrorCode DriftKineticEsirkepov::set_dBidrj(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode DriftKineticEsirkepov::interpolate_E(Vector3R& E_p, const Vector3R& Rsn, const Vector3R& Rs0)
+PetscErrorCode DriftKineticEsirkepov::interpolate_E
+(Vector3R& E_p, const Vector3R& Rsn, const Vector3R& Rs0)
 {
   PetscFunctionBeginHot;
 
@@ -115,13 +116,14 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_E(Vector3R& E_p, const Vector3
     p_Rsn[Z] != p_Rs0[Z] ? p_Rsn[Z] - p_Rs0[Z] : 1.0,
   };
 
+  PetscInt shr = 2;
   Vector3I p_g{
-    (PetscInt)std::round(p_Rsn[X]) - 2,
-    (PetscInt)std::round(p_Rsn[Y]) - 2,
-    (PetscInt)std::round(p_Rsn[Z]) - 2,
+    (PetscInt)std::round(p_Rsn[X]) - shr,
+    (PetscInt)std::round(p_Rsn[Y]) - shr,
+    (PetscInt)std::round(p_Rsn[Z]) - shr,
   };
 
-  PetscInt shw = 2 * 2 + 1;
+  PetscInt shw = 2 * shr + 1;
 
   for (PetscInt i = 0; i < POW3(shw); ++i) {
     PetscInt g_x = p_g[X] + i % shw;
@@ -159,7 +161,8 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_B(Vector3R& B_p, const Vector3
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(Vector3R& gradB_p, Vector3R& b_p, const Vector3R& Rsn, const Vector3R& Rs0){
+PetscErrorCode DriftKineticEsirkepov::interpolate_gradB
+(Vector3R& gradB_p, Vector3R& b_p, const Vector3R& Rsn, const Vector3R& Rs0){
   PetscFunctionBeginHot;
 
   Vector3R p_Rsn{
@@ -199,13 +202,14 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(Vector3R& gradB_p, Vecto
     (PetscInt)std::round(p_Rsmid[Z]),
   };
 
+  PetscInt shr = 2;
   Vector3I p_g{
-    (PetscInt)std::round(p_Rsmid[X]) - 2,
-    (PetscInt)std::round(p_Rsmid[Y]) - 2,
-    (PetscInt)std::round(p_Rsmid[Z]) - 2,
+    (PetscInt)std::round(p_Rsmid[X]) - shr,
+    (PetscInt)std::round(p_Rsmid[Y]) - shr,
+    (PetscInt)std::round(p_Rsmid[Z]) - shr,
   };
 
-  PetscInt shw = 2 * 1.5 + 1;
+  PetscInt shw = 2 * shr + 1;
 
   for (PetscInt i = 0; i < POW3(shw); ++i) {
     PetscInt g_x = p_g[X] + i % shw;
@@ -287,3 +291,95 @@ PetscErrorCode DriftKineticEsirkepov::interpolate(Vector3R& E_p, Vector3R& B_p,
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode DriftKineticEsirkepov::decomposition_J
+(const Vector3R& Rsn, const Vector3R& Rs0, const Vector3R& Vp, PetscReal q_p)
+{
+  PetscFunctionBeginHot;
+  Vector3R p_Rsn{
+    Rsn[X] / dx,
+    Rsn[Y] / dy,
+    Rsn[Z] / dz,
+  };
+
+  Vector3R p_Rs0{
+    Rs0[X] / dx,
+    Rs0[Y] / dy,
+    Rs0[Z] / dz,
+  };
+
+  Vector3R p_dR{
+    p_Rsn[X] != p_Rs0[X] ? p_Rsn[X] - p_Rs0[X] : 1.0,
+    p_Rsn[Y] != p_Rs0[Y] ? p_Rsn[Y] - p_Rs0[Y] : 1.0,
+    p_Rsn[Z] != p_Rs0[Z] ? p_Rsn[Z] - p_Rs0[Z] : 1.0,
+  };
+
+  PetscInt shr = 2;
+  PetscInt shw = 2 * shr + 1;
+
+  Vector3I p_g{
+    (PetscInt)std::floor(p_Rsn[X]) - shr,
+    (PetscInt)std::floor(p_Rsn[Y]) - shr,
+    (PetscInt)std::floor(p_Rsn[Z]) - shr,
+  };
+
+  for (PetscInt i = 0; i < POW3(shw); ++i) {
+    PetscInt g_x = p_g[X] + i % shw;
+    PetscInt g_y = p_g[Y] + (i / shw) % shw;
+    PetscInt g_z = p_g[Z] + (i / shw) / shw;
+
+    Vector3R J_p;
+
+    // clang-format off
+    J_p[X] = q_p * Vp[X] * alpha * p_dR[X] * sfunc1(g_x + 0.5 - 0.5 * (p_Rsn[X] + p_Rs0[X])) *
+        sfuncE(g_y - p_Rs0[Y], g_y - p_Rsn[Y], g_z - p_Rs0[Z], g_z - p_Rsn[Z]);
+
+    J_p[Y] = q_p * Vp[Y] * alpha * p_dR[Y] * sfunc1(g_y + 0.5 - 0.5 * (p_Rsn[Y] + p_Rs0[Y])) *
+        sfuncE(g_z - p_Rs0[Z], g_z - p_Rsn[Z], g_x - p_Rs0[X], g_x - p_Rsn[X]);
+
+    J_p[Z] = q_p * Vp[Z] * alpha * p_dR[Z] * sfunc1(g_z + 0.5 - 0.5 * (p_Rsn[Z] + p_Rs0[Z])) *
+        sfuncE(g_x - p_Rs0[X], g_x - p_Rsn[X], g_y - p_Rs0[Y], g_y - p_Rsn[Y]);
+    // clang-format on
+
+#pragma omp atomic
+    J_g[g_z][g_y][g_x][X] += J_p[X];
+
+#pragma omp atomic
+    J_g[g_z][g_y][g_x][Y] += J_p[Y];
+
+#pragma omp atomic
+    J_g[g_z][g_y][g_x][Z] += J_p[Z];
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+} 
+
+PetscErrorCode DriftKineticEsirkepov::decomposition_M
+(const Vector3R& Rsn, PetscReal mu_p)
+{
+  PetscFunctionBeginHot;
+  ::Shape shape;
+  shape.setup(Rsn, 1., sfunc1);
+
+  Vector3R B_p = {};
+  interpolate_B(B_p, Rsn);
+  Vector3R b_p = B_p.normalized();
+
+  PetscFunctionBeginHot;
+  for (PetscInt i = 0; i < shape.size.elements_product(); ++i) {
+    PetscInt g_x = shape.start[X] + i % shape.size[X];
+    PetscInt g_y = shape.start[Y] + (i / shape.size[X]) % shape.size[Y];
+    PetscInt g_z = shape.start[Z] + (i / shape.size[X]) / shape.size[Y];
+
+    Vector3R M_shape = shape.magnetic(i);
+
+  #pragma omp atomic update
+    M_g[g_z][g_y][g_x][X] += mu_p * b_p.x() * M_shape.x();
+
+  #pragma omp atomic update
+    M_g[g_z][g_y][g_x][Y] += mu_p * b_p.y() * M_shape.y();
+
+  #pragma omp atomic update
+    M_g[g_z][g_y][g_x][Z] += mu_p * b_p.z() * M_shape.z();
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+} 

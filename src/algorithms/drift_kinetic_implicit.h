@@ -21,7 +21,13 @@ public:
 
   PetscErrorCode interpolate_E(Vector3R& E_p, const Vector3R& rn, const Vector3R& r0);
   PetscErrorCode interpolate_B(Vector3R& B_p, const Vector3R& rn);
-  PetscErrorCode interpolate_gradB(Vector3R& gradB_p, Vector3R& b_p, const Vector3R& rn, const Vector3R& r0);
+  PetscErrorCode interpolate_gradB(Vector3R& gradB_p, Vector3R& b_p, //
+  const Vector3R& rn, const Vector3R& r0);
+
+  PetscErrorCode decomposition_J(const Vector3R& Rsn, const Vector3R& Rs0,//
+  const Vector3R& Vp, PetscReal q_p);
+
+  PetscErrorCode decomposition_M(const Vector3R& Rsn, PetscReal mu_p);
 
 private:
   Vector3R*** dBidx_g = nullptr;
