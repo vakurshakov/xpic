@@ -9,6 +9,7 @@
 #include "src/utils/world.h"
 #include "tests/common.h"
 #include "src/utils/configuration.h"
+#include "src/impls/eccapfim/cell_traversal.h"
 
 constexpr PetscReal q = -1.0;
 constexpr PetscReal m = +1.0;
@@ -221,6 +222,160 @@ void overwrite_config(//
   });
 }
 
+std::vector<Vector3R> cell_traversal_old(const Vector3R& end, const Vector3R& start)
+{
+  Vector3I curr{
+    (PetscInt)std::round(start[X] / dx),
+    (PetscInt)std::round(start[Y] / dy),
+    (PetscInt)std::round(start[Z] / dz),
+  };
+
+  Vector3I last{
+    (PetscInt)std::round(end[X] / dx),
+    (PetscInt)std::round(end[Y] / dy),
+    (PetscInt)std::round(end[Z] / dz),
+  };
+
+  if (curr == last) {
+    return {start, end};
+  }
+
+  Vector3R dir = (end - start);
+  PetscInt sx = dir[X] > 0 ? 1 : -1;
+  PetscInt sy = dir[Y] > 0 ? 1 : -1;
+  PetscInt sz = dir[Z] > 0 ? 1 : -1;
+
+  Vector3R next{
+    (curr[X] + sx * 0.5) * dx,
+    (curr[Y] + sy * 0.5) * dy,
+    (curr[Z] + sz * 0.5) * dz,
+  };
+
+  static const PetscReal max = std::numeric_limits<double>::max();
+
+  PetscReal t;
+  PetscReal tx = (dir[X] != 0) ? (next[X] - start[X]) / dir[X] : max;
+  PetscReal ty = (dir[Y] != 0) ? (next[Y] - start[Y]) / dir[Y] : max;
+  PetscReal tz = (dir[Z] != 0) ? (next[Z] - start[Z]) / dir[Z] : max;
+
+  PetscReal dtx = (dir[X] != 0) ? dx / dir[X] * sx : 0.0;
+  PetscReal dty = (dir[Y] != 0) ? dy / dir[Y] * sy : 0.0;
+  PetscReal dtz = (dir[Z] != 0) ? dz / dir[Z] * sz : 0.0;
+
+  std::vector<Vector3R> points;
+  points.push_back(start);
+
+  constexpr PetscReal eps = 1e-12;
+  auto push_unique = [&](std::vector<Vector3R>& pts, const Vector3R& p) {
+    if (pts.empty() || (p - pts.back()).length() > eps * (1.0 + dir.length())) {
+      pts.push_back(p);
+    }
+  };
+
+  while (curr != last) {
+    if (tx < ty) {
+      if (tx < tz) {
+        t = tx;
+        curr[X] += sx;
+        tx += dtx;
+      }
+      else {
+        t = tz;
+        curr[Z] += sz;
+        tz += dtz;
+      }
+    }
+    else {
+      if (ty < tz) {
+        t = ty;
+        curr[Y] += sy;
+        ty += dty;
+      }
+      else {
+        t = tz;
+        curr[Z] += sz;
+        tz += dtz;
+      }
+    }
+    push_unique(points, start + dir * t);
+  }
+
+  push_unique(points, end);
+  return points;
+}
+
+/// @brief Splits a straight segment into intersections with cell faces aligned to dx, dy, dz.
+std::vector<Vector3R> cell_traversal_new(const Vector3R& end, const Vector3R& start)
+{
+  constexpr PetscReal eps = 1e-12;
+
+  Vector3R dir = end - start;
+  if (dir.squared() < eps) {
+    return {start, end};
+  }
+
+  auto init_axis = [&](PetscReal spacing, PetscReal s, PetscReal d,
+                       PetscReal& t_max, PetscReal& t_delta) {
+    if (std::abs(d) < eps) {
+      t_max = std::numeric_limits<PetscReal>::max();
+      t_delta = 0.0;
+      return;
+    }
+
+    // Shift away from exact boundaries to avoid zero-length steps.
+    PetscReal shifted = d > 0 ? (s + eps) : (s - eps);
+    PetscReal boundary = (d > 0)
+      ? std::ceil(shifted / spacing) * spacing
+      : std::floor(shifted / spacing) * spacing;
+
+    t_max = (boundary - s) / d;                // parametric distance to the next plane
+    t_delta = spacing / std::abs(d);           // parametric step between successive planes
+  };
+
+  PetscReal tx, ty, tz;
+  PetscReal dtx, dty, dtz;
+  init_axis(dx, start[X], dir[X], tx, dtx);
+  init_axis(dy, start[Y], dir[Y], ty, dty);
+  init_axis(dz, start[Z], dir[Z], tz, dtz);
+
+  auto nearly_equal = [&](PetscReal a, PetscReal b) {
+    return std::abs(a - b) <= eps;
+  };
+
+  auto push_unique = [&](std::vector<Vector3R>& pts, const Vector3R& p) {
+    if (pts.empty() || (p - pts.back()).length() > eps * (1.0 + dir.length())) {
+      pts.push_back(p);
+    }
+  };
+
+  std::vector<Vector3R> points;
+  points.reserve(8);
+  points.push_back(start);
+
+  while (true) {
+    PetscReal t_next = std::min({tx, ty, tz});
+    if (t_next >= 1.0 - eps) {
+      break;
+    }
+
+    Vector3R p = start + dir * t_next;
+    push_unique(points, p);
+
+    if (std::abs(dir[X]) >= eps && nearly_equal(t_next, tx)) {
+      tx += dtx;
+    }
+    if (std::abs(dir[Y]) >= eps && nearly_equal(t_next, ty)) {
+      ty += dty;
+    }
+    if (std::abs(dir[Z]) >= eps && nearly_equal(t_next, tz)) {
+      tz += dtz;
+    }
+  }
+
+  push_unique(points, end);
+  return points;
+}
+
 class FieldContext {
 public:
   World world;
@@ -252,9 +407,9 @@ public:
     PetscCall(DMCreateLocalVector(da, &E_vec));
     PetscCall(DMCreateLocalVector(da, &B_vec));
     PetscCall(DMCreateLocalVector(da, &gradB_vec));
-    PetscCall(DMCreateGlobalVector(da, &dBdx_vec));
-    PetscCall(DMCreateGlobalVector(da, &dBdy_vec));
-    PetscCall(DMCreateGlobalVector(da, &dBdz_vec));
+    PetscCall(DMCreateLocalVector(da, &dBdx_vec));
+    PetscCall(DMCreateLocalVector(da, &dBdy_vec));
+    PetscCall(DMCreateLocalVector(da, &dBdz_vec));
 
     PetscCall(DMDAVecGetArrayWrite(world.da, E_vec, &E_arr));
     PetscCall(DMDAVecGetArrayWrite(world.da, B_vec, &B_arr));
@@ -270,9 +425,9 @@ public:
 
     PetscInt i, j, k;
 
-    for (k = world.start[Z]; k < world.end[Z]+1; ++k) {
-      for (j = world.start[Y]; j < world.end[Y]+1; ++j) {
-        for (i = world.start[X]; i < world.end[X]+1; ++i) {
+    for (k = world.gstart[Z]; k < world.gend[Z]; ++k) {
+      for (j = world.gstart[Y]; j < world.gend[Y]; ++j) {
+        for (i = world.gstart[X]; i < world.gend[X]; ++i) {
           fill_func(i, j, k, E_arr[k][j][i], B_arr[k][j][i], gradB_arr[k][j][i]);
         }
       }
@@ -450,3 +605,93 @@ PetscErrorCode print_statistics(ComparisonStats& stats,
 }
 
 }  // namespace drift_kinetic_test_utils
+
+namespace implicit_test_utils {
+
+  using namespace drift_kinetic_test_utils;
+
+  using FieldFn = std::function<void(const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
+
+  struct InterpCase {
+    Vector3R r0;
+    Vector3R rn;
+    FieldFn analytic_fn;
+    FieldFn grid_fn;
+  };
+
+  PetscErrorCode interpolation_test(const InterpCase& test_param) {
+    PetscFunctionBeginUser;
+
+    overwrite_config(5.0, 5.0, 5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+
+    FieldContext context;
+
+    PetscCall(context.initialize([&](PetscInt i, PetscInt j, PetscInt k, Vector3R& E_g, Vector3R& B_g, Vector3R& gradB_g) {
+      test_param.grid_fn(Vector3R(i * dx, j * dy, k * dz), E_g, B_g, gradB_g);
+    }));
+
+    DriftKineticEsirkepov esirkepov(
+      context.E_arr, context.B_arr, nullptr, nullptr);
+
+    esirkepov.set_dBidrj(context.dBdx_arr, context.dBdy_arr, context.dBdz_arr);
+
+    Vector3R pos_old(test_param.r0);
+    Vector3R pos_new(test_param.rn);
+
+    Vector3R E_p, B_p, gradB_p;
+    Vector3R Es_p, Bs_p, gradBs_p;
+    Vector3R E_dummy, B_dummy, gradB_dummy;
+
+    Vector3R pos = (pos_new - pos_old);
+
+    auto coords = cell_traversal_new(pos_new, pos_old);
+
+    PetscInt Nsegments = (PetscInt)coords.size() - 1;
+
+    pos[X] = pos[X] != 0 ? pos[X] / dx : Nsegments;
+    pos[Y] = pos[Y] != 0 ? pos[Y] / dy : Nsegments;
+    pos[Z] = pos[Z] != 0 ? pos[Z] / dz : Nsegments;
+
+    esirkepov.interpolate(E_dummy, B_p, gradB_dummy, pos_new, pos_old);
+
+    for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
+      auto&& rs0 = coords[s - 1];
+      auto&& rsn = coords[s - 0];
+
+      esirkepov.interpolate(Es_p, B_dummy, gradBs_p, rsn, rs0);
+
+      E_p += Es_p;
+      gradB_p += gradBs_p;
+    }
+    E_p = E_p.elementwise_division(pos);
+    gradB_p = gradB_p.elementwise_division(pos);
+
+    Vector3R E_e, B_e, gradB_e;
+    test_param.analytic_fn(pos_new, E_e, B_e, gradB_e);
+
+  #if 1
+    LOG("Test position: ({:.3f}, {:.3f}, {:.3f})", REP3_A(pos_new));
+    LOG("Electric field:");
+    LOG("  Expected:     ({:.6f}, {:.6f}, {:.6f})", REP3_A(E_e));
+    LOG("  Interpolated: ({:.6f}, {:.6f}, {:.6f})", REP3_A(E_p));
+    LOG("Magnetic field:");
+    LOG("  Expected:     ({:.6f}, {:.6f}, {:.6f})", REP3_A(B_e));
+    LOG("  Interpolated: ({:.6f}, {:.6f}, {:.6f})", REP3_A(B_p));
+    LOG("Gradient B field:");
+    LOG("  Expected:     ({:.6f}, {:.6f}, {:.6f})", REP3_A(gradB_e));
+    LOG("  Interpolated: ({:.6f}, {:.6f}, {:.6f})", REP3_A(gradB_p));
+  #endif
+    PetscCheck(equal_tol(E_p, E_e, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Electric field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(E_e), REP3_A(E_p));
+
+    PetscCheck(equal_tol(B_p, B_e, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Magnetic field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(B_e), REP3_A(B_p));
+
+    PetscCheck(equal_tol(gradB_p, gradB_e, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Gradient B field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(gradB_e), REP3_A(gradB_p));
+
+    PetscCall(context.finalize());
+    return PETSC_SUCCESS;
+  }
+
+} // namespace implicit_test_utils
