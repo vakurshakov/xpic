@@ -35,13 +35,16 @@ PetscErrorCode Particles::form_iteration()
   avgit = 0.0;
   avgcell = 0.0;
 
-  const PetscReal xb = (world.start[X] - 0.5) * dx;
-  const PetscReal yb = (world.start[Y] - 0.5) * dy;
-  const PetscReal zb = (world.start[Z] - 0.5) * dz;
+  PetscReal q = parameters.q;
+  PetscReal m = parameters.m;
 
-  const PetscReal xe = (world.end[X] + 0.5) * dx;
-  const PetscReal ye = (world.end[Y] + 0.5) * dy;
-  const PetscReal ze = (world.end[Z] + 0.5) * dz;
+  PetscReal xb = (world.start[X] - 0.5) * dx;
+  PetscReal yb = (world.start[Y] - 0.5) * dy;
+  PetscReal zb = (world.start[Z] - 0.5) * dz;
+
+  PetscReal xe = (world.end[X] + 0.5) * dx;
+  PetscReal ye = (world.end[Y] + 0.5) * dy;
+  PetscReal ze = (world.end[Z] + 0.5) * dz;
 
   static const PetscReal max = std::numeric_limits<double>::max();
 
@@ -62,7 +65,7 @@ PetscErrorCode Particles::form_iteration()
     for (PetscInt i = 0; auto& curr : storage[g]) {
       const auto& prev(previous_storage[g][i]);
 
-      CrankNicolsonPush push(q_m(prev));
+      CrankNicolsonPush push(q / m);
       ImplicitEsirkepov util(E_arr, B_arr, J_arr);
 
       push.set_fields_callback(  //
