@@ -54,7 +54,6 @@ DriftKineticEsirkepov::DriftKineticEsirkepov(
 {
 }
 
-
 DriftKineticEsirkepov::DriftKineticEsirkepov(
   Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** M_g, //
   Vector3R*** dBidx_g, Vector3R*** dBidy_g, Vector3R*** dBidz_g)
@@ -383,3 +382,11 @@ PetscErrorCode DriftKineticEsirkepov::decomposition_M
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 } 
+
+PetscErrorCode DriftKineticEsirkepov::decomposition
+(const Vector3R& Rsn, const Vector3R& Rs0, const Vector3R& Vp, PetscReal q_p,  PetscReal mu_p) {
+  PetscFunctionBeginHot;
+  decomposition_J(Rsn, Rs0, Vp, q_p);
+  decomposition_M(Rsn, mu_p);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}

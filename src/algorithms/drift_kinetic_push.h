@@ -5,6 +5,14 @@
 #include "src/interfaces/point.h"
 #include "src/utils/utils.h"
 
+using SetFields = std::function<void(
+  const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
+
+using SetMeanB = std::function<void(const Vector3R&, const Vector3R&, Vector3R&)>;
+
+void NullMeanB([[maybe_unused]] const Vector3R& R0,[[maybe_unused]] const Vector3R& Rn, Vector3R& meanB) {
+  meanB = Vector3R(0.,0.,0.);
+}
 
 class DriftKineticPush {
 public:
@@ -24,13 +32,13 @@ public:
   PetscInt get_iteration_number() const;
 
   /// @brief Callback signature for supplying field values and gradients.
-  using SetFields = std::function<void(
-    const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
   void set_fields_callback(SetFields&& callback);
 
   /// @brief Nonlinear move of point `pn` by timestep shift `dt`.
   /// @warning `pn` and `p0` cannot be the same as `pn` will be updated.
   void process(PetscReal dt, PointByField& pn, const PointByField& p0);
+
+  PetscReal get_Delta(const PointByField& p0) {return get_F(p0)*Vh;}
 
 private:
 
@@ -52,6 +60,7 @@ private:
   void update_v_perp(PointByField& pn, const PointByField& p0);
   /// @brief Advances the parallel momentum using the drift-kinetic equation.
   void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0) const;
+  PetscReal get_F(const PointByField& p0) const;
   PetscReal get_v_parallel(const PointByField& p0) const;
 
   /// @brief Refreshes fields and derived quantities at the midpoint trajectory.
@@ -74,11 +83,12 @@ private:
   PetscReal Vh;
   Vector3R Vp;
   Vector3R Eh;
-  Vector3R Bh;
+  Vector3R Bh, B0, Bn;
   Vector3R gradBh;
+  Vector3R meanB;
 
   /// @brief Unit vector aligned with `Bh`.
-  Vector3R bh;
+  Vector3R bh, b0, bn;
   /// @brief Magnitude of the magnetic field.
   PetscReal lenBh;
 };
