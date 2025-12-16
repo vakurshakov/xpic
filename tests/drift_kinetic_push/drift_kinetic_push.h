@@ -160,8 +160,6 @@ void get_fields(const Vector3R&, const Vector3R& pos, //
 
 namespace drift_kinetic_test_utils {
 
-using Arr = Vector3R***;
-
 void overwrite_config(//
   PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
   PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
@@ -381,13 +379,13 @@ public:
   World world;
   DM da;
 
-  Vec E_vec = nullptr;
-  Vec B_vec = nullptr;
-  Vec gradB_vec = nullptr;
+  Vec E_loc = nullptr;
+  Vec B_loc = nullptr;
+  Vec gradB_loc = nullptr;
 
-  Vec dBdx_vec = nullptr;
-  Vec dBdy_vec = nullptr;
-  Vec dBdz_vec = nullptr;
+  Vec dBdx_loc = nullptr;
+  Vec dBdy_loc = nullptr;
+  Vec dBdz_loc = nullptr;
 
   Arr E_arr;
   Arr B_arr;
@@ -404,19 +402,19 @@ public:
     PetscCall(world.initialize());
     da = world.da;
 
-    PetscCall(DMCreateLocalVector(da, &E_vec));
-    PetscCall(DMCreateLocalVector(da, &B_vec));
-    PetscCall(DMCreateLocalVector(da, &gradB_vec));
-    PetscCall(DMCreateLocalVector(da, &dBdx_vec));
-    PetscCall(DMCreateLocalVector(da, &dBdy_vec));
-    PetscCall(DMCreateLocalVector(da, &dBdz_vec));
+    PetscCall(DMCreateLocalVector(da, &E_loc));
+    PetscCall(DMCreateLocalVector(da, &B_loc));
+    PetscCall(DMCreateLocalVector(da, &gradB_loc));
+    PetscCall(DMCreateLocalVector(da, &dBdx_loc));
+    PetscCall(DMCreateLocalVector(da, &dBdy_loc));
+    PetscCall(DMCreateLocalVector(da, &dBdz_loc));
 
-    PetscCall(DMDAVecGetArrayWrite(world.da, E_vec, &E_arr));
-    PetscCall(DMDAVecGetArrayWrite(world.da, B_vec, &B_arr));
-    PetscCall(DMDAVecGetArrayWrite(world.da, gradB_vec, &gradB_arr));
-    PetscCall(DMDAVecGetArrayWrite(world.da, dBdx_vec, &dBdx_arr));
-    PetscCall(DMDAVecGetArrayWrite(world.da, dBdy_vec, &dBdy_arr));
-    PetscCall(DMDAVecGetArrayWrite(world.da, dBdz_vec, &dBdz_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, E_loc, &E_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, B_loc, &B_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, gradB_loc, &gradB_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, dBdx_loc, &dBdx_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, dBdy_loc, &dBdy_arr));
+    PetscCall(DMDAVecGetArrayWrite(world.da, dBdz_loc, &dBdz_arr));
 
     PetscInt xs, ys, zs, xm, ym, zm;
     PetscInt gxs, gys, gzs, gxm, gym, gzm;
@@ -433,32 +431,32 @@ public:
       }
     }
 
-    PetscCall(DMDAVecRestoreArrayWrite(world.da, E_vec, &E_arr));
-    PetscCall(DMDAVecRestoreArrayWrite(world.da, B_vec, &B_arr));
-    PetscCall(DMDAVecRestoreArrayWrite(world.da, gradB_vec, &gradB_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, E_loc, &E_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, B_loc, &B_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, gradB_loc, &gradB_arr));
 
-    PetscCall(DMDAVecGetArrayRead(world.da, E_vec, &E_arr));
-    PetscCall(DMDAVecGetArrayRead(world.da, B_vec, &B_arr));
-    PetscCall(DMDAVecGetArrayRead(world.da, gradB_vec, &gradB_arr));
+    PetscCall(DMDAVecGetArrayRead(world.da, E_loc, &E_arr));
+    PetscCall(DMDAVecGetArrayRead(world.da, B_loc, &B_arr));
+    PetscCall(DMDAVecGetArrayRead(world.da, gradB_loc, &gradB_arr));
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
   PetscErrorCode finalize()
   {
     PetscFunctionBeginUser;
-    PetscCall(DMDAVecRestoreArrayRead(world.da, E_vec, &E_arr));
-    PetscCall(DMDAVecRestoreArrayRead(world.da, B_vec, &B_arr));
-    PetscCall(DMDAVecRestoreArrayRead(world.da, gradB_vec, &gradB_arr));
-    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdx_vec, &dBdx_arr));
-    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdy_vec, &dBdy_arr));
-    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdz_vec, &dBdz_arr));
+    PetscCall(DMDAVecRestoreArrayRead(world.da, E_loc, &E_arr));
+    PetscCall(DMDAVecRestoreArrayRead(world.da, B_loc, &B_arr));
+    PetscCall(DMDAVecRestoreArrayRead(world.da, gradB_loc, &gradB_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdx_loc, &dBdx_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdy_loc, &dBdy_arr));
+    PetscCall(DMDAVecRestoreArrayWrite(world.da, dBdz_loc, &dBdz_arr));
 
-    PetscCall(VecDestroy(&E_vec));
-    PetscCall(VecDestroy(&B_vec));
-    PetscCall(VecDestroy(&gradB_vec));
-    PetscCall(VecDestroy(&dBdx_vec));
-    PetscCall(VecDestroy(&dBdy_vec));
-    PetscCall(VecDestroy(&dBdz_vec));
+    PetscCall(VecDestroy(&E_loc));
+    PetscCall(VecDestroy(&B_loc));
+    PetscCall(VecDestroy(&gradB_loc));
+    PetscCall(VecDestroy(&dBdx_loc));
+    PetscCall(VecDestroy(&dBdy_loc));
+    PetscCall(VecDestroy(&dBdz_loc));
 
     PetscCall(world.finalize());
     PetscFunctionReturn(PETSC_SUCCESS);
