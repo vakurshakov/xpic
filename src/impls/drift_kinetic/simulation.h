@@ -4,10 +4,13 @@
 #include <petscsnes.h>
 
 #include "src/interfaces/simulation.h"
+#include "src/diagnostics/utils/table_diagnostic.h"
 #include "src/impls/drift_kinetic/particles.h"
 #include "src/utils/sync_clock.h"
 
 namespace drift_kinetic {
+
+class EnergyConservation;
 
 class Simulation : public interfaces::Simulation {
 public:
@@ -58,6 +61,23 @@ protected:
   DM da_EB;
   Vec sol;
   SNES snes;
+
+  friend class EnergyConservation;
+  std::unique_ptr<EnergyConservation> energy_cons;
+};
+
+class EnergyConservation : public TableDiagnostic {
+public:
+  EnergyConservation(const Simulation& simulation);
+  PetscErrorCode diagnose(PetscInt t) override;
+  PetscErrorCode add_columns(PetscInt t) override;
+
+  const Simulation& simulation;
+  PetscReal w_E = 0, w_E0 = 0;
+  PetscReal w_B = 0, w_B0 = 0;
+  PetscReal dF = 0;
+  PetscReal a_EJ = 0;
+  PetscReal a_MB = 0, a_MB0 = 0;
 };
 
 }  // namespace drift_kinetic

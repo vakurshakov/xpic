@@ -6,6 +6,7 @@
 #include "src/diagnostics/energy_conservation.h"
 #include "src/diagnostics/momentum_conservation.h"
 #include "src/impls/basic/simulation.h"
+#include "src/impls/drift_kinetic/simulation.h"
 #include "src/impls/eccapfim/simulation.h"
 #include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
@@ -170,6 +171,8 @@ std::unique_ptr<interfaces::Simulation> build_simulation()
 
   if (simulation_str == "basic")
     simulation = std::make_unique<basic::Simulation>();
+  else if (simulation_str == "drift_kinetic")
+    simulation = std::make_unique<drift_kinetic::Simulation>();
   else if (simulation_str == "eccapfim")
     simulation = std::make_unique<eccapfim::Simulation>();
   else if (simulation_str == "ecsim")
