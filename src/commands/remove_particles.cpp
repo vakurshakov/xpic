@@ -31,8 +31,8 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
     if (cell.empty() || within_geom_(r))
       continue;
 
-    for (const auto& [_, p] : cell)
-      removed_energy_ += Energy::get_kinetic(p, m, Np);
+    for (const auto& point : cell)
+      removed_energy_ += Energy::get_kinetic(point.p, m, Np);
 
     removed_particles_ += cell.size();
     cell.clear();

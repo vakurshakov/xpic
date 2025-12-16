@@ -13,22 +13,12 @@ class Particles final : public interfaces::Particles {
 public:
   Particles(Simulation& simulation, const SortParameters& parameters);
   PetscErrorCode finalize() override;
-
   PetscErrorCode push();
 
-  Vector3R*** E;
-  Vector3R*** B;
-
-  Vec global_J;
-  Vec local_J;
-  Vector3R*** J;
-
-private:
-  void interpolate(const Shape& shape, Vector3R& E_p, Vector3R& B_p) const;
-  void push(const Vector3R& E_p, const Vector3R& B_p, Point& point) const;
-  void decompose(const Shape& shape, const Point& point);
-
   Simulation& simulation_;
+
+  static constexpr PetscReal shr = 1.5;
+  static constexpr auto&& sfunc = spline_of_2nd_order;
 };
 
 }  // namespace basic

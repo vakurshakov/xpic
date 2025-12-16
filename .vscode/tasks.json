@@ -5,7 +5,9 @@
       "type": "cppbuild",
       "label": "Project build-script",
       "command": "./build.sh",
-      "args": [],
+      "args": [
+        "Debug"
+      ],
       "options": {
         "cwd": "${workspaceFolder}/"
       },

@@ -16,8 +16,8 @@ class SimulationBackup : public interfaces::Diagnostic,
                          public interfaces::Command {
 public:
   SimulationBackup(const std::string& out_dir,  //
-    PetscInt diagnose_period, std::map<std::string, Vec> fields,
-    std::map<std::string, interfaces::Particles*> particles);
+    PetscInt diagnose_period, std::vector<Vec> fields,
+    std::vector<interfaces::Particles*> particles);
 
   PetscErrorCode save(PetscInt t) const;
   PetscErrorCode load(PetscInt t);
@@ -40,8 +40,8 @@ private:
   PetscErrorCode saveload_temporal_diagnostics(
     const std::filesystem::path& from, const std::filesystem::path& to) const;
 
-  std::map<std::string, Vec> fields_;
-  std::map<std::string, interfaces::Particles*> particles_;
+  std::vector<Vec> fields_;
+  std::vector<interfaces::Particles*> particles_;
 
   static constexpr PetscInt num_periods_being_kept = 2;
 };

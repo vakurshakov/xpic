@@ -12,9 +12,11 @@ namespace ecsimcorr {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : ecsim::Particles(simulation, parameters), simulation_(simulation)
 {
-  DM da = world.da;
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &local_currJe));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &global_currJe));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &currJe));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &currJe_loc));
+
+  J = currJe;
+  J_loc = currJe_loc;
 
   PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("ecsimcorr::Particles", &classid));
   PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("first_push", classid, &events[0]));
@@ -25,9 +27,9 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
-  PetscCall(DMDAVecGetArray(world.da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArray(world.da, currJe_loc, &currJe_arr));
 
-  PetscLogEventBegin(events[0], local_currJe, 0, 0, 0);
+  PetscLogEventBegin(events[0], currJe_loc, 0, 0, 0);
 
 #pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& cell : storage) {
@@ -41,9 +43,9 @@ PetscErrorCode Particles::first_push()
     }
   }
 
-  PetscLogEventEnd(events[0], local_currJe, 0, 0, 0);
+  PetscLogEventEnd(events[0], currJe_loc, 0, 0, 0);
 
-  PetscCall(DMDAVecRestoreArray(world.da, local_currJe, &currJe));
+  PetscCall(DMDAVecRestoreArray(world.da, currJe_loc, &currJe_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -51,7 +53,7 @@ PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
   pred_w = 0.0;
-  PetscCall(DMDAVecGetArray(world.da, local_currJe, &currJe));
+  PetscCall(DMDAVecGetArray(world.da, currJe_loc, &currJe_arr));
 
   PetscLogEventBegin(events[1], 0, 0, 0, 0);
 
@@ -61,18 +63,14 @@ PetscErrorCode Particles::second_push()
       const Vector3R old_r = point.r;
       const Vector3R old_v = point.p;
 
-      Shape shape;
-      shape.setup(point.r, shape_radius1, shape_func1);
-
-      Vector3R E_p;
-      Vector3R B_p;
-      SimpleInterpolation interpolation(shape);
-      interpolation.process({{E_p, E}}, {{B_p, B}});
+      Vector3R E_p = interpolate_E_s1(E_arr, point.r);
+      Vector3R B_p = interpolate_B_s1(B_arr, point.r);
 
       BorisPush push(q_m(point), E_p, B_p);
       push.update_vEB(dt, point);
       push.update_r(0.5 * dt, point);
 
+      Shape shape;
       shape.setup(old_r, point.r, shape_radius2, shape_func2);
       decompose_esirkepov_current(shape, point);
 
@@ -86,16 +84,16 @@ PetscErrorCode Particles::second_push()
   // Because we manually calculated `pred_w`, it is needed to reduce it between ranks
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &pred_w, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
 
-  PetscCall(DMDAVecRestoreArray(world.da, local_currJe, &currJe));
-  PetscCall(DMLocalToGlobal(world.da, local_currJe, ADD_VALUES, global_currJe));
-  PetscCall(VecAXPY(simulation_.currJe, 1.0, global_currJe));
+  PetscCall(DMDAVecRestoreArray(world.da, currJe_loc, &currJe_arr));
+  PetscCall(DMLocalToGlobal(world.da, currJe_loc, ADD_VALUES, currJe));
+  PetscCall(VecAXPY(simulation_.currJe, 1.0, currJe));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::final_update()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecDot(global_currJe, simulation_.Ec, &corr_w));
+  PetscCall(VecDot(currJe, simulation_.Ec, &corr_w));
 
   PetscReal K0 = energy;
   PetscLogEventBegin(events[2], 0, 0, 0, 0);
@@ -130,7 +128,7 @@ PetscErrorCode Particles::final_update()
 void Particles::decompose_esirkepov_current(const Shape& shape, const Point& point)
 {
   EsirkepovDecomposition decomposition(shape, qn_Np(point) / (6.0 * dt));
-  decomposition.process(currJe);
+  decomposition.process(currJe_arr);
 }
 
 PetscErrorCode Particles::calculate_energy()
@@ -155,8 +153,8 @@ PetscErrorCode Particles::clear_sources()
 {
   PetscFunctionBeginUser;
   PetscCall(ecsim::Particles::clear_sources());
-  PetscCall(VecSet(local_currJe, 0.0));
-  PetscCall(VecSet(global_currJe, 0.0));
+  PetscCall(VecSet(currJe_loc, 0.0));
+  PetscCall(VecSet(currJe, 0.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -164,8 +162,8 @@ PetscErrorCode Particles::finalize()
 {
   PetscFunctionBeginUser;
   PetscCall(ecsim::Particles::finalize());
-  PetscCall(VecDestroy(&local_currJe));
-  PetscCall(VecDestroy(&global_currJe));
+  PetscCall(VecDestroy(&currJe_loc));
+  PetscCall(VecDestroy(&currJe));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

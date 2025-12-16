@@ -14,7 +14,6 @@ enum Axis : std::uint8_t {
   C = 3,
 };
 
-/// @todo #pragma omp declare simd linear(x, y, z : 1), notinbranch
 namespace indexing {
 
 /// @brief Standard notation inside PETSc, it's then reused to create aliases
