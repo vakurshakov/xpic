@@ -60,9 +60,6 @@ protected:
 
   Vec E_hk;
 
-  Mat rotE;
-  Mat rotB;
-
   Vec sol;
   SNES snes;
   std::vector<PetscReal> conv_hist;
