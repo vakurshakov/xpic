@@ -5,15 +5,6 @@
 #include "src/interfaces/point.h"
 #include "src/utils/utils.h"
 
-using SetFields = std::function<void(
-  const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
-
-using SetMeanB = std::function<void(const Vector3R&, const Vector3R&, Vector3R&)>;
-
-void NullMeanB([[maybe_unused]] const Vector3R& R0,[[maybe_unused]] const Vector3R& Rn, Vector3R& meanB) {
-  meanB = Vector3R(0.,0.,0.);
-}
-
 class DriftKineticPush {
 public:
   DriftKineticPush() = default;
@@ -30,6 +21,9 @@ public:
 
   /// @brief Once `process()` is complete, this will return the number of nonlinear iterations used.
   PetscInt get_iteration_number() const;
+
+  using SetFields = std::function<void(
+    const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
 
   /// @brief Callback signature for supplying field values and gradients.
   void set_fields_callback(SetFields&& callback);
