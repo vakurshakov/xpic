@@ -32,10 +32,6 @@ public:
   void process(PetscReal dt, Point& pn, const Point& p0);
 
 private:
-  void update_v(PetscReal dt, Vector3R& vn, const Vector3R& v0) const;
-  void update_r(PetscReal dt, Point& pn, const Point& p0) const;
-  PetscReal get_residue(PetscReal dt, const Point& pn, const Point& p0) const;
-
   PetscInt it = 0;
   PetscInt maxit = 30;
   PetscReal atol = 1e-7;

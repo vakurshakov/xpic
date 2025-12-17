@@ -15,11 +15,6 @@ public:
     const Vector3R& rn, const Vector3R& r0);
 
 protected:
-  enum Type {
-    electric,
-    magnetic,
-  };
-
   struct Shape {
     static constexpr PetscInt shw1 = 2;
     static constexpr PetscInt shw2 = 3;
@@ -52,14 +47,15 @@ protected:
     Vector3I start;
     PetscReal cache[shm];
 
-    void setup(const Vector3R& rn, const Vector3R& r0, Type t);
+    void setup(const Vector3R& rn, const Vector3R& r0);
   };
 
   Vector3R*** E_g;
   Vector3R*** B_g;
   Vector3R*** J_g;
 
-  Shape shape[2];
+  ImplicitEsirkepov::Shape sh_e;
+  /* Global namespace */::Shape sh_m;
 };
 
 #endif  // SRC_ALGORITHMS_IMPLICIT_ESIRKEPOV_H

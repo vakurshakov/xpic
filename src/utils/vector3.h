@@ -159,7 +159,11 @@ struct Vector3 {
   Vector3<PetscReal> normalized() const
     requires std::is_floating_point_v<T>
   {
-    return operator/(length());
+    auto l = length();
+    if (l > 0)
+      return operator/(l);
+    else
+      return {0,0,0};
   }
 
   PetscReal length() const
@@ -234,6 +238,8 @@ struct Vector3 {
 
 using Vector3R = Vector3<PetscReal>;
 using Vector3I = Vector3<PetscInt>;
+
+using Arr = Vector3R***;
 
 template<typename T>
 Vector3<T> operator*(const Vector3<T>& vector, T scalar)

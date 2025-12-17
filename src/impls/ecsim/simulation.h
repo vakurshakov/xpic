@@ -7,7 +7,13 @@
 #include "src/impls/ecsim/particles.h"
 #include "src/utils/sync_clock.h"
 
+Vector3R interpolate_E_s1(Arr E_g, const Vector3R& coord);
+Vector3R interpolate_B_s1(Arr B_g, const Vector3R& coord);
+
 namespace ecsim {
+
+static constexpr PetscReal atol = 1e-7;
+static constexpr PetscReal rtol = 1e-7;
 
 /// @note The following is a recreation of the published results,
 /// @see https://doi.org/10.1016/j.jcp.2017.01.002
@@ -16,10 +22,7 @@ public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
-  Vec E;
   Vec Ep;
-  Vec B;
-  Vec B0;
   Vec currI;
 
   /**
@@ -34,9 +37,6 @@ public:
   Mat matL;
 
   std::vector<std::shared_ptr<Particles>> particles_;
-
-  Vec get_named_vector(std::string_view name) const override;
-  NamedValues<Vec> get_backup_fields() const override;
 
   void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
 
@@ -64,13 +64,7 @@ protected:
   PetscErrorCode fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j);
   PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
 
-  Vec local_E;
-  Vec local_B;
-
-  Mat rotE;
-  Mat rotB;
   Mat matM;
-
   KSP ksp;
 
   /**

@@ -1,29 +1,31 @@
 #include "particles.h"
 
-#include "src/algorithms/crank_nicolson_push.h"
-#include "src/algorithms/implicit_esirkepov.h"
-#include "src/impls/eccapfim/cell_traversal.h"
-#include "src/impls/eccapfim/simulation.h"
+// #include "src/algorithms/drift_kinetic_push.h"
+// #include "src/algorithms/drift_kinetic_implicit.h"
+#include "src/impls/drift_kinetic/simulation.h"
 
-namespace eccapfim {
+namespace drift_kinetic {
 
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters),
-    previous_storage(world.size.elements_product()),
+    dk_curr_storage(world.size.elements_product()),
+    dk_prev_storage(world.size.elements_product()),
     simulation_(simulation)
 {
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &J));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &M));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &J_loc));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &M_loc));
 }
 
-PetscReal Particles::get_average_iteration_number() const
+PetscErrorCode Particles::finalize()
 {
-  return avgit;
-}
-
-PetscReal Particles::get_average_number_of_traversed_cells() const
-{
-  return avgcell;
+  PetscFunctionBeginUser;
+  PetscCall(VecDestroy(&J));
+  PetscCall(VecDestroy(&M));
+  PetscCall(VecDestroy(&J_loc));
+  PetscCall(VecDestroy(&M_loc));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
@@ -31,40 +33,22 @@ PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
-
-  avgit = 0.0;
-  avgcell = 0.0;
+  PetscCall(DMDAVecGetArrayWrite(da, M_loc, &M_arr));
 
   PetscReal q = parameters.q;
   PetscReal m = parameters.m;
 
-  PetscReal xb = (world.start[X] - 0.5) * dx;
-  PetscReal yb = (world.start[Y] - 0.5) * dy;
-  PetscReal zb = (world.start[Z] - 0.5) * dz;
-
-  PetscReal xe = (world.end[X] + 0.5) * dx;
-  PetscReal ye = (world.end[Y] + 0.5) * dy;
-  PetscReal ze = (world.end[Z] + 0.5) * dz;
-
-  static const PetscReal max = std::numeric_limits<double>::max();
-
-  auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe) {
-    if (vh > 0)
-      return (xe - x) / vh;
-    else if (vh < 0)
-      return (xb - x) / vh;
-    else
-      return max;
-  };
-
-#pragma omp parallel for reduction(+ : avgit, avgcell)
-  for (PetscInt g = 0; g < (PetscInt)storage.size(); ++g) {
+#pragma omp parallel for
+  for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
     PetscReal path;
     std::vector<Vector3R> coords;
 
-    for (PetscInt i = 0; auto& curr : storage[g]) {
-      const auto& prev(previous_storage[g][i]);
+    for (PetscInt i = 0; auto& curr : dk_curr_storage[g]) {
+      const auto& prev(dk_prev_storage[g][i]);
 
+      /// @todo this part should reuse the logic from:
+      /// tests/drift_kinetic_push/drift_kinetic_push.h:620 implicit_test_utils::interpolation_test()
+#if 0
       CrankNicolsonPush push(q / m);
       ImplicitEsirkepov util(E_arr, B_arr, J_arr);
 
@@ -94,11 +78,9 @@ PetscErrorCode Particles::form_iteration()
         dtau = std::min({dt - tau, dtx, dty, dtz});
 
         push.process(dtau, curr, prev);
-        avgit += (PetscReal)(push.get_iteration_number() + 1) / size;
 
         path = (curr.r - prev.r).length();
         coords = cell_traversal(curr.r, prev.r);
-        avgcell += (PetscReal)(coords.size() - 1) / size;
 
         PetscReal a0 = qn_Np(curr);
         Vector3R vh = 0.5 * (curr.p + prev.p);
@@ -113,48 +95,28 @@ PetscErrorCode Particles::form_iteration()
 
         correct_coordinates(curr);
       }
+#endif
 
       i++;
     }
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
-  PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Particles::clear_sources()
-{
-  PetscFunctionBeginUser;
-  PetscCall(VecSet(J, 0.0));
-  PetscCall(VecSet(J_loc, 0.0));
+  PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
+  PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
-  size = 0;
-
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    auto&& curr = storage[g];
-    if (curr.empty())
-      continue;
-
-    auto&& prev = previous_storage[g];
-    prev = std::vector(curr.begin(), curr.end());
-
-    size += (PetscInt)curr.size();
+    if (auto& curr = dk_curr_storage[g]; !curr.empty()) {
+      auto& prev = dk_prev_storage[g];
+      prev = std::vector(curr.begin(), curr.end());
+    }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Particles::finalize()
-{
-  PetscFunctionBeginUser;
-  PetscCall(VecDestroy(&J));
-  PetscCall(VecDestroy(&J_loc));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-}  // namespace eccapfim
+}  // namespace drift_kinetic

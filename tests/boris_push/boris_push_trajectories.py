@@ -15,20 +15,6 @@ def plot_parametric(x_data, y_data, **kwargs):
 
     plt.plot(x_data, y_data, **kwargs)
 
-def read_binary(filename, count=-1):
-    dtype = np.dtype([
-        ("i",  np.float32),
-        ("dt", np.float32),
-        ("mu", np.float32),
-        ("x",  np.float32),
-        ("y",  np.float32),
-        ("z",  np.float32),
-        ("px", np.float32),
-        ("py", np.float32),
-        ("pz", np.float32),
-    ])
-    return np.fromfile(filename, dtype=dtype, count=count)
-
 def read_text(filename):
     with open(filename) as f:
         names = f.readline()
@@ -42,7 +28,6 @@ def read_text(filename):
                 arrays[i].append(float(d))
 
         return dict(zip(names.split(), arrays))
-
 
 def get_args(c, m):
     return {"c": c, "lw": 1, "emphasis": {"c": c, "marker": m, "s": 10, "alpha": 0.8}}

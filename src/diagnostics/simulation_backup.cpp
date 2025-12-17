@@ -4,8 +4,8 @@
 #include "src/utils/mpi_binary_file.h"
 
 SimulationBackup::SimulationBackup(const std::string& out_dir,
-  PetscInt diagnose_period, std::map<std::string, Vec> fields,
-  std::map<std::string, interfaces::Particles*> particles)
+  PetscInt diagnose_period, std::vector<Vec> fields,
+  std::vector<interfaces::Particles*> particles)
   : Diagnostic(out_dir, diagnose_period), fields_(fields), particles_(particles)
 {
 }
@@ -50,7 +50,9 @@ PetscErrorCode SimulationBackup::save_fields(PetscInt t) const
   PetscFunctionBeginUser;
   PetscViewer viewer;
 
-  for (const auto& [name, field] : fields_) {
+  for (const auto& field : fields_) {
+    const char* name;
+    PetscCall(PetscObjectGetName((PetscObject)field, &name));
     std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, name);
     PetscCall(create_viewer(fname, PETSC_FALSE, FILE_MODE_WRITE, &viewer));
     PetscCall(VecView(field, viewer));
@@ -64,11 +66,12 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
   PetscFunctionBeginUser;
   PetscViewer viewer;
 
-  for (const auto& [name, container] : particles_) {
-    std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, name);
+  for (const auto& sort : particles_) {
+    std::filesystem::path fname =
+      std::format("{}/{}/{}", out_dir_, t, sort->parameters.sort_name);
 
     PetscInt numparts = 0;
-    for (const auto& cell : container->storage)
+    for (const auto& cell : sort->storage)
       numparts += (PetscInt)cell.size();
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &numparts, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
 
@@ -77,7 +80,7 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
     PetscCall(PetscViewerDestroy(&viewer));
 
     PetscCall(create_viewer(fname, PETSC_TRUE, FILE_MODE_WRITE, &viewer));
-    for (const auto& cell : container->storage) {
+    for (const auto& cell : sort->storage) {
       std::vector<Point> copy(cell.begin(), cell.end());
       PetscCall(PetscViewerBinaryWriteAll(viewer, copy.data(), 6 * (PetscInt)copy.size(), PETSC_DETERMINE, PETSC_DETERMINE, PETSC_REAL));
     }
@@ -115,7 +118,9 @@ PetscErrorCode SimulationBackup::load_fields(PetscInt t)
   PetscFunctionBeginUser;
   PetscViewer viewer;
 
-  for (auto& [name, field] : fields_) {
+  for (auto& field : fields_) {
+    const char* name;
+    PetscCall(PetscObjectGetName((PetscObject)field, &name));
     std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, name);
     PetscCall(create_viewer(fname, PETSC_FALSE, FILE_MODE_READ, &viewer));
     PetscCall(VecLoad(field, viewer));
@@ -132,8 +137,8 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
   Point point;
   PetscInt numparts, count;
 
-  for (auto& [name, container] : particles_) {
-    std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, name);
+  for (auto& sort : particles_) {
+    std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, sort->parameters.sort_name);
 
     PetscCall(create_viewer(fname.string() + ".numparts", PETSC_TRUE, FILE_MODE_READ, &viewer));
     PetscCall(PetscViewerBinaryRead(viewer, &numparts, 1, &count, PETSC_INT));
@@ -146,7 +151,7 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
       PetscCall(PetscViewerBinaryRead(viewer, &point, 6, &count, PETSC_REAL));
       PetscCheck(count == 6, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED,
         "Point structure consists of 6 PetscReal values, read: %" PetscInt_FMT, count);
-      PetscCall(container->add_particle(point));
+      PetscCall(sort->add_particle(point));
     }
     PetscCall(PetscViewerDestroy(&viewer));
   }

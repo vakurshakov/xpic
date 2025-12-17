@@ -55,6 +55,7 @@ PetscErrorCode DistributionMoment::set_data_views(const Region& region)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @note First and foremost, for `ChargeConservation` diagnostic this can be avoided!
 PetscErrorCode DistributionMoment::set_local_da(const Region& region)
 {
   PetscFunctionBeginUser;
@@ -81,19 +82,22 @@ PetscErrorCode DistributionMoment::set_local_da(const Region& region)
   // Collecting number of processes and ownership ranges using global DMDA
   for (PetscInt i = 0; i < 3; ++i) {
     l_proc[i] = 0;
-    l_bound[i] = DM_BOUNDARY_NONE;
 
-    PetscInt start = 0;
-    PetscInt end = ownership[i][0];
+    PetscInt start = 0, end = 0;
 
     for (PetscInt s = 0; s < proc[i]; ++s) {
-      if (start < g_end[i] && end > g_start[i]) {
+      end += ownership[i][s];
+
+      if (g_start[i] < end && start < g_end[i]) {
         l_proc[i]++;
-        l_ownership[i].emplace_back(
-          std::min(g_end[i], end) - std::max(g_start[i], start));
+
+        PetscInt l_si = std::max(g_start[i], start);
+        PetscInt l_ei = std::min(g_end[i], end);
+
+        l_ownership[i].emplace_back(l_ei - l_si);
       }
+
       start += ownership[i][s];
-      end += start;
     }
 
     // Mimic global boundaries, if we touch them

@@ -14,11 +14,21 @@ namespace {
 
 auto make_simulation_backup(interfaces::Simulation& simulation, PetscInt period)
 {
+  std::vector<Vec> backup_fields({
+    simulation.E,
+    simulation.B,
+    simulation.B0,
+  });
+
+  std::vector<interfaces::Particles*> backup_particles;
+  backup_particles.reserve(simulation.particles_.size());
+
+  for (auto& sort : simulation.particles_)
+    backup_particles.emplace_back(sort.get());
+
   return std::make_unique<SimulationBackup>(
-    CONFIG().out_dir + "/simulation_backup/",  //
-    period,                                    //
-    simulation.get_backup_fields(),            //
-    simulation.get_backup_particles());
+    CONFIG().out_dir + "/simulation_backup/", period, //
+    backup_fields, backup_particles);
 }
 
 }

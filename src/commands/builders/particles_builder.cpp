@@ -54,6 +54,15 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
 
     gen = MaxwellianMomentum(particles.parameters, tov);
   }
+  else if (name == "MaxwellCosinePerturbation") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    Vector3R a = parse_vector(info, "amplitude");
+    Vector3R m = parse_vector(info, "wave_number");
+
+    gen = MaxwellCosinePerturbation(particles.parameters, box, a, m);
+  }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);
   }

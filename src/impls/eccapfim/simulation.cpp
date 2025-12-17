@@ -11,6 +11,18 @@
 
 namespace eccapfim {
 
+static constexpr PetscReal atol = 1e-7;
+static constexpr PetscReal rtol = 1e-7;
+static constexpr PetscReal stol = 1e-7;
+static constexpr PetscReal divtol = PETSC_DETERMINE;
+static constexpr PetscInt maxit = 100;
+static constexpr PetscInt maxf = PETSC_UNLIMITED;
+
+static constexpr PetscInt ew_version = 3;
+static constexpr PetscReal ew_rtol_0 = 0.8;
+static constexpr PetscReal ew_gamma = 0.9;
+static constexpr PetscReal ew_alpha = 1.5;
+
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
@@ -25,25 +37,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_snes_solver());
 
   PetscCall(init_particles(*this, particles_));
-
-  std::vector<Vec> currents;
-  std::vector<const interfaces::Particles*> sorts;
-  for (const auto& sort : particles_) {
-    currents.emplace_back(sort->global_J);
-    sorts.emplace_back(sort.get());
-  }
-  currents.emplace_back(J);
-
-  auto&& e_diag = std::make_unique<Energy>(E, B, sorts);
-
-  diagnostics_.emplace_back(
-    std::make_unique<EnergyConservation>(*this, std::move(e_diag)));
-
-  diagnostics_.emplace_back(
-    std::make_unique<ChargeConservation>(world.da, currents, sorts));
-
-  diagnostics_.emplace_back(
-    std::make_unique<MomentumConservation>(world.da, E, sorts));
 
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
 
@@ -74,7 +67,12 @@ PetscErrorCode Simulation::init_iteration()
 
   /// @note Solution is initialized with guess before it is passed into `SNESSolve()`.
   /// The simplest choice is: (E^{n+1/2, k=0}, B^{n+1/2, k=0}) = (E^{n}, B^{n}).
+#if SNES_ITERATE_B
   PetscCall(to_snes(E, B, sol));
+#else
+  PetscCall(VecCopy(E, sol));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
+#endif
 
   PetscCall(PetscLogStagePop());
   PetscCall(clock.pop());
@@ -87,7 +85,7 @@ PetscErrorCode Simulation::calc_iteration()
   PetscCall(clock.push(__FUNCTION__));
   PetscCall(PetscLogStagePush(stagenums[2]));
 
-  PetscCall(SNESSolve(snes, nullptr, sol));
+  PetscCall(SNESSolve(snes, NULL, sol));
 
   // Convergence analysis
   const char* name;
@@ -96,7 +94,7 @@ PetscErrorCode Simulation::calc_iteration()
   PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
 
   PetscInt len;
-  PetscCall(SNESGetConvergenceHistory(snes, nullptr, nullptr, &len));
+  PetscCall(SNESGetConvergenceHistory(snes, NULL, NULL, &len));
   LOG("  Convergence history for this solution:");
 
   for (PetscInt i = 0; i < len; ++i) {
@@ -125,9 +123,15 @@ PetscErrorCode Simulation::after_iteration()
   PetscCall(PetscLogStagePush(stagenums[3]));
 
   PetscCall(SNESGetSolution(snes, &sol));
+
+#if SNES_ITERATE_B
   PetscCall(from_snes(sol, E_hk, B_hk));
   PetscCall(VecAXPBY(E, 2, -1, E_hk));
   PetscCall(VecAXPBY(B, 2, -1, B_hk));
+#else
+  PetscCall(VecAXPBY(E, 2, -1, sol));
+  PetscCall(MatMultAdd(rotE, sol, B, B));
+#endif
 
   for (auto& sort : particles_)
     PetscCall(sort->update_cells());
@@ -147,7 +151,12 @@ PetscErrorCode Simulation::form_iteration(
   /// @todo The clock shows the time of only the last iteration
   PetscCall(simulation->clock.push(__FUNCTION__));
 
+#if SNES_ITERATE_B
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
+#else
+  simulation->E_hk = vx;
+#endif
+
   PetscCall(simulation->clear_sources());
   PetscCall(simulation->form_current());
   PetscCall(simulation->form_function(vf));
@@ -174,29 +183,28 @@ PetscErrorCode Simulation::form_current()
 {
   PetscFunctionBeginUser;
   PetscCall(clock.push(__FUNCTION__));
+  PetscCall(DMGlobalToLocal(da, E_hk, INSERT_VALUES, E_loc));
 
-  DM da = world.da;
-  PetscCall(DMGlobalToLocal(da, E_hk, INSERT_VALUES, local_E));
-  PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, local_B));
+#if SNES_ITERATE_B
+  PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
+#endif
 
-  Vector3R*** arr_E;
-  Vector3R*** arr_B;
-  PetscCall(DMDAVecGetArrayRead(da, local_E, &arr_E));
-  PetscCall(DMDAVecGetArrayRead(da, local_B, &arr_B));
+  PetscCall(DMDAVecGetArrayRead(da, E_loc, &E_arr));
+  PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
-  PetscLogEventBegin(events[1], local_E, local_B, J, 0);
+  PetscLogEventBegin(events[1], E_loc, B_loc, J, 0);
 
   for (auto& sort : particles_) {
-    sort->E = arr_E;
-    sort->B = arr_B;
+    sort->E_arr = E_arr;
+    sort->B_arr = B_arr;
     PetscCall(sort->form_iteration());
-    PetscCall(VecAXPY(J, 1.0, sort->global_J));
+    PetscCall(VecAXPY(J, 1, sort->J));
   }
 
-  PetscLogEventEnd(events[1], local_E, local_B, J, 0);
+  PetscLogEventEnd(events[1], E_loc, B_loc, J, 0);
 
-  PetscCall(DMDAVecRestoreArrayRead(da, local_E, &arr_E));
-  PetscCall(DMDAVecRestoreArrayRead(da, local_B, &arr_B));
+  PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
 
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -207,8 +215,7 @@ PetscErrorCode Simulation::form_function(Vec vf)
   PetscFunctionBeginUser;
   PetscCall(clock.push(__FUNCTION__));
 
-  DM da = world.da;
-
+#if SNES_ITERATE_B
   Vec E_f, B_f;
   PetscCall(DMGetGlobalVector(da, &E_f));
   PetscCall(DMGetGlobalVector(da, &B_f));
@@ -230,106 +237,114 @@ PetscErrorCode Simulation::form_function(Vec vf)
 
   PetscCall(DMRestoreGlobalVector(da, &E_f));
   PetscCall(DMRestoreGlobalVector(da, &B_f));
+#else
+  PetscLogEventBegin(events[2], vf, E_hk, B, J);
+
+  PetscCall(VecCopy(E_hk, vf));
+  PetscCall(MatMultAdd(matM, E_hk, vf, vf));
+  PetscCall(VecAXPY(vf, -1, E));
+  PetscCall(VecAXPY(vf, +0.5 * dt, J));
+  PetscCall(MatMultAdd(rotB, B, vf, vf));
+
+  PetscLogEventEnd(events[2], vf, E_hk, B, J);
+#endif
 
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
+#if SNES_ITERATE_B
 /// @todo Replace with `DMCreateSubDM()`, `VecGetSubVector()` to obtain E^{n+1/2}, B^{n+1/2}
 PetscErrorCode Simulation::from_snes(Vec v, Vec vE, Vec vB)
 {
   PetscFunctionBeginUser;
-  DM da = world.da;
-  PetscReal**** arr_E;
-  PetscReal**** arr_B;
   const PetscReal**** arr_v;
-  PetscCall(DMDAVecGetArrayDOFWrite(da, vE, &arr_E));
-  PetscCall(DMDAVecGetArrayDOFWrite(da, vB, &arr_B));
+  PetscCall(DMDAVecGetArrayDOFWrite(da, vE, &E_arr));
+  PetscCall(DMDAVecGetArrayDOFWrite(da, vB, &B_arr));
   PetscCall(DMDAVecGetArrayDOFRead(da_EB, v, &arr_v));
 
   PetscLogEventBegin(events[3], v, vE, vB, 0);
 
-#pragma omp parallel for simd
+  #pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     PetscInt x = world.start[X] + g % world.size[X];
     PetscInt y = world.start[Y] + (g / world.size[X]) % world.size[Y];
     PetscInt z = world.start[Z] + (g / world.size[X]) / world.size[Y];
 
-    arr_E[z][y][x][X] = arr_v[z][y][x][0];
-    arr_E[z][y][x][Y] = arr_v[z][y][x][1];
-    arr_E[z][y][x][Z] = arr_v[z][y][x][2];
+    E_arr[z][y][x][X] = arr_v[z][y][x][0];
+    E_arr[z][y][x][Y] = arr_v[z][y][x][1];
+    E_arr[z][y][x][Z] = arr_v[z][y][x][2];
 
-    arr_B[z][y][x][X] = arr_v[z][y][x][3];
-    arr_B[z][y][x][Y] = arr_v[z][y][x][4];
-    arr_B[z][y][x][Z] = arr_v[z][y][x][5];
+    B_arr[z][y][x][X] = arr_v[z][y][x][3];
+    B_arr[z][y][x][Y] = arr_v[z][y][x][4];
+    B_arr[z][y][x][Z] = arr_v[z][y][x][5];
   }
 
   PetscLogEventEnd(events[3], v, vE, vB, 0);
 
   PetscCall(DMDAVecRestoreArrayDOFRead(da_EB, v, &arr_v));
-  PetscCall(DMDAVecRestoreArrayDOFWrite(da, E_hk, &arr_E));
-  PetscCall(DMDAVecRestoreArrayDOFWrite(da, B_hk, &arr_B));
+  PetscCall(DMDAVecRestoreArrayDOFWrite(da, E_hk, &E_arr));
+  PetscCall(DMDAVecRestoreArrayDOFWrite(da, B_hk, &B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::to_snes(Vec vE, Vec vB, Vec v)
 {
   PetscFunctionBeginUser;
-  DM da = world.da;
-  const PetscReal**** arr_E;
-  const PetscReal**** arr_B;
   PetscReal**** arr_v;
-  PetscCall(DMDAVecGetArrayDOFRead(da, vE, &arr_E));
-  PetscCall(DMDAVecGetArrayDOFRead(da, vB, &arr_B));
+  PetscCall(DMDAVecGetArrayDOFRead(da, vE, &E_arr));
+  PetscCall(DMDAVecGetArrayDOFRead(da, vB, &B_arr));
   PetscCall(DMDAVecGetArrayDOFWrite(da_EB, v, &arr_v));
 
   PetscLogEventBegin(events[4], vE, vB, v, 0);
 
-#pragma omp parallel for simd
+  #pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     PetscInt x = world.start[X] + g % world.size[X];
     PetscInt y = world.start[Y] + (g / world.size[X]) % world.size[Y];
     PetscInt z = world.start[Z] + (g / world.size[X]) / world.size[Y];
 
-    arr_v[z][y][x][0] = arr_E[z][y][x][X];
-    arr_v[z][y][x][1] = arr_E[z][y][x][Y];
-    arr_v[z][y][x][2] = arr_E[z][y][x][Z];
+    arr_v[z][y][x][0] = E_arr[z][y][x][X];
+    arr_v[z][y][x][1] = E_arr[z][y][x][Y];
+    arr_v[z][y][x][2] = E_arr[z][y][x][Z];
 
-    arr_v[z][y][x][3] = arr_B[z][y][x][X];
-    arr_v[z][y][x][4] = arr_B[z][y][x][Y];
-    arr_v[z][y][x][5] = arr_B[z][y][x][Z];
+    arr_v[z][y][x][3] = B_arr[z][y][x][X];
+    arr_v[z][y][x][4] = B_arr[z][y][x][Y];
+    arr_v[z][y][x][5] = B_arr[z][y][x][Z];
   }
 
   PetscLogEventEnd(events[4], vE, vB, v, 0);
 
   PetscCall(DMDAVecRestoreArrayDOFWrite(da_EB, v, &arr_v));
-  PetscCall(DMDAVecRestoreArrayDOFRead(da, E_hk, &arr_E));
-  PetscCall(DMDAVecRestoreArrayDOFRead(da, B_hk, &arr_B));
+  PetscCall(DMDAVecRestoreArrayDOFRead(da, E_hk, &E_arr));
+  PetscCall(DMDAVecRestoreArrayDOFRead(da, B_hk, &B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+#endif
 
 
 PetscErrorCode Simulation::init_vectors()
 {
   PetscFunctionBeginUser;
-  DM da = world.da;
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &B));
   PetscCall(DMCreateGlobalVector(da, &J));
 
   PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &E_hk));
+  PetscCall(DMCreateLocalVector(da, &E_loc));
+  PetscCall(DMCreateLocalVector(da, &B_loc));
+
+#if SNES_ITERATE_B
   PetscCall(DMCreateGlobalVector(da, &B_hk));
-  PetscCall(DMCreateLocalVector(da, &local_E));
-  PetscCall(DMCreateLocalVector(da, &local_B));
+#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::init_matrices()
 {
   PetscFunctionBeginUser;
-  DM da = world.da;
   PetscCall(DMSetMatrixPreallocateOnly(da, PETSC_FALSE));
   PetscCall(DMSetMatrixPreallocateSkip(da, PETSC_TRUE));
 
@@ -337,40 +352,43 @@ PetscErrorCode Simulation::init_matrices()
   PetscCall(rotor.create_positive(&rotE));
   PetscCall(rotor.create_negative(&rotB));
 
-  /// @note The minus sign here is from Faraday's equation
-  PetscCall(MatScale(rotE, -1));
+#if !SNES_ITERATE_B
+  PetscCall(MatProductCreate(rotB, rotE, nullptr, &matM));
+  PetscCall(MatProductSetType(matM, MATPRODUCT_AB));
+  PetscCall(MatProductSetFromOptions(matM));
+  PetscCall(MatProductSymbolic(matM));
+  PetscCall(MatProductNumeric(matM));
+
+  PetscCall(MatScale(matM, +0.25 * dt * dt));
+  PetscCall(MatScale(rotB, -0.5 * dt));
+  PetscCall(MatScale(rotE, -dt));
+#else
+  PetscCall(MatScale(rotB, -1));
+#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::init_snes_solver()
 {
   PetscFunctionBeginUser;
+#if SNES_ITERATE_B
   PetscInt gn[3];
   PetscInt procs[3];
   PetscInt s;
   DMBoundaryType bounds[3];
   DMDAStencilType st;
-  PetscCall(DMDAGetInfo(world.da, nullptr, REP3_A(&gn), REP3_A(&procs), nullptr, &s, REP3_A(&bounds), &st));
+  PetscCall(DMDAGetInfo(da, NULL, REP3_A(&gn), REP3_A(&procs), NULL, &s, REP3_A(&bounds), &st));
 
   const PetscInt* lgn[3];
-  PetscCall(DMDAGetOwnershipRanges(world.da, REP3_A(&lgn)));
+  PetscCall(DMDAGetOwnershipRanges(da, REP3_A(&lgn)));
 
   PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), st, REP3_A(gn), REP3_A(procs), 6, st, REP3_A(lgn), &da_EB));
   PetscCall(DMSetUp(da_EB));
 
   PetscCall(DMCreateGlobalVector(da_EB, &sol));
-
-  static constexpr PetscReal atol = 1e-7;
-  static constexpr PetscReal rtol = 1e-7;
-  static constexpr PetscReal stol = 1e-7;
-  static constexpr PetscReal divtol = PETSC_DETERMINE;
-  static constexpr PetscInt maxit = 100;
-  static constexpr PetscInt maxf = PETSC_UNLIMITED;
-
-  static constexpr PetscInt ew_version = 3;
-  static constexpr PetscReal ew_rtol_0 = 0.8;
-  static constexpr PetscReal ew_gamma = 0.9;
-  static constexpr PetscReal ew_alpha = 1.5;
+#else
+  PetscCall(DMCreateGlobalVector(da, &sol));
+#endif
 
   conv_hist.resize(maxit);
 
@@ -378,8 +396,8 @@ PetscErrorCode Simulation::init_snes_solver()
   PetscCall(SNESSetType(snes, SNESNGMRES));
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
-  PetscCall(SNESSetConvergenceHistory(snes, conv_hist.data(), nullptr, maxit, PETSC_TRUE));
-  PetscCall(SNESSetFunction(snes, nullptr, Simulation::form_iteration, this));
+  PetscCall(SNESSetConvergenceHistory(snes, conv_hist.data(), NULL, maxit, PETSC_TRUE));
+  PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
   PetscCall(SNESKSPSetUseEW(snes, PETSC_TRUE));
   PetscCall(SNESKSPSetParametersEW(snes, ew_version, ew_rtol_0, ew_rtol_0, ew_gamma, ew_alpha, PETSC_CURRENT, PETSC_CURRENT));
   PetscCall(SNESSetFromOptions(snes));
@@ -409,7 +427,6 @@ PetscErrorCode Simulation::finalize()
   PetscCall(interfaces::Simulation::finalize());
 
   PetscCall(SNESDestroy(&snes));
-  PetscCall(DMDestroy(&da_EB));
   PetscCall(VecDestroy(&sol));
 
   PetscCall(MatDestroy(&rotE));
@@ -420,27 +437,14 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&J));
   PetscCall(VecDestroy(&B0));
   PetscCall(VecDestroy(&E_hk));
+  PetscCall(VecDestroy(&E_loc));
+  PetscCall(VecDestroy(&B_loc));
+
+#if SNES_ITERATE_B
+  PetscCall(DMDestroy(&da_EB));
   PetscCall(VecDestroy(&B_hk));
-  PetscCall(VecDestroy(&local_E));
-  PetscCall(VecDestroy(&local_B));
+#endif
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-Vec Simulation::get_named_vector(std::string_view name) const
-{
-  static const std::unordered_map<std::string_view, Vec> map{
-    {"E", E},
-    {"B", B},
-    {"J", J},
-    {"B0", B0},
-  };
-  return map.at(name);
-}
-
-Simulation::NamedValues<Vec> Simulation::get_backup_fields() const
-{
-  return {{"E", E}, {"B", B}, {"B0", B0}};
 }
 
 }  // namespace eccapfim

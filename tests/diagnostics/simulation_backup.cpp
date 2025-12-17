@@ -21,28 +21,40 @@ int main(int argc, char** argv)
 
   Vec v;
   PetscCall(DMCreateGlobalVector(world.da, &v));
+  PetscCall(PetscObjectSetName((PetscObject)v, "field"));
 
   PetscRandom rnd;
   PetscCall(PetscRandomCreate(PETSC_COMM_WORLD, &rnd));
   PetscCall(PetscRandomSetType(rnd, PETSCRAND48));
   PetscCall(PetscRandomSetSeed(rnd, 0));
   PetscCall(VecSetRandom(v, rnd));
-  PetscCall(PetscRandomDestroy(&rnd));
 
-  static const Vector3R p0{0.0};
-  static const std::vector<Point> prepared_points{
-    Point{Vector3R{2, 2, 2}, p0},
-    Point{Vector3R{8, 2, 2}, p0},
-    Point{Vector3R{2, 8, 2}, p0},
-    Point{Vector3R{8, 8, 2}, p0},
-    Point{Vector3R{2, 2, 8}, p0},
-    Point{Vector3R{8, 2, 8}, p0},
-    Point{Vector3R{2, 8, 8}, p0},
-    Point{Vector3R{8, 8, 8}, p0},
+  std::vector<Vector3R> prepared_coords{
+    Vector3R{2, 2, 2},
+    Vector3R{8, 2, 2},
+    Vector3R{2, 8, 2},
+    Vector3R{8, 8, 2},
+    Vector3R{2, 2, 8},
+    Vector3R{8, 2, 8},
+    Vector3R{2, 8, 8},
+    Vector3R{8, 8, 8},
   };
 
+  std::vector<Point> prepared_points;
+  prepared_points.reserve(prepared_coords.size());
+
+  for (const auto& coord : prepared_coords) {
+    PetscReal px, py, pz;
+    PetscCall(PetscRandomGetValue(rnd, &px));
+    PetscCall(PetscRandomGetValue(rnd, &py));
+    PetscCall(PetscRandomGetValue(rnd, &pz));
+    prepared_points.emplace_back(Point{coord, Vector3R{px, py, pz}});
+  }
+
   using Particles = interfaces::Particles;
-  auto particles = std::make_unique<Particles>(world, SortParameters{});
+
+  auto particles = std::make_unique<Particles>(world, //
+    SortParameters{.sort_name = "particles"});
 
   for (const auto& point : prepared_points)
     PetscCall(particles->add_particle(point));
@@ -51,8 +63,8 @@ int main(int argc, char** argv)
 
   /// @note We should create the diagnostic within some scope to properly run the destructors.
   {
-    std::map<std::string, Vec> _fields{{"field", v}};
-    std::map<std::string, Particles*> _particles{{"particles", particles.get()}};
+    std::vector<Vec> _fields{{v}};
+    std::vector<Particles*> _particles{{particles.get()}};
 
     auto&& diag =
       std::make_unique<SimulationBackup>(out_dir, 1, _fields, _particles);

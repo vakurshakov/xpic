@@ -18,7 +18,6 @@ public:
   Simulation() = default;
   virtual ~Simulation() = default;
 
-  /// @brief From what timepoint the simulation starts, see `Simulation::calculate()`.
   PetscInt start = 0;
 
   /**
@@ -29,10 +28,29 @@ public:
    */
   World world;
 
+  DM da;
+
+  Vec E;
+  Vec E_loc;
+  Arr E_arr;
+
+  Vec B;
+  Vec B_loc;
+  Arr B_arr;
+
+  Vec B0;
+
+  Vec J;
+  Vec J_loc;
+  Arr J_arr;
+
+  Mat rotE;
+  Mat rotB;
+
   /**
    * @brief Container of abstract particles, the down-casted pointers to this
    * particles are stored in each `interfaces::Simulation` inheritor. The actual
-   * memory for them is shared between `this` and inheritor.
+   * memory for them is shared between `this` and inheritors.
    *
    * @note It is used for general-purpose operations with particles, e.g.
    * `Simulation::get_named_particles()` as it returns `interfaces::Particles&`.
@@ -43,15 +61,8 @@ public:
   PetscErrorCode calculate();
   virtual PetscErrorCode finalize();
 
-  virtual Vec get_named_vector(std::string_view name) const = 0;
-  Particles& get_named_particles(std::string_view name) const;
-
-  /// @todo Replace it with `std::vector<Vec>` and `PetscObjectSetName()`
-  template<typename T>
-  using NamedValues = std::map<std::string, T>;
-
-  virtual NamedValues<Vec> get_backup_fields() const = 0;
-  NamedValues<Particles*> get_backup_particles() const;
+  Vec get_named_vector(std::string_view name) const;
+  Particles& get_named_particles(std::string_view name);
 
 protected:
   template<class SimSpec, class PartSpec>

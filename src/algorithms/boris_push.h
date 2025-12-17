@@ -29,10 +29,6 @@ public:
   /// @brief Electro-magnetic field integrator.
   void update_vEB(PetscReal dt, Point& point) const;
 
-  /// @brief Relativistic move that updates _both_ momentum and coordinate.
-  void process(PetscReal dt, Point& point,  //
-    const interfaces::Particles& particles) const;
-
 private:
   using AnglePair = std::pair<PetscReal, PetscReal>;
   PetscReal get_theta(PetscReal dt) const;

@@ -2,7 +2,11 @@
 
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
+#include "src/diagnostics/charge_conservation.h"
+#include "src/diagnostics/energy_conservation.h"
+#include "src/diagnostics/momentum_conservation.h"
 #include "src/impls/basic/simulation.h"
+#include "src/impls/drift_kinetic/simulation.h"
 #include "src/impls/eccapfim/simulation.h"
 #include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
@@ -16,8 +20,43 @@ PetscErrorCode Simulation::initialize()
   PetscCall(world.initialize());
   PetscCall(log_information());
 
+  da = world.da;
+
   LOG("Running initialize implementation");
   PetscCall(initialize_implementation());
+
+  PetscCall(PetscObjectSetName((PetscObject)E, "E"));
+  PetscCall(PetscObjectSetName((PetscObject)B, "B"));
+  PetscCall(PetscObjectSetName((PetscObject)J, "J"));
+  PetscCall(PetscObjectSetName((PetscObject)B0, "B0"));
+
+  std::vector<Vec> currents;
+  std::vector<const interfaces::Particles*> particles;
+  for (const auto& sort : particles_) {
+    currents.emplace_back(sort->J);
+    particles.emplace_back(sort.get());
+  }
+  currents.emplace_back(J);
+
+  /// @todo Use a shared pointers for diagnostics
+  bool append_energy_conservation = true;
+
+  for (auto& diagnostic : diagnostics_) {
+    if (dynamic_cast<EnergyConservation*>(diagnostic.get()))
+      append_energy_conservation = false;
+  }
+
+  if (append_energy_conservation) {
+    diagnostics_.emplace_back( //
+      std::make_unique<EnergyConservation>(
+        *this, std::move(std::make_unique<Energy>(E, B, particles))));
+  }
+
+  diagnostics_.emplace_back(
+    std::make_unique<ChargeConservation>(da, currents, particles));
+
+  diagnostics_.emplace_back(
+    std::make_unique<MomentumConservation>(da, E, particles));
 
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
@@ -95,7 +134,18 @@ PetscErrorCode Simulation::log_information() const
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-Particles& Simulation::get_named_particles(std::string_view name) const
+
+Vec Simulation::get_named_vector(std::string_view name) const
+{
+  static const std::unordered_map<std::string_view, Vec> map{
+    {"E", E},
+    {"B", B},
+    {"B0", B0},
+  };
+  return map.at(name);
+}
+
+Particles& Simulation::get_named_particles(std::string_view name)
 {
   auto it = std::find_if(particles_.begin(), particles_.end(), //
     [&](const Particles_sp& sort) {
@@ -105,14 +155,6 @@ Particles& Simulation::get_named_particles(std::string_view name) const
   if (it == particles_.end())
     throw std::runtime_error("No particles with name " + std::string(name));
   return **it;
-}
-
-Simulation::NamedValues<Particles*> Simulation::get_backup_particles() const
-{
-  NamedValues<interfaces::Particles*> particles;
-  for (const Particles_sp& sort : particles_)
-    particles.insert(std::make_pair(sort->parameters.sort_name, sort.get()));
-  return particles;
 }
 
 }  // namespace interfaces
@@ -129,6 +171,8 @@ std::unique_ptr<interfaces::Simulation> build_simulation()
 
   if (simulation_str == "basic")
     simulation = std::make_unique<basic::Simulation>();
+  else if (simulation_str == "drift_kinetic")
+    simulation = std::make_unique<drift_kinetic::Simulation>();
   else if (simulation_str == "eccapfim")
     simulation = std::make_unique<eccapfim::Simulation>();
   else if (simulation_str == "ecsim")

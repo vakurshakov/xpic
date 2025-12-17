@@ -1,80 +1,33 @@
 {
-  "Simulation": "ecsimcorr",
-
-  "OutputDirectory": "results/ecsimcorr/output",
-
-  "Geometry": {
-    "x": "10 [c/w_pe]",
-    "y": "10 [c/w_pe]",
-    "z": "10 [c/w_pe]",
-    "t": "10 [1/w_pe]",
-    "dx": 1.0,
-    "dy": 1.0,
-    "dz": 1.0,
-    "dt": 1.0,
-    "diagnose_period": "3 [dt]",
-    "da_boundary_x": "DM_BOUNDARY_PERIODIC",
-    "da_boundary_y": "DM_BOUNDARY_PERIODIC",
-    "da_boundary_z": "DM_BOUNDARY_PERIODIC"
-  },
-
-  "mpi": {
-    "da_processors_x": 1,
-    "da_processors_y": 1,
-    "da_processors_z": 1,
-    "binding": "socket",
-    "mapping": "numa"
-  },
-
-  "omp": {
-    "num_threads": 1,
-    "places": "cores",
-    "proc_bind": "spread"
-  },
-
-  "Particles": [
-    { "sort_name": "ions",      "Np": 100, "n": 1.0, "q":  1.0, "m": 100.0, "T": 1.0 },
-    { "sort_name": "electrons", "Np": 100, "n": 1.0, "q": -1.0, "m":   1.0, "T": 1.0 }
-  ],
-
-  "Presets": [
-    {
-      "command": "SetMagneticField",
-      "field": "B0",
-      "field_axpy": "B",
-      "setter": { "name": "SetUniformField", "value": [0, 0, 0.2], "reference": 0.2 }
+    "Simulation": "eccapfim",
+    "OutputDirectory": "results/Langmuir_wave/eccapfim_nz32_dx0.5_np1000_check",
+    "Geometry": {
+        "x": "2 [dx]",
+        "y": "2 [dy]",
+        "z": "32 [dz]",
+        "t": "30 [1/w_pe]",
+        "dx": 0.5,
+        "dy": 0.5,
+        "dz": 0.5,
+        "dt": 0.1,
+        "diagnose_period": "100 [dt]",
+        "da_boundary_x": "DM_BOUNDARY_PERIODIC",
+        "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+        "da_boundary_z": "DM_BOUNDARY_PERIODIC"
     },
-    {
-      "command": "InjectParticles",
-      "ionized": "ions",
-      "ejected": "electrons",
-      "coordinate": { "name": "CoordinateInBox", "min": 0, "max": "Geom" },
-      "momentum_i": { "name": "MaxwellianMomentum", "tov": true },
-      "momentum_e": { "name": "MaxwellianMomentum", "tov": true }
-    }
-  ],
-
-  "StepPresets": [],
-
-  "Diagnostics": [
-    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "FieldView", "field": "E", "region": { "type": "2D", "plane": "Z", "position": 5 } },
-
-    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "FieldView", "field": "B", "region": { "type": "2D", "plane": "Z", "position": 5 } },
-
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "density", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "density", "region": { "type": "2D", "plane": "Z", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "current", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "current", "region": { "type": "2D", "plane": "Z", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "ions", "moment": "momentum_flux_diag", "region": { "type": "2D", "plane": "Z", "position": 5 } },
-
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "density", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "density", "region": { "type": "2D", "plane": "Z", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "current", "region": { "type": "2D", "plane": "X", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "current", "region": { "type": "2D", "plane": "Z", "position": 5 } },
-    { "diagnostic": "DistributionMoment", "particles": "electrons", "moment": "momentum_flux_diag", "region": { "type": "2D", "plane": "Z", "position": 5 } }
-  ],
-
-  "SimulationBackup": { "diagnose_period": "5 [dt]" }
+    "Particles": [ { "sort_name": "electrons", "Np": 1000, "n": 1, "q": -1, "m": 1, "T": 1 }
+    ],
+    "Presets": [
+        {
+            "command": "SetParticles",
+            "particles": "electrons",
+            "momentum": { "name": "MaxwellCosinePerturbation", "amplitude": [0, 0, 3], "wave_number": [0, 0, 1] },
+            "coordinate": { "name": "CoordinateInBox" }
+        }
+    ],
+    "Diagnostics": [
+        { "diagnostic": "LogView", "level": "EachTimestep" },
+        { "diagnostic": "LogView", "level": "DiagnosePeriodAvg" },
+        { "diagnostic": "LogView", "level": "AllTimestepsSummary" }
+    ]
 }

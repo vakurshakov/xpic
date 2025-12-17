@@ -3,7 +3,6 @@
 #include "src/commands/builders/fields_damping_builder.h"
 #include "src/commands/builders/inject_particles_builder.h"
 #include "src/commands/builders/remove_particles_builder.h"
-#include "src/commands/builders/set_kotelnikov_equilibrium.h"
 #include "src/commands/builders/set_magnetic_field_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
@@ -54,13 +53,6 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
     }
     else if (command == "FieldsDamping") {
       PetscCall(Builder::use_impl<FieldsDampingBuilder>(info, simulation, result));
-    }
-    else if (command == "SetKotelnikovEquilibrium") {
-      using namespace kotelnikov_equilibrium;
-      if (name == "Presets")
-        PetscCall(Builder::use_impl<SetPresets>(info, simulation, result));
-      else if (name == "StepPresets")
-        PetscCall(Builder::use_impl<SetStepPresets>(info, simulation, result));
     }
     else {
       throw std::runtime_error("Unknown command name " + command);

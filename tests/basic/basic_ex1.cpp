@@ -23,8 +23,12 @@ int main(int argc, char** argv)
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
+  PetscCall(compare_temporal(__FILE__, "energy.txt"));
   PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
   PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));
+
+  /// @todo There is some problem with MPI version of this diagnostic
+  // PetscCall(compare_temporal(__FILE__, "momentum_conservation.txt"));
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
