@@ -19,7 +19,7 @@ void get_analytical_fields(const Vector3R&, const Vector3R& rn, //
   Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
   E_p = E0;
-  B_p = B0 + (rn - r0).dot(gradB0) * gradB0.normalized();
+  B_p = B0 + (rn - r0).dot(gradB0) * B0.normalized();
   gradB_p = gradB0;
 }
 
@@ -32,17 +32,20 @@ int main(int argc, char** argv)
   PetscCall(get_omega_dt(omega_dt));
 
   dt = omega_dt / B0.length();
-  World::set_geometry(20, 20, 20, 100, 1.0, 1.0, 1.0, dt, dt);
+
+  overwrite_config(20., 20., 20., 100., 1.0, 1.0, 1.0, dt, dt);
 
   FieldContext context;
 
   PetscCall(context.initialize([&](PetscInt i, PetscInt j, PetscInt k, Vector3R& E_g, Vector3R& B_g, Vector3R& gradB_g) {
-    Vector3R r(i * dx, j * dy, k * dz);
+    Vector3R r((i + 0.5) * dx, (j + 0.5) * dy, k * dz);
     get_analytical_fields(r, r, E_g, B_g, gradB_g);
   }));
 
   DriftKineticEsirkepov esirkepov(
-    context.E_arr, context.B_arr, nullptr, context.gradB_arr);
+    context.E_arr, context.B_arr, nullptr, nullptr);
+
+  esirkepov.set_dBidrj(context.dBdx_arr, context.dBdy_arr, context.dBdz_arr);
 
   Point point_init(r0, v0);
 
@@ -61,7 +64,35 @@ int main(int argc, char** argv)
   push_grid.set_fields_callback(
     [&](const Vector3R& r0, const Vector3R& rn, //
       Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p) {
-      esirkepov.interpolate(E_p, B_p, gradB_p, rn, r0);
+      E_p = {};
+      B_p = {};
+      gradB_p = {};
+      Vector3R Es_p, Bs_p, gradBs_p;
+      Vector3R E_dummy, B_dummy, gradB_dummy;
+
+      Vector3R pos = (rn - r0);
+
+      auto coords = cell_traversal_new(rn, r0);
+      PetscInt Nsegments = (PetscInt)coords.size() - 1;
+
+      pos[X] = pos[X] != 0 ? pos[X] / dx : Nsegments;
+      pos[Y] = pos[Y] != 0 ? pos[Y] / dy : Nsegments;
+      pos[Z] = pos[Z] != 0 ? pos[Z] / dz : Nsegments;
+
+
+      esirkepov.interpolate(E_dummy, B_p, gradB_dummy, rn, r0);
+
+      for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
+        auto&& rs0 = coords[s - 1];
+        auto&& rsn = coords[s - 0];
+
+        esirkepov.interpolate(Es_p, B_dummy, gradBs_p, rsn, rs0);
+
+        E_p += Es_p;
+        gradB_p += gradBs_p;
+      }
+      E_p = E_p.elementwise_division(pos);
+      gradB_p = gradB_p.elementwise_division(pos);
     });
 
   BorisPush push_boris;

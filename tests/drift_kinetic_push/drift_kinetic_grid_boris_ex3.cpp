@@ -23,12 +23,12 @@ int main(int argc, char** argv)
   PetscReal omega_dt;
   PetscCall(get_omega_dt(omega_dt));
 
-  dx = dz = 0.1;
+  dx = dy = dz = 0.1;
   dt = omega_dt / B_min;
   geom_nx = (PetscInt)(W / dx);
   geom_nz = (PetscInt)(D / dz);
 
-  World::set_geometry(geom_nx, geom_nx, geom_nz, 2000, dx, dx, dz, dt, dt);
+  World::set_geometry(geom_nx, geom_nx, geom_nx, 2000, dx, dx, dx, dt, dt);
 
   FieldContext context;
 
@@ -65,10 +65,8 @@ int main(int argc, char** argv)
   push_grid.set_qm(q / m);
   push_grid.set_mp(m);
   push_grid.set_fields_callback(
-    [&](const Vector3R& r0_local, const Vector3R& rn_local, Vector3R& E_p,
-      Vector3R& B_p, Vector3R& gradB_p) {
-      esirkepov.interpolate(E_p, B_p, gradB_p, rn_local, r0_local);
-    });
+    [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
+      Vector3R& B_p, Vector3R& gradB_p) {esirkepov.interpolate(E_p, B_p, gradB_p, rn, r0);});
 
   BorisPush push_boris;
   push_boris.set_qm(q / m);

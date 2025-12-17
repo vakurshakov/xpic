@@ -156,7 +156,7 @@ void get_fields(const Vector3R&, const Vector3R& pos, //
     : Vector3R{0, 0, dB_dz};
 }
 
-}  // namespace gaussian_magnetic_mirror
+} // namespace gaussian_magnetic_mirror
 
 namespace drift_kinetic_test_utils {
 

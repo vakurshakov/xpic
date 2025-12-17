@@ -147,7 +147,6 @@ void DriftKineticPush::update_fields(const PointByField& pn, const PointByField&
   set_fields(p0.r, p0.r, E_dummy, B0, gradB_dummy);
   set_fields(p0.r, pn.r, E_dummy, Bn, gradB_dummy);
   set_fields(p0.r, 0.5 * (p0.r + pn.r), Eh, Bh, gradBh);
-  std::cout << Eh << std::endl;
   meanB = 0.5 * (Bn + B0);
   bh = Bh.normalized(), bn = Bn.normalized(), b0 = B0.normalized();
   lenBh = Bh.length();

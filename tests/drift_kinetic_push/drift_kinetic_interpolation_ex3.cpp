@@ -64,11 +64,27 @@ int main(int argc, char** argv)
     .grid_fn = get_grid_fields,
   };
 
+  InterpCase test_without_displace_4{
+    .r0 = {1.4,1.4,1.4},
+    .rn = {2.0,1.5,1.4},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_grid_fields,
+  };
+
+  InterpCase test_without_displace_5{
+    .r0 = {1.4,1.4,1.4},
+    .rn = {1.4,1.4,1.4},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_grid_fields,
+  };
+
   PetscCall(interpolation_test(test_in_one_cell_1));
   PetscCall(interpolation_test(test_in_one_cell_2));
   PetscCall(interpolation_test(test_without_displace_1));
   PetscCall(interpolation_test(test_without_displace_2));
   PetscCall(interpolation_test(test_without_displace_3));
+  PetscCall(interpolation_test(test_without_displace_4));
+  PetscCall(interpolation_test(test_without_displace_5));
 
   PetscCall(PetscFinalize());
   return EXIT_SUCCESS;
