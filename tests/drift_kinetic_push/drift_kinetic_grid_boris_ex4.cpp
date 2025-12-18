@@ -24,7 +24,7 @@ int main(int argc, char** argv)
 
   dx = 0.1;
   dt = omega_dt / B_min;
-  geom_nx = (PetscInt)(2 * L / dx);
+  geom_nx = (PetscInt )(2 * L / dx);
 
   World::set_geometry(geom_nx, geom_nx, geom_nx, 2000, dx, dx, dx, dt, dt);
 

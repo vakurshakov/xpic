@@ -25,7 +25,7 @@ int main(int argc, char** argv)
   diagnose_period = geom_nt / 4;
 
   constexpr Vector3R r0(0, 0, 0);
-  constexpr Vector3R v0(0, 1, 0);
+  constexpr Vector3R v0(0, 0.1, 0);
   Point point_init(r0, v0);
   PointByField point_n(point_init, B0, 1, q / m);
 

@@ -19,9 +19,6 @@ private:
 
   PetscErrorCode push_particles();
   PetscErrorCode push_fields();
-
-  Mat rotE;
-  Mat rotB;
 };
 
 }  // namespace basic

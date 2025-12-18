@@ -137,6 +137,15 @@ struct Vector3 {
     };
   }
 
+  Vector3 elementwise_division(const Vector3& other) const
+  {
+    return Vector3{
+      data[X] / other[X],
+      data[Y] / other[Y],
+      data[Z] / other[Z],
+    };
+  }
+
   Vector3<PetscReal> operator/(T scalar) const
     requires std::is_floating_point_v<T>
   {

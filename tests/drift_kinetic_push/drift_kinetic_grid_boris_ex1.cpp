@@ -36,6 +36,8 @@ int main(int argc, char** argv)
       B_g = B0;
   }));
 
+
+
   DriftKineticEsirkepov esirkepov(
     context.E_arr, context.B_arr, nullptr, context.gradB_arr);
 

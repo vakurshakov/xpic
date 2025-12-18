@@ -64,10 +64,7 @@ protected:
   PetscErrorCode fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j);
   PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
 
-  Mat rotE;
-  Mat rotB;
   Mat matM;
-
   KSP ksp;
 
   /**

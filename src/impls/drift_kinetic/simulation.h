@@ -1,36 +1,27 @@
-#ifndef SRC_ECCAPFIM_SIMULATION_H
-#define SRC_ECCAPFIM_SIMULATION_H
+#ifndef SRC_DRIFT_KINETIC_SIMULATION_H
+#define SRC_DRIFT_KINETIC_SIMULATION_H
 
 #include <petscsnes.h>
 
 #include "src/interfaces/simulation.h"
-#include "src/impls/eccapfim/particles.h"
+#include "src/diagnostics/utils/table_diagnostic.h"
+#include "src/impls/drift_kinetic/particles.h"
 #include "src/utils/sync_clock.h"
 
-namespace eccapfim {
+namespace drift_kinetic {
 
-#define SNES_ITERATE_B 0
+class EnergyConservation;
 
 class Simulation : public interfaces::Simulation {
 public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
-  std::vector<std::shared_ptr<Particles>> particles_;
+  std::vector<std::unique_ptr<drift_kinetic::Particles>> particles_;
 
 protected:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt t) override;
-
-  PetscErrorCode init_vectors();
-  PetscErrorCode init_matrices();
-  PetscErrorCode init_snes_solver();
-  PetscErrorCode init_log_stages();
-
-  // Iterative solution procedures
-  PetscErrorCode init_iteration();
-  PetscErrorCode calc_iteration();
-  PetscErrorCode after_iteration();
 
   /**
    * @brief Evaluates nonlinear function F(x^k), namely the system of
@@ -44,35 +35,51 @@ protected:
    */
   static PetscErrorCode form_iteration(SNES snes, Vec vx, Vec vf, void* ctx);
 
-  // The main simulation steps
-  PetscErrorCode clear_sources();
   PetscErrorCode form_current();
   PetscErrorCode form_function(Vec vf);
 
-#if SNES_ITERATE_B
-  DM da_EB;
-  Vec B_hk;
   PetscErrorCode from_snes(Vec v, Vec vE, Vec vB);
   PetscErrorCode to_snes(Vec vE, Vec vB, Vec v);
-#else
-  Mat matM;
-#endif
 
+  Vec M;
+
+  Vec dBdx;
+  Vec dBdx_loc;
+  Arr dBdx_arr;
+
+  Vec dBdy;
+  Vec dBdy_loc;
+  Arr dBdy_arr;
+
+  Vec dBdz;
+  Vec dBdz_loc;
+  Arr dBdz_arr;
+
+  Vec B_hk;
   Vec E_hk;
 
+  DM da_EB;
   Vec sol;
   SNES snes;
-  std::vector<PetscReal> conv_hist;
 
-  PetscClassId classid;
-  PetscLogEvent events[5];
-  PetscLogStage stagenums[4];
-
-  SyncClock clock;
-
-  friend class ConvergenceHistory;
+  friend class EnergyConservation;
+  std::unique_ptr<EnergyConservation> energy_cons;
 };
 
-}  // namespace eccapfim
+class EnergyConservation : public TableDiagnostic {
+public:
+  EnergyConservation(const Simulation& simulation);
+  PetscErrorCode diagnose(PetscInt t) override;
+  PetscErrorCode add_columns(PetscInt t) override;
 
-#endif  // SRC_ECCAPFIM_SIMULATION_H
+  const Simulation& simulation;
+  PetscReal w_E = 0, w_E0 = 0;
+  PetscReal w_B = 0, w_B0 = 0;
+  PetscReal dF = 0;
+  PetscReal a_EJ = 0;
+  PetscReal a_MB = 0, a_MB0 = 0;
+};
+
+}  // namespace drift_kinetic
+
+#endif  // SRC_DRIFT_KINETIC_SIMULATION_H

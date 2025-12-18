@@ -118,6 +118,11 @@ set(impls_eccapfim
   src/impls/eccapfim/convergence_history.cpp
 )
 
+set(impls_drift_kinetic
+  src/impls/drift_kinetic/simulation.cpp
+  src/impls/drift_kinetic/particles.cpp
+)
+
 add_library(
   ${PROJECT_NAME} SHARED
   src/constants.cpp
@@ -129,8 +134,8 @@ add_library(
   ${impls_basic}
   ${impls_ecsim}
   ${impls_ecsimcorr}
-  ${impls_ricketson}
   ${impls_eccapfim}
+  ${impls_drift_kinetic}
 )
 
 target_precompile_headers(
