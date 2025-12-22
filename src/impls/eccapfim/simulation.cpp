@@ -154,7 +154,7 @@ PetscErrorCode Simulation::form_iteration(
 #if SNES_ITERATE_B
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
 #else
-  simulation->E_hk = vx;
+  PetscCall(VecCopy(vx, simulation->E_hk));
 #endif
 
   PetscCall(simulation->clear_sources());
