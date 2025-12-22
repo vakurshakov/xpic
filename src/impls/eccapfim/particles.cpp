@@ -37,6 +37,7 @@ PetscErrorCode Particles::form_iteration()
 
   PetscReal q = parameters.q;
   PetscReal m = parameters.m;
+  PetscReal mpw = parameters.n / parameters.Np;
 
   PetscReal xb = (world.start[X] - 0.5) * dx;
   PetscReal yb = (world.start[Y] - 0.5) * dy;
@@ -46,72 +47,122 @@ PetscErrorCode Particles::form_iteration()
   PetscReal ye = (world.end[Y] + 0.5) * dy;
   PetscReal ze = (world.end[Z] + 0.5) * dz;
 
-  static const PetscReal max = std::numeric_limits<double>::max();
+  PetscReal max = std::numeric_limits<double>::max();
 
   auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe) {
-    if (vh > 0)
+    if (vh > 0 && abs(xe - x) > 1e-7)
       return (xe - x) / vh;
-    else if (vh < 0)
+    else if (vh < 0 && abs(xb - x) > 1e-7)
       return (xb - x) / vh;
     else
       return max;
   };
 
+  auto bound_periodic = [&](PetscReal& s, Axis axis) {
+    if (s < 0.0) {
+      s = Geom[axis] - (0.0 - s);
+      return true;
+    }
+    else if (s > Geom[axis]) {
+      s = 0.0 + (s - Geom[axis]);
+      return true;
+    }
+    return false;
+  };
+
 #pragma omp parallel for reduction(+ : avgit, avgcell)
   for (PetscInt g = 0; g < (PetscInt)storage.size(); ++g) {
-    PetscReal path;
-    std::vector<Vector3R> coords;
+    ImplicitEsirkepov util(E_arr, B_arr, J_arr);
 
     for (PetscInt i = 0; auto& curr : storage[g]) {
-      const auto& prev(previous_storage[g][i]);
+      curr = previous_storage[g][i];
+      Point tmp = curr;
 
-      CrankNicolsonPush push(q / m);
-      ImplicitEsirkepov util(E_arr, B_arr, J_arr);
+      PetscReal tau = 0, dtau = 0, dtx, dty, dtz;
 
-      push.set_fields_callback(  //
-        [&](const Vector3R& rn, const Vector3R& r0, Vector3R& E_p, Vector3R& B_p) {
-          path = (rn - r0).length();
-          coords = cell_traversal(rn, r0);
+      for (; tau < dt; tau += dtau) {
+        auto& pn = curr;
+        auto& p0 = tmp;
 
-          for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
-            auto&& rs0 = coords[s - 1];
-            auto&& rsn = coords[s - 0];
+        // This is a guess, not a proper calculation of `dtau`
+        Vector3R vh = 0.5 * (pn.p + p0.p);
 
-            Vector3R Es_p, Bs_p;
-            util.interpolate(Es_p, Bs_p, rsn, rs0);
-
-            PetscReal beta = path > 0 ? (rsn - rs0).length() / path : 1.0;
-            E_p += Es_p * beta;
-            B_p += Bs_p * beta;
-          }
-        });
-
-      for (PetscReal dtau = 0.0, tau = 0.0; tau < dt; tau += dtau) {
-        PetscReal dtx = process_bound(curr.px(), curr.x(), xb, xe);
-        PetscReal dty = process_bound(curr.py(), curr.y(), yb, ye);
-        PetscReal dtz = process_bound(curr.pz(), curr.z(), zb, ze);
-
+        dtx = process_bound(vh.x(), p0.x(), xb, xe);
+        dty = process_bound(vh.y(), p0.y(), yb, ye);
+        dtz = process_bound(vh.z(), p0.z(), zb, ze);
         dtau = std::min({dt - tau, dtx, dty, dtz});
 
-        push.process(dtau, curr, prev);
-        avgit += (PetscReal)(push.get_iteration_number() + 1) / size;
+        const PetscReal a0 = q * mpw;
+        const PetscReal alpha = 0.5 * dtau * (q / m);
 
-        path = (curr.r - prev.r).length();
-        coords = cell_traversal(curr.r, prev.r);
-        avgcell += (PetscReal)(coords.size() - 1) / size;
+        const PetscInt cn_maxit = 30;
+        const PetscReal cn_atol = 1e-8;
 
-        PetscReal a0 = qn_Np(curr);
-        Vector3R vh = 0.5 * (curr.p + prev.p);
+        PetscInt it = 0, s;
+        PetscReal rn = max, d, ds, bs;
 
-        for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
-          auto&& rs0 = coords[s - 1];
-          auto&& rsn = coords[s - 0];
+        Vector3R E_p, B_p, rsn, rs0;
+        std::vector<Vector3R> coords;
 
-          PetscReal a = a0 * (rsn - rs0).length() / path;
-          util.decompose(a, vh, rsn, rs0);
+        auto set_fields = [&]() {
+          E_p = Vector3R{};
+          B_p = Vector3R{};
+
+          d = (pn.r - p0.r).length();
+          coords = cell_traversal(pn.r, p0.r);
+
+          for (s = 1; s < (PetscInt)coords.size(); s++) {
+            rs0 = coords[s - 1];
+            rsn = coords[s - 0];
+            ds = (rsn - rs0).length();
+            bs = (d > 0 ? ds / d : 1.0);
+
+            // No (dtau / dt) here, this is a field on substep `tau`
+            Vector3R Es_p, Bs_p;
+            util.interpolate(Es_p, Bs_p, rsn, rs0);
+            E_p += Es_p * bs;
+            B_p += Bs_p * bs;
+          }
+        };
+
+        set_fields();
+
+        for (; it < cn_maxit && rn > cn_atol; it++) {
+          Vector3R a, b, w;
+          a = alpha * E_p;
+          b = alpha * B_p;
+          w = p0.p + a;
+          vh = (w + w.cross(b) + b * w.dot(b)) / (1.0 + b.squared());
+
+          pn.r = p0.r + dtau * vh;
+          pn.p = 2.0 * vh - p0.p;
+
+          set_fields();
+          rn = ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p))).length();
         }
 
-        correct_coordinates(curr);
+        avgit += (PetscReal)it / size;
+        avgcell += (PetscReal)(coords.size() - 1) / size;
+
+        d = (pn.r - p0.r).length();
+        coords = cell_traversal(pn.r, p0.r);
+
+        for (s = 1; s < (PetscInt)coords.size(); s++) {
+          rs0 = coords[s - 1];
+          rsn = coords[s - 0];
+          ds = (rsn - rs0).length();
+          bs = (d > 0 ? ds / d : 1.0);
+
+          util.decompose(a0 * bs * (dtau / dt), vh, rsn, rs0);
+        }
+
+        bool reset = false;
+        reset |= bound_periodic(pn.r[X], X);
+        reset |= bound_periodic(pn.r[Y], Y);
+        reset |= bound_periodic(pn.r[Z], Z);
+
+        if (reset)
+          p0 = pn;
       }
 
       i++;
