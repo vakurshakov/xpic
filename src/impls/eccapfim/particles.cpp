@@ -96,7 +96,7 @@ PetscErrorCode Particles::form_iteration()
         const PetscReal alpha = 0.5 * dtau * (q / m);
 
         const PetscInt cn_maxit = 30;
-        const PetscReal cn_atol = 1e-8;
+        const PetscReal cn_atol = 0.5 * eccapfim::atol;
 
         PetscInt it = 0, s;
         PetscReal rn = max, d, ds, bs;

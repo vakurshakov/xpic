@@ -11,6 +11,18 @@ namespace eccapfim {
 
 #define SNES_ITERATE_B 0
 
+static constexpr PetscReal atol = 1e-7;
+static constexpr PetscReal rtol = 1e-7;
+static constexpr PetscReal stol = 1e-7;
+static constexpr PetscReal divtol = PETSC_DETERMINE;
+static constexpr PetscInt maxit = 1000;
+static constexpr PetscInt maxf = PETSC_UNLIMITED;
+
+static constexpr PetscInt ew_version = 3;
+static constexpr PetscReal ew_rtol_0 = 0.8;
+static constexpr PetscReal ew_gamma = 0.9;
+static constexpr PetscReal ew_alpha = 1.5;
+
 class Simulation : public interfaces::Simulation {
 public:
   Simulation() = default;
