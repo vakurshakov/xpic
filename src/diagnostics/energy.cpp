@@ -88,6 +88,12 @@ PetscErrorCode Energy::calculate_energies()
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, v, 4, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &n, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
+    if (n == 0) {
+      w_K[i] = 0;
+      std_K[i] = 0;
+      continue;
+    }
+
     PetscReal s = v[3] - (v[X] * v[X] + v[Y] * v[Y] + v[Z] * v[Z]) / n;
     std_K[i] = frac * sqrt(abs(s) / n);
   }

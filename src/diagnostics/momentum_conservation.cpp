@@ -52,8 +52,10 @@ PetscErrorCode MomentumConservation::add_columns(PetscInt t)
 
     err = (p1 - p0) / dt - qe;
     sum += err;
+    freq = 0;
 
-    freq = ((p1 - p0).length() / (p1 + p0).length()) / (0.5 * dt);
+    if (auto denom = (p1 + p0).length(); abs(denom) > PETSC_SMALL)
+      freq = ((p1 - p0).length() / denom) / (0.5 * dt);
 
     add(13, "N2dP_" + name, "{: .6e}", err.length());
     add(13, "fP_" + name, "{: .6e}", freq);
