@@ -22,7 +22,7 @@ struct World {
   const PetscMPIInt* neighbors;
 
   const PetscInt dof = Vector3R::dim;
-  const PetscInt st = static_cast<PetscInt>(std::ceil(shape_radius));
+  const PetscInt st = 2 * static_cast<PetscInt>(std::ceil(shape_radius));
 
   Vector3I start;
   Vector3I size;
