@@ -151,11 +151,6 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscCall(second_push());
   PetscCall(final_update());
   PetscCall(clock.log_timings());
-
-  if (t % diagnose_period == 0) {
-    for (auto& sort : particles_)
-      PetscCall(sort->log_distribution());
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -366,7 +361,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
   std::vector<PetscReal> coo_v(size, 0.0);
   PetscCall(fill_ecsim_current(coo_v.data()));
 
-  PetscCall(MatSetValuesCOO(matL, coo_v.data(), ADD_VALUES));
+  PetscCall(MatSetValuesCOO(matL, coo_v.data(), INSERT_VALUES));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -564,7 +559,7 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
   PetscCall(KSPSetErrorIfNotConverged(ksp, PETSC_TRUE));
   PetscCall(KSPSetReusePreconditioner(ksp, PETSC_TRUE));
-  PetscCall(KSPSetTolerances(ksp, rtol, atol, PETSC_DEFAULT, PETSC_DEFAULT));
+  PetscCall(KSPSetTolerances(ksp, rtol, atol, divtol, maxit));
   PetscCall(KSPSetFromOptions(ksp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

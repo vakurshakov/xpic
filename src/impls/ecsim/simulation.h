@@ -14,6 +14,8 @@ namespace ecsim {
 
 static constexpr PetscReal atol = 1e-7;
 static constexpr PetscReal rtol = 1e-7;
+static constexpr PetscReal divtol = PETSC_DETERMINE;
+static constexpr PetscInt maxit = 100;
 
 /// @note The following is a recreation of the published results,
 /// @see https://doi.org/10.1016/j.jcp.2017.01.002
