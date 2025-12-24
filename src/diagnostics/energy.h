@@ -12,7 +12,7 @@ public:
   PetscErrorCode diagnose(PetscInt t) override;
 
   static PetscReal get_field(const Vector3R& f);
-  static PetscReal get_kinetic(const Vector3R& p, PetscReal m, PetscInt Np);
+  static PetscReal get_kinetic(const Vector3R& p, PetscReal m, PetscReal mpw);
 
 protected:
   PetscErrorCode calculate_field();

@@ -22,7 +22,7 @@ PetscErrorCode SetParticles::execute(PetscInt /* t */)
   added_particles_ = 0;
 
   const PetscReal m = particles_.parameters.m;
-  const PetscInt Np = particles_.parameters.Np;
+  const PetscReal mpw = particles_.parameters.n / particles_.parameters.Np;
 
   PetscFunctionBeginUser;
   for (PetscInt p = 0; p < number_of_particles_; ++p) {
@@ -33,7 +33,7 @@ PetscErrorCode SetParticles::execute(PetscInt /* t */)
     particles_.add_particle(Point(coordinate, momentum), &is_added);
 
     if (is_added) {
-      added_energy_ += Energy::get_kinetic(momentum, m, Np);
+      added_energy_ += Energy::get_kinetic(momentum, m, mpw);
       added_particles_++;
     }
   }

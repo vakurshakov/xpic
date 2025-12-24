@@ -17,7 +17,7 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
   const World& world = particles_.world;
 
   const PetscReal m = particles_.parameters.m;
-  const PetscInt Np = particles_.parameters.Np;
+  const PetscReal mpw = particles_.parameters.n / particles_.parameters.Np;
 
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto& cell = particles_.storage[g];
@@ -32,7 +32,7 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
       continue;
 
     for (const auto& point : cell)
-      removed_energy_ += Energy::get_kinetic(point.p, m, Np);
+      removed_energy_ += Energy::get_kinetic(point.p, m, mpw);
 
     removed_particles_ += cell.size();
     cell.clear();

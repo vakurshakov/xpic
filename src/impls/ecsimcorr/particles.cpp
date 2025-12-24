@@ -137,13 +137,13 @@ PetscErrorCode Particles::calculate_energy()
   energy = 0.0;
 
   const PetscReal m = parameters.m;
-  const PetscInt Np = parameters.Np;
+  const PetscReal mpw = parameters.n / parameters.Np;
 
 #pragma omp parallel for reduction(+ : energy), \
   schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
   for (auto& cell : storage)
     for (auto& point : cell)
-      energy += Energy::get_kinetic(point.p, m, Np);
+      energy += Energy::get_kinetic(point.p, m, mpw);
 
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);

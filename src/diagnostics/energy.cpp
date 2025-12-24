@@ -190,7 +190,7 @@ PetscReal Energy::get_field(const Vector3R& f)
   return 0.5 * f.squared();
 }
 
-PetscReal Energy::get_kinetic(const Vector3R& p, PetscReal m, PetscInt Np)
+PetscReal Energy::get_kinetic(const Vector3R& p, PetscReal m, PetscReal mpw)
 {
-  return 0.5 * (m * p.squared()) / Np;
+  return 0.5 * (m * p.squared()) * mpw;
 }

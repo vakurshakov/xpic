@@ -34,10 +34,10 @@ PetscErrorCode InjectParticles::execute(PetscInt t)
     return PETSC_SUCCESS;
 
   const PetscReal mi = ionized_.parameters.m;
-  const PetscInt Npi = ionized_.parameters.Np;
+  const PetscReal mpwi = ionized_.parameters.n / ionized_.parameters.Np;
 
   const PetscReal me = ejected_.parameters.m;
-  const PetscInt Npe = ejected_.parameters.Np;
+  const PetscReal mpwe = ejected_.parameters.n / ejected_.parameters.Np;
 
   PetscFunctionBeginUser;
 #pragma omp parallel for
@@ -51,8 +51,8 @@ PetscErrorCode InjectParticles::execute(PetscInt t)
     ejected_.add_particle(Point(shared_coordinate, pe), &is_added);
 
     if (is_added) {
-      energy_i_ += Energy::get_kinetic(pi, mi, Npi);
-      energy_e_ += Energy::get_kinetic(pe, me, Npe);
+      energy_i_ += Energy::get_kinetic(pi, mi, mpwi);
+      energy_e_ += Energy::get_kinetic(pe, me, mpwe);
       added_particles_++;
     }
   }
