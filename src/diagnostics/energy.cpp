@@ -102,21 +102,6 @@ PetscErrorCode Energy::calculate_energies()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscReal Energy::get_electric_energy() const
-{
-  return w_E;
-}
-
-PetscReal Energy::get_magnetic_energy() const
-{
-  return w_B;
-}
-
-std::vector<PetscReal> Energy::get_kinetic_energies() const
-{
-  return w_K;
-}
-
 PetscReal Energy::get_field(const Vector3R& f)
 {
   return 0.5 * f.squared();

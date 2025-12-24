@@ -29,9 +29,9 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
     PetscCall(initialize());
   }
 
-  E0 = energy->get_electric_energy();
-  B0 = energy->get_magnetic_energy();
-  K0 = energy->get_kinetic_energies();
+  E0 = energy->w_E;
+  B0 = energy->w_B;
+  K0 = energy->w_K;
 
   PetscCall(energy->diagnose(t));
   PetscCall(TableDiagnostic::diagnose(t));
@@ -51,9 +51,9 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   PetscFunctionBeginUser;
   add(6, "Time", "{:d}", t);
 
-  dE = energy->get_electric_energy() - E0;
-  dB = energy->get_magnetic_energy() - B0;
-  K = energy->get_kinetic_energies();
+  dE = energy->w_E - E0;
+  dB = energy->w_B - B0;
+  K = energy->w_K;
 
   dF = dE + dB;
   add(13, "dE", "{: .6e}", dE);

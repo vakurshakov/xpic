@@ -17,10 +17,6 @@ public:
   PetscErrorCode add_columns(PetscInt t) override;
   PetscErrorCode calculate_energies();
 
-  PetscReal get_electric_energy() const;
-  PetscReal get_magnetic_energy() const;
-  std::vector<PetscReal> get_kinetic_energies() const;
-
   static PetscReal get_field(const Vector3R& f);
   static PetscReal get_kinetic(const Vector3R& p, PetscReal m, PetscInt Np);
 
