@@ -33,6 +33,13 @@ PetscErrorCode TableDiagnostic::initialize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode TableDiagnostic::add_columns(PetscInt /* t */)
+{
+  PetscFunctionBeginUser;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 PetscErrorCode TableDiagnostic::write_formatted(
   const std::vector<std::string>& container)
 {

@@ -95,8 +95,6 @@ protected:
   PetscLogStage stagenums[6];
 
   SyncClock clock;
-
-  friend class EnergyConservation;
 };
 
 }  // namespace ecsim

@@ -7,12 +7,12 @@
 #include "src/interfaces/particles.h"
 #include "src/utils/world.h"
 
-class EnergyConservation;
+class Energy;
 
 namespace interfaces {
 
 class Simulation {
-  friend class ::EnergyConservation;
+  friend class ::Energy;
 
 public:
   Simulation() = default;

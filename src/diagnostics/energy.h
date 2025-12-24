@@ -1,33 +1,39 @@
 #ifndef SRC_DIAGNOSTICS_ENERGY_H
 #define SRC_DIAGNOSTICS_ENERGY_H
 
-#include <petscvec.h>
-
 #include "src/pch.h"
-#include "src/interfaces/particles.h"
+#include "src/interfaces/simulation.h"
 #include "src/diagnostics/utils/table_diagnostic.h"
 
-class Energy : public TableDiagnostic {
-  friend class EnergyConservation;
-
+class Energy : public interfaces::Diagnostic {
 public:
-  Energy(Vec E, Vec B, std::vector<const interfaces::Particles*> particles);
+  Energy(const interfaces::Simulation& simulation);
 
-  PetscErrorCode initialize() override;
-  PetscErrorCode add_columns(PetscInt t) override;
-  PetscErrorCode calculate_energies();
+  PetscErrorCode diagnose(PetscInt t) override;
 
   static PetscReal get_field(const Vector3R& f);
   static PetscReal get_kinetic(const Vector3R& p, PetscReal m, PetscInt Np);
 
-private:
-  Vec E;
-  Vec B;
-  std::vector<const interfaces::Particles*> particles;
+protected:
+  PetscErrorCode calculate_field();
+  PetscErrorCode calculate_kinetic();
+  PetscErrorCode calculate_spectral();
 
-  PetscReal w_E = 0.0, std_E = 0.0;
-  PetscReal w_B = 0.0, std_B = 0.0;
-  std::vector<PetscReal> w_K, std_K;
+  PetscErrorCode fill_energy(PetscInt t);
+  virtual PetscErrorCode fill_energy_cons(PetscInt t);
+
+  const interfaces::Simulation& simulation;
+  TableDiagnostic energy;
+  TableDiagnostic energy_cons;
+
+  PetscReal E = 0, E0 = 0, dE = 0, std_E = 0;
+  PetscReal B = 0, B0 = 0, dB = 0, std_B = 0;
+  PetscReal dF = 0, dK = 0;
+
+  std::vector<PetscReal> K, K0, std_K;
+
+  const PetscInt kmax = 2;
+  std::vector<PetscReal> Ek, Bk;
 };
 
 #endif  // SRC_DIAGNOSTICS_ENERGY_H

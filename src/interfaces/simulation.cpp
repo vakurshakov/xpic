@@ -3,7 +3,7 @@
 #include "src/commands/builders/command_builder.h"
 #include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/diagnostics/charge_conservation.h"
-#include "src/diagnostics/energy_conservation.h"
+#include "src/diagnostics/energy.h"
 #include "src/diagnostics/momentum_conservation.h"
 #include "src/impls/basic/simulation.h"
 #include "src/impls/eccapfim/simulation.h"
@@ -41,14 +41,12 @@ PetscErrorCode Simulation::initialize()
   bool append_energy_conservation = true;
 
   for (auto& diagnostic : diagnostics_) {
-    if (dynamic_cast<EnergyConservation*>(diagnostic.get()))
+    if (dynamic_cast<Energy*>(diagnostic.get()))
       append_energy_conservation = false;
   }
 
   if (append_energy_conservation) {
-    diagnostics_.emplace_back( //
-      std::make_unique<EnergyConservation>(
-        *this, std::move(std::make_unique<Energy>(E, B, particles))));
+    diagnostics_.emplace_back(std::make_unique<Energy>(*this));
   }
 
   diagnostics_.emplace_back(

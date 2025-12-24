@@ -9,9 +9,8 @@ public:
   TableDiagnostic(const std::string& filename);
   PetscErrorCode diagnose(PetscInt t) override;
 
-protected:
   virtual PetscErrorCode initialize();
-  virtual PetscErrorCode add_columns(PetscInt t) = 0;
+  virtual PetscErrorCode add_columns(PetscInt t);
 
   template<typename T>
   using Format = std::format_string<T&>;
@@ -36,6 +35,7 @@ protected:
     }
   }
 
+protected:
   PetscErrorCode write_formatted(const std::vector<std::string>& container);
 
   SyncFile file_;

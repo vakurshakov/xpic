@@ -1,8 +1,5 @@
 #include "simulation.h"
 
-#include "src/diagnostics/charge_conservation.h"
-#include "src/diagnostics/energy_conservation.h"
-#include "src/diagnostics/momentum_conservation.h"
 #include "src/impls/eccapfim/convergence_history.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"

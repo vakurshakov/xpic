@@ -51,7 +51,6 @@ set(diagnostics
   src/diagnostics/mat_dump.cpp
   src/diagnostics/log_view.cpp
   src/diagnostics/simulation_backup.cpp
-  src/diagnostics/energy_conservation.cpp
   src/diagnostics/charge_conservation.cpp
   src/diagnostics/momentum_conservation.cpp
   src/diagnostics/velocity_distribution.cpp
@@ -108,7 +107,6 @@ set(impls_ecsim
 set(impls_ecsimcorr
   src/impls/ecsimcorr/simulation.cpp
   src/impls/ecsimcorr/particles.cpp
-  src/impls/ecsimcorr/energy_conservation.cpp
 )
 
 set(impls_eccapfim

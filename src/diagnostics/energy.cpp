@@ -1,67 +1,96 @@
 #include "energy.h"
 
+#include "src/commands/fields_damping.h"
+#include "src/commands/inject_particles.h"
+#include "src/commands/remove_particles.h"
 #include "src/utils/configuration.h"
 #include "src/utils/utils.h"
 
-Energy::Energy(Vec E, Vec B, std::vector<const interfaces::Particles*> particles)
-  : TableDiagnostic(CONFIG().out_dir + "/temporal/energy.txt"),
-    E(E),
-    B(B),
-    particles(particles)
+Energy::Energy(const interfaces::Simulation& simulation)
+  : simulation(simulation),
+    energy(CONFIG().out_dir + "/temporal/energy.txt"),
+    energy_cons(CONFIG().out_dir + "/temporal/energy_conservation.txt")
 {
-  std::fill_n(std::back_inserter(w_K), particles.size(), 0.0);
+  auto& particles = simulation.particles_;
+  std::fill_n(std::back_inserter(K), particles.size(), 0.0);
+  std::fill_n(std::back_inserter(K0), particles.size(), 0.0);
   std::fill_n(std::back_inserter(std_K), particles.size(), 0.0);
+
+  // PetscReal
+  // std::fill_n(std::back_inserter(Ek), )
 }
 
-PetscErrorCode Energy::initialize()
+PetscErrorCode Energy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  PetscCall(calculate_energies());
+  if (t == 0) {
+    PetscCall(calculate_field());
+    PetscCall(calculate_kinetic());
+    PetscCall(calculate_spectral());
+  }
+
+  E0 = E;
+  B0 = B;
+  K0 = K;
+
+  PetscCall(calculate_field());
+  PetscCall(calculate_kinetic());
+  PetscCall(calculate_spectral());
+
+  PetscCall(fill_energy(t));
+  PetscCall(fill_energy_cons(t));
+
+  PetscCall(energy.diagnose(t));
+  PetscCall(energy_cons.diagnose(t));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Energy::add_columns(PetscInt t)
+PetscErrorCode Energy::fill_energy(PetscInt t)
 {
   PetscFunctionBeginUser;
-  add(6, "Time", "{:d}", t);
+  energy.add(6, "Time", "{:d}", t);
 
-  PetscCall(calculate_energies());
-
+  auto& particles = simulation.particles_;
   PetscInt i, size = (PetscInt)particles.size();
 
-  add(13, "wE", "{: .6e}", w_E);
-  add(13, "wB", "{: .6e}", w_B);
+  energy.add(13, "wE", "{: .6e}", E);
+  energy.add(13, "wB", "{: .6e}", B);
   for (i = 0; i < size; ++i)
-    add(13, "wK_" + particles[i]->parameters.sort_name, "{: .6e}", w_K[i]);
+    energy.add(13, "wK_" + particles[i]->parameters.sort_name, "{: .6e}", K[i]);
 
-  add(13, "sE", "{: .6e}", std_E);
-  add(13, "sB", "{: .6e}", std_B);
+  energy.add(13, "sE", "{: .6e}", std_E);
+  energy.add(13, "sB", "{: .6e}", std_B);
   for (i = 0; i < size; ++i)
-    add(13, "sK_" + particles[i]->parameters.sort_name, "{: .6e}", std_K[i]);
+    energy.add(
+      13, "sK_" + particles[i]->parameters.sort_name, "{: .6e}", std_K[i]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Energy::calculate_energies()
+PetscErrorCode Energy::calculate_field()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecNorm(E, NORM_2, &w_E));
-  PetscCall(VecNorm(B, NORM_2, &w_B));
-  w_E = 0.5 * POW2(w_E);
-  w_B = 0.5 * POW2(w_B);
+  PetscCall(VecNorm(simulation.E, NORM_2, &E));
+  PetscCall(VecNorm(simulation.B, NORM_2, &B));
+  E = 0.5 * POW2(E);
+  B = 0.5 * POW2(B);
 
   Vector3R mean_E, mean_B;
-  PetscCall(VecStrideSumAll(E, mean_E));
-  PetscCall(VecStrideSumAll(B, mean_B));
+  PetscCall(VecStrideSumAll(simulation.E, mean_E));
+  PetscCall(VecStrideSumAll(simulation.B, mean_B));
 
   PetscReal g3 = (geom_nx * geom_ny * geom_nz);
-  std_E = sqrt((w_E - 0.5 * mean_E.squared() / g3) / g3);
-  std_B = sqrt((w_B - 0.5 * mean_B.squared() / g3) / g3);
+  std_E = sqrt((E - 0.5 * mean_E.squared() / g3) / g3);
+  std_B = sqrt((B - 0.5 * mean_B.squared() / g3) / g3);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+PetscErrorCode Energy::calculate_kinetic()
+{
   PetscReal frac, m, mpw, vx, vy, vz, w;
   PetscInt n;
 
-  for (std::size_t i = 0; i < particles.size(); ++i) {
-    auto&& sort = particles[i];
+  for (std::size_t i = 0; i < simulation.particles_.size(); ++i) {
+    auto& sort = simulation.particles_[i];
 
     m = sort->parameters.m;
     mpw = sort->parameters.n / (PetscReal)sort->parameters.Np;
@@ -82,14 +111,14 @@ PetscErrorCode Energy::calculate_energies()
       }
     }
 
-    w_K[i] = frac * w;
+    K[i] = frac * w;
 
     PetscReal v[4] = {vx, vy, vz, w};
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, v, 4, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &n, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
     if (n == 0) {
-      w_K[i] = 0;
+      K[i] = 0;
       std_K[i] = 0;
       continue;
     }
@@ -98,9 +127,63 @@ PetscErrorCode Energy::calculate_energies()
     std_K[i] = frac * sqrt(abs(s) / n);
   }
 
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, w_K.data(), w_K.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, K.data(), K.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode Energy::calculate_spectral()
+{
+  PetscFunctionBeginUser;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+PetscErrorCode Energy::fill_energy_cons(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  energy_cons.add(6, "Time", "{:d}", t);
+
+  dE = E - E0;
+  dB = B - B0;
+  K = K;
+
+  dF = dE + dB;
+  energy_cons.add(13, "dE", "{: .6e}", dE);
+  energy_cons.add(13, "dB", "{: .6e}", dB);
+
+  dK = 0.0;
+  for (PetscInt i = 0; i < (PetscInt)K.size(); ++i) {
+    auto&& n = simulation.particles_[i]->parameters.sort_name;
+    energy_cons.add(13, "dK_" + n, "{: .6e}", K[i] - K0[i]);
+    dK += K[i] - K0[i];
+  }
+
+  for (const auto& command : simulation.step_presets_) {
+    if (auto&& damp = dynamic_cast<FieldsDamping*>(command.get())) {
+      energy_cons.add(13, "Damped(E+B)", "{: .6e}", damp->get_damped_energy());
+      dF += damp->get_damped_energy();
+    }
+    if (auto&& injection = dynamic_cast<InjectParticles*>(command.get())) {
+      auto&& ni = injection->get_ionized_name();
+      auto&& ne = injection->get_ejected_name();
+      auto&& wi = injection->get_ionized_energy();
+      auto&& we = injection->get_ejected_energy();
+      energy_cons.add(13, "Inj_" + ni, "{: .6e}", wi);
+      energy_cons.add(13, "Inj_" + ne, "{: .6e}", we);
+      dK -= wi + we;
+    }
+    if (auto&& remove = dynamic_cast<RemoveParticles*>(command.get())) {
+      auto&& n = remove->get_particles_name();
+      auto&& w = remove->get_removed_energy();
+      energy_cons.add(13, "Rm_" + n, "{: .6e}", w);
+      dK += remove->get_removed_energy();
+    }
+  }
+
+  energy_cons.add(13, "dE+dB+dK", "{: .6e}", dF + dK);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 PetscReal Energy::get_field(const Vector3R& f)
 {
