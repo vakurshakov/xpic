@@ -16,9 +16,9 @@ PetscErrorCode ConvergenceHistory::add_columns(PetscInt t)
   for (const auto& sort : simulation.particles_) {
     const auto& name = sort->parameters.sort_name;
     auto cn = sort->get_average_iteration_number();
-    auto cl = sort->get_average_number_of_traversed_cells();
+    auto tc = sort->get_average_number_of_traversed_cells();
     add(8, "AvgCN_" + name, "{:.3f}", cn);
-    add(8, "AvgCL_" + name, "{:.3f}", cl);
+    add(8, "AvgTC_" + name, "{:.3f}", tc);
   }
 
   SNES snes = simulation.snes;
