@@ -97,14 +97,15 @@ PetscErrorCode Particles::form_iteration()
 
         const PetscInt cn_maxit = 30;
         const PetscReal cn_atol = 0.5 * eccapfim::atol;
+        const PetscReal cn_rtol = 0.5 * eccapfim::atol;
 
         PetscInt it = 0, s;
-        PetscReal rn = max, d, ds, bs;
+        PetscReal rn, r0, d, ds, bs;
 
         Vector3R E_p, B_p, rsn, rs0;
         std::vector<Vector3R> coords;
 
-        auto set_fields = [&]() {
+        auto set_fields = [&] {
           E_p = Vector3R{};
           B_p = Vector3R{};
 
@@ -125,9 +126,14 @@ PetscErrorCode Particles::form_iteration()
           }
         };
 
-        set_fields();
+        auto get_residue = [&] {
+          return ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p))).length();
+        };
 
-        for (; it < cn_maxit && rn > cn_atol; it++) {
+        set_fields();
+        rn = r0 = get_residue();
+
+        for (; rn > cn_atol + cn_rtol * r0 && it < cn_maxit; it++) {
           Vector3R a, b, w;
           a = alpha * E_p;
           b = alpha * B_p;
@@ -138,7 +144,7 @@ PetscErrorCode Particles::form_iteration()
           pn.p = 2.0 * vh - p0.p;
 
           set_fields();
-          rn = ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p))).length();
+          rn = get_residue();
         }
 
         avgit += (PetscReal)it / size;
