@@ -19,6 +19,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionBeginUser;
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &B));
+  PetscCall(DMCreateGlobalVector(da, &B0));
   PetscCall(DMCreateGlobalVector(da, &J));
   PetscCall(DMCreateGlobalVector(da, &M));
   PetscCall(DMCreateGlobalVector(da, &dBdx));
@@ -67,6 +68,7 @@ PetscErrorCode Simulation::finalize()
 
   PetscCall(VecDestroy(&E));
   PetscCall(VecDestroy(&B));
+  PetscCall(VecDestroy(&B0));
   PetscCall(VecDestroy(&J));
   PetscCall(VecDestroy(&M));
   PetscCall(VecDestroy(&dBdx));

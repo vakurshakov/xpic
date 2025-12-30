@@ -63,8 +63,8 @@ private:
   /// @brief Iteration counters and tolerances.
   PetscInt it = 0;
   PetscInt maxit = 30;
-  PetscReal eps = 1e-12;
-  PetscReal delta = 1e-12;
+  PetscReal eps = 1e-9;
+  PetscReal delta = 1e-8;
   PetscReal R1, R2;
 
   /// @brief Particle parameters.

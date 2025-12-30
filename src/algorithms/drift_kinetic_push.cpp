@@ -69,8 +69,13 @@ void DriftKineticPush::process(
   for (it = 0; it < maxit; ++it) {
     update_Vp(pn, p0);
 
+    //std::cout << it;
+
     if (check_discrepancy(dt, pn, p0) && it) {
       update_v_perp(pn, p0);
+      //std::cout << it << ":" << Eh << " " << Bh << " " << B0 << " " << Bn <<std::endl;
+      //std::cout << " " << gradBh << " " << pn.r << " "<< p0.r <<std::endl; 
+      //std::cin >> it;
       return;
     }
 
@@ -102,19 +107,20 @@ Vector3R DriftKineticPush::get_Vd(const PointByField& p0) const
 bool DriftKineticPush::check_discrepancy(PetscReal dt, const PointByField& pn, const PointByField& p0){
   R1 = get_residue_r(dt, pn, p0);
   R2 = get_residue_v(dt, pn, p0);
+  //std::cout << R1 << " " << R2 << std::endl;
   return (R1 < eps) && (R2 < delta);
 }
 
 PetscReal DriftKineticPush::get_residue_r(PetscReal dt, const PointByField& pn,
   const PointByField& p0) const
 {
-  return (pn.r - p0.r - dt * Vp).length();
+  return (pn.r - p0.r - dt * Vp).length()/pn.r.length();
 }
 
 PetscReal DriftKineticPush::get_residue_v(PetscReal dt, const PointByField& pn,
   const PointByField& p0) const
 {
-  return std::abs((pn.p_parallel - p0.p_parallel) - dt * get_v_parallel(p0));
+  return std::abs((pn.p_parallel - p0.p_parallel) - dt * get_v_parallel(p0))/std::abs(pn.p_parallel);
 }
 
 void DriftKineticPush::update_r(PetscReal dt, PointByField& pn, const PointByField& p0) const
@@ -143,9 +149,10 @@ PetscReal DriftKineticPush::get_v_parallel(const PointByField& p0) const {
 }
 
 void DriftKineticPush::update_fields(const PointByField& pn, const PointByField& p0) {
-  Vector3R E_dummy, gradB_dummy;
-  set_fields(p0.r, p0.r, E_dummy, B0, gradB_dummy);
-  set_fields(p0.r, pn.r, E_dummy, Bn, gradB_dummy);
+  Vector3R E0, gradB0;
+  Vector3R En, gradBn;
+  set_fields(p0.r, p0.r, E0, B0, gradB0);
+  set_fields(p0.r, pn.r, En, Bn, gradBn);
   set_fields(p0.r, 0.5 * (p0.r + pn.r), Eh, Bh, gradBh);
   meanB = 0.5 * (Bn + B0);
   bh = Bh.normalized(), bn = Bn.normalized(), b0 = B0.normalized();

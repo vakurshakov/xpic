@@ -26,9 +26,9 @@ PetscErrorCode get_omega_dt(PetscReal& omega_dt)
 namespace quadratic_magnetic_mirror {
 
 constexpr PetscReal B_min = 1.0;
-constexpr PetscReal B_max = 4.0;
-constexpr PetscReal W = 20.0;  // width of the radial well
-constexpr PetscReal D = 40.0;  // length of the mirror
+constexpr PetscReal B_max = 5.0;
+constexpr PetscReal W = 3.0;  // width of the radial well
+constexpr PetscReal D = 6.0;  // length of the mirror
 constexpr PetscReal Rc = W / 2;
 constexpr PetscReal L = D / 2;
 
@@ -74,11 +74,11 @@ void get_fields(const Vector3R&, const Vector3R& pos, //
 namespace gaussian_magnetic_mirror {
 
 constexpr PetscReal B_min = 1.0;
-constexpr PetscReal B_max = 4.0;
-constexpr PetscReal L = 5.0;      // Half the length of the trap
-constexpr PetscReal W = 1.0;      // Mirror width
+constexpr PetscReal B_max = 3.0;
+constexpr PetscReal L = 2.0;      // Half the length of the trap
+constexpr PetscReal W = 1.35;      // Mirror width
 constexpr PetscReal S = POW2(W);  // Mirror width squared
-constexpr PetscReal Rc = L;
+constexpr PetscReal Rc = 0.04;
 
 PetscReal exp(PetscReal z, PetscReal z0)
 {
@@ -147,13 +147,49 @@ void get_fields(const Vector3R&, const Vector3R& pos, //
     Bz - 0.25 * r2 * d2Bz_dz2,
   };
 
-  // 3) Calculation of the field modulus gradient |B|
-  PetscReal dB_dr = -0.5 * r * d2Bz_dz2;
-  PetscReal dB_dz = dBz_dz - 0.25 * r2 * d3Bz_dz3;
+  // 3) Calculation of the field modulus gradient |B| from full B vector.
+  Vector3R dBdx{
+    -0.5 * dBz_dz,
+    0.0,
+    -0.5 * x * d2Bz_dz2,
+  };
+  Vector3R dBdy{
+    0.0,
+    -0.5 * dBz_dz,
+    -0.5 * y * d2Bz_dz2,
+  };
+  Vector3R dBdz{
+    -0.5 * x * d2Bz_dz2,
+    -0.5 * y * d2Bz_dz2,
+    dBz_dz - 0.25 * r2 * d3Bz_dz3,
+  };
 
-  gradB_p = (r > 1e-12) //
-    ? Vector3R{x / r * dB_dr, y / r * dB_dr, dB_dz}
-    : Vector3R{0, 0, dB_dz};
+  PetscReal B_len = B_p.length();
+  if (B_len > 1e-12) {
+    gradB_p = Vector3R{
+      B_p.dot(dBdx),
+      B_p.dot(dBdy),
+      B_p.dot(dBdz),
+    } / B_len;
+  }
+  else {
+    gradB_p = {};
+  }
+}
+
+void get_grid(const Vector3R&, const Vector3R& pos, //
+  Vector3R&, Vector3R& B_p, Vector3R& gradB_p)
+{
+  Vector3R E_dummy;
+  Vector3R Bx, By, Bz;
+  Vector3R gBx, gBy, gBz;
+
+  get_fields({}, {pos.x(), pos.y() + 0.5 * dy, pos.z() + 0.5 * dz}, E_dummy, Bx, gBx);
+  get_fields({}, {pos.x() + 0.5 * dx, pos.y(), pos.z() + 0.5 * dz}, E_dummy, By, gBy);
+  get_fields({}, {pos.x() + 0.5 * dx, pos.y() + 0.5 * dy, pos.z()}, E_dummy, Bz, gBz);
+
+  B_p = {Bx.x(), By.y(), Bz.z()};
+  gradB_p = {gBx.x(), gBy.y(), gBz.z()};
 }
 
 } // namespace gaussian_magnetic_mirror
@@ -583,20 +619,20 @@ PetscErrorCode print_statistics(ComparisonStats& stats,
 
   LOG("\n=== DRIFT VS GRID STATISTICS ===");
   LOG("Field errors comparison:");
-  LOG("  Max B field error:     {:.8e}", stats.max_err_B);
-  LOG("  Max gradB field error: {:.8e}", stats.max_err_gradB);
+  LOG("  Max B field error:     {:.10e}", stats.max_err_B);
+  LOG("  Max gradB field error: {:.10e}", stats.max_err_gradB);
   LOG("Trajectory comparison:");
-  LOG("  Max position error:    {:.8e}", stats.max_err_pos);
-  LOG("  Final pos analytical:  ({:.6e} {:.6e} {:.6e})", REP3_A(stats.final_pos_analytical));
-  LOG("  Final pos grid:        ({:.6e} {:.6e} {:.6e})", REP3_A(stats.final_pos_grid));
+  LOG("  Max position error:    {:.10e}", stats.max_err_pos);
+  LOG("  Final pos analytical:  ({:.10e} {:.10e} {:.10e})", REP3_A(stats.final_pos_analytical));
+  LOG("  Final pos grid:        ({:.10e} {:.10e} {:.10e})", REP3_A(stats.final_pos_grid));
 
   LOG("\n=== DRIFT VS BORIS STATISTICS ===");
-  LOG("Reference mu:      {:.8e}", stats.ref_mu);
-  LOG("Reference energy:  {:.8e}", stats.ref_energy);
-  LOG("Max z error:       {:.8e}", stats.max_err_z);
-  LOG("Max p_parallel err {:.8e}", stats.max_err_par);
-  LOG("Max mu error:      {:.8e}", stats.max_err_mu);
-  LOG("Max energy error:  {:.8e}", stats.max_err_energy);
+  LOG("Reference mu:      {:.10e}", stats.ref_mu);
+  LOG("Reference energy:  {:.10e}", stats.ref_energy);
+  LOG("Max z error:       {:.10e}", stats.max_err_z);
+  LOG("Max p_parallel err {:.10e}", stats.max_err_par);
+  LOG("Max mu error:      {:.10e}", stats.max_err_mu);
+  LOG("Max energy error:  {:.10e}", stats.max_err_energy);
   LOG("Final pos boris:   ({:.6e} {:.6e} {:.6e})", REP3_A(stats.final_pos_boris));
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -633,39 +669,88 @@ namespace implicit_test_utils {
 
     esirkepov.set_dBidrj(context.dBdx_arr, context.dBdy_arr, context.dBdz_arr);
 
+    auto f_grid = [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
+      Vector3R& B_p, Vector3R& gradB_p){
+      E_p = {};
+      B_p = {};
+      gradB_p = {};
+      Vector3R Es_p, Bs_p, gradBs_p;
+      Vector3R E_dummy, B_dummy, gradB_dummy;
+
+      Vector3R pos = (rn - r0);
+
+      auto coords = cell_traversal_new(rn, r0);
+      PetscInt Nsegments = (PetscInt)coords.size() - 1;
+
+      pos[X] = pos[X] != 0 ? pos[X] / dx : Nsegments;
+      pos[Y] = pos[Y] != 0 ? pos[Y] / dy : Nsegments;
+      pos[Z] = pos[Z] != 0 ? pos[Z] / dz : Nsegments;
+
+      esirkepov.interpolate(E_dummy, B_p, gradB_dummy, rn, r0);
+
+      for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
+        auto&& rs0 = coords[s - 1];
+        auto&& rsn = coords[s - 0];
+
+        std::cout << rsn << std::endl;
+
+        esirkepov.interpolate(Es_p, B_dummy, gradBs_p, rsn, rs0);
+
+        E_p += Es_p;
+        gradB_p += gradBs_p;
+      }
+      E_p = E_p.elementwise_division(pos);
+      gradB_p = gradB_p.elementwise_division(pos);
+    };
+
+    auto f_analytical = [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
+      Vector3R& B_p, Vector3R& gradB_p){
+        E_p = {};
+        B_p = {};
+        gradB_p = {};
+        Vector3R Es_p, Bs_p, gradBs_p;
+        Vector3R E_dummy, B_dummy, gradB_dummy;
+
+        Vector3R pos = (rn - r0);
+
+        auto coords = cell_traversal_new(rn, r0);
+        PetscInt Nsegments = (PetscInt)coords.size() - 1;
+
+        pos[X] = pos[X] != 0 ? pos[X] : Nsegments;
+        pos[Y] = pos[Y] != 0 ? pos[Y] : Nsegments;
+        pos[Z] = pos[Z] != 0 ? pos[Z] : Nsegments;
+
+        test_param.analytic_fn(rn, E_dummy, B_p, gradB_dummy);
+
+      for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
+        auto&& rs0 = coords[s - 1];
+        auto&& rsn = coords[s - 0];
+
+        test_param.analytic_fn(rsn, Es_p, B_dummy, gradBs_p);
+
+        Vector3R drs{
+          rsn[X] != rs0[X] ? rsn[X] - rs0[X] : 1.0,
+          rsn[Y] != rs0[Y] ? rsn[Y] - rs0[Y] : 1.0,
+          rsn[Z] != rs0[Z] ? rsn[Z] - rs0[Z] : 1.0,
+        };
+
+        E_p += Es_p.elementwise_product(drs);
+        gradB_p += gradBs_p.elementwise_product(drs);
+      }
+      E_p = E_p.elementwise_division(pos);
+      gradB_p = gradB_p.elementwise_division(pos);
+      };
+
     Vector3R pos_old(test_param.r0);
     Vector3R pos_new(test_param.rn);
 
     Vector3R E_p, B_p, gradB_p;
-    Vector3R Es_p, Bs_p, gradBs_p;
-    Vector3R E_dummy, B_dummy, gradB_dummy;
 
-    Vector3R pos = (pos_new - pos_old);
-
-    auto coords = cell_traversal_new(pos_new, pos_old);
-
-    PetscInt Nsegments = (PetscInt)coords.size() - 1;
-
-    pos[X] = pos[X] != 0 ? pos[X] / dx : Nsegments;
-    pos[Y] = pos[Y] != 0 ? pos[Y] / dy : Nsegments;
-    pos[Z] = pos[Z] != 0 ? pos[Z] / dz : Nsegments;
-
-    esirkepov.interpolate(E_dummy, B_p, gradB_dummy, pos_new, pos_old);
-
-    for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
-      auto&& rs0 = coords[s - 1];
-      auto&& rsn = coords[s - 0];
-
-      esirkepov.interpolate(Es_p, B_dummy, gradBs_p, rsn, rs0);
-
-      E_p += Es_p;
-      gradB_p += gradBs_p;
-    }
-    E_p = E_p.elementwise_division(pos);
-    gradB_p = gradB_p.elementwise_division(pos);
+    f_grid(test_param.r0, test_param.rn, E_p, B_p, gradB_p);
 
     Vector3R E_e, B_e, gradB_e;
-    test_param.analytic_fn(pos_new, E_e, B_e, gradB_e);
+    f_analytical(test_param.r0, test_param.rn, E_e, B_e, gradB_e);
+    //test_param.analytic_fn(pos_new, E_e, B_e, gradB_e);
 
   #if 1
     LOG("Test position: ({:.3f}, {:.3f}, {:.3f})", REP3_A(pos_new));
@@ -676,8 +761,8 @@ namespace implicit_test_utils {
     LOG("  Expected:     ({:.6f}, {:.6f}, {:.6f})", REP3_A(B_e));
     LOG("  Interpolated: ({:.6f}, {:.6f}, {:.6f})", REP3_A(B_p));
     LOG("Gradient B field:");
-    LOG("  Expected:     ({:.6f}, {:.6f}, {:.6f})", REP3_A(gradB_e));
-    LOG("  Interpolated: ({:.6f}, {:.6f}, {:.6f})", REP3_A(gradB_p));
+    LOG("  Expected:     ({:.15f}, {:.15f}, {:.15f})", REP3_A(gradB_e));
+    LOG("  Interpolated: ({:.15f}, {:.15f}, {:.15f})", REP3_A(gradB_p));
   #endif
     PetscCheck(equal_tol(E_p, E_e, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Electric field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(E_e), REP3_A(E_p));
@@ -686,7 +771,7 @@ namespace implicit_test_utils {
       "Magnetic field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(B_e), REP3_A(B_p));
 
     PetscCheck(equal_tol(gradB_p, gradB_e, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "Gradient B field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(gradB_e), REP3_A(gradB_p));
+      "Gradient B field interpolation failed. Expected: (%.15e %.15e %.15e), got: (%.15e %.15e %.15e)", REP3_A(gradB_e), REP3_A(gradB_p));
 
     PetscCall(context.finalize());
     return PETSC_SUCCESS;

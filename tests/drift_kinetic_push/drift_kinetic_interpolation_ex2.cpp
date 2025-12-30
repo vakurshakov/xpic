@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 
   InterpCase test_without_displace_4{
     .r0 = {1.4,1.4,1.4},
-    .rn = {2.0,1.5,1.4},
+    .rn = {2.0,1.4,1.4},
     .analytic_fn = get_analytical_fields,
     .grid_fn = get_grid_fields,
   };
@@ -86,6 +86,48 @@ int main(int argc, char** argv)
   PetscCall(interpolation_test(test_without_displace_3));
   PetscCall(interpolation_test(test_without_displace_4));
   PetscCall(interpolation_test(test_without_displace_5));
+
+
+  InterpCase test_in_several_cells_1{
+    .r0 = {1.,1.,1.},
+    .rn = {2.5,1.3,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_grid_fields,
+  };
+
+  InterpCase test_in_several_cells_2{
+    .r0 = {1.,1.,1.},
+    .rn = {2.5,2.3,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_grid_fields,
+  };
+
+  InterpCase test_in_several_cells_3{
+    .r0 = {1.,1.,1.},
+    .rn = {2.5,2.3,2.4},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_grid_fields,
+  };
+
+  InterpCase test_in_several_cells_4{
+    .r0 = {1.,1.,1.},
+    .rn = {2.5,2.3,3.4},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_grid_fields,
+  };
+
+  InterpCase test_without_displace_in_several_cells_1{
+    .r0 = {1.,1.,1.},
+    .rn = {1,2.3,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_grid_fields,
+  };
+
+  PetscCall(interpolation_test(test_in_several_cells_1));
+  PetscCall(interpolation_test(test_in_several_cells_2));
+  PetscCall(interpolation_test(test_in_several_cells_3));
+  PetscCall(interpolation_test(test_in_several_cells_4));
+  PetscCall(interpolation_test(test_without_displace_in_several_cells_1));
 
   PetscCall(PetscFinalize());
   return EXIT_SUCCESS;
