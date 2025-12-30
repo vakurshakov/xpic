@@ -1,5 +1,6 @@
 #include "simulation.h"
 
+#include "src/algorithms/drift_kinetic_implicit.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
@@ -13,6 +14,40 @@ static constexpr PetscReal stol = 1e-7;
 static constexpr PetscReal divtol = PETSC_DETERMINE;
 static constexpr PetscInt maxit = 100;
 static constexpr PetscInt maxf = PETSC_UNLIMITED;
+
+class PointByFieldInitializer final : public interfaces::Diagnostic {
+public:
+  explicit PointByFieldInitializer(Simulation& simulation)
+    : simulation_(simulation)
+  {
+  }
+
+  PetscErrorCode diagnose(PetscInt /* t */) override
+  {
+    PetscFunctionBeginUser;
+    if (done_)
+      PetscFunctionReturn(PETSC_SUCCESS);
+
+    PetscCall(DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES,
+      simulation_.B_loc));
+    PetscCall(DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc,
+      &simulation_.B_arr));
+
+    for (auto& sort : simulation_.particles_)
+      PetscCall(sort->initialize_point_by_field(simulation_.B_arr));
+
+    PetscCall(DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc,
+      &simulation_.B_arr));
+
+    done_ = true;
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+private:
+  Simulation& simulation_;
+  bool done_ = false;
+};
+
 
 PetscErrorCode Simulation::initialize_implementation()
 {
@@ -56,8 +91,10 @@ PetscErrorCode Simulation::initialize_implementation()
 
   /// @todo particle setter?..
   // PetscCall(init_particles(*this, particles_));
+  PetscCall(init_particles(*this, particles_));
 
   energy_cons = std::make_unique<EnergyConservation>(*this);
+  diagnostics_.emplace_back(std::make_unique<PointByFieldInitializer>(*this));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -116,9 +153,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscCall(VecAXPBY(B, 2, -1, B_hk));
 
   for (auto& sort : particles_) {
-    /// @todo MPI cells update works with standard `Point` :6(
-    /// PetscCall(sort->update_cells());
-    PetscCall(sort->correct_coordinates());
+    PetscCall(sort->update_cells());
   }
 
   PetscCall(energy_cons->diagnose(t));
@@ -132,10 +167,32 @@ PetscErrorCode Simulation::form_iteration(
   auto* simulation = (Simulation*)ctx;
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
 
-  /// @todo dBdx, dBdy, dBdz should be computed with `DriftKineticEsirkepov::set_dBidrj()` here
+  PetscCall(simulation->prepare_dBdr());
 
   PetscCall(simulation->form_current());
   PetscCall(simulation->form_function(vf));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::prepare_dBdr()
+{
+  PetscFunctionBeginUser;
+  PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
+  PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
+  PetscCall(DMDAVecGetArrayWrite(da, dBdx_loc, &dBdx_arr));
+  PetscCall(DMDAVecGetArrayWrite(da, dBdy_loc, &dBdy_arr));
+  PetscCall(DMDAVecGetArrayWrite(da, dBdz_loc, &dBdz_arr));
+
+  DriftKineticEsirkepov dk_util(nullptr, B_arr, nullptr, nullptr);
+  PetscCall(dk_util.set_dBidrj_local(dBdx_arr, dBdy_arr, dBdz_arr, world.start, world.size));
+
+  PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
+  PetscCall(DMDAVecRestoreArrayWrite(da, dBdx_loc, &dBdx_arr));
+  PetscCall(DMDAVecRestoreArrayWrite(da, dBdy_loc, &dBdy_arr));
+  PetscCall(DMDAVecRestoreArrayWrite(da, dBdz_loc, &dBdz_arr));
+  PetscCall(DMLocalToGlobal(da, dBdx_loc, INSERT_VALUES, dBdx));
+  PetscCall(DMLocalToGlobal(da, dBdy_loc, INSERT_VALUES, dBdy));
+  PetscCall(DMLocalToGlobal(da, dBdz_loc, INSERT_VALUES, dBdz));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

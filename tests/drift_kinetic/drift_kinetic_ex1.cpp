@@ -20,7 +20,7 @@ int main(int argc, char** argv)
 
   drift_kinetic::Simulation simulation;
   PetscCall(simulation.initialize());
-  //PetscCall(simulation.calculate());
+  PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
   //PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));

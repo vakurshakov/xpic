@@ -17,7 +17,7 @@ public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
-  std::vector<std::unique_ptr<drift_kinetic::Particles>> particles_;
+  std::vector<std::shared_ptr<drift_kinetic::Particles>> particles_;
 
 protected:
   PetscErrorCode initialize_implementation() override;
@@ -37,6 +37,7 @@ protected:
 
   PetscErrorCode form_current();
   PetscErrorCode form_function(Vec vf);
+  PetscErrorCode prepare_dBdr();
 
   PetscErrorCode from_snes(Vec v, Vec vE, Vec vB);
   PetscErrorCode to_snes(Vec vE, Vec vB, Vec v);
@@ -63,6 +64,7 @@ protected:
   SNES snes;
 
   friend class EnergyConservation;
+  friend class Particles;
   std::unique_ptr<EnergyConservation> energy_cons;
 };
 

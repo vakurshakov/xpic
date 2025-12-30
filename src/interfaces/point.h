@@ -78,5 +78,6 @@ struct PointByField {
 
 void g_bound_reflective(Point& point, Axis axis);
 void g_bound_periodic(Point& point, Axis axis);
+void g_bound_periodic(PointByField& point, Axis axis);
 
 #endif  // SRC_INTERFACES_POINT_H

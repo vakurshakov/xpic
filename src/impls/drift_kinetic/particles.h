@@ -15,12 +15,16 @@ public:
   PetscErrorCode finalize() override;
   PetscErrorCode prepare_storage();
   PetscErrorCode form_iteration();
+  PetscErrorCode initialize_point_by_field(const Arr B_arr);
 
   Vec M;
   Vec M_loc;
   Arr M_arr;
 
 protected:
+  PetscErrorCode update_cells_seq();
+  PetscErrorCode update_cells_mpi();
+  PetscErrorCode correct_coordinates(PointByField& point);
   std::vector<std::list<PointByField>> dk_curr_storage;
   std::vector<std::vector<PointByField>> dk_prev_storage;
   Simulation& simulation_;

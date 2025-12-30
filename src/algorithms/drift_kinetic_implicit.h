@@ -8,13 +8,16 @@
 class DriftKineticEsirkepov{
 public:
   DriftKineticEsirkepov(
-    Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** gradB_g);
+    Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** M_g);
 
   DriftKineticEsirkepov(
     Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** M_g, //
     Vector3R*** dBidx_g, Vector3R*** dBidy_g, Vector3R*** dBidz_g);
 
   PetscErrorCode set_dBidrj(Vector3R*** _dBidx, Vector3R*** _dBidy, Vector3R*** _dBidz);
+  PetscErrorCode set_dBidrj_precomputed(Vector3R*** _dBidx, Vector3R*** _dBidy, Vector3R*** _dBidz);
+  PetscErrorCode set_dBidrj_local(Vector3R*** _dBidx, Vector3R*** _dBidy, Vector3R*** _dBidz,
+    const Vector3I& start, const Vector3I& size);
 
   PetscErrorCode interpolate(Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p,
     const Vector3R& rn, const Vector3R& r0);

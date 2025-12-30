@@ -53,8 +53,8 @@ PetscReal acrossSEfunc(
 }
 
 DriftKineticEsirkepov::DriftKineticEsirkepov(
-  Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** gradB_g)
-  : E_g(E_g), B_g(B_g), J_g(J_g), gradB_g(gradB_g)
+  Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** M_g)
+  : E_g(E_g), B_g(B_g), J_g(J_g), M_g(M_g)
 {
 }
 
@@ -66,13 +66,21 @@ DriftKineticEsirkepov::DriftKineticEsirkepov( //
   set_dBidrj(dBidx_g, dBidy_g, dBidz_g);
 }
 
-PetscErrorCode DriftKineticEsirkepov::set_dBidrj(
+PetscErrorCode DriftKineticEsirkepov::set_dBidrj_precomputed(
   Vector3R*** _dBidx_g, Vector3R*** _dBidy_g, Vector3R*** _dBidz_g)
 {
   PetscFunctionBeginHot;
   dBidx_g = _dBidx_g;
   dBidy_g = _dBidy_g;
   dBidz_g = _dBidz_g;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DriftKineticEsirkepov::set_dBidrj(
+  Vector3R*** _dBidx_g, Vector3R*** _dBidy_g, Vector3R*** _dBidz_g)
+{
+  PetscFunctionBeginHot;
+  set_dBidrj_precomputed(_dBidx_g, _dBidy_g, _dBidz_g);
 
   PetscReal inv_dx = 1.0 / dx, inv_dy = 1.0 / dy, inv_dz = 1.0 / dz;
 
@@ -94,6 +102,34 @@ PetscErrorCode DriftKineticEsirkepov::set_dBidrj(
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode DriftKineticEsirkepov::set_dBidrj_local(
+  Vector3R*** _dBidx_g, Vector3R*** _dBidy_g, Vector3R*** _dBidz_g,
+  const Vector3I& start, const Vector3I& size)
+{
+  PetscFunctionBeginHot;
+  set_dBidrj_precomputed(_dBidx_g, _dBidy_g, _dBidz_g);
+
+  PetscReal inv_dx = 1.0 / dx, inv_dy = 1.0 / dy, inv_dz = 1.0 / dz;
+
+#pragma omp parallel for simd
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    PetscInt i = start[X] + g % size[X];
+    PetscInt j = start[Y] + (g / size[X]) % size[Y];
+    PetscInt k = start[Z] + (g / size[X]) / size[Y];
+
+    PetscInt ip = i + 1;
+    PetscInt jp = j + 1;
+    PetscInt kp = k + 1;
+
+    const auto& B_center = B_g[k][j][i];
+    dBidx_g[k][j][i] = (B_g[k][j][ip] - B_center) * inv_dx;
+    dBidy_g[k][j][i] = (B_g[k][jp][i] - B_center) * inv_dy;
+    dBidz_g[k][j][i] = (B_g[kp][j][i] - B_center) * inv_dz;
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 PetscErrorCode DriftKineticEsirkepov::interpolate_E(
   Vector3R& E_p, const Vector3R& Rsn, const Vector3R& Rs0)
