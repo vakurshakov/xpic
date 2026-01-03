@@ -4,7 +4,7 @@ static constexpr char help[] =
   "Test drift-kinetic Esirkepov interpolation: simple field interpolation.\n"
   "Tests interpolation of arbitrary E, B, and gradB fields on a particle.\n";
 
-using namespace drift_kinetic_test_utils;
+using namespace implicit_test_utils;
 
 constexpr Vector3R E0(1.0, 1.0, 1.0);
 constexpr Vector3R B0(0.0, 0.0, 1.0);
@@ -13,8 +13,8 @@ void get_analytical_fields(
   const Vector3R& r, Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p)
 {
   E_p = E0;
-  B_p = B0; /// @todo Should be `B0 + 0.5 * r.length() * r;`
-  gradB_p = r;
+  B_p = B0 + r;
+  gradB_p = B_p/B_p.length();
 }
 
 int main(int argc, char** argv)
@@ -22,49 +22,104 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  World::set_geometry(10.0, 10.0, 10.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+  InterpCase test_in_one_cell_1{
+    .r0 = {1.,1.,1.},
+    .rn = {1.5,1.3,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  FieldContext context;
+  InterpCase test_in_one_cell_2{
+    .r0 = {1.8,1.6,1.4},
+    .rn = {1.5,1.3,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  PetscCall(context.initialize([&](PetscInt i, PetscInt j, PetscInt k, Vector3R& E_g, Vector3R& B_g, Vector3R& gradB_g) {
-    get_analytical_fields(Vector3R(i * dx, j * dy, k * dz), E_g, B_g, gradB_g);
-  }));
+  InterpCase test_without_displace_1{
+    .r0 = {1.,1.,1.},
+    .rn = {2.,1.,1.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  DriftKineticEsirkepov esirkepov(
-    context.E_arr, context.B_arr, nullptr, context.gradB_arr);
+  InterpCase test_without_displace_2{
+    .r0 = {1.,1.,1.},
+    .rn = {2.,1.,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  Vector3R pos_old(1, 1, 1);
-  Vector3R pos_new(2, 2, 2);
+  InterpCase test_without_displace_3{
+    .r0 = {1.,1.,1.},
+    .rn = {2.,2.,1.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  Vector3R E_p, B_p, gradB_p;
-  esirkepov.interpolate(E_p, B_p, gradB_p, pos_new, pos_old);
+  InterpCase test_without_displace_4{
+    .r0 = {1.4,1.4,1.4},
+    .rn = {2.0,1.4,1.4},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  Vector3R E_e, B_e, gradB_e;
-  get_analytical_fields(pos_new, E_e, B_e, gradB_e);
+  InterpCase test_without_displace_5{
+    .r0 = {1.4,1.4,1.4},
+    .rn = {1.4,1.4,1.4},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-#if 0
-  LOG("Test position: ({:.3f}, {:.3f}, {:.3f})", REP3_A(pos_new));
-  LOG("Electric field:");
-  LOG("  Expected:     ({:.6f}, {:.6f}, {:.6f})", REP3_A(E_e));
-  LOG("  Interpolated: ({:.6f}, {:.6f}, {:.6f})", REP3_A(E_p));
-  LOG("Magnetic field:");
-  LOG("  Expected:     ({:.6f}, {:.6f}, {:.6f})", REP3_A(B_e));
-  LOG("  Interpolated: ({:.6f}, {:.6f}, {:.6f})", REP3_A(B_p));
-  LOG("Gradient B field:");
-  LOG("  Expected:     ({:.6f}, {:.6f}, {:.6f})", REP3_A(gradB_e));
-  LOG("  Interpolated: ({:.6f}, {:.6f}, {:.6f})", REP3_A(gradB_p));
-#endif
+  PetscCall(interpolation_test(test_in_one_cell_1));
+  PetscCall(interpolation_test(test_in_one_cell_2));
+  PetscCall(interpolation_test(test_without_displace_1));
+  PetscCall(interpolation_test(test_without_displace_2));
+  PetscCall(interpolation_test(test_without_displace_3));
+  PetscCall(interpolation_test(test_without_displace_4));
+  PetscCall(interpolation_test(test_without_displace_5));
 
-  PetscCheck(equal_tol(E_p, E_e, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Electric field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(E_e), REP3_A(E_p));
+  InterpCase test_in_several_cells_1{
+    .r0 = {1.,1.,1.},
+    .rn = {2.5,1.3,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  PetscCheck(equal_tol(B_p, B_e, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Magnetic field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(B_e), REP3_A(B_p));
+  InterpCase test_in_several_cells_2{
+    .r0 = {1.,1.,1.},
+    .rn = {2.5,2.3,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  PetscCheck(equal_tol(gradB_p, gradB_e, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Gradient B field interpolation failed. Expected: (%.8e %.8e %.8e), got: (%.8e %.8e %.8e)", REP3_A(gradB_e), REP3_A(gradB_p));
+  InterpCase test_in_several_cells_3{
+    .r0 = {1.,1.,1.},
+    .rn = {2.5,2.3,2.4},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
 
-  PetscCall(context.finalize());
+  InterpCase test_in_several_cells_4{
+    .r0 = {1.,1.,1.},
+    .rn = {2.5,2.3,3.4},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
+
+  InterpCase test_without_displace_in_several_cells_1{
+    .r0 = {1.,1.,1.},
+    .rn = {1,2.3,2.},
+    .analytic_fn = get_analytical_fields,
+    .grid_fn = get_analytical_fields,
+  };
+
+  PetscCall(interpolation_test(test_in_several_cells_1));
+  PetscCall(interpolation_test(test_in_several_cells_2));
+  PetscCall(interpolation_test(test_in_several_cells_3));
+  PetscCall(interpolation_test(test_in_several_cells_4));
+  PetscCall(interpolation_test(test_without_displace_in_several_cells_1));
+
   PetscCall(PetscFinalize());
   return EXIT_SUCCESS;
 }

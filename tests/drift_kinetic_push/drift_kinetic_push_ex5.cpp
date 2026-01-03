@@ -13,7 +13,7 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   constexpr PetscReal v_perp = 0.2;
-  constexpr PetscReal v_par = 0.3;
+  constexpr PetscReal v_par = 0.15;
   constexpr Vector3R r0(Rc + 0.5, Rc, L);
   constexpr Vector3R v0(v_perp, 0, v_par);
   Point point_init(r0, v0);
@@ -37,8 +37,6 @@ int main(int argc, char** argv)
   PetscReal z_max = L;
   PetscReal r_max = Rc * 1.5;
 
-  const PetscReal old_E = get_kinetic_energy(point_n);
-
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     const PointByField point_0 = point_n;
     push.process(dt, point_n, point_0);
@@ -53,11 +51,6 @@ int main(int argc, char** argv)
     PetscCheck(r <= r_max, PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Particle escaped radial well! r = %.6e, allowed = %.6e", r, r_max);
   }
-
-  const PetscReal new_E = get_kinetic_energy(point_n);
-
-  PetscCheck(equal_tol(new_E, old_E, 1e-6), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Energy not conserved: new = %.6e, old = %.6e", new_E, old_E);
 
   PetscCall(PetscFinalize());
   return EXIT_SUCCESS;

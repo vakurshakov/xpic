@@ -7,10 +7,13 @@ set(tests
   drift_kinetic_push_ex4
   drift_kinetic_push_ex5
   drift_kinetic_interpolation_ex1
+  drift_kinetic_interpolation_ex2
+  drift_kinetic_interpolation_ex3
   drift_kinetic_grid_boris_ex1
   drift_kinetic_grid_boris_ex2
   drift_kinetic_grid_boris_ex3
   drift_kinetic_grid_boris_ex4
+  drift_kinetic_grid_boris_ex5
 )
 
 # In the given tests (Omega * dt) is constant

@@ -44,6 +44,9 @@ public:
   Vec J_loc;
   Arr J_arr;
 
+  Mat rotE;
+  Mat rotB;
+
   /**
    * @brief Container of abstract particles, the down-casted pointers to this
    * particles are stored in each `interfaces::Simulation` inheritor. The actual

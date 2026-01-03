@@ -9,14 +9,10 @@ check_build() {
   fi
 }
 
-if [[ $1 == "Debug" || $# == 0 ]]; then
-    cmake -S . -B build/Debug -D CMAKE_BUILD_TYPE=Debug
-    cmake --build build/Debug --parallel 4
-    check_build
-fi
+cmake -S . -B build/Debug -D CMAKE_BUILD_TYPE=Debug
+cmake --build build/Debug --parallel 4
+check_build
 
-if [[ $1 == "Release" || $# == 0 ]]; then
-    cmake -S . -B build/Release -D CMAKE_BUILD_TYPE=Release
-    cmake --build build/Release --parallel 4
-    check_build
-fi
+cmake -S . -B build/Release -D CMAKE_BUILD_TYPE=Release
+cmake --build build/Release --parallel 4
+check_build
