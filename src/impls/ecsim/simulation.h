@@ -89,7 +89,7 @@ protected:
   std::vector<bool> assembly_map;
 
   /// @brief Whether the new cells have been added into `indices_map`.
-  bool indices_assembled = false;
+  PetscInt indices_assembled = false;
 
   PetscClassId classid;
   PetscLogEvent events[1];

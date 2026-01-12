@@ -340,7 +340,7 @@ PetscErrorCode Simulation::fill_ecsim_current()
   get_array_offset(0, world.size.elements_product(), size);
 
   // Because matrix setup is collective, we must call it on all mpi ranks
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &indices_assembled, 1, MPIU_BOOL, MPI_BAND, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &indices_assembled, 1, MPIU_INT, MPI_BAND, PETSC_COMM_WORLD));
 
   if (!indices_assembled) {
     std::vector<PetscInt> coo_i(size, PETSC_DEFAULT);
