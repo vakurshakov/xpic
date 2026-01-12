@@ -17,7 +17,6 @@ public:
 protected:
   PetscErrorCode calculate_field();
   PetscErrorCode calculate_kinetic();
-  PetscErrorCode calculate_spectral();
 
   PetscErrorCode fill_energy(PetscInt t);
   virtual PetscErrorCode fill_energy_cons(PetscInt t);
@@ -31,9 +30,6 @@ protected:
   PetscReal dF = 0, dK = 0;
 
   std::vector<PetscReal> K, K0, std_K;
-
-  const PetscInt kmax = 2;
-  std::vector<PetscReal> Ek, Bk;
 };
 
 #endif  // SRC_DIAGNOSTICS_ENERGY_H

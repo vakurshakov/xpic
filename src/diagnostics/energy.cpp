@@ -23,7 +23,6 @@ PetscErrorCode Energy::diagnose(PetscInt t)
   if (t == 0) {
     PetscCall(calculate_field());
     PetscCall(calculate_kinetic());
-    PetscCall(calculate_spectral());
   }
 
   E0 = E;
@@ -32,7 +31,6 @@ PetscErrorCode Energy::diagnose(PetscInt t)
 
   PetscCall(calculate_field());
   PetscCall(calculate_kinetic());
-  PetscCall(calculate_spectral());
 
   PetscCall(fill_energy(t));
   PetscCall(fill_energy_cons(t));
@@ -105,12 +103,6 @@ PetscErrorCode Energy::calculate_kinetic()
   }
 
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, K.data(), K.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Energy::calculate_spectral()
-{
-  PetscFunctionBeginUser;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
