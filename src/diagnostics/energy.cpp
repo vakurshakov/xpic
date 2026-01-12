@@ -12,12 +12,9 @@ Energy::Energy(const interfaces::Simulation& simulation)
     energy_cons(CONFIG().out_dir + "/temporal/energy_conservation.txt")
 {
   auto& particles = simulation.particles_;
-  std::fill_n(std::back_inserter(K), particles.size(), 0.0);
-  std::fill_n(std::back_inserter(K0), particles.size(), 0.0);
-  std::fill_n(std::back_inserter(std_K), particles.size(), 0.0);
-
-  // PetscReal
-  // std::fill_n(std::back_inserter(Ek), )
+  std::fill_n(std::back_inserter(K), particles.size(), 0);
+  std::fill_n(std::back_inserter(K0), particles.size(), 0);
+  std::fill_n(std::back_inserter(std_K), particles.size(), 0);
 }
 
 PetscErrorCode Energy::diagnose(PetscInt t)
@@ -45,27 +42,6 @@ PetscErrorCode Energy::diagnose(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Energy::fill_energy(PetscInt t)
-{
-  PetscFunctionBeginUser;
-  energy.add(6, "Time", "{:d}", t);
-
-  auto& particles = simulation.particles_;
-  PetscInt i, size = (PetscInt)particles.size();
-
-  energy.add(13, "wE", "{: .6e}", E);
-  energy.add(13, "wB", "{: .6e}", B);
-  for (i = 0; i < size; ++i)
-    energy.add(13, "wK_" + particles[i]->parameters.sort_name, "{: .6e}", K[i]);
-
-  energy.add(13, "sE", "{: .6e}", std_E);
-  energy.add(13, "sB", "{: .6e}", std_B);
-  for (i = 0; i < size; ++i)
-    energy.add(
-      13, "sK_" + particles[i]->parameters.sort_name, "{: .6e}", std_K[i]);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 PetscErrorCode Energy::calculate_field()
 {
   PetscFunctionBeginUser;
@@ -86,6 +62,7 @@ PetscErrorCode Energy::calculate_field()
 
 PetscErrorCode Energy::calculate_kinetic()
 {
+  PetscFunctionBeginUser;
   PetscReal frac, m, mpw, vx, vy, vz, w;
   PetscInt n;
 
@@ -96,7 +73,7 @@ PetscErrorCode Energy::calculate_kinetic()
     mpw = sort->parameters.n / (PetscReal)sort->parameters.Np;
 
     frac = 0.5 * m * mpw;
-    vx = vy = vz = w = 0.0;
+    vx = vy = vz = w = 0;
     n = 0;
 
 #pragma omp parallel for reduction(+ : vx, vy, vz, w, n)
@@ -138,6 +115,32 @@ PetscErrorCode Energy::calculate_spectral()
 }
 
 
+PetscErrorCode Energy::fill_energy(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  energy.add(6, "Time", "{:d}", t);
+
+  auto& particles = simulation.particles_;
+  PetscInt i, size = (PetscInt)particles.size();
+
+  energy.add(13, "wE", "{: .6e}", E);
+  energy.add(13, "wB", "{: .6e}", B);
+
+  for (i = 0; i < size; ++i) {
+    auto& name = particles[i]->parameters.sort_name;
+    energy.add(13, "wK_" + name, "{: .6e}", K[i]);
+  }
+
+  energy.add(13, "sE", "{: .6e}", std_E);
+  energy.add(13, "sB", "{: .6e}", std_B);
+
+  for (i = 0; i < size; ++i) {
+    auto& name = particles[i]->parameters.sort_name;
+    energy.add(13, "sK_" + name, "{: .6e}", std_K[i]);
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Energy::fill_energy_cons(PetscInt t)
 {
   PetscFunctionBeginUser;
@@ -151,7 +154,7 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
   energy_cons.add(13, "dE", "{: .6e}", dE);
   energy_cons.add(13, "dB", "{: .6e}", dB);
 
-  dK = 0.0;
+  dK = 0;
   for (PetscInt i = 0; i < (PetscInt)K.size(); ++i) {
     auto&& n = simulation.particles_[i]->parameters.sort_name;
     energy_cons.add(13, "dK_" + n, "{: .6e}", K[i] - K0[i]);
