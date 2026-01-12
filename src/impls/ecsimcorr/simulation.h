@@ -29,7 +29,6 @@ private:
 
   // The main simulation steps
   PetscErrorCode clear_sources();
-  PetscErrorCode predict_fields();
   PetscErrorCode correct_fields();
   PetscErrorCode final_update();
 

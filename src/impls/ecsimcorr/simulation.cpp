@@ -23,7 +23,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   PetscFunctionBeginUser;
   PetscCall(clear_sources());
   PetscCall(first_push());
-  PetscCall(predict_fields());
+  PetscCall(advance_fields());
   PetscCall(second_push());
   PetscCall(correct_fields());
   PetscCall(final_update());
@@ -42,24 +42,6 @@ PetscErrorCode Simulation::clear_sources()
 
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
-
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-// Solving Maxwell's equations to find predicted field `Ep` = E'^{n+1/2}
-PetscErrorCode Simulation::predict_fields()
-{
-  PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[3]));
-
-  // Storing `matL` to reuse it for ECSIM current calculation later
-  Mat matA;
-  PetscCall(MatDuplicate(matL, MAT_COPY_VALUES, &matA));
-  PetscCall(ecsim::Simulation::advance_fields(matA));
-  PetscCall(MatDestroy(&matA));
 
   PetscCall(PetscLogStagePop());
   PetscCall(clock.pop());

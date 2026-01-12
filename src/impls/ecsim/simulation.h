@@ -37,6 +37,7 @@ public:
    * 3) Parallel-traversable buffers are used to fill indices and values.
    */
   Mat matL;
+  Mat matA;
 
   std::vector<std::shared_ptr<Particles>> particles_;
 
@@ -56,7 +57,7 @@ protected:
   PetscErrorCode clear_sources();
   PetscErrorCode first_push();
   PetscErrorCode fill_ecsim_current();
-  PetscErrorCode advance_fields(Mat matA);
+  PetscErrorCode advance_fields();
   PetscErrorCode second_push();
   PetscErrorCode final_update();
 

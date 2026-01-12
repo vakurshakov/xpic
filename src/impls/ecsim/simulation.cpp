@@ -147,7 +147,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscFunctionBeginUser;
   PetscCall(clear_sources());
   PetscCall(first_push());
-  PetscCall(advance_fields(matL));
+  PetscCall(advance_fields());
   PetscCall(second_push());
   PetscCall(final_update());
   PetscCall(clock.log_timings());
@@ -188,19 +188,21 @@ PetscErrorCode Simulation::first_push()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::advance_fields(Mat matA)
+PetscErrorCode Simulation::advance_fields()
 {
   PetscFunctionBeginUser;
   PetscCall(clock.push(__FUNCTION__));
   PetscCall(PetscLogStagePush(stagenums[3]));
 
-  PetscCall(MatAXPY(matA, 1, matM, DIFFERENT_NONZERO_PATTERN));  // matA += matM
+  PetscCall(MatDuplicate(matL, MAT_COPY_VALUES, &matA));
+  PetscCall(MatAXPY(matA, 1, matM, DIFFERENT_NONZERO_PATTERN));
 
-  // Note that we use `matM` to construct the preconditioning matrix
-  PetscCall(KSPSetOperators(ksp, matA, matM));
+  PetscCall(KSPSetOperators(ksp, matA, matA));
   PetscCall(KSPSetUp(ksp));
 
   PetscCall(advance_fields(ksp, currI, Ep));
+
+  PetscCall(MatDestroy(&matA));
 
   PetscCall(PetscLogStagePop());
   PetscCall(clock.pop());
