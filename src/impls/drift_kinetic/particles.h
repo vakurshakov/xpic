@@ -22,6 +22,8 @@ public:
   Arr M_arr;
 
 protected:
+  PetscReal n_Np(const PointByField& point) const;
+  PetscReal qn_Np(const PointByField& point) const;
   PetscErrorCode update_cells_seq();
   PetscErrorCode update_cells_mpi();
   PetscErrorCode correct_coordinates(PointByField& point);

@@ -4,7 +4,82 @@
 #include "src/impls/drift_kinetic/simulation.h"
 #include "src/utils/geometries.h"
 #include "src/utils/utils.h"
-#include "src/impls/eccapfim/cell_traversal.h"
+
+namespace {
+
+/// @brief Splits a straight segment into intersections with cell faces aligned to dx, dy, dz.
+std::vector<Vector3R> cell_traversal_new(const Vector3R& end, const Vector3R& start)
+{
+  constexpr PetscReal eps = 1e-12;
+
+  Vector3R dir = end - start;
+  if (dir.squared() < eps) {
+    return {start, end};
+  }
+
+  auto init_axis = [&](PetscReal spacing, PetscReal s, PetscReal d,
+                       PetscReal& t_max, PetscReal& t_delta) {
+    if (std::abs(d) < eps) {
+      t_max = std::numeric_limits<PetscReal>::max();
+      t_delta = 0.0;
+      return;
+    }
+
+    // Shift away from exact boundaries to avoid zero-length steps.
+    PetscReal shifted = d > 0 ? (s + eps) : (s - eps);
+    PetscReal boundary = (d > 0)
+      ? std::ceil(shifted / spacing) * spacing
+      : std::floor(shifted / spacing) * spacing;
+
+    t_max = (boundary - s) / d;                // parametric distance to the next plane
+    t_delta = spacing / std::abs(d);           // parametric step between successive planes
+  };
+
+  PetscReal tx, ty, tz;
+  PetscReal dtx, dty, dtz;
+  init_axis(dx, start[X], dir[X], tx, dtx);
+  init_axis(dy, start[Y], dir[Y], ty, dty);
+  init_axis(dz, start[Z], dir[Z], tz, dtz);
+
+  auto nearly_equal = [&](PetscReal a, PetscReal b) {
+    return std::abs(a - b) <= eps;
+  };
+
+  auto push_unique = [&](std::vector<Vector3R>& pts, const Vector3R& p) {
+    if (pts.empty() || (p - pts.back()).length() > eps * (1.0 + dir.length())) {
+      pts.push_back(p);
+    }
+  };
+
+  std::vector<Vector3R> points;
+  points.reserve(8);
+  points.push_back(start);
+
+  while (true) {
+    PetscReal t_next = std::min({tx, ty, tz});
+    if (t_next >= 1.0 - eps) {
+      break;
+    }
+
+    Vector3R p = start + dir * t_next;
+    push_unique(points, p);
+
+    if (std::abs(dir[X]) >= eps && nearly_equal(t_next, tx)) {
+      tx += dtx;
+    }
+    if (std::abs(dir[Y]) >= eps && nearly_equal(t_next, ty)) {
+      ty += dty;
+    }
+    if (std::abs(dir[Z]) >= eps && nearly_equal(t_next, tz)) {
+      tz += dtz;
+    }
+  }
+
+  push_unique(points, end);
+  return points;
+}
+
+}  // namespace
 
 namespace drift_kinetic {
 
@@ -94,7 +169,6 @@ PetscErrorCode Particles::form_iteration()
     else
       return max;
   };
-  LOG("Done");
 
   DriftKineticEsirkepov util(E_arr, B_arr, J_arr, M_arr);
   util.set_dBidrj_precomputed(simulation_.dBdx_arr, simulation_.dBdy_arr, simulation_.dBdz_arr);
@@ -122,7 +196,8 @@ PetscErrorCode Particles::form_iteration()
         g, dk_curr_storage[g].size(), prev_cell.size());
     }
 
-    for (PetscInt i = 0; auto& curr : dk_curr_storage[g]) {
+    PetscInt i = 0;
+    for (auto& curr : dk_curr_storage[g]) {
       const auto& prev(prev_cell[i]);
       PetscCall(check_bounds(prev.r, "prev"));
       PetscCall(check_bounds(curr.r, "curr"));
@@ -141,7 +216,7 @@ PetscErrorCode Particles::form_iteration()
           Vector3R E_dummy, B_dummy, gradB_dummy;
 
           Vector3R pos = (rn - r0);
-          auto coords = cell_traversal(rn, r0);
+          auto coords = cell_traversal_new(rn, r0);
           PetscInt segments = (PetscInt)coords.size() - 1;
 
           if (segments <= 0)
@@ -175,13 +250,13 @@ PetscErrorCode Particles::form_iteration()
 
         push.process(dtau, curr, prev);
 
-        auto coords = cell_traversal(curr.r, prev.r);
+        auto coords = cell_traversal_new(curr.r, prev.r);
         PetscInt segments = (PetscInt)coords.size() - 1;
         if (segments <= 0)
           segments = 1;
 
         Vector3R Vp = dtau > 0 ? (curr.r - prev.r) / dtau : Vector3R{};
-        PetscReal q_p = q*m/parameters.Np;
+        const PetscReal qn_over_Np = qn_Np(curr);
 
         Vector3R pos = (curr.r - prev.r);
         pos[X] = pos[X] != 0 ? pos[X] / dx : (PetscReal)segments;
@@ -191,15 +266,14 @@ PetscErrorCode Particles::form_iteration()
         for (PetscInt s = 1; s < (PetscInt)coords.size(); ++s) {
           auto&& rs0 = coords[s - 1];
           auto&& rsn = coords[s - 0];
-          util.decomposition_J(rsn, rs0, Vp.elementwise_division(pos), q_p);
+          util.decomposition_J(rsn, rs0, Vp.elementwise_division(pos), qn_over_Np);
         }
-
-        util.decomposition_M(curr.r, curr.mu_p);
   #endif
-        i++;
       }
+      util.decomposition_M(curr.r, curr.mu_p * n_Np(curr));
+      ++i;
+    }
   }
-}
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
@@ -209,6 +283,18 @@ PetscErrorCode Particles::form_iteration()
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscReal Particles::n_Np(const PointByField& point) const
+{
+  Point dummy(point.r, Vector3R{});
+  return interfaces::Particles::n_Np(dummy);
+}
+
+PetscReal Particles::qn_Np(const PointByField& point) const
+{
+  Point dummy(point.r, Vector3R{});
+  return interfaces::Particles::qn_Np(dummy);
 }
 
 PetscErrorCode Particles::prepare_storage()
