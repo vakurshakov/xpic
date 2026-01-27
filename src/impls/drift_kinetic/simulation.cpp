@@ -76,10 +76,34 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(rotor.create_negative(&rotB));
   PetscCall(MatScale(rotB, -1)); /// @see `Simulation::form_function()`
 
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(world.bounds), world.st,
-    REP3_A(Geom_n), REP3_A(world.procs), 6, world.s, REP3_A(world.lg), &da_EB));
+  PetscInt gn[3];
+  PetscInt procs[3];
+  PetscInt s;
+  DMBoundaryType bounds[3];
+  DMDAStencilType st;
+  PetscCall(DMDAGetInfo(da, NULL, REP3_A(&gn), REP3_A(&procs), NULL, &s, REP3_A(&bounds), &st));
 
+  const PetscInt* lgn[3];
+  PetscCall(DMDAGetOwnershipRanges(da, REP3_A(&lgn)));
+
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), st, REP3_A(gn), REP3_A(procs), 6, st, REP3_A(lgn), &da_EB));
   PetscCall(DMSetUp(da_EB));
+
+  PetscInt eb_start[3];
+  PetscInt eb_size[3];
+  PetscCall(DMDAGetCorners(da_EB, REP3_A(&eb_start), REP3_A(&eb_size)));
+  PetscCheck(eb_start[0] == world.start[X] && eb_start[1] == world.start[Y] &&
+      eb_start[2] == world.start[Z] && eb_size[0] == world.size[X] &&
+      eb_size[1] == world.size[Y] && eb_size[2] == world.size[Z],
+    PETSC_COMM_WORLD, PETSC_ERR_ARG_INCOMP,
+    "da_EB local corners (%" PetscInt_FMT ", %" PetscInt_FMT ", %" PetscInt_FMT
+    ")/(%" PetscInt_FMT ", %" PetscInt_FMT ", %" PetscInt_FMT
+    ") do not match da local corners (%" PetscInt_FMT ", %" PetscInt_FMT
+    ", %" PetscInt_FMT ")/(%" PetscInt_FMT ", %" PetscInt_FMT ", %"
+    PetscInt_FMT ")",
+    eb_start[0], eb_start[1], eb_start[2], eb_size[0], eb_size[1], eb_size[2],
+    world.start[X], world.start[Y], world.start[Z], world.size[X], world.size[Y],
+    world.size[Z]);
 
   PetscCall(DMCreateGlobalVector(da_EB, &sol));
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
@@ -89,8 +113,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
   PetscCall(SNESSetFromOptions(snes));
 
-  /// @todo particle setter?..
-  // PetscCall(init_particles(*this, particles_));
   PetscCall(init_particles(*this, particles_));
 
   energy_cons = std::make_unique<EnergyConservation>(*this);
@@ -138,7 +160,10 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   /// @note Solution is initialized with guess before it is passed into `SNESSolve()`.
   /// The simplest choice is: (E^{n+1/2, k=0}, B^{n+1/2, k=0}) = (E^{n}, B^{n}).
   PetscCall(to_snes(E, B, sol));
+
+
   PetscCall(SNESSolve(snes, NULL, sol));
+  LOG("Done");
 
   LOG("  SNESSolve() has finished, SNESConvergedReasonView():");
   PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
@@ -163,10 +188,11 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 PetscErrorCode Simulation::form_iteration(
   SNES /* snes */, Vec vx, Vec vf, void* ctx)
 {
+  LOG("Done");
   PetscFunctionBeginUser;
   auto* simulation = (Simulation*)ctx;
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
-
+  LOG("Done");
   PetscCall(simulation->prepare_dBdr());
 
   PetscCall(simulation->form_current());
@@ -258,13 +284,13 @@ PetscErrorCode Simulation::from_snes(Vec v, Vec vE, Vec vB)
   PetscCall(DMDAVecGetArrayDOFWrite(da, vE, &E_arr));
   PetscCall(DMDAVecGetArrayDOFWrite(da, vB, &B_arr));
   PetscCall(DMDAVecGetArrayDOFRead(da_EB, v, &arr_v));
+  LOG("Done_fs");
 
 #pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     PetscInt x = world.start[X] + g % world.size[X];
     PetscInt y = world.start[Y] + (g / world.size[X]) % world.size[Y];
     PetscInt z = world.start[Z] + (g / world.size[X]) / world.size[Y];
-
     E_arr[z][y][x][X] = arr_v[z][y][x][0];
     E_arr[z][y][x][Y] = arr_v[z][y][x][1];
     E_arr[z][y][x][Z] = arr_v[z][y][x][2];
@@ -273,6 +299,7 @@ PetscErrorCode Simulation::from_snes(Vec v, Vec vE, Vec vB)
     B_arr[z][y][x][Y] = arr_v[z][y][x][4];
     B_arr[z][y][x][Z] = arr_v[z][y][x][5];
   }
+  LOG("Done_fs_end");
 
   PetscCall(DMDAVecRestoreArrayDOFRead(da_EB, v, &arr_v));
   PetscCall(DMDAVecRestoreArrayDOFWrite(da, E_hk, &E_arr));

@@ -69,9 +69,9 @@ PetscErrorCode Particles::form_iteration()
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecGetArrayWrite(da, M_loc, &M_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, simulation_.dBdx_loc, &simulation_.dBdx_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, simulation_.dBdy_loc, &simulation_.dBdy_arr));
-  PetscCall(DMDAVecGetArrayWrite(da, simulation_.dBdz_loc, &simulation_.dBdz_arr));
+  PetscCall(DMDAVecGetArrayRead(da, simulation_.dBdx_loc, &simulation_.dBdx_arr));
+  PetscCall(DMDAVecGetArrayRead(da, simulation_.dBdy_loc, &simulation_.dBdy_arr));
+  PetscCall(DMDAVecGetArrayRead(da, simulation_.dBdz_loc, &simulation_.dBdz_arr));
 
   PetscReal q = parameters.q;
   PetscReal m = parameters.m;
@@ -94,13 +94,38 @@ PetscErrorCode Particles::form_iteration()
     else
       return max;
   };
+  LOG("Done");
 
   DriftKineticEsirkepov util(E_arr, B_arr, J_arr, M_arr);
   util.set_dBidrj_precomputed(simulation_.dBdx_arr, simulation_.dBdy_arr, simulation_.dBdz_arr);
 
+  auto check_bounds = [&](const Vector3R& r, const char* label) {
+    Vector3I vg{
+      FLOOR_STEP(r.x(), dx),
+      FLOOR_STEP(r.y(), dy),
+      FLOOR_STEP(r.z(), dz),
+    };
+    PetscCheck(is_point_within_bounds(vg, world.start, world.size),
+      PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
+      "drift_kinetic particle %s is outside local bounds: r=(%.6e %.6e %.6e) cell=(%d %d %d) start=(%d %d %d) size=(%d %d %d)",
+      label, r.x(), r.y(), r.z(), REP3_A(vg), REP3_A(world.start), REP3_A(world.size));
+    return PETSC_SUCCESS;
+  };
+
+
+
   for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
+    const auto& prev_cell = dk_prev_storage[g];
+    if (dk_curr_storage[g].size() != prev_cell.size()) {
+      PetscCheck(false, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ,
+        "drift_kinetic particle storage mismatch in cell %d: curr=%zu prev=%zu",
+        g, dk_curr_storage[g].size(), prev_cell.size());
+    }
+
     for (PetscInt i = 0; auto& curr : dk_curr_storage[g]) {
-      const auto& prev(dk_prev_storage[g][i]);
+      const auto& prev(prev_cell[i]);
+      PetscCall(check_bounds(prev.r, "prev"));
+      PetscCall(check_bounds(curr.r, "curr"));
 
       /// @todo this part should reuse the logic from:
       /// tests/drift_kinetic_push/drift_kinetic_push.h:620 implicit_test_utils::interpolation_test()
@@ -178,9 +203,9 @@ PetscErrorCode Particles::form_iteration()
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, simulation_.dBdx_loc, &simulation_.dBdx_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, simulation_.dBdy_loc, &simulation_.dBdy_arr));
-  PetscCall(DMDAVecRestoreArrayWrite(da, simulation_.dBdz_loc, &simulation_.dBdz_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, simulation_.dBdx_loc, &simulation_.dBdx_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, simulation_.dBdy_loc, &simulation_.dBdy_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, simulation_.dBdz_loc, &simulation_.dBdz_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
   PetscFunctionReturn(PETSC_SUCCESS);
