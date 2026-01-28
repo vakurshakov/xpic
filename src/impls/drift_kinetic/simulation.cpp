@@ -174,6 +174,9 @@ PetscErrorCode Simulation::form_iteration(
 PetscErrorCode Simulation::prepare_dBdr()
 {
   PetscFunctionBeginUser;
+  PetscCall(VecSet(dBdx_loc, 0));
+  PetscCall(VecSet(dBdy_loc, 0));
+  PetscCall(VecSet(dBdz_loc, 0));
   PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
   PetscCall(DMDAVecGetArrayWrite(da, dBdx_loc, &dBdx_arr));
@@ -187,9 +190,9 @@ PetscErrorCode Simulation::prepare_dBdr()
   PetscCall(DMDAVecRestoreArrayWrite(da, dBdx_loc, &dBdx_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, dBdy_loc, &dBdy_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, dBdz_loc, &dBdz_arr));
-  PetscCall(DMLocalToGlobal(da, dBdx_loc, INSERT_VALUES, dBdx));
-  PetscCall(DMLocalToGlobal(da, dBdy_loc, INSERT_VALUES, dBdy));
-  PetscCall(DMLocalToGlobal(da, dBdz_loc, INSERT_VALUES, dBdz));
+  PetscCall(DMLocalToGlobal(da, dBdx_loc, ADD_VALUES, dBdx));
+  PetscCall(DMLocalToGlobal(da, dBdy_loc, ADD_VALUES, dBdy));
+  PetscCall(DMLocalToGlobal(da, dBdz_loc, ADD_VALUES, dBdz));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -252,9 +255,9 @@ PetscErrorCode Simulation::from_snes(Vec v, Vec vE, Vec vB)
 {
   PetscFunctionBeginUser;
   const PetscReal**** arr_v;
-  PetscCall(DMDAVecGetArrayDOFWrite(da, vE, &E_arr));
-  PetscCall(DMDAVecGetArrayDOFWrite(da, vB, &B_arr));
-  PetscCall(DMDAVecGetArrayDOFRead(da_EB, v, &arr_v));
+  PetscCall(DMDAVecGetArrayWrite(da, vE, &E_arr));
+  PetscCall(DMDAVecGetArrayWrite(da, vB, &B_arr));
+  PetscCall(DMDAVecGetArrayRead(da_EB, v, &arr_v));
 
 #pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
@@ -271,9 +274,9 @@ PetscErrorCode Simulation::from_snes(Vec v, Vec vE, Vec vB)
     B_arr[z][y][x][Z] = arr_v[z][y][x][5];
   }
 
-  PetscCall(DMDAVecRestoreArrayDOFRead(da_EB, v, &arr_v));
-  PetscCall(DMDAVecRestoreArrayDOFWrite(da, E_hk, &E_arr));
-  PetscCall(DMDAVecRestoreArrayDOFWrite(da, B_hk, &B_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da_EB, v, &arr_v));
+  PetscCall(DMDAVecRestoreArrayWrite(da, E_hk, &E_arr));
+  PetscCall(DMDAVecRestoreArrayWrite(da, B_hk, &B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -281,9 +284,9 @@ PetscErrorCode Simulation::to_snes(Vec vE, Vec vB, Vec v)
 {
   PetscFunctionBeginUser;
   PetscReal**** arr_v;
-  PetscCall(DMDAVecGetArrayDOFRead(da, vE, &E_arr));
-  PetscCall(DMDAVecGetArrayDOFRead(da, vB, &B_arr));
-  PetscCall(DMDAVecGetArrayDOFWrite(da_EB, v, &arr_v));
+  PetscCall(DMDAVecGetArrayRead(da, vE, &E_arr));
+  PetscCall(DMDAVecGetArrayRead(da, vB, &B_arr));
+  PetscCall(DMDAVecGetArrayWrite(da_EB, v, &arr_v));
 
 #pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
@@ -300,9 +303,9 @@ PetscErrorCode Simulation::to_snes(Vec vE, Vec vB, Vec v)
     arr_v[z][y][x][5] = B_arr[z][y][x][Z];
   }
 
-  PetscCall(DMDAVecRestoreArrayDOFWrite(da_EB, v, &arr_v));
-  PetscCall(DMDAVecRestoreArrayDOFRead(da, E_hk, &E_arr));
-  PetscCall(DMDAVecRestoreArrayDOFRead(da, B_hk, &B_arr));
+  PetscCall(DMDAVecRestoreArrayWrite(da_EB, v, &arr_v));
+  PetscCall(DMDAVecRestoreArrayRead(da, E_hk, &E_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, B_hk, &B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
