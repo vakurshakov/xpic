@@ -1,5 +1,6 @@
 external/json
 external/petsc
+external/f2cblaslapack**
 
 .cache/**
 **/__pycache__/**
