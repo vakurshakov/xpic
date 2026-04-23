@@ -138,7 +138,7 @@ PetscReal DriftKineticPush::get_F(PetscReal dt, const PointByField& pn, const Po
   PetscReal inv_Vh = Vh / (Vh * Vh + eps * eps);
 
   PetscReal F = - p0.mu_p * (bn - b0).dot(meanB) * inv_Vh / dt;
-  return 0;
+  return F;
 }
 
 PetscReal DriftKineticPush::get_v_parallel(const PointByField& p0) {

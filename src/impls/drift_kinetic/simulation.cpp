@@ -1,6 +1,5 @@
 #include "simulation.h"
 
-#include <petsctime.h>
 #include <random>
 
 #include "src/algorithms/implicit_drift_kinetic.h"
@@ -118,12 +117,6 @@ PetscErrorCode Simulation::finalize()
 PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 {
   PetscFunctionBeginUser;
-  PetscLogDouble step_start = 0.0;
-  PetscLogDouble step_end = 0.0;
-  PetscLogDouble snes_start = 0.0;
-  PetscLogDouble snes_end = 0.0;
-  PetscCall(PetscTime(&step_start));
-
   for (auto& sort : particles_)
     PetscCall(sort->prepare_storage());
   PetscCall(energy_cons->diagnose(t - 1));
@@ -136,14 +129,8 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscCall(to_snes(E, B, sol));
 
   LOG("to_snes() has finished, SNESSolve():");
-  form_current_sum_sec = 0.0;
-  form_iteration_sum_sec = 0.0;
-  form_current_calls = 0;
-  form_iteration_calls = 0;
-  PetscCall(PetscTime(&snes_start));
 
   PetscCall(SNESSolve(snes, NULL, sol));
-  PetscCall(PetscTime(&snes_end));
   PetscCall(SNESGetIterationNumber(snes, &last_field_itnum));
 
   LOG("SNESSolve() has finished, SNESConvergedReasonView():");
@@ -165,19 +152,6 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
     PetscCall(sort->update_cells());
   }
 
-
-  PetscCall(PetscTime(&step_end));
-
-  const PetscLogDouble step_dt_sec = step_end - step_start;
-  const PetscLogDouble snes_solve_sec = snes_end - snes_start;
-  const PetscLogDouble avg_iter_sec = //
-    last_field_itnum > 0 ? snes_solve_sec / (PetscLogDouble)last_field_itnum : 0.0;
-  const PetscLogDouble avg_form_current_sec = //
-    form_current_calls > 0 ? form_current_sum_sec / (PetscLogDouble)form_current_calls : 0.0;
-
-  LOG("Timing [dt step {} | t={:.4f}]: step={:.6e} s, avg_iter={:.6e} s, avg_form_current={:.6e} s",
-    t, t * dt, step_dt_sec, avg_iter_sec, avg_form_current_sec);
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -185,24 +159,10 @@ PetscErrorCode Simulation::form_iteration(
   SNES /* snes */, Vec vx, Vec vf, void* ctx)
 {
   PetscFunctionBeginUser;
-  PetscLogDouble form_iteration_start = 0.0;
-  PetscLogDouble form_iteration_end = 0.0;
-  PetscLogDouble form_current_start = 0.0;
-  PetscLogDouble form_current_end = 0.0;
-  PetscCall(PetscTime(&form_iteration_start));
-
   auto* simulation = (Simulation*)ctx;
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
-  PetscCall(PetscTime(&form_current_start));
   PetscCall(simulation->form_current());
-  PetscCall(PetscTime(&form_current_end));
-  simulation->form_current_sum_sec += (form_current_end - form_current_start);
-  simulation->form_current_calls += 1;
   PetscCall(simulation->form_function(vf));
-
-  PetscCall(PetscTime(&form_iteration_end));
-  simulation->form_iteration_sum_sec += (form_iteration_end - form_iteration_start);
-  simulation->form_iteration_calls += 1;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -228,8 +188,6 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
   PetscCall(DMDAVecGetArrayRead(da, B0_loc, &B0_arr));
 
-
-  PetscInt p_idx = 0;
   for (auto& sort : particles_) {
     sort->E_arr = E_arr;
     sort->B_arr = B_arr;

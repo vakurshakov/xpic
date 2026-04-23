@@ -15,8 +15,8 @@ namespace drift_kinetic {
 
 struct DriftKineticShapeE
 {
-    static constexpr PetscInt shr = 1;
-    static constexpr PetscInt shw = 3;
+    static constexpr PetscInt shr = 2;
+    static constexpr PetscInt shw = 5;
     Vector3I p_g;
     Vector3R p_s;
 
@@ -25,8 +25,8 @@ struct DriftKineticShapeE
 
 struct DriftKineticShapeGradB
 {
-    static constexpr PetscInt shr = 1;
-    static constexpr PetscInt shw = 3;
+    static constexpr PetscInt shr = 2;
+    static constexpr PetscInt shw = 5;
     Vector3I p_g;
     Vector3R p_s;
 
@@ -36,6 +36,7 @@ struct DriftKineticShapeGradB
 class DriftKineticEsirkepov{
 public:
   DriftKineticEsirkepov(Vector3R*** B_g, Vector3R*** M_g);
+  DriftKineticEsirkepov(Vector3R*** B_g);
 
   DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** B0_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** M_g);
 

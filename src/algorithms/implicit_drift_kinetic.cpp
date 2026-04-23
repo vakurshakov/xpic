@@ -49,6 +49,9 @@ PetscReal acrossS1(PetscReal left_s0, PetscReal left_sn, PetscReal right_s0, Pet
 DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** B_g, Vector3R*** M_g)
   : B_g(B_g), M_g(M_g) {}
 
+DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** B_g)
+  : B_g(B_g) {}
+
 DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** B0_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** M_g)
   : E_g(E_g), B0_g(B0_g), B_g(B_g), J_g(J_g), M_g(M_g) {}
 

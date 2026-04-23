@@ -54,10 +54,6 @@ protected:
   Vec sol;
   SNES snes;
   PetscInt last_field_itnum = 0;
-  PetscLogDouble form_current_sum_sec = 0.0;
-  PetscLogDouble form_iteration_sum_sec = 0.0;
-  PetscInt form_current_calls = 0;
-  PetscInt form_iteration_calls = 0;
 
   Mat rotM;
 
