@@ -19,6 +19,7 @@ def read(file_t, c, cd):
     return raw[:,:,c]
 
 def read_J(c): return lambda t: read(f"{const.in_dir}/{s}/J_ZAvg/{str(t // const.Ndts).zfill(4)}", c, 3)
+def read_P(c): return lambda t: read(f"{const.in_dir}/{s}/momentum_Z2/{str(t // const.Ndts).zfill(4)}", c, 6)
 def read_rho(): return lambda t: read(f"{const.in_dir}/{s}/rho_ZAvg/{str(t // const.Ndts).zfill(4)}", 0, 1) * (1 if s == "ions" else -1)
 
 vmap = np.array([-0.02, +0.02])
@@ -26,9 +27,12 @@ vmap_s = {
     "ions": 0.1 * vmap,
     "electrons": vmap,
 }
-vmap_n = (0, 1)
+vmap_p = {
+    "ions": (0, 0.001),
+    "electrons": (0, 0.001)
+}
 
-fig, gs = figure(4, 1)
+fig, gs = figure(3, 3)
 
 def plot(i, j, title, vmap, cmap = signed_cmap):
     plot = PlotIm(subplot(fig, gs, i, j), vmap, cmap)
@@ -57,9 +61,12 @@ for s in const.sorts:
     plots = []
 
     add(0, 0, f"$n_{s[0]}$", vmap_n, unsigned_cmap, read_rho()),
-    add(1, 0, f"$J_x^{s[0]}$", vmap_s[s], signed_cmap, read_J(0)),
-    add(2, 0, f"$J_y^{s[0]}$", vmap_s[s], signed_cmap, read_J(1)),
-    add(3, 0, f"$J_z^{s[0]}$", vmap_s[s], signed_cmap, read_J(2)),
+    add(0, 1, f"$J_x^{s[0]}$", vmap_s[s], signed_cmap, read_J(0)),
+    add(1, 1, f"$J_y^{s[0]}$", vmap_s[s], signed_cmap, read_J(1)),
+    add(2, 1, f"$J_z^{s[0]}$", vmap_s[s], signed_cmap, read_J(2)),
+    add(0, 2, f"$\\Pi_{{xx}}^{s[0]}$", vmap_p[s], unsigned_cmap, read_P(0)),
+    add(1, 2, f"$\\Pi_{{yy}}^{s[0]}$", vmap_p[s], unsigned_cmap, read_P(3)),
+    add(2, 2, f"$\\Pi_{{zz}}^{s[0]}$", vmap_p[s], unsigned_cmap, read_P(5)),
     plots = np.asarray(plots)
 
     def callback(t):
