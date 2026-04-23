@@ -360,6 +360,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(DMGetGlobalVector(da, &B_f));
 
   PetscLogEventBegin(events[2], f, E_f, B_f, J);
+  PetscCall(VecAXPY(B, -1, B0));
 
   // F(E) = (E^{n+1/2,k} - E^{n}) + (0.5 * dt) * (J^{n+1/2,k} - rot(B^{n+1/2,k}))
   PetscCall(MatMult(rotB, B_hk, rB));
@@ -374,6 +375,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(B_f, -1, B));
   PetscCall(VecAXPY(B_f, +0.5 * dt, rE));
 
+  PetscCall(VecAXPY(B, +1, B0));
   PetscLogEventEnd(events[2], f, E_f, B_f, J);
 
   PetscCall(comp_snes(E_f, B_f, f));
@@ -382,6 +384,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(DMRestoreGlobalVector(da, &B_f));
 #else
   PetscLogEventBegin(events[2], f, E_hk, B, J);
+  PetscCall(VecAXPY(B, -1, B0));
 
   PetscCall(MatMult(rotB, B, rB));
   PetscCall(MatMult(matM, E_hk, f));
@@ -389,6 +392,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(f, +0.5 * dt, J));
   PetscCall(VecAXPY(f, -0.5 * dt, rB));
 
+  PetscCall(VecAXPY(B, +1, B0));
   PetscLogEventEnd(events[2], f, E_hk, B, J);
 #endif
   PetscCall(clock.pop());
