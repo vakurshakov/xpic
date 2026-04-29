@@ -2,14 +2,17 @@
 
 from plot import *
 
-init_constants("results/ecsimcorr_dx8.0_dt2.0_Np1000/ecsimcorr_dx8.0_dt2.0_Np1000.json")
+config = f"{sys.argv[1]}_dx3.0_dt1.5_Np1000"
+init_constants(f"results/{config}/{config}.json")
 const.B0 = float(const.config["Presets"][0]["setter"]["value"][2])
 const.tau = read_scalar(const.config["StepPresets"][3]["tau"])
 const.min_x = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][0]) - const.Lx / 2
 const.max_x = read_scalar(const.config["StepPresets"][0]["geometry"]["max"][0]) - const.Lx / 2
 const.min_y = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][1])
 const.max_y = read_scalar(const.config["StepPresets"][0]["geometry"]["max"][1])
-const.pto = 10 * const.Ndts
+const.T_i = round(read_scalar(const.config["Particles"][0]["T"]) / mec2, 2)
+const.T_e = round(read_scalar(const.config["Particles"][1]["T"]) / mec2, 3)
+const.pto = 2 * const.Ndts
 
 def read(file_t, c, cd):
     data_shape = [const.Ny, const.Nx, cd]
@@ -22,17 +25,23 @@ def read_J(c): return lambda t: read(f"{const.in_dir}/{s}/J_ZAvg/{str(t // const
 def read_P(c): return lambda t: read(f"{const.in_dir}/{s}/momentum_Z2/{str(t // const.Ndts).zfill(4)}", c, 6)
 def read_rho(): return lambda t: read(f"{const.in_dir}/{s}/rho_ZAvg/{str(t // const.Ndts).zfill(4)}", 0, 1) * (1 if s == "ions" else -1)
 
-vmap = np.array([-0.02, +0.02])
+vmap_n = (0, 3)
+
 vmap_s = {
-    "ions": 0.1 * vmap,
-    "electrons": vmap,
+    "ions": (-2e-3, +2e-3),
+    "electrons": (-2e-2, +2e-2),
 }
+
 vmap_p = {
-    "ions": (0, 0.001),
-    "electrons": (0, 0.001)
+    "ions": (0, const.T_i),
+    "electrons": (0, const.T_e)
 }
 
 fig, gs = figure(3, 3)
+
+set_titlesize(28)
+set_labelsize(26)
+set_ticksize(22)
 
 def plot(i, j, title, vmap, cmap = signed_cmap):
     plot = PlotIm(subplot(fig, gs, i, j), vmap, cmap)

@@ -6,14 +6,15 @@ from plot import *
 
 # 0) Config path is declared explicitly, input and output directories are read from it
 
-init_constants("results/ecsimcorr_dx8.0_dt2.0_Np1000/ecsimcorr_dx8.0_dt2.0_Np1000.json")
+config = f"{sys.argv[1]}_dx3.0_dt1.5_Np1000" # ecsimcorr
+init_constants(f"results/{config}/{config}.json")
 const.B0 = float(const.config["Presets"][0]["setter"]["value"][2])
 const.tau = read_scalar(const.config["StepPresets"][3]["tau"])
 const.min_x = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][0]) - const.Lx / 2
 const.max_x = read_scalar(const.config["StepPresets"][0]["geometry"]["max"][0]) - const.Lx / 2
 const.min_y = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][1])
 const.max_y = read_scalar(const.config["StepPresets"][0]["geometry"]["max"][1])
-const.pto = 10 * const.Ndts
+const.pto = 2 * const.Ndts
 
 # 1a) Data shape, it is not declared in files themselves
 # 1b) Where to read data and how to convert it into flat array for `plt.imshow`
@@ -61,6 +62,7 @@ plots = np.asarray((
 
     (plot(0, 1, "$B_x(x, y)$", vmap), read_B(0)),
     (plot(1, 1, "$B_y(x, y)$", vmap), read_B(1)),
+    (plot(2, 1, "$B_z(x, y)$", (0, 1.0 * const.B0), unsigned_cmap), read_B(2)),
 ))
 
 def callback(t):

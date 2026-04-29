@@ -6,8 +6,7 @@ from lib.common import *
 from lib.constants import *
 
 def process_plots(fig, out_subdir, time, plots, callback):
-    out_dir = f"{const.out_dir}/{out_subdir}"
-    makedirs(out_dir)
+    out_dir = f"{const.out_dir}/{out_subdir}"; makedirs(out_dir)
 
     for t in mpi_consecutive_t_range(const.pts, const.pte, const.pto):
         figname = f"{out_dir}/{str(t // const.pto).zfill(4)}.png"
@@ -29,20 +28,18 @@ def process_plots(fig, out_subdir, time, plots, callback):
         except FileNotFoundError:
            print(f"File not found: {figstring}")
 
-    # vid_dir = f"{const.out_dir}/video"
-    # makedirs(vid_dir)
-    #
+    # vid_dir = f"{const.out_dir}/video"; makedirs(vid_dir)
     # os.system(f"ffmpeg -y -i {out_dir}/%04d.png -r 15 {vid_dir}/{out_subdir}.mp4")
 
 
-def time_wpe(t: int):
+def time_wpe(t):
     return f"$\\omega_{{ pe }}\\,t = {t * const.dt:.3f}$"
 
-def time_wce(t: int):
+def time_wce(t):
     return f"$\\Omega_e\\,t = {t * const.dt * const.B0:.3f}$"
 
-def time_wci(t: int):
+def time_wci(t):
     return f"$\\Omega_i\\,t = {t * const.dt * (const.B0 / const.mi_me):.3f}$"
 
-def time_tau(t: int):
-    return f"$t / \\tau = {t * const.dt / const.tau:.3f}$"
+def time_tau(t):
+    return f"$t/\\tau = {(t * const.dt / const.tau):.2f}$"
