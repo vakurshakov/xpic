@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 import numpy as np
 from scipy.integrate import cumulative_trapezoid
 
@@ -23,12 +24,8 @@ def time_average(func: Callable[[int], np.ndarray], t0: int, dt: int):
     return result / dt
 
 def makedirs(dirname):
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-
     if not os.path.exists(dirname) and rank == 0:
         os.makedirs(dirname, exist_ok=True)
-    comm.barrier()
 
 def dump(prefix, name, units, t, data):
     makedirs(prefix)
@@ -36,3 +33,28 @@ def dump(prefix, name, units, t, data):
         f.write(f"Grid {name} [{units}]\n")
         for i, d in enumerate(data):
             f.write(f"{i} {d}\n")
+
+def select_subdirectory():
+    dir = None
+    if rank == 0:
+        res_path = "results"
+
+        with os.scandir(res_path) as entries:
+            dirs = sorted([e.name for e in entries if e.is_dir()])
+
+        while True:
+            print(f"List of {res_path} subdirectories: ")
+
+            for i, dir in enumerate(dirs):
+                print(f"{i}) {dir}")
+
+            try:
+                print(f"Select {res_path} subdirectory: ")
+                i = int(input())
+                dir = dirs[i]
+                break
+            except:
+                print(traceback.print_exc(), end="\n\n")
+
+    dir = comm.bcast(dir, root=0)
+    return dir

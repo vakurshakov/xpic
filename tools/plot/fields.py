@@ -6,13 +6,13 @@ from plot import *
 
 # 0) Config path is declared explicitly, input and output directories are read from it
 
-config = f"{sys.argv[1]}_dx3.0_dt1.5_Np1000" # ecsimcorr
+config = sys.argv[1] # f"{sys.argv[1]}_dx3.0_dt1.5_Np1000" # ecsimcorr
 init_constants(f"results/{config}/{config}.json")
 const.B0 = float(const.config["Presets"][0]["setter"]["value"][2])
 const.tau = read_scalar(const.config["StepPresets"][3]["tau"])
 const.min_x = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][0]) - const.Lx / 2
 const.max_x = read_scalar(const.config["StepPresets"][0]["geometry"]["max"][0]) - const.Lx / 2
-const.min_y = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][1])
+const.min_y = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][1]) 
 const.max_y = read_scalar(const.config["StepPresets"][0]["geometry"]["max"][1])
 const.pto = 2 * const.Ndts
 
@@ -55,7 +55,7 @@ def plot(i, j, title, vmap, cmap = signed_cmap):
     )
     return plot
 
-plots = np.asarray((
+plots = (
     (plot(0, 0, "$E_x(x, y)$", vmap), read_E(0)),
     (plot(1, 0, "$E_y(x, y)$", vmap), read_E(1)),
     (plot(2, 0, "$E_z(x, y)$", vmap), read_E(2)),
@@ -63,7 +63,7 @@ plots = np.asarray((
     (plot(0, 1, "$B_x(x, y)$", vmap), read_B(0)),
     (plot(1, 1, "$B_y(x, y)$", vmap), read_B(1)),
     (plot(2, 1, "$B_z(x, y)$", (0, 1.0 * const.B0), unsigned_cmap), read_B(2)),
-))
+)
 
 def callback(t):
     for plot, read in plots:
@@ -72,4 +72,4 @@ def callback(t):
         plot.axis.plot([const.min_x, const.min_x], [const.min_y, const.max_y], ls="--", c="black")
         plot.axis.plot([const.max_x, const.max_x], [const.min_y, const.max_y], ls="--", c="black")
 
-process_plots(fig, "fields", time_tau, plots[:,0], callback)
+process_plots(fig, "fields", time_tau, np.asarray(plots)[:,0], callback)

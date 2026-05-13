@@ -39,9 +39,9 @@ vmap_p = {
 
 fig, gs = figure(3, 3)
 
-set_titlesize(28)
-set_labelsize(26)
-set_ticksize(22)
+FontSize.title = 30
+FontSize.label = 28
+FontSize.ticks = 24
 
 def plot(i, j, title, vmap, cmap = signed_cmap):
     plot = PlotIm(subplot(fig, gs, i, j), vmap, cmap)

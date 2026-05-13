@@ -13,7 +13,7 @@ ec_cols = {
 
 d_w = 100
 d_s = 250
-d_t = int(1.8 * const.tau / const.dt)
+d_t = int(2.7 * const.tau / const.dt)
 
 def avg(d): return sliding_average(d, d_w)[::d_s]
     
@@ -24,7 +24,6 @@ def read_energy(f, cols):
         r.append(avg(d[:,i]))
     return r
 
-e, b, k_i, k_e = read_energy("energy", (1, 2, 3, 4))
 de, db, dk_i, dk_e, d, rm_i, rm_e, inj_i, inj_e, sum = read_energy("energy_conservation", ec_cols[sys.argv[1]])
 
 fig, gs = figure(1, 2, figsize=(10, 12))
@@ -37,19 +36,9 @@ def plot(title, j):
     )
     return plot
 
-en = plot("energy", 0)
-ec = plot("$\\delta$(energy)", 1)
-
 ts = np.arange(d_t, step=d_s) * const.dt / const.tau
 
-en.axis.plot(ts, e, label="e", c="C0")
-en.axis.plot(ts, b, label="b", c="C1")
-en.axis.plot(ts, k_i, label="k_i", c="C2")
-en.axis.plot(ts, k_e, label="k_e", c="C3")
-en.axis.set_yscale("log")
-en.axis.legend(fontsize=0.8*ticksize)
-en.info.draw()
-
+ec = plot("$\\delta W$", 0)
 ec.axis.plot(ts, de, label="de", c="C0")
 ec.axis.plot(ts, db, label="db", c="C1")
 ec.axis.plot(ts, d, label="d", c="C4")
@@ -59,10 +48,27 @@ ec.axis.plot(ts, rm_i, label="rm_i", c="C2", ls="--")
 ec.axis.plot(ts, rm_e, label="rm_e", c="C3", ls="--")
 ec.axis.plot(ts, inj_i, label="inj_i", c="C2", ls="-.", alpha=0.8)
 ec.axis.plot(ts, inj_e, label="inj_e", c="C3", ls="-.", alpha=0.8)
-ec.axis.plot(ts, sum, label="sum")
+ec.axis.plot(ts, sum, label="sum", c="C5")
 # en.axis.set_yscale("log")
-ec.axis.legend(fontsize=0.8*ticksize)
+ec.axis.legend(fontsize=0.8*FontSize.ticks)
 ec.info.draw()
+
+def draw(d, l, c):
+    d = np.abs(np.cumsum(d)) * const.dt
+    en.axis.plot(ts, d, label=l, c=c)
+    en.axis.fill_between(ts, [0]*len(ts), d, color=c, alpha=0.05)
+
+en = plot("$|\\int \\delta W dt|$", 1)
+draw(de, "e", "C0")
+draw(db, "b", "C1")
+draw(dk_i + rm_i - inj_i, "k_i + rm_i - inj_i", "C2")
+draw(dk_e + rm_e - inj_e, "k_e + rm_e - inj_e", "C3")
+draw(sum, "sum", "C5")
+en.axis.set_yscale("log")
+en.axis.set_ylim((1e-7, 1e+1))
+en.axis.legend(fontsize=0.8*FontSize.ticks)
+en.info.draw()
+
 
 out_dir = f"{const.out_dir}/other"
 makedirs(out_dir)

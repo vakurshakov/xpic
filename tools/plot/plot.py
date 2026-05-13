@@ -20,7 +20,7 @@ def process_plots(fig, out_subdir, time, plots, callback):
             callback(t)
             print(f"Processing: {figstring}")
 
-            fig.suptitle(time(t), x=0.50, y=0.99, bbox=bbox, fontsize=labelsize)
+            fig.suptitle(time(t), x=0.50, y=0.99, bbox=bbox, fontsize=FontSize.label)
             fig.tight_layout(rect=(0, 0, 1, 0.99))
             fig.savefig(figname)
 
