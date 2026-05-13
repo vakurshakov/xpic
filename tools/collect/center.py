@@ -2,38 +2,42 @@
 
 from collect import *
 
-arrays: CollectionArrays = {
-    "b": [[], gen_view("B_PlaneZ_05", 'z', 3)],
-    "ni": [[], gen_view("ions/Density_PlaneZ_05")],
-    "ne": [[], gen_view("electrons/Density_PlaneZ_05")],
+config = select_subdirectory() # f"{sys.argv[1]}_dx3.0_dt1.5_Np1000" # ecsimcorr
+init_constants(f"results/{config}/{config}.json")
+const.tau = read_scalar(const.config["StepPresets"][3]["tau"])
+# const.pts = 0
+# const.pte = int(3.23 * const.tau / const.dt)
+const.pto = const.Ndts
 
-    "pri": [[], gen_view("ions/mVrVr_PlaneZ_05")],
-    "pai": [[], gen_view("ions/mVphiVphi_PlaneZ_05")],
-    "pre": [[], gen_view("electrons/mVrVr_PlaneZ_05")],
-    "pae": [[], gen_view("electrons/mVphiVphi_PlaneZ_05")],
-
-    "pd": [[], None],
+arrays = {
+    "ex": [],
+    "ey": [],
+    "ez": [],
+    "bx": [],
+    "by": [],
+    "bz": [],
+    "ni": [],
+    "ne": [],
+    "pxi": [],
+    "pxe": [],
 }
 
 def parse(t):
-    b = center_avg(read(t, arrays, "b"))
-    ni = center_avg(read(t, arrays, "ni"))
-    ne = center_avg(read(t, arrays, "ne"))
-
-    pri = phi_avg(read(t, arrays, "pri"))
-    pai = phi_avg(read(t, arrays, "pai"))
-    pre = phi_avg(read(t, arrays, "pre"))
-    pae = phi_avg(read(t, arrays, "pae"))
-
-    pr = pri + pre
-    pa = pai + pae
-
-    rs = np.arange(0, const.data_shape["Z"][0] // 2) * const.dx
-    pd = cumulative_trapezoid((pr - pa) / (rs + 0.1), dx=const.dx, initial=0)
-    pd = -(pd - pd[-1])
-    return b, ni, ne, pri[0], pai[0], pre[0], pae[0], pd[0]
+    e = read_E(None)(t)
+    ex = center_avg(e[:,:,0,0])
+    ey = center_avg(e[:,:,0,1])
+    ez = center_avg(e[:,:,0,2])
+    b = read_B(None)(t)
+    bx = center_avg(b[:,:,0,0])
+    by = center_avg(b[:,:,0,1])
+    bz = center_avg(b[:,:,0,2])
+    ni = center_avg(read_n("ions")(t))
+    ne = center_avg(read_n("electrons")(t))
+    pxi = center_avg(read_P("ions", 0)(t))
+    pxe = center_avg(read_P("electrons", 0)(t))
+    return ex, ey, ez, bx, by, bz, ni, ne, pxi, pxe
 
 def output(name):
-    return f"{res_dir}/{name}_t"
+    return f"{const.out_dir}/collections/{name}_t"
 
 process_collection(arrays, parse, output)
