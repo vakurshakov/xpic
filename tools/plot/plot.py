@@ -12,6 +12,10 @@ def process_plots(fig, out_subdir, time, plots, callback):
         figname = f"{out_dir}/{str(t // const.pto).zfill(4)}.png"
         figstring = f"{figname} {t} [dts] {t * const.dt / const.tau:.2f} [tau]"
 
+        if os.path.exists(figname):
+            print(f"File exists: {figstring}")
+            continue
+
         try:
             callback(t)
             print(f"Processing: {figstring}")
@@ -20,17 +24,20 @@ def process_plots(fig, out_subdir, time, plots, callback):
             fig.tight_layout(rect=(0, 0, 1, 0.99))
             fig.savefig(figname)
 
-            # plt.show()
-
             for plot in plots:
                 plot.clear()
 
         except FileNotFoundError:
-           print(f"File not found: {figstring}")
+            print(f"File not found: {figstring}")
+    
+    comm.barrier()
 
-    # vid_dir = f"{const.out_dir}/video"; makedirs(vid_dir)
-    # os.system(f"ffmpeg -y -i {out_dir}/%04d.png -r 15 {vid_dir}/{out_subdir}.mp4")
+    if rank == 0:
+        vid_dir = f"{const.out_dir}/video"; makedirs(vid_dir)
+        os.system(f"ffmpeg -y -i {out_dir}/%04d.png -r 15 {vid_dir}/{out_subdir}.mp4")
 
+    comm.barrier()
+    
 
 def time_wpe(t):
     return f"$\\omega_{{ pe }}\\,t = {t * const.dt:.3f}$"
