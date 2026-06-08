@@ -417,6 +417,7 @@ PetscErrorCode Simulation::after_iteration()
   PetscCall(VecAXPY(B, -dt, rE));
 #endif
 
+  /// @note The same crash can happen here...
   for (auto& sort : particles_)
     PetscCall(sort->update_cells());
 

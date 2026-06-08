@@ -225,7 +225,6 @@ PetscErrorCode Simulation::second_push()
     sort->E_arr = E_arr;
     sort->B_arr = B_arr;
     PetscCall(sort->second_push());
-    PetscCall(sort->correct_coordinates());
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));

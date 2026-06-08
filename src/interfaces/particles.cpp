@@ -101,6 +101,7 @@ PetscErrorCode Particles::update_cells_seq()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @note The one more reason to use `DMSWARM` is the crash I encounter here with complex MPI setup
 PetscErrorCode Particles::update_cells_mpi()
 {
   constexpr PetscInt dim = 3;
@@ -117,9 +118,8 @@ PetscErrorCode Particles::update_cells_mpi()
     return 2;
   };
 
-  /// @note `PETSC_DEFAULT` isn't identical to `MPI_PROC_NULL`
   auto get_neighbor = [&](PetscInt i) {
-    return world.neighbors[i] < 0 ? MPI_PROC_NULL : world.neighbors[i];
+    return world.neighbors[i];
   };
 
   PetscFunctionBeginUser;
@@ -194,9 +194,8 @@ PetscErrorCode Particles::update_cells_mpi()
     if (s == center_index)
       continue;
 
-    PetscInt r = (neighbors_num - 1) - s;
     PetscCallMPI(MPI_Isend(&o_num[s], 1, MPIU_SIZE_T, get_neighbor(s), MPI_TAG_NUMBERS, comm, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(&i_num[r], 1, MPIU_SIZE_T, get_neighbor(r), MPI_TAG_NUMBERS, comm, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(&i_num[s], 1, MPIU_SIZE_T, get_neighbor(s), MPI_TAG_NUMBERS, comm, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
@@ -205,10 +204,9 @@ PetscErrorCode Particles::update_cells_mpi()
     if (s == center_index)
       continue;
 
-    PetscInt r = (neighbors_num - 1) - s;
-    incoming[r].resize(i_num[r]);
+    incoming[s].resize(i_num[s]);
     PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(Point), MPI_BYTE, get_neighbor(s), MPI_TAG_POINTS, comm, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(Point), MPI_BYTE, get_neighbor(r), MPI_TAG_POINTS, comm, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(incoming[s].data(), i_num[s] * sizeof(Point), MPI_BYTE, get_neighbor(s), MPI_TAG_POINTS, comm, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
