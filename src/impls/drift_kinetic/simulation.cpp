@@ -3,6 +3,7 @@
 #include <random>
 
 #include "src/algorithms/implicit_drift_kinetic.h"
+#include "src/utils/configuration.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
@@ -12,7 +13,7 @@ namespace drift_kinetic {
 
 static constexpr PetscReal atol = 1e-7;
 static constexpr PetscReal rtol = 1e-7;
-static constexpr PetscReal stol = 1e-7;
+static constexpr PetscReal stol = 0;
 static constexpr PetscReal divtol = PETSC_DETERMINE;
 static constexpr PetscInt maxit = 1000;
 static constexpr PetscInt maxf = PETSC_UNLIMITED;
@@ -27,10 +28,12 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMCreateGlobalVector(da, &M));
   PetscCall(DMCreateGlobalVector(da, &E_hk));
   PetscCall(DMCreateGlobalVector(da, &B_hk));
+  PetscCall(DMCreateGlobalVector(da, &Bn1));
 
   PetscCall(DMCreateLocalVector(da, &E_loc));
   PetscCall(DMCreateLocalVector(da, &B_loc));
-  PetscCall(DMCreateLocalVector(da, &B0_loc));
+  PetscCall(DMCreateLocalVector(da, &Bn_loc));
+  PetscCall(DMCreateLocalVector(da, &Bn1_loc));
 
   PetscCall(DMSetMatrixPreallocateOnly(da, PETSC_FALSE));
   PetscCall(DMSetMatrixPreallocateSkip(da, PETSC_TRUE));
@@ -58,7 +61,8 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
 
-  PetscCall(SNESSetType(snes, SNESNGMRES));
+  //PetscCall(SNESSetType(snes, SNESNGMRES));
+  PetscCall(SNESSetType(snes, SNESANDERSON));
 
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
@@ -66,6 +70,32 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(SNESSetFromOptions(snes));
 
   PetscCall(init_particles(*this, particles_));
+
+  // Re-walk the JSON to set DK-specific per-sort flags without touching
+  // the generic `init_particles` path. `coord_is_gc=true` instructs DK
+  // loaders to treat sampled `r` as the guiding center (skip the Larmor
+  // shift). This is what allows e/i to coincide at the same GC when both
+  // sorts are seeded from a shared coordinate stream.
+  {
+    const Configuration::json_t& json = CONFIG().json;
+    auto it = json.find("Particles");
+    if (it != json.end()) {
+      for (auto&& info : *it) {
+        if (!info.contains("sort_name") || !info.contains("coord_is_gc"))
+          continue;
+        bool v = false;
+        info.at("coord_is_gc").get_to(v);
+        auto&& name = info.at("sort_name").get<std::string>();
+        for (auto& sort : particles_) {
+          if (sort->parameters.sort_name == name) {
+            sort->set_coord_is_gc(v);
+            LOG("  drift_kinetic: \"{}\" coord_is_gc = {}", name, v);
+            break;
+          }
+        }
+      }
+    }
+  }
 
   energy_cons = std::make_unique<EnergyConservation>(*this);
 
@@ -97,10 +127,12 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&M));
   PetscCall(VecDestroy(&E_hk));
   PetscCall(VecDestroy(&B_hk));
+  PetscCall(VecDestroy(&Bn1));
 
   PetscCall(VecDestroy(&E_loc));
   PetscCall(VecDestroy(&B_loc));
-  PetscCall(VecDestroy(&B0_loc));
+  PetscCall(VecDestroy(&Bn_loc));
+  PetscCall(VecDestroy(&Bn1_loc));
 
   PetscCall(MatDestroy(&rotE));
   PetscCall(MatDestroy(&rotB));
@@ -143,7 +175,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscCall(SNESGetSolution(snes, &sol));
   PetscCall(from_snes(sol, E_hk, B_hk));
 
-  // PetscCall(form_current());
+  //PetscCall(form_current());
 
   PetscCall(VecAXPBY(E, 2, -1, E_hk));
   PetscCall(VecAXPBY(B, 2, -1, B_hk));
@@ -162,7 +194,7 @@ PetscErrorCode Simulation::form_iteration(
   auto* simulation = (Simulation*)ctx;
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
   PetscCall(simulation->form_current());
-  PetscCall(simulation->form_function(vf));
+  //PetscCall(simulation->form_function(vf));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -180,18 +212,25 @@ PetscErrorCode Simulation::form_current()
     PetscCall(VecSet(sort->M_loc, 0.0));
   }
 
+  PetscCall(VecCopy(B_hk, Bn1));
+  PetscCall(VecAXPBY(Bn1, -1.0, 2.0, B));
+
   PetscCall(DMGlobalToLocal(da, E_hk, INSERT_VALUES, E_loc));
   PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
-  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B0_loc));
+
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, Bn_loc));
+  PetscCall(DMGlobalToLocal(da, Bn1, INSERT_VALUES, Bn1_loc));
 
   PetscCall(DMDAVecGetArrayRead(da, E_loc, &E_arr));
+  PetscCall(DMDAVecGetArrayRead(da, Bn_loc, &Bn_arr));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
-  PetscCall(DMDAVecGetArrayRead(da, B0_loc, &B0_arr));
+  PetscCall(DMDAVecGetArrayRead(da, Bn1_loc, &Bn1_arr));
 
   for (auto& sort : particles_) {
     sort->E_arr = E_arr;
     sort->B_arr = B_arr;
-    sort->B0_arr = B0_arr;
+    sort->Bn_arr = Bn_arr;
+    sort->Bn1_arr = Bn1_arr;
     PetscCall(sort->form_iteration());
     PetscCall(VecAXPY(J, 1, sort->J));
     PetscCall(VecAXPY(M, 1, sort->M));
@@ -202,7 +241,8 @@ PetscErrorCode Simulation::form_current()
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
-  PetscCall(DMDAVecRestoreArrayRead(da, B0_loc, &B0_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, Bn_loc, &Bn_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, Bn1_loc, &Bn1_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

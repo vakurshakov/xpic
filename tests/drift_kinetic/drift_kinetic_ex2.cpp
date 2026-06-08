@@ -30,14 +30,14 @@ int main(int argc, char** argv)
 void overwrite_config()
 {
   dx = 10.;
-  geom_nx = 50;
+  geom_nx = 40;
   geom_x = geom_nx * dx;
 
-  geom_nz = 10;
+  geom_nz = 6;
   geom_z = geom_nz * dx;
 
   dt = 10;
-  geom_nt = 1;
+  geom_nt = 2;
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
@@ -64,19 +64,19 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", "electrons"},
-        {"Np", 500},
+        {"Np", 1000},
         {"n", +1.0},
         {"q", -1.0},
         {"m", +1.0},
-        {"T", +2.5},
+        {"T", +0.75},
       },
       {
         {"sort_name", "ions"},
-        {"Np", 500},
+        {"Np", 1000},
         {"n", +1.0},
         {"q", +1.0},
         {"m", +1836.0},
-        {"T", +2.5},
+        {"T", +0.75},
       }},
     },
     {
@@ -90,7 +90,7 @@ void overwrite_config()
             "setter",
             {
               {"name", "SetUniformField"},
-              {"value", {0.0, 0.0, 1.0}},
+              {"value", {0.0, 0.0, 0.2}},
             },
           },
         },
@@ -98,10 +98,10 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "electrons"},
           {"coordinate", {
-            {"name", "CoordinateInCylinder"},
-            {"center", {25.0, 25.0, 5.0}},
-            {"radius", 10.0},
-            {"height", 10.0}
+            {"name", "CoordinateInCylinderCosineHump"},
+            {"center", {200.0, 200.0, 30.0}},
+            {"radius", 120.0},
+            {"height", 60.0}
           }},
           {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
         },
@@ -109,68 +109,93 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "ions"},
           {"coordinate", {
-            {"name", "CoordinateInCylinder"},
-            {"center", {25.0, 25.0, 5.0}},
-            {"radius", 10.0},
-            {"height", 10.0}
+            {"name", "CoordinateInCylinderCosineHump"},
+            {"center", {200.0, 200.0, 30.0}},
+            {"radius", 120.0},
+            {"height", 60.0}
           }},
           {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
         },
       },
     },
+  {
+  "StepPresets",
+  {
+    {
+      {"command", "FieldsDamping"},
+      {"damping_coefficient", 0.35},
+      {"geometry", {
+        {"name", "CylinderGeometry"},
+        {"center", {200.0, 200.0, 30.0}},
+        {"radius", 170.0},
+        {"height", 60.0},
+      }},
+    },
+  },
+},
      {
       "Diagnostics",
   {
     {
       {"diagnostic", "FieldView"},
       {"field", "B"},
+      {"out_dir", "B_planeY"},
       {"region", {{"type", "2D"}, {"plane", "Y"}}},
     },
     {
       {"diagnostic", "FieldView"},
       {"field", "B"},
+      {"out_dir", "B_planeZ"},
       {"region", {{"type", "2D"}, {"plane", "Z"}}},
     },
     {
       {"diagnostic", "FieldView"},
       {"field", "E"},
+      {"out_dir", "E_planeY"},
       {"region", {{"type", "2D"}, {"plane", "Y"}}},
     },
     {
       {"diagnostic", "FieldView"},
       {"field", "E"},
+      {"out_dir", "E_planeZ"},
       {"region", {{"type", "2D"}, {"plane", "Z"}}},
     },
     {
       {"diagnostic", "FieldView"},
       {"field", "J"},
+      {"out_dir", "J_planeZ"},
       {"region", {{"type", "2D"}, {"plane", "Z"}}},
     },
     {
       {"diagnostic", "FieldView"},
       {"field", "J"},
+      {"out_dir", "J_planeY"},
       {"region", {{"type", "2D"}, {"plane", "Y"}}},
     },
     {
       {"diagnostic", "FieldView"},
       {"field", "M"},
+      {"out_dir", "M_planeZ"},
       {"region", {{"type", "2D"}, {"plane", "Z"}}},
     },
     {
       {"diagnostic", "FieldView"},
       {"field", "M"},
+      {"out_dir", "M_planeY"},
       {"region", {{"type", "2D"}, {"plane", "Y"}}},
     },
-        {
-          {"diagnostic", "DistributionMoment"},
-          {"particles", "electrons"},
-          {"moment", "density"},
-        },
-        {
-          {"diagnostic", "DistributionMoment"},
-          {"particles", "ions"},
-          {"moment", "density"},
-        },
+    {
+      {"diagnostic", "DistributionMoment"},
+      {"particles", "electrons"},
+      {"moment", "density"},
+      {"out_dir", "electrons/density"},
+    },
+    {
+      {"diagnostic", "DistributionMoment"},
+      {"particles", "ions"},
+      {"moment", "density"},
+      {"out_dir", "ions/density"},
+    },
       },
     },
   });

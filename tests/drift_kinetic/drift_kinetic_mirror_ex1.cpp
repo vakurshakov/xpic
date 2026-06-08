@@ -117,7 +117,7 @@ void overwrite_config()
           // Используем PreciseMomentum вместо MomentumList
           {"momentum", {
             {"name", "PreciseMomentum"},
-            {"value", {0.03, 0.0, 0.1}} // p_perp = 0.1, p_par = 0.05
+            {"value", {0.1, 0.0, 0.05}} // p_perp = 0.1, p_par = 0.05
           }},
         }
       },

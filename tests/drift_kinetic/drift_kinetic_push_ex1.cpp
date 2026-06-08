@@ -5,8 +5,8 @@ static constexpr char help[] =
   "E in constant magnetic field. Particle guiding center should drift with\n"
   "velocity (ExB/B^2).\n";
 
-constexpr Vector3R E0(0, 0.1, -0.1);
-constexpr Vector3R B0(0, 0, 1);
+constexpr Vector3R E0(0, 0.005, -0.1);
+constexpr Vector3R B0(0, 0, 0.2);
 
 void get_ExB_field(
   const Vector3R&, const Vector3R&, Vector3R& E_p, Vector3R& B_p, Vector3R&)
@@ -28,19 +28,19 @@ int main(int argc, char** argv)
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
-  PetscReal omega_dt = 0.01;
+  PetscReal omega_dt = 100;
 
   dt = omega_dt / B0.length();
-  geom_nt = 10000;
-  diagnose_period = geom_nt / 4;
+  geom_nt = 1;
+  diagnose_period = 1;
 
   constexpr Vector3R r0(0, 0, 0);
-  constexpr Vector3R v0(0, 1, 0);
+  constexpr Vector3R v0(0.05, 0, 0);
   Point point_boris(r0, v0);
   PointByField point_dk(point_boris, B0, 1, q / m);
 
-  PointByFieldTrace trace_dk(__FILE__, std::format("drift_kinetic"), point_dk);
-  PointTrace trace_boris(__FILE__, std::format("boris"), point_boris);
+  PointByFieldTrace trace_dk(__FILE__, std::format("drift_kinetic_100"), point_dk);
+  PointTrace trace_boris(__FILE__, std::format("boris_100"), point_boris);
 
   DriftKineticPush dk_push;
   dk_push.set_qm(q / m);

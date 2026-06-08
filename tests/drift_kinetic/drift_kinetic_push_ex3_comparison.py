@@ -9,7 +9,7 @@ import numpy as np
 DIR = os.path.normcase(os.path.join(os.path.dirname(__file__), "../drift_kinetic"))
 ROOT = os.path.normcase(os.path.join(os.path.dirname(__file__), "../../"))
 
-OMEGA_DT = 10.
+OMEGA_DT = 0.1
 PITCH_FRAC = [
     0.995,
     1.005,

@@ -8,6 +8,14 @@
 namespace drift_kinetic {
 
 class Simulation;
+class InjectParticles;
+class SetPairedParticles;
+
+/// @brief Builds a `PointByField` treating `point.r` as the guiding center
+/// (no Larmor shift). Parallel momentum, perpendicular momentum and magnetic
+/// moment are still computed from the locally interpolated `Bp`.
+PointByField make_point_at_gc(
+  const Point& point, const Vector3R& Bp, PetscReal mp);
 
 class Particles : public interfaces::Particles {
 public:
@@ -27,10 +35,15 @@ public:
     return dk_curr_storage;
   }
 
+  void set_coord_is_gc(bool v) { coord_is_gc_ = v; }
+  bool coord_is_gc() const { return coord_is_gc_; }
+
   Vec M;
   Vec M_loc;
   Arr M_arr;
-  Arr B0_arr;
+
+  Arr Bn_arr;
+  Arr Bn1_arr;
 
 protected:
   PetscReal n_Np(const PointByField& point) const;
@@ -43,7 +56,11 @@ protected:
   PetscInt size = 0;
   PetscReal avgit = 0.0;
   PetscInt maxit = 0;
+  bool coord_is_gc_ = false;
   Simulation& simulation_;
+
+  friend class InjectParticles;
+  friend class SetPairedParticles;
 };
 
 }  // namespace drift_kinetic

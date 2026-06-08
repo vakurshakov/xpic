@@ -33,6 +33,13 @@ protected:
   void parse_field(const Configuration::json_t& info, DM& da, Vec& f,
     Region& region, const std::string& name);
 
+  /// @brief Resolve a Mat-times-Vec diagnostic. If @p name selects an
+  /// operator-based field (rotE, rotB, rotM, "<sort_name>/rotM", ...),
+  /// returns the corresponding `Mat`; otherwise nullptr. The source Vec
+  /// for those names is what `parse_field` already produces, so the
+  /// caller only needs to know whether to wrap with MatMultFieldView.
+  Mat parse_operator(const std::string& name) const;
+
   void parse_region(
     const Configuration::json_t& info, Region& region, const std::string& name);
 

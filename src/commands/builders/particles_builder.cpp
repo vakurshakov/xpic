@@ -32,6 +32,59 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
     gen = CoordinateInCylinder(std::move(cyl));
   }
+  else if (name == "CoordinateInBoxSineDensity") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    Vector3R amplitude = parse_vector(info, "amplitude");
+    Vector3R wave_number = parse_vector(info, "wave_number");
+
+    number_of_particles = (box.max - box.min).elements_product() * frac;
+    gen = CoordinateInBoxSineDensity(std::move(box), amplitude, wave_number);
+  }
+  else if (name == "CoordinateInBoxDisplacedSine") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    Vector3R amplitude = parse_vector(info, "amplitude");
+    Vector3R wave_number = parse_vector(info, "wave_number");
+
+    number_of_particles = (box.max - box.min).elements_product() * frac;
+    gen = CoordinateInBoxDisplacedSine(std::move(box), amplitude, wave_number);
+  }
+  else if (name == "CoordinateInBoxQuietSine") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    Vector3R amplitude = parse_vector(info, "amplitude");
+    Vector3R wave_number = parse_vector(info, "wave_number");
+
+    number_of_particles = (box.max - box.min).elements_product() * frac;
+    gen = CoordinateInBoxQuietSine{std::move(box), amplitude, wave_number, 0};
+  }
+  else if (name == "CoordinateInCylinderCosineHump") {
+    CylinderGeometry cyl;
+    load_geometry(info, cyl);
+    number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
+    gen = CoordinateInCylinderCosineHump(std::move(cyl));
+  }
+  else if (name == "CoordinateInBoxCosineHump") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    std::string axis_name = "Z";
+    if (info.contains("axis"))
+      info.at("axis").get_to(axis_name);
+
+    Axis axis;
+    if (axis_name == "X" || axis_name == "x")      axis = X;
+    else if (axis_name == "Y" || axis_name == "y") axis = Y;
+    else if (axis_name == "Z" || axis_name == "z") axis = Z;
+    else throw std::runtime_error("Unknown axis for CoordinateInBoxCosineHump: " + axis_name);
+
+    number_of_particles = (box.max - box.min).elements_product() * frac;
+    gen = CoordinateInBoxCosineHump{std::move(box), axis, 0};
+  }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);
   }
@@ -62,6 +115,15 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
     Vector3R m = parse_vector(info, "wave_number");
 
     gen = MaxwellCosinePerturbation(particles.parameters, box, a, m);
+  }
+  else if (name == "MaxwellShiftedSine") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    Vector3R velocity = parse_vector(info, "velocity");
+    Vector3R wave_number = parse_vector(info, "wave_number");
+
+    gen = MaxwellShiftedSine(particles.parameters, box, velocity, wave_number);
   }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);

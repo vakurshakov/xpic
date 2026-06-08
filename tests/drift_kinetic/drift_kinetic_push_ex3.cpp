@@ -8,7 +8,7 @@ static constexpr char help[] =
 using namespace gaussian_magnetic_mirror;
 
 PetscReal pitch_frac = 1.005;
-PetscReal Omega_dt = 10;
+PetscReal Omega_dt = 0.1;
 
 auto format(const char* push)
 {
@@ -35,7 +35,7 @@ int main(int argc, char** argv)
 
   PetscReal Omega = get_Bz(r0.z() - L);
   dt = Omega_dt / Omega;
-  geom_nt = 50;
+  geom_nt = 5000;
   diagnose_period = 1;
 
   Vector3R B{
@@ -101,20 +101,21 @@ int main(int argc, char** argv)
 
   for (PetscInt t = 0; t <= geom_nt; ++t) {
     Vector3R E_p, B_p;
+    PetscCall(b_d.diagnose(t));
     b_push.update_r(dt / 2.0, b_p);
     get_fields(b_p.r, b_p.r, E_p, B_p, dB_p);
     b_push.set_fields(E_p, B_p);
     b_push.update_vB(dt, b_p);
     b_push.update_r(dt / 2.0, b_p);
-    PetscCall(b_d.diagnose(t));
 
     Point cn_p0 = cn_p;
-    cn_push.process(dt, cn_p, cn_p0);
     PetscCall(cn_d.diagnose(t));
+    cn_push.process(dt, cn_p, cn_p0);
+
 
     PointByField dk_p0 = dk_p;
-    dk_push.process(dt, dk_p, dk_p0);
     PetscCall(dk_d.diagnose(t));
+    dk_push.process(dt, dk_p, dk_p0);
   }
 
   PetscCall(PetscFinalize());

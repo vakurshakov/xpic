@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 void overwrite_config()
 {
   dx = 10.;
-  geom_nx = 7;
+  geom_nx = 3.;
   geom_x = geom_nx * dx;
 
   dt = 1.;
@@ -61,7 +61,7 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", "electrons"},
-        {"Np", 8},
+        {"Np", 100},
         {"n", +1.0},
         {"q", -1.0},
         {"m", +1.0},
@@ -86,7 +86,7 @@ void overwrite_config()
         {
           {"command", "SetParticles"},
           {"particles", "electrons"},
-          {"coordinate", {{"name", "CoordinateInBox"}, {"min", {20.0, 20.0, 20.0}}, {"max", {50.0, 50.0, 50.0}}}},
+          {"coordinate", {{"name", "CoordinateInBox"}, {"min", {0.0, 0.0, 0.0}}, {"max", {50.0, 50.0, 50.0}}}},
           {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
         },
       },

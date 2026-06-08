@@ -106,6 +106,8 @@ set(impls
   src/impls/drift_kinetic/diagnostic.cpp
   src/impls/drift_kinetic/particles.cpp
   src/impls/drift_kinetic/segments.cpp
+  src/impls/drift_kinetic/inject_particles.cpp
+  src/impls/drift_kinetic/set_paired_particles.cpp
 )
 
 add_library(

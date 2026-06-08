@@ -1,5 +1,5 @@
-#ifndef SRC_INTERFACES_BUILDER_H
-#define SRC_INTERFACES_BUILDER_H
+#ifndef SRC_IMPLS_DRIFT_KINETIC_SEGMENTS_H
+#define SRC_IMPLS_DRIFT_KINETIC_SEGMENTS_H
 
 #include <vector>
 
@@ -41,4 +41,4 @@ std::vector<DriftKineticSegment> cell_segments(
 
 } //namespace drift_kinetic
 
-#endif  // SRC_INTERFACES_BUILDER_H
+#endif  // SRC_IMPLS_DRIFT_KINETIC_SEGMENTS_H

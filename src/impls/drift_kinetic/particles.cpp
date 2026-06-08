@@ -8,6 +8,19 @@
 
 namespace drift_kinetic {
 
+PointByField make_point_at_gc(
+  const Point& point, const Vector3R& Bp, PetscReal mp)
+{
+  const Vector3R b = Bp.normalized();
+  const PetscReal Bmag = Bp.length();
+  const PetscReal p_par = point.p.dot(b);
+  const PetscReal p_perp = point.p.transverse_to(Bp).length();
+  const PetscReal mu = mp * p_perp * p_perp / (2.0 * Bmag);
+  PointByField r(point.r, p_perp, p_par, mu);
+  r.p = point.p;
+  return r;
+}
+
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters),
     dk_curr_storage(world.size.elements_product()),
@@ -43,7 +56,7 @@ PetscErrorCode Particles::initialize_point_by_field(const Arr B_arr)
   PetscFunctionBeginUser;
   const PetscReal qm = parameters.q / parameters.m;
   const PetscReal mp = parameters.m;
-  drift_kinetic::DriftKineticEsirkepov esirkepov(B_arr, nullptr);
+  drift_kinetic::DriftKineticEsirkepov esirkepov(B_arr);
 
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto& cell = storage[g];
@@ -57,7 +70,10 @@ PetscErrorCode Particles::initialize_point_by_field(const Arr B_arr)
     for (const auto& point : cell) {
       Vector3R B_p{};
       PetscCall(esirkepov.interpolate_B(B_p, point.r));
-      dk_cell.emplace_back(point, B_p, mp, qm);
+      if (coord_is_gc_)
+        dk_cell.emplace_back(make_point_at_gc(point, B_p, mp));
+      else
+        dk_cell.emplace_back(point, B_p, mp, qm);
     }
   }
 
@@ -68,12 +84,23 @@ PetscReal Particles::kinetic_energy_local() const
 {
   PetscReal w = 0.0;
   const PetscReal mpw = parameters.n / static_cast<PetscReal>(parameters.Np);
+  PetscCallAbort(PETSC_COMM_WORLD,
+    DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
+  PetscCallAbort(PETSC_COMM_WORLD,
+    DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+
+  drift_kinetic::DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 #pragma omp parallel for reduction(+ : w)
   for (auto&& cell : dk_curr_storage) {
     for (auto&& point : cell) {
-      w += (POW2(point.p_parallel) + POW2(point.p_perp));
+      Vector3R B_p{};
+      PetscCallAbort(PETSC_COMM_WORLD, esirkepov.interpolate_B(B_p, point.r));
+      w += POW2(point.p_parallel) + 2.0 * point.mu_p * B_p.length();
     }
   }
+
+  PetscCallAbort(PETSC_COMM_WORLD,
+    DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
   return 0.5 * parameters.m * mpw * w;
 }
 
@@ -110,15 +137,11 @@ PetscErrorCode Particles::form_iteration()
         auto prev(prev_cell[i]);
 
         DriftKineticPush push(q / m, m);
-        drift_kinetic::DriftKineticEsirkepov util_local(E_arr, B0_arr, B_arr, J_arr, M_arr);
+        drift_kinetic::DriftKineticEsirkepov util_local(E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
 
         push.set_fields_callback(
           [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, Vector3R& B_p,
-            Vector3R& gradB_p) { util_local.interpolate(E_p, B_p, gradB_p, rn, r0); });
-
-        push.set_B_callback(
-          [&](const Vector3R& r0, const Vector3R& rn, Vector3R& B0_p, Vector3R& meanB_p,
-            Vector3R& Bn_p) { util_local.interpolate_B(B0_p, meanB_p, Bn_p, rn, r0); });
+            Vector3R& gradB_p, Vector3R& rotB_p) { util_local.interpolate(E_p, B_p, gradB_p, rotB_p, rn, r0); });
 
         push.process(dt, curr, prev);
 
@@ -128,6 +151,7 @@ PetscErrorCode Particles::form_iteration()
         const PetscReal a0 = qn_Np(curr);
         const PetscReal b0 = curr.mu_p * n_Np(curr);
         const Vector3R Vph = (curr.r - prev.r) / dt;
+        curr.p = Vph;
 
         util_local.decomposition(curr.r, prev.r, Vph, a0, b0);
 
@@ -163,7 +187,7 @@ PetscErrorCode Particles::sync_dk_curr_storage()
   PetscCall(DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
   PetscCall(DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
-  drift_kinetic::DriftKineticEsirkepov esirkepov(simulation_.B_arr, nullptr);
+  drift_kinetic::DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto& cell = storage[g];
@@ -174,8 +198,10 @@ PetscErrorCode Particles::sync_dk_curr_storage()
     for (const auto& point : cell) {
       Vector3R B_p{};
       PetscCall(esirkepov.interpolate_B(B_p, point.r));
-      PointByField point_by_field(point, B_p, mp, qm);
-      dk_cell.emplace_back(point_by_field);
+      if (coord_is_gc_)
+        dk_cell.emplace_back(make_point_at_gc(point, B_p, mp));
+      else
+        dk_cell.emplace_back(point, B_p, mp, qm);
     }
   }
 

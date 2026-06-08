@@ -35,33 +35,32 @@ struct DriftKineticShapeGradB
 
 class DriftKineticEsirkepov{
 public:
-  DriftKineticEsirkepov(Vector3R*** B_g, Vector3R*** M_g);
   DriftKineticEsirkepov(Vector3R*** B_g);
 
-  DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** B0_g, Vector3R*** B_g, Vector3R*** J_g, Vector3R*** M_g);
-
   PetscErrorCode interpolate_B(Vector3R& B_p, const Vector3R& Rp);
-  PetscErrorCode interpolate_B0(Vector3R& B0_p, const Vector3R& Rp);
 
-  PetscErrorCode interpolate_E(Vector3R& E_p, const DriftKineticSegment& s);
-  PetscErrorCode interpolate_gradB(Vector3R& gradB_p, Vector3R& b_p, const DriftKineticSegment& s);
+  DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn_g, Vector3R*** Bnh_g, //
+                        Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g);
 
-  PetscErrorCode interpolate(Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p, const Vector3R& Rn, const Vector3R& R0);
-  PetscErrorCode interpolate_B(Vector3R& B0_p, Vector3R& meanB_p, Vector3R& Bn_p, const Vector3R& Rn, const Vector3R& R0);
-
-  PetscErrorCode decomposition_M(const Vector3R& Rp, const Vector3R& b_p, PetscReal mu_p);
-  PetscErrorCode decomposition_J(const DriftKineticSegment& s,//
-  const Vector3R& Vp, PetscReal q_p);
+  PetscErrorCode interpolate(Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p, //
+                             Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0);
 
   PetscErrorCode decomposition(const Vector3R& Rn, const Vector3R& R0,//
-  const Vector3R& Vp, PetscReal q_p, PetscReal mu_p);
+                               const Vector3R& Vp, PetscReal q_p, PetscReal mu_p);
 
 private:
+  PetscErrorCode interpolate_E(Vector3R& E_p, const DriftKineticSegment& s);
+  PetscErrorCode interpolate_gradB(Vector3R& gradB_p, Vector3R& b_p, const DriftKineticSegment& s);
+  PetscErrorCode interpolate_rotB(Vector3R& rotB_p, const DriftKineticSegment& s);
+  PetscErrorCode interpolate_B(Vector3R& B_p, Vector3R*** B_g, const Vector3R& Rp);
+  PetscErrorCode decomposition_M(const Vector3R& Rp, const Vector3R& b_p, PetscReal mu_p);
+  PetscErrorCode decomposition_J(const DriftKineticSegment& s, const Vector3R& Vp, PetscReal q_p);
 
   Vector3R*** E_g = nullptr;
 
-  Vector3R*** B0_g = nullptr;
-  Vector3R*** B_g = nullptr;
+  Vector3R*** Bn_g = nullptr;
+  Vector3R*** Bnh_g = nullptr;
+  Vector3R*** Bn1_g = nullptr;
 
   Vector3R*** J_g = nullptr;
   Vector3R*** M_g = nullptr;

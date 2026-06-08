@@ -33,15 +33,15 @@ int main(int argc, char** argv)
 void overwrite_config()
 {
   dx = 10;
-  geom_ny = 5;
+  geom_ny = 6;
   geom_y = geom_ny * dx;
-  geom_nx = 5;
+  geom_nx = 6;
   geom_x = geom_nx * dx;
-  geom_nz = 100;
+  geom_nz = 20;
   geom_z = geom_nz * dx;
 
-  dt = 10;
-  geom_nt = 250000;
+  dt = 5;
+  geom_nt = 12000;
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
@@ -58,7 +58,7 @@ void overwrite_config()
         {"dy", dx},
         {"dz", dx},
         {"dt", dt},
-        {"diagnose_period", geom_t/500},
+        {"diagnose_period", 10*dt},
         {"da_boundary_x", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_y", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_z", "DM_BOUNDARY_PERIODIC"},
@@ -68,19 +68,19 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", "electrons"},
-        {"Np", 1000},
+        {"Np", 2500},
         {"n", +1.0},
         {"q", -1.0},
         {"m", +1.0},
-        {"T", +0.1},
+        {"T", +5.0},
       },
       {
         {"sort_name", "ions"},
-        {"Np", 1000},
+        {"Np", 2500},
         {"n", +1.0},
         {"q", +1.0},
         {"m", +100.0},
-        {"T", +0.001},
+        {"T", +0.01},
       }},
     },
     {
@@ -102,10 +102,10 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "electrons"},
           {"coordinate", {
-            {"name", "CoordinateInBoxCosineDensity"},
+            {"name", "CoordinateInBoxSineDensity"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
-            {"delta_n", -0.1},
+            {"amplitude", {0.0, 0.0, 0.1}},
             {"wave_number", {0.0, 0.0, 1.0}},
           }},
           {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
@@ -114,10 +114,10 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "ions"},
           {"coordinate", {
-            {"name", "CoordinateInBoxCosineDensity"},
+            {"name", "CoordinateInBoxSineDensity"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
-            {"delta_n", -0.1},
+            {"amplitude", {0.0, 0.0, 0.1}},
             {"wave_number", {0.0, 0.0, 1.0}},
           }},
           {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
@@ -127,16 +127,45 @@ void overwrite_config()
     {
       "Diagnostics",
   {
-    {
-      {"diagnostic", "FieldView"},
-      {"field", "E"},
-      {"region", {{"type", "2D"}, {"plane", "Y"}}},
-    },
-    {
-      {"diagnostic", "FieldView"},
-      {"field", "B"},
-      {"region", {{"type", "2D"}, {"plane", "Y"}}},
-    },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "E"},
+          {"out_dir", "E_planeY"},
+          {"region", {{"type", "2D"}, {"plane", "Y"}}},
+        },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "E"},
+          {"out_dir", "E_planeZ"},
+          {"region", {{"type", "2D"}, {"plane", "Z"}}},
+        },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "B"},
+          {"out_dir", "B_planeY"},
+          {"region", {{"type", "2D"}, {"plane", "Y"}}},
+        },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "B"},
+          {"out_dir", "B_planeZ"},
+          {"region", {{"type", "2D"}, {"plane", "Z"}}},
+        },
+        {
+          {"diagnostic", "FieldViewZAvg"},
+          {"field", "B"},
+          {"out_dir", "B_ZAvg"},
+        },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "electrons/J"},
+          {"out_dir", "electrons/J"},
+        },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "ions/J"},
+          {"out_dir", "ions/J"},
+        },
         {
           {"diagnostic", "DistributionMoment"},
           {"particles", "electrons"},

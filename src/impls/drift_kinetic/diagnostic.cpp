@@ -41,6 +41,138 @@ struct ChargeShape {
 
 }  // namespace
 
+namespace {
+
+// In the drift-kinetic representation, a per-particle "p" stored in
+// `PointByField` carries the gyrocenter velocity components (after
+// `form_iteration` writes Vph = (r_n - r_0)/dt into `point.p`); `p_parallel`
+// and `p_perp` are velocity magnitudes along/across B. With the convention
+// `p == v` used in the kinetic-energy formula in particles.cpp, the raw
+// second-moment quantities below have units of mass*velocity^2, i.e. twice
+// the per-direction kinetic energy density per particle.
+
+inline std::vector<PetscReal> dk_get_velocity(
+  const Particles&, const PointByField& point)
+{
+  return {point.p[X], point.p[Y], point.p[Z]};
+}
+
+inline std::vector<PetscReal> dk_get_velocity_parallel(
+  const Particles&, const PointByField& point)
+{
+  return {point.p_parallel};
+}
+
+inline std::vector<PetscReal> dk_get_temperature_parallel(
+  const Particles& particles, const PointByField& point)
+{
+  return {particles.parameters.m * POW2(point.p_parallel)};
+}
+
+inline std::vector<PetscReal> dk_get_temperature_perp(
+  const Particles& particles, const PointByField& point)
+{
+  return {particles.parameters.m * POW2(point.p_perp)};
+}
+
+// Project the gyrocenter velocity Vph (stored in `point.p` after
+// `form_iteration`) onto cylindrical components at the gyrocenter position.
+// Follows the same convention as `_get_v_cyl` in distribution_moment.cpp:
+// particles inside the singular cell (r=0) keep Cartesian components.
+inline Vector3R dk_v_cyl(const PointByField& point)
+{
+  PetscReal x = point.x() - 0.5 * geom_x;
+  PetscReal y = point.y() - 0.5 * geom_y;
+  PetscReal r = std::hypot(x, y);
+
+  const auto& v = point.p;
+  if (std::isinf(1.0 / r))
+    return v;
+
+  return {
+    (+x * v[X] + y * v[Y]) / r,
+    (-y * v[X] + x * v[Y]) / r,
+    v[Z],
+  };
+}
+
+inline std::vector<PetscReal> dk_get_momentum_flux(
+  const Particles& particles, const PointByField& point)
+{
+  const PetscReal m = particles.parameters.m;
+  const auto& v = point.p;
+  return {
+    m * v[X] * v[X],
+    m * v[X] * v[Y],
+    m * v[X] * v[Z],
+    m * v[Y] * v[Y],
+    m * v[Y] * v[Z],
+    m * v[Z] * v[Z],
+  };
+}
+
+inline std::vector<PetscReal> dk_get_momentum_flux_diag(
+  const Particles& particles, const PointByField& point)
+{
+  const PetscReal m = particles.parameters.m;
+  const auto& v = point.p;
+  return {
+    m * v[X] * v[X],
+    m * v[Y] * v[Y],
+    m * v[Z] * v[Z],
+  };
+}
+
+inline std::vector<PetscReal> dk_get_momentum_flux_cyl(
+  const Particles& particles, const PointByField& point)
+{
+  const PetscReal m = particles.parameters.m;
+  const Vector3R v = dk_v_cyl(point);
+  return {
+    m * v[R] * v[R],
+    m * v[R] * v[A],
+    m * v[R] * v[Z],
+    m * v[A] * v[A],
+    m * v[A] * v[Z],
+    m * v[Z] * v[Z],
+  };
+}
+
+inline std::vector<PetscReal> dk_get_momentum_flux_diag_cyl(
+  const Particles& particles, const PointByField& point)
+{
+  const PetscReal m = particles.parameters.m;
+  const Vector3R v = dk_v_cyl(point);
+  return {
+    m * v[R] * v[R],
+    m * v[A] * v[A],
+    m * v[Z] * v[Z],
+  };
+}
+
+}  // namespace
+
+DkMoment dk_moment_from_string(const std::string& name)
+{
+  if (name == "velocity")
+    return dk_get_velocity;
+  if (name == "velocity_parallel")
+    return dk_get_velocity_parallel;
+  if (name == "temperature_parallel")
+    return dk_get_temperature_parallel;
+  if (name == "temperature_perp")
+    return dk_get_temperature_perp;
+  if (name == "momentum_flux")
+    return dk_get_momentum_flux;
+  if (name == "momentum_flux_diag")
+    return dk_get_momentum_flux_diag;
+  if (name == "momentum_flux_cyl")
+    return dk_get_momentum_flux_cyl;
+  if (name == "momentum_flux_diag_cyl")
+    return dk_get_momentum_flux_diag_cyl;
+  return nullptr;
+}
+
 struct DkShape {
   static constexpr PetscInt shr = 1;
   static constexpr PetscInt shw = 2;
@@ -75,7 +207,29 @@ std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
-  auto* diagnostic = new DkDistributionMoment(out_dir, particles, moment, newcomm);
+  // The shared DistributionMomentBuilder hands us a CWD-relative path; prefix
+  // it with the simulation's output directory so density frames land next to
+  // the field diagnostics regardless of where the binary was launched from.
+  std::string full_out_dir = CONFIG().out_dir + "/" + out_dir;
+
+  auto* diagnostic = new DkDistributionMoment(full_out_dir, particles, moment, newcomm);
+  PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_data_views(region));
+  PetscFunctionReturn(std::unique_ptr<DkDistributionMoment>(diagnostic));
+}
+
+std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
+  const std::string& out_dir, const Particles& particles,
+  const DkMoment& moment, const Region& region)
+{
+  PetscFunctionBeginUser;
+  MPI_Comm newcomm;
+  PetscCallAbort(PETSC_COMM_WORLD, World::create_local_comm(particles.world.da, region, &newcomm));
+  if (newcomm == MPI_COMM_NULL)
+    PetscFunctionReturn(nullptr);
+
+  std::string full_out_dir = CONFIG().out_dir + "/" + out_dir;
+
+  auto* diagnostic = new DkDistributionMoment(full_out_dir, particles, moment, newcomm);
   PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_data_views(region));
   PetscFunctionReturn(std::unique_ptr<DkDistributionMoment>(diagnostic));
 }
@@ -84,6 +238,14 @@ DkDistributionMoment::DkDistributionMoment(const std::string& out_dir,
   const Particles& particles, const Moment& moment, MPI_Comm newcomm)
   : ::DistributionMoment(out_dir, particles, moment, newcomm),
     dk_particles(particles)
+{
+}
+
+DkDistributionMoment::DkDistributionMoment(const std::string& out_dir,
+  const Particles& particles, const DkMoment& moment, MPI_Comm newcomm)
+  : ::DistributionMoment(out_dir, particles, nullptr, newcomm),
+    dk_particles(particles),
+    dk_moment(moment)
 {
 }
 
@@ -123,7 +285,9 @@ PetscErrorCode DkDistributionMoment::collect()
 
       ::Point dummy_point(point.r, point.p);
 
-      std::vector<PetscReal> moments = moment(particles, dummy_point);
+      std::vector<PetscReal> moments = dk_moment
+        ? dk_moment(dk_particles, point)
+        : moment(particles, dummy_point);
       auto msize = static_cast<PetscInt>(moments.size());
 
       for (PetscInt i = 0; i < shape.shm; ++i) {
@@ -144,6 +308,53 @@ PetscErrorCode DkDistributionMoment::collect()
   }
   PetscCall(DMDAVecRestoreArrayDOFWrite(da, field_loc, &arr));
   PetscCall(DMLocalToGlobal(da, field_loc, ADD_VALUES, field));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+std::unique_ptr<MatMultFieldView> MatMultFieldView::create(
+  const std::string& out_dir, DM da, Vec source, Mat op,
+  const Region& region)
+{
+  PetscFunctionBeginUser;
+  MPI_Comm newcomm;
+  PetscCallAbort(PETSC_COMM_WORLD,
+    World::create_local_comm(da, region, &newcomm));
+  if (newcomm == MPI_COMM_NULL)
+    PetscFunctionReturn(nullptr);
+
+  // Owned output Vec lives on the same DM as `source`; `op` acts on it
+  // through MatMult during each diagnose() call.
+  Vec field = nullptr;
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &field));
+
+  auto* diagnostic = new MatMultFieldView(
+    out_dir, da, field, source, op, newcomm);
+  PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_data_views(region));
+  PetscFunctionReturn(std::unique_ptr<MatMultFieldView>(diagnostic));
+}
+
+MatMultFieldView::MatMultFieldView(const std::string& out_dir, DM da,
+  Vec field, Vec source, Mat op, MPI_Comm newcomm)
+  : ::FieldView(out_dir, da, field, newcomm),
+    source(source),
+    op(op)
+{
+}
+
+PetscErrorCode MatMultFieldView::finalize()
+{
+  PetscFunctionBeginUser;
+  if (field != nullptr)
+    PetscCall(VecDestroy(&field));
+  PetscCall(::FieldView::finalize());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MatMultFieldView::diagnose(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  PetscCall(MatMult(op, source, field));
+  PetscCall(::FieldView::diagnose(t));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

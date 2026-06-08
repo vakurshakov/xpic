@@ -18,6 +18,10 @@ PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& inf
   const std::map<std::string_view, PetscInt> available_moments{
     {"density", 1},
     {"current", 3},
+    {"velocity", 3},
+    {"velocity_parallel", 1},
+    {"temperature_perp", 1},
+    {"temperature_parallel", 1},
     {"momentum_flux", 6},
     {"momentum_flux_cyl", 6},
     {"momentum_flux_diag", 3},
@@ -57,8 +61,13 @@ PetscErrorCode DistributionMomentBuilder::build(const Configuration::json_t& inf
   auto* dk_particles = dynamic_cast<const drift_kinetic::Particles*>(&simulation_.get_named_particles(particles));
 
   if (dk_particles != nullptr) {
-    diagnostic = drift_kinetic::DkDistributionMoment::create(
-      out_dir, *dk_particles, moment_from_string(moment), region);
+    if (auto dk_m = drift_kinetic::dk_moment_from_string(moment); dk_m != nullptr) {
+      diagnostic = drift_kinetic::DkDistributionMoment::create(
+        out_dir, *dk_particles, dk_m, region);
+    } else {
+      diagnostic = drift_kinetic::DkDistributionMoment::create(
+        out_dir, *dk_particles, moment_from_string(moment), region);
+    }
   } else {
     diagnostic = DistributionMoment::create(
       out_dir, simulation_.get_named_particles(particles),

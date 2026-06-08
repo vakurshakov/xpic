@@ -19,6 +19,7 @@ public:
   std::vector<std::shared_ptr<drift_kinetic::Particles>> particles_;
 
   Vec M;
+  Mat rotM;
 
 protected:
   PetscErrorCode initialize_implementation() override;
@@ -45,17 +46,19 @@ protected:
 
   Vec B_hk;
   Vec E_hk;
+  Vec Bn1;
 
-  Vec B0_loc;
-  Arr B0_arr;
+  Vec Bn_loc;
+  Vec Bn1_loc;
+
+  Arr Bn_arr;
+  Arr Bn1_arr;
 
   DM da_EB;
 
   Vec sol;
   SNES snes;
   PetscInt last_field_itnum = 0;
-
-  Mat rotM;
 
   friend class EnergyConservation;
   friend class Particles;
