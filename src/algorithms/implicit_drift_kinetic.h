@@ -25,7 +25,7 @@ struct DriftKineticShapeE
 
 struct DriftKineticShapeGradB
 {
-    static constexpr PetscInt shr = 2;
+    static constexpr PetscInt shr = 1;
     static constexpr PetscInt shw = 4;
     Vector3I p_g;
     Vector3R p_s;

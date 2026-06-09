@@ -10,7 +10,6 @@ void overwrite_config();
 
 int main(int argc, char** argv)
 {
-  PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   overwrite_config();
@@ -22,7 +21,7 @@ int main(int argc, char** argv)
   PetscCall(simulation.finalize());
 
   PetscCall(PetscFinalize());
-  PetscFunctionReturn(PETSC_SUCCESS);
+  return PETSC_SUCCESS;
 }
 
 void overwrite_config()

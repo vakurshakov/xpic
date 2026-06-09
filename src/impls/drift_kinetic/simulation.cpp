@@ -11,8 +11,8 @@
 
 namespace drift_kinetic {
 
-static constexpr PetscReal atol = 1e-7;
-static constexpr PetscReal rtol = 1e-7;
+static constexpr PetscReal atol = 1e-13;
+static constexpr PetscReal rtol = 1e-13;
 static constexpr PetscReal stol = 0;
 static constexpr PetscReal divtol = PETSC_DETERMINE;
 static constexpr PetscInt maxit = 1000;
