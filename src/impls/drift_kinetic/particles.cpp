@@ -95,7 +95,7 @@ PetscReal Particles::kinetic_energy_local() const
     for (auto&& point : cell) {
       Vector3R B_p{};
       PetscCallAbort(PETSC_COMM_WORLD, esirkepov.interpolate_B(B_p, point.r));
-      w += POW2(point.p_parallel) + 2.0 * point.mu_p * B_p.length();
+      w += POW2(point.p_parallel) + 2.0 * point.mu_p * B_p.length() / parameters.m;
     }
   }
 

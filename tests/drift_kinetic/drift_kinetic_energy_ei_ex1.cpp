@@ -3,10 +3,8 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Test of energy and charge conservation for \"drift_kinetic\" implementation.  \n"
-  "The simplest case is tested: plasma cube of size L=5.0 (N=10) is modeled \n"
-  "in periodic boundaries for 100 cycles (dt=1.5). There are only maxwellian\n"
-  "electrons with the temperature T=100 eV, ions are stationary background. \n";
+  "Test of energy conservation for \"drift_kinetic\" implementation with "
+  "paired electron-ion particles.\n";
 
 void overwrite_config();
 
@@ -33,7 +31,7 @@ void overwrite_config()
   geom_x = geom_nx * dx;
 
   dt = 10.;
-  geom_nt = 1000;
+  geom_nt = 10000;
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
@@ -65,6 +63,16 @@ void overwrite_config()
         {"q", -1.0},
         {"m", +1.0},
         {"T", +0.1},
+        {"coord_is_gc", true},
+      },
+      {
+        {"sort_name", "ions"},
+        {"Np", 100},
+        {"n", +1.0},
+        {"q", +1.0},
+        {"m", +100.0},
+        {"T", +0.1},
+        {"coord_is_gc", true},
       }},
     },
     {
@@ -85,8 +93,10 @@ void overwrite_config()
         {
           {"command", "SetParticles"},
           {"particles", "electrons"},
+          {"paired_with", "ions"},
           {"coordinate", {{"name", "CoordinateInBox"}, {"min", {0.0, 0.0, 0.0}}, {"max", {30.0, 30.0, 30.0}}}},
           {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+          {"momentum_paired", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
         },
       },
     },

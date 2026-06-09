@@ -11,8 +11,8 @@
 
 namespace drift_kinetic {
 
-static constexpr PetscReal atol = 1e-13;
-static constexpr PetscReal rtol = 1e-13;
+static constexpr PetscReal atol = 1e-7;
+static constexpr PetscReal rtol = 1e-7;
 static constexpr PetscReal stol = 0;
 static constexpr PetscReal divtol = PETSC_DETERMINE;
 static constexpr PetscInt maxit = 1000;
@@ -194,7 +194,7 @@ PetscErrorCode Simulation::form_iteration(
   auto* simulation = (Simulation*)ctx;
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
   PetscCall(simulation->form_current());
-  //PetscCall(simulation->form_function(vf));
+  PetscCall(simulation->form_function(vf));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

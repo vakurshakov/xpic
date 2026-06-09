@@ -4,7 +4,8 @@ set(tests
   #drift_kinetic_push_ex1
   #drift_kinetic_push_ex2
   drift_kinetic_ex1
-  #drift_kinetic_ex2
+  drift_kinetic_ex2
+  drift_kinetic_energy_ei_ex1
   #drift_kinetic_ex3
   drift_kinetic_mirror_ex1
   #drift_kinetic_sound_ex1
@@ -19,7 +20,7 @@ foreach(test ${tests})
   add_executable(${test}.out ${test}.cpp)
   target_link_libraries(${test}.out ${PROJECT_NAME})
 
-  add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec -n 1 ./${test}.out)
+  add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -n 1 ./${test}.out)
   set_property(TEST "${test}" PROPERTY LABELS impls eccapfim)
   set_property(TEST "${test}" PROPERTY RUN_SERIAL true)
 endforeach()
