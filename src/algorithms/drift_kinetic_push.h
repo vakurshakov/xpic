@@ -26,7 +26,7 @@ public:
   bool has_converged() const;
 
   using SetFields = std::function<void(
-    const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
+    const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
 
   /// @brief Callback signature for supplying field values and gradients.
   void set_fields_callback(SetFields&& callback);
@@ -60,8 +60,8 @@ private:
   /// @brief Iteration counters and tolerances.
   PetscInt it = 0;
   PetscInt maxit = 30;
-  PetscReal atol = 1e-14;
-  PetscReal rtol = 1e-14;
+  PetscReal atol = 1e-10;
+  PetscReal rtol = 1e-10;
   Vector3R dRk = Vector3R{0, 0, 0};
   PetscReal dVhk = 0;
   PetscReal FRk, FVhk;

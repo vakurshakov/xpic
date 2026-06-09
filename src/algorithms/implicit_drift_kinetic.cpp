@@ -54,29 +54,29 @@ DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn_g, 
 
 void DriftKineticShapeGradB::setup(const DriftKineticSegment& segment){
   p_s = Vector3R{
-    (PetscInt)std::floor(segment.Rsmid[X]) + 0.5,
-    (PetscInt)std::floor(segment.Rsmid[Y]) + 0.5,
-    (PetscInt)std::floor(segment.Rsmid[Z]) + 0.5,
+    std::floor(segment.Rsmid[X] + 0.5),
+    std::floor(segment.Rsmid[Y] + 0.5),
+    std::floor(segment.Rsmid[Z] + 0.5),
   };
 
   p_g = Vector3I{
-    (PetscInt)std::floor(segment.Rsmid[X]) - shr,
-    (PetscInt)std::floor(segment.Rsmid[Y]) - shr,
-    (PetscInt)std::floor(segment.Rsmid[Z]) - shr,
+    (PetscInt)std::floor(segment.Rsmid[X] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsmid[Y] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsmid[Z] + 0.5) - shr,
   };
 }
 
 void DriftKineticShapeE::setup(const DriftKineticSegment& segment){
   p_s = Vector3R{
-    (PetscInt)std::floor(segment.Rsmid[X]) + 0.5,
-    (PetscInt)std::floor(segment.Rsmid[Y]) + 0.5,
-    (PetscInt)std::floor(segment.Rsmid[Z]) + 0.5,
+    std::floor(segment.Rsmid[X] + 0.5),
+    std::floor(segment.Rsmid[Y] + 0.5),
+    std::floor(segment.Rsmid[Z] + 0.5),
   };
 
   p_g = Vector3I{
-    (PetscInt)std::floor(segment.Rsmid[X]) - shr,
-    (PetscInt)std::floor(segment.Rsmid[Y]) - shr,
-    (PetscInt)std::floor(segment.Rsmid[Z]) - shr,
+    (PetscInt)std::floor(segment.Rsmid[X] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsmid[Y] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsmid[Z] + 0.5) - shr,
   };
 }
 
@@ -324,7 +324,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_rotB(
 }
 
 PetscErrorCode DriftKineticEsirkepov::interpolate( //
-    Vector3R& E_p, Vector3R& B_p, Vector3R& gradB_p, Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0)
+    Vector3R& E_p, Vector3R& B_p, Vector3R& b_p, Vector3R& gradB_p, Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0)
 {
   PetscFunctionBeginHot;
 
@@ -350,7 +350,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
 
   Vector3R bn_p = Bn_p.normalized();
   Vector3R bn1_p = Bn1_p.normalized();
-  Vector3R b_p = 0.5 * (bn_p + bn1_p);
+   b_p = 0.5 * (bn_p + bn1_p);
 
 #if 1
   PetscReal lenb_p = b_p.length();
@@ -372,6 +372,8 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
     gradB_p += gradBs_p * dts;
     rotB_p += rotBs_p * dts;
   }
+
+  b_p *= (lenb_p * lenb_p);
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

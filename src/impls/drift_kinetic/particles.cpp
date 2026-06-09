@@ -140,8 +140,8 @@ PetscErrorCode Particles::form_iteration()
         drift_kinetic::DriftKineticEsirkepov util_local(E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
 
         push.set_fields_callback(
-          [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, Vector3R& B_p,
-            Vector3R& gradB_p, Vector3R& rotB_p) { util_local.interpolate(E_p, B_p, gradB_p, rotB_p, rn, r0); });
+          [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, Vector3R& B_p, Vector3R& b_p,
+            Vector3R& gradB_p, Vector3R& rotB_p) { util_local.interpolate(E_p, B_p, b_p, gradB_p, rotB_p, rn, r0); });
 
         push.process(dt, curr, prev);
 

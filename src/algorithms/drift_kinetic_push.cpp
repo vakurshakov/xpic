@@ -118,14 +118,16 @@ void DriftKineticPush::update_v_parallel(PetscReal dt, PointByField& pn, const P
 
 void DriftKineticPush::update_fields(const PointByField& pn, const PointByField& p0) {
 
-  set_fields(p0.r, pn.r, Eh, Bh, gradBh, rotBh);
+  set_fields(p0.r, pn.r, Eh, Bh, bh, gradBh, rotBh);
 
-  bh = Bh.normalized();
+  bh =  Bh.normalized();
   lenBh = Bh.length();
 
   rotbh = (bh.cross(gradBh) + rotBh) / lenBh;
-  Bh_eff = Bh + (Vh / qm) * rotbh;
-  lenBh_eff = bh.dot(Bh_eff);
+
+
+  Bh_eff = lenBh * bh.normalized() + (Vh / qm) * rotbh;
+  lenBh_eff = bh.normalized().dot(Bh_eff);
 
   bh_eff = Bh_eff/lenBh_eff;
   F_eff = (qm*mp*Eh - p0.mu_p*gradBh);
