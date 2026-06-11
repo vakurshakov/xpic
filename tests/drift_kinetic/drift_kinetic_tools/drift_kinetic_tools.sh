@@ -30,6 +30,13 @@
 #   energy         -- Time series of wE, wB (top) and wK per sort (bottom)
 #                     from temporal/energy.txt, handled by
 #                     drift_kinetic_energy.py
+#   energy_compare[:N]
+#                  -- Compare energy diagnostics for all sibling output runs
+#                     matching the current test's ex-prefix (for example all
+#                     drift_kinetic_energy_ei_ex* runs). Writes three figures:
+#                     wE, relative wK_electrons/wK_ions changes, and total-energy
+#                     change versus omega_pe*t. Optional N limits omega_pe*t
+#                     to [0, N].
 #   eq[:METHOD]    -- Radial pressure-balance check: p_perp + B^2/2 vs r,
 #                     averaged over azimuthal angle around the cylinder axis;
 #                     uses plane-Z B and M plus 3D density z-center slice.
@@ -161,7 +168,7 @@ set -eu
 if [ "$#" -lt 1 ]; then
     cat >&2 <<EOF
 Usage: $0 <test_name> [diagnostics...]
-Diagnostics: E B J M rotM curlM dB cyl:{E,B,J,M,rotM,curlM,dB} dBfft[:N] beta energy eq[:dec|:pol] force[:dec|:pol[:START_IDX]] force_y[:avg|:center[:START_IDX[:tavg[:TAVG_START_IDX]]]] fp_y[:avg|:center[:START_IDX[:END_IDX]]] fp3d_y[:Pi|:avgzy|:pidiag|:noj...][:avg|:center[:START_IDX[:END_IDX[:Y_IDX]]]] fp3d_phi[:avg|:center[:START_IDX[:END_IDX]]] fp1d[:START_IDX[:END_IDX]] pcyl[:J][:avg|:center[:IDX]] profiles[:dec|:pol] ions electrons density_z compare_density_z:<other_test>[:<t_max_T>] jspec[:sub][:M]
+Diagnostics: E B J M rotM curlM dB cyl:{E,B,J,M,rotM,curlM,dB} dBfft[:N] beta energy energy_compare[:N] eq[:dec|:pol] force[:dec|:pol[:START_IDX]] force_y[:avg|:center[:START_IDX[:tavg[:TAVG_START_IDX]]]] fp_y[:avg|:center[:START_IDX[:END_IDX]]] fp3d_y[:Pi|:avgzy|:pidiag|:noj...][:avg|:center[:START_IDX[:END_IDX[:Y_IDX]]]] fp3d_phi[:avg|:center[:START_IDX[:END_IDX]]] fp1d[:START_IDX[:END_IDX]] pcyl[:J][:avg|:center[:IDX]] profiles[:dec|:pol] ions electrons density_z compare_density_z:<other_test>[:<t_max_T>] jspec[:sub][:M]
 EOF
     exit 1
 fi
@@ -191,6 +198,7 @@ PARTICLES=()
 DBFFT_MODES=()
 RUN_BETA=0
 RUN_ENERGY=0
+ENERGY_COMPARE_TIME_MAX=()
 EQ_METHODS=()
 FORCE_METHODS=()
 FORCE_START_IDX=()
@@ -500,6 +508,16 @@ for d in "${DIAGS[@]}"; do
         dBfft:*)        DBFFT_MODES+=("${d#dBfft:}") ;;
         beta)           RUN_BETA=1 ;;
         energy)         RUN_ENERGY=1 ;;
+        energy_compare) ENERGY_COMPARE_TIME_MAX+=("") ;;
+        energy_compare:*)
+            time_max="${d#energy_compare:}"
+            time_re='^([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][-+]?[0-9]+)?$'
+            if ! [[ "${time_max}" =~ ${time_re} ]]; then
+                echo "Invalid energy_compare time limit '${time_max}' in '$d', skipping" >&2
+                continue
+            fi
+            ENERGY_COMPARE_TIME_MAX+=("${time_max}")
+            ;;
         eq)             EQ_METHODS+=(dec) ;;
         eq:dec)         EQ_METHODS+=(dec) ;;
         eq:pol)         EQ_METHODS+=(pol) ;;
@@ -602,6 +620,17 @@ if [ "${RUN_ENERGY}" -eq 1 ]; then
     echo "==> energy time series (wE, wB; wK per sort)"
     "${PY}" "${SCRIPT_DIR}/drift_kinetic_energy.py" "${CONFIG}"
 fi
+
+for time_max in "${ENERGY_COMPARE_TIME_MAX[@]}"; do
+    echo "==> energy comparison across matching ex-runs" \
+         "${time_max:+(omega_pe*t <= ${time_max})}"
+    if [ -n "${time_max}" ]; then
+        "${PY}" "${SCRIPT_DIR}/drift_kinetic_energy_compare.py" "${CONFIG}" \
+            --time-max "${time_max}"
+    else
+        "${PY}" "${SCRIPT_DIR}/drift_kinetic_energy_compare.py" "${CONFIG}"
+    fi
+done
 
 for method in "${EQ_METHODS[@]}"; do
     echo "==> radial pressure-balance check (method=${method})"
