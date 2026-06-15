@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 
 # This is the most basic example of the plot
+# 
+# 0) Config path is declared explicitly, input and output directories are read from it
+# 1a) Data shape, it is not declared in files themselves
+# 1b) Where to read data and how to convert it into flat array for `plt.imshow`
+# 2a) Location of plot (`i`, `j` indices)
+# 2b) Colormap boundaries
+# 2c) Output is `plt.Axis` to process it further, maybe
+# 3) Choosen timestep-sequence should be declarated
 
 from plot import *
 
-# 0) Config path is declared explicitly, input and output directories are read from it
+config = select_subdirectory() if len(sys.argv) == 1 else sys.argv[1]
 
-config = sys.argv[1] # f"{sys.argv[1]}_dx3.0_dt1.5_Np1000" # ecsimcorr
 init_constants(f"results/{config}/{config}.json")
 const.B0 = float(const.config["Presets"][0]["setter"]["value"][2])
 const.tau = read_scalar(const.config["StepPresets"][3]["tau"])
@@ -14,25 +21,7 @@ const.min_x = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][0]) 
 const.max_x = read_scalar(const.config["StepPresets"][0]["geometry"]["max"][0]) - const.Lx / 2
 const.min_y = read_scalar(const.config["StepPresets"][0]["geometry"]["min"][1]) 
 const.max_y = read_scalar(const.config["StepPresets"][0]["geometry"]["max"][1])
-const.pto = 2 * const.Ndts
-
-# 1a) Data shape, it is not declared in files themselves
-# 1b) Where to read data and how to convert it into flat array for `plt.imshow`
-
-def read(file_t, c):
-    data_shape = [const.Ny, const.Nx, 3]
-    with open(file_t, "rb") as file:
-        raw = np.fromfile(file, dtype=np.float32, count=np.prod(data_shape), offset=0)
-        raw = np.reshape(raw, data_shape)
-    return raw[:,:,c]
-
-def read_E(c): return lambda t: read(f"{const.in_dir}/E_ZAvg/{str(t // const.Ndts).zfill(4)}", c)
-def read_B(c): return lambda t: read(f"{const.in_dir}/B_ZAvg/{str(t // const.Ndts).zfill(4)}", c)
-
-# 2a) Location of plot (`i`, `j` indices)
-# 2b) Colormap boundaries
-# 2c) Output is `plt.Axis` to process it further, maybe
-# 3) Choosen timestep-sequence should be declarated
+const.pto = const.Ndts
 
 vmap = np.array([-0.02, +0.02])
 fig, gs = figure(3, 2)

@@ -1,53 +1,54 @@
 #!/usr/bin/env python3
 
+import os, sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../"))
+
 from plot import *
-
-const.dt = 1.5
-const.tau = 60000 * const.dt
-
-d_t = int(3 * const.tau / const.dt)
+from runner import *
 
 def read_log(sim):
-    fname = f"./results/{sim}_dx3.0_dt1.5_Np1000/log-EachTimestep.txt"
+    fname = f"./results/{sim}/log-EachTimestep.txt"
     return np.loadtxt(fname, skiprows=1, usecols=1)
 
-dt_ecsimcorr = read_log("ecsimcorr")
-# dt_ecsimcorr[::4999] = dt_ecsimcorr[::4998]
-
-dt_eccapfim = read_log("eccapfim")
-# dt_eccapfim[::4999] = dt_eccapfim[::4998]
-
-fig, gs = figure(2, 1, figsize=(18, 6))
+fig, gs = figure(2, 1, figsize=(18, 8))
 
 def plot(title, i):
     plot = PlotLinear(subplot(fig, gs, i, 0))
-    plot.info.set_args(
-        title=title,
-        xlabel="$t / \\tau$"
-    )
+    plot.info.set_args(title=title)
     return plot
 
 tt = plot("\\rm timestep time, sec", 0)
-ct = plot("\\rm integral time, hours", 1)
+tt.info.set_args(xlabel="$t / \\tau$")
+
+ct = plot("\\rm calculated time, $t / \\tau$", 1)
+ct.info.set_args(xlabel="\\rm time, hours")
 
 def ts(d): return np.arange(len(d)) * const.dt / const.tau
 
-ts0 = ts(dt_ecsimcorr)
-ts1 = ts(dt_eccapfim)
+def plot(dir, l):
+    init_constants(f"results/{dir}/{dir}.json")
+    const.B0 = float(const.config["Presets"][0]["setter"]["value"][2])
+    const.tau = read_scalar(const.config["StepPresets"][3]["tau"])
 
-tt.axis.plot(ts0, dt_ecsimcorr, label="\\rm ecsimcorr")
-tt.axis.plot(ts1, dt_eccapfim, label="\\rm eccfim")
-tt.axis.set_ylim(40 * (-0.1), 40 * (1.1))
-tt.axis.grid()
-tt.axis.legend(fontsize=0.8*FontSize.label, loc="upper right", framealpha=1)
-tt.info.draw()
+    dt = sliding_average(read_log(dir), 10)
+    t = ts(dt)
 
-ct.axis.plot(ts0, np.cumsum(dt_ecsimcorr) / (60 * 60), label="\\rm ecsimcorr")
-ct.axis.plot(ts1, np.cumsum(dt_eccapfim) / (60 * 60), label="\\rm eccfim")
-ct.axis.set_ylim(500 * (-0.1), 500 * (1.1))
-ct.axis.grid()
-ct.axis.legend(fontsize=0.8*FontSize.label)
-ct.info.draw()
+    tt.axis.plot(t, dt)#, label=f"\\rm {l}")
+    ct.axis.plot(np.cumsum(dt) / (60 * 60), t, label=l)
+
+for sim, Np, tol in pool:
+    dir = f"{sim}_dx{dx:.1f}_dt{dt:.1f}_Np{Np:d}_mi{mi_me:d}_tol{tol:.0e}"
+    plot(dir, f"\\rm {sim}, $\\epsilon = 10^{{{int(np.log10(tol)):d}}}$")
+
+# tt.axis.set_ylim(20 * (-0.1), 20 * (1.1))
+# ct.axis.set_ylim(200 * (-0.1), 200 * (1.1))
+
+for d in [tt, ct]:
+    d.axis.grid()
+    d.info.draw()
+
+ct.axis.legend(fontsize=0.65*FontSize.label, loc="lower right")
 
 out_dir = f"./results/other"
 makedirs(out_dir)

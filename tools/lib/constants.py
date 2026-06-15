@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
-import os, sys, json
-
-from dataclasses import dataclass, field
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '../'))
+import os, json
+from typing import Final
+from dataclasses import dataclass
 
 @dataclass
 class Constants:
@@ -25,7 +23,7 @@ class Constants:
 
     # geometry
     dx, dy, dz, dt = (None,) * 4 # c/wpe [3], 1/wpe
-    Lx, Ly, Lz, Lt = (None,) * 4 # c/wpe [3], 1/wpe
+    Lx, Ly, Lz, Lt = (None,) * 4 # c/wpe [3], 1/wpe 
     Nx, Ny, Nz, Nt = (None,) * 4 # cells
     dts = None # 1/wpe
     Ndts = None # units
@@ -39,7 +37,7 @@ class Constants:
     tau = None # 1/wpe
 
 # common
-mec2 = 511.0 # KeV
+mec2: Final = 511.0 # KeV
 
 const = Constants()
 
@@ -52,6 +50,8 @@ def read_scalar(s):
     if s.endswith(' [c/w_pe]') or s.endswith(' [1/w_pe]'): return float(s.split(' ')[0])
 
 def init_constants(config_path):
+    global const
+
     with open(config_path, 'r') as file:
         config = json.load(file)
 
@@ -87,3 +87,4 @@ def init_constants(config_path):
 
     const.in_dir = os.path.join(config['OutputDirectory'])
     const.out_dir = os.path.join(config['OutputDirectory'], 'processed')
+    return const

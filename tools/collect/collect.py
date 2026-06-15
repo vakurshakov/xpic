@@ -3,20 +3,6 @@ import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "../"))
 
 from lib.common import *
-from lib.constants import *
-
-def read(file_t, c, cd):
-    data_shape = [const.Ny, const.Nx, cd]
-    with open(file_t, "rb") as file:
-        raw = np.fromfile(file, dtype=np.float32, count=np.prod(data_shape), offset=0)
-        raw = np.reshape(raw, data_shape)
-    return raw[:,:,c]
-
-def read_E(c): return lambda t: read(f"{const.in_dir}/E_ZAvg/{str(t // const.Ndts).zfill(4)}", c, 3)
-def read_B(c): return lambda t: read(f"{const.in_dir}/B_ZAvg/{str(t // const.Ndts).zfill(4)}", c, 3)
-def read_J(s, c): return lambda t: read(f"{const.in_dir}/{s}/J_ZAvg/{str(t // const.Ndts).zfill(4)}", c, 3)
-def read_P(s, c): return lambda t: read(f"{const.in_dir}/{s}/momentum_Z2/{str(t // const.Ndts).zfill(4)}", c, 6)
-def read_n(s):    return lambda t: read(f"{const.in_dir}/{s}/rho_ZAvg/{str(t // const.Ndts).zfill(4)}", 0, 1) * (1 if s == "ions" else -1)
 
 def center_avg(d: np.ndarray, w: int = 5):
     c0 = d.shape[0] // 2

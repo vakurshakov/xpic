@@ -8,13 +8,13 @@ from lib.constants import *
 def process_plots(fig, out_subdir, time, plots, callback):
     out_dir = f"{const.out_dir}/{out_subdir}"; makedirs(out_dir)
 
-    for t in mpi_consecutive_t_range(const.pts, const.pte, const.pto):
+    for t in mpi_consecutive_t_range(const.pts, const.pte, const.pto): # [::-1]
         figname = f"{out_dir}/{str(t // const.pto).zfill(4)}.png"
         figstring = f"{figname} {t} [dts] {t * const.dt / const.tau:.2f} [tau]"
 
-        if os.path.exists(figname):
-            print(f"File exists: {figstring}")
-            continue
+        # if os.path.exists(figname):
+        #     print(f"File exists: {figstring}")
+        #     continue
 
         try:
             callback(t)
@@ -22,6 +22,9 @@ def process_plots(fig, out_subdir, time, plots, callback):
 
             fig.suptitle(time(t), x=0.50, y=0.99, bbox=bbox, fontsize=FontSize.label)
             fig.tight_layout(rect=(0, 0, 1, 0.99))
+
+            # plt.show()
+            
             fig.savefig(figname)
 
             for plot in plots:
