@@ -145,11 +145,13 @@
 #                     plotted vs r. Vector quantities are projected to
 #                     cylindrical (r, phi, z) before binning. Handled by
 #                     drift_kinetic_force_pressure_3D_phi.py.
-#   fp1d[:START_IDX[:END_IDX]]
+#   fp1d[:MB][:START_IDX[:END_IDX]]
 #                  -- Same two-panel diagnostic as fp3d_y, but reduced to a
 #                     single 1D profile vs x by averaging over BOTH z and y
 #                     (planar Cartesian force balance, no cylindrical hoop
-#                     term). p_perp = sum_s 0.5*temperature_perp_s; top panel
+#                     term). By default p_perp = sum_s 0.5*temperature_perp_s;
+#                     with the optional :MB flag p_perp = -sum_s M_s.B
+#                     (magnetisation definition) is used instead. Top panel
 #                     is -dp_perp/dx (central diff) vs -(J_y + (rot M)_y) B_z
 #                     and -(rot M)_y B_z, where B_z is de-staggered onto the
 #                     cell node in x and y and J_y / (rot M)_y in y before the
@@ -168,7 +170,7 @@ set -eu
 if [ "$#" -lt 1 ]; then
     cat >&2 <<EOF
 Usage: $0 <test_name> [diagnostics...]
-Diagnostics: E B J M rotM curlM dB cyl:{E,B,J,M,rotM,curlM,dB} dBfft[:N] beta energy energy_compare[:N] eq[:dec|:pol] force[:dec|:pol[:START_IDX]] force_y[:avg|:center[:START_IDX[:tavg[:TAVG_START_IDX]]]] fp_y[:avg|:center[:START_IDX[:END_IDX]]] fp3d_y[:Pi|:avgzy|:pidiag|:noj...][:avg|:center[:START_IDX[:END_IDX[:Y_IDX]]]] fp3d_phi[:avg|:center[:START_IDX[:END_IDX]]] fp1d[:START_IDX[:END_IDX]] pcyl[:J][:avg|:center[:IDX]] profiles[:dec|:pol] ions electrons density_z compare_density_z:<other_test>[:<t_max_T>] jspec[:sub][:M]
+Diagnostics: E B J M rotM curlM dB cyl:{E,B,J,M,rotM,curlM,dB} dBfft[:N] beta energy energy_compare[:N] eq[:dec|:pol] force[:dec|:pol[:START_IDX]] force_y[:avg|:center[:START_IDX[:tavg[:TAVG_START_IDX]]]] fp_y[:avg|:center[:START_IDX[:END_IDX]]] fp3d_y[:Pi|:avgzy|:pidiag|:noj...][:avg|:center[:START_IDX[:END_IDX[:Y_IDX]]]] fp3d_phi[:avg|:center[:START_IDX[:END_IDX]]] fp1d[:MB][:START_IDX[:END_IDX]] pcyl[:J][:avg|:center[:IDX]] profiles[:dec|:pol] ions electrons density_z compare_density_z:<other_test>[:<t_max_T>] jspec[:sub][:M]
 EOF
     exit 1
 fi
@@ -227,6 +229,7 @@ FP3D_PHI_START_IDX=()
 FP3D_PHI_END_IDX=()
 FP1D_START_IDX=()
 FP1D_END_IDX=()
+FP1D_USE_MB=()
 PCYL_ZMODE=()
 PCYL_IDX=()
 PCYL_MODE=()
@@ -463,20 +466,27 @@ parse_fp3d_phi_token() {
     FP3D_PHI_END_IDX+=("${end}")
 }
 
-# fp1d[:START_IDX[:END_IDX]] — z-y-averaged 1D force balance (no z-mode /
-# y-idx: always averaged over both z and y).
+# fp1d[:MB][:START_IDX[:END_IDX]] — z-y-averaged 1D force balance.
+# Optional leading MB sub-token switches p_perp to the -M.B definition.
 parse_fp1d_token() {
     local token="$1"
     local start="0"
     local end=""
+    local use_mb="0"
     if [ "${token}" != "fp1d" ]; then
         local rest="${token#fp1d:}"
         IFS=':' read -r -a parts <<< "${rest}"
-        if [ "${#parts[@]}" -ge 1 ] && [ -n "${parts[0]}" ]; then
-            start="${parts[0]}"
+        local p=0
+        if [ "${#parts[@]}" -gt "${p}" ] && [ "${parts[$p]}" = "MB" ]; then
+            use_mb="1"
+            p=$((p + 1))
         fi
-        if [ "${#parts[@]}" -ge 2 ] && [ -n "${parts[1]}" ]; then
-            end="${parts[1]}"
+        if [ "${#parts[@]}" -gt "${p}" ] && [ -n "${parts[$p]}" ]; then
+            start="${parts[$p]}"
+        fi
+        p=$((p + 1))
+        if [ "${#parts[@]}" -gt "${p}" ] && [ -n "${parts[$p]}" ]; then
+            end="${parts[$p]}"
         fi
     fi
     if ! [[ "${start}" =~ ^[0-9]+$ ]]; then
@@ -489,6 +499,7 @@ parse_fp1d_token() {
     fi
     FP1D_START_IDX+=("${start}")
     FP1D_END_IDX+=("${end}")
+    FP1D_USE_MB+=("${use_mb}")
 }
 
 for d in "${DIAGS[@]}"; do
@@ -771,11 +782,15 @@ done
 for i in "${!FP1D_START_IDX[@]}"; do
     start="${FP1D_START_IDX[$i]}"
     end="${FP1D_END_IDX[$i]}"
+    use_mb="${FP1D_USE_MB[$i]:-0}"
     echo "==> force-balance + pressure, z-y-averaged 1D profile vs x" \
-         "(start_idx=${start}, end_idx=${end:-last})"
+         "(start_idx=${start}, end_idx=${end:-last}, use_mb=${use_mb})"
     fp1d_args=(--start-idx "${start}")
     if [ -n "${end}" ]; then
         fp1d_args+=(--end-idx "${end}")
+    fi
+    if [ "${use_mb}" = "1" ]; then
+        fp1d_args+=(--use-mb)
     fi
     "${PY}" "${SCRIPT_DIR}/drift_kinetic_force_pressure_1D.py" "${CONFIG}" \
         "${fp1d_args[@]}"

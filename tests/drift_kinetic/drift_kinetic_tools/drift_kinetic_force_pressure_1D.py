@@ -124,10 +124,13 @@ def reduce_zy(field3d):
 Z_AX, Y_AX, X_AX = 0, 1, 2
 
 
-def step_quantities(B, J_eff, rotM_eff, p_perp_3d):
+def step_quantities(B, J_eff, rotM_eff, p_perp_3d, p_perp_1d_override=None):
     """1D (vs x) reductions matching drift_kinetic_force_pressure_y.draw_frame's
     dict layout. Field products are de-staggered onto the cell node before the
-    z-y average so they co-locate with the node-centred moment pressure."""
+    z-y average so they co-locate with the node-centred moment pressure.
+
+    p_perp_1d_override: if provided, used in place of reduce_zy(p_perp_3d) for
+    p_perp and -dp/dx (e.g. the -M.B magnetisation definition)."""
     Bx, By, Bz = B[..., 0], B[..., 1], B[..., 2]
 
     # Bottom panel: raw |B|^2/2 (no de-staggering), z-y averaged.
@@ -142,7 +145,10 @@ def step_quantities(B, J_eff, rotM_eff, p_perp_3d):
 
     # p_perp lives on the node already; average over z and y, then -d/dx
     # (left / backward difference in x).
-    p_perp_1d = reduce_zy(p_perp_3d)
+    if p_perp_1d_override is not None:
+        p_perp_1d = p_perp_1d_override
+    else:
+        p_perp_1d = reduce_zy(p_perp_3d)
     neg_dp_dx = -backward_diff_1d(p_perp_1d, const.dx)
 
     # Ampere comparison: J_y^tot vs -dB_z/dx. B_z is node-de-staggered and
@@ -609,9 +615,14 @@ def parse_args():
     parser.add_argument("--mean-name", default="time_mean.png",
                         help="Time-averaged figure filename inside "
                              "<out-subdir>")
-    parser.add_argument("--out-subdir", default="force_pressure_1D",
+    parser.add_argument("--out-subdir", default=None,
                         help="Subdirectory under <out_dir>/processed for "
-                             "PNGs / MP4")
+                             "PNGs / MP4 (default: force_pressure_1D or "
+                             "force_pressure_1D_MB when --use-mb)")
+    parser.add_argument("--use-mb", action="store_true",
+                        help="Use p_perp = -M.B (magnetisation) instead of "
+                             "0.5*temperature_perp for the force-balance "
+                             "and B-field panels.")
     return parser.parse_args()
 
 
@@ -664,6 +675,10 @@ def main():
     # M is optional: only needed for the p_perp(temperature) vs p_perp(-M.B)
     # comparison figure. Absence simply skips that extra panel.
     have_m = all(d is not None for d in m_dirs)
+    if args.use_mb and not have_m:
+        print("[error] --use-mb requires per-species M FieldView, "
+              "but it is not configured for all species")
+        return
     m_steps = ([dict(list_steps(d, vec_size)) for d in m_dirs]
                if have_m else None)
     t_steps = [dict(list_steps(d, sca_size)) for d in t_dirs]
@@ -725,7 +740,9 @@ def main():
     sin2_th = np.broadcast_to(sin2_th, (const.Ny, const.Nx))
     cos2_th = np.broadcast_to(cos2_th, (const.Ny, const.Nx))
 
-    out_dir = os.path.join(const.out_dir, args.out_subdir)
+    out_subdir = args.out_subdir or (
+        "force_pressure_1D_MB" if args.use_mb else "force_pressure_1D")
+    out_dir = os.path.join(const.out_dir, out_subdir)
     os.makedirs(out_dir, exist_ok=True)
 
     def load_J_sp(idx):
@@ -800,7 +817,12 @@ def main():
         B = load_vec_3d(b_dir, b_steps[idx])
         p_perp_sp = load_p_perp_sp(idx)
         p_perp = sum(p_perp_sp)
-        q = step_quantities(B, J_eff, rotM_eff, p_perp)
+
+        # When --use-mb: p_perp for force balance comes from -M.B.
+        p_perp_mb_1d = load_p_perp_MB(idx, B) if have_m else None
+        q = step_quantities(
+            B, J_eff, rotM_eff, p_perp,
+            p_perp_1d_override=p_perp_mb_1d if args.use_mb else None)
 
         # Per-species 1D profiles (raw z-y average, mirroring fp3d_y's figure).
         q["p_perp_sp"] = [reduce_zy(pp) for pp in p_perp_sp]
@@ -813,7 +835,7 @@ def main():
         # magnetization -M.B (uses the instantaneous B of this frame).
         q["p_perp_T"] = reduce_zy(p_perp)
         if have_m:
-            q["p_perp_MB"] = load_p_perp_MB(idx, B)
+            q["p_perp_MB"] = p_perp_mb_1d
         # Bz_zy: node-de-staggered, z-y-averaged B_z (same reduction the
         # Ampere panel uses) -- needed by the parallel-correction figure.
         q["Bz_zy"] = reduce_zy(
