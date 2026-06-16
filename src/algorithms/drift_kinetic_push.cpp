@@ -58,6 +58,40 @@ void DriftKineticPush::set_fields_callback(SetFields&& callback)
 void DriftKineticPush::process(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
+  converged = false;
+  FRk = PETSC_MAX_REAL;
+  FVhk = PETSC_MAX_REAL;
+
+  for (it = 0; it < maxit; ++it) {
+
+    // 1. Evaluate RHS at the current nonlinear guess pn
+    evaluate_rhs(pn, p0);
+
+    // 2. Check true nonlinear residual
+    if (check_discrepancy(dt, pn, p0)) {
+      converged = true;
+      return;
+    }
+
+    // 3. Picard update
+    update_r(dt, pn, p0);
+    update_v_parallel(dt, pn, p0);
+  }
+
+  // Final check after the last Picard update
+  evaluate_rhs(pn, p0);
+  if (check_discrepancy(dt, pn, p0)) {
+    converged = true;
+    return;
+  }
+
+  LOG("WARNING: DK Push failed to converge after {} iterations. FRk={: .4e}, FVhk={: .4e}",
+      maxit, FRk, FVhk);
+}
+/*
+void DriftKineticPush::process(
+  PetscReal dt, PointByField& pn, const PointByField& p0)
+{
   for (it = 0; it < maxit; ++it) {
     step(dt, pn, p0);
     if (check_discrepancy(dt, pn, p0)) {
@@ -68,7 +102,7 @@ void DriftKineticPush::process(
   LOG("WARNING: DK Push failed to converge after {} iterations. FRk={: .4e}, FVhk={: .4e}",
       maxit, FRk, FVhk);
 }
-
+*/
 /// @brief Single Picard sweep: recompute the midpoint state, then update the
 /// guiding-center position and parallel momentum from it.
 void DriftKineticPush::step(const PetscReal dt, PointByField& pn, const PointByField& p0) {
@@ -80,10 +114,20 @@ void DriftKineticPush::step(const PetscReal dt, PointByField& pn, const PointByF
   update_v_parallel(dt, pn, p0);
 }
 
+void DriftKineticPush::evaluate_rhs(
+  const PointByField& pn,
+  const PointByField& p0)
+{
+  update_Vh(pn, p0);
+  update_fields(pn, p0);
+  update_Vp(pn, p0);
+  update_ah(pn, p0);
+}
+
 /// @brief Drift-velocity equation: parallel streaming along the effective field
 /// plus the @f$(q\mathbf{E}-\mu\nabla B)\times\mathbf{b}/(qB)@f$ drift.
 void DriftKineticPush::update_Vp(const PointByField& pn, const PointByField& p0) {
-  Vp = Vh * bh_eff + F_eff.cross(bh / (qm * mp * lenBh));
+  Vp = Vh * bh_eff + F_eff.cross(bh / (qm * mp * lenBh_eff));
 }
 
 /// @brief Midpoint parallel velocity @f$v_\parallel^{n+1/2}=(v^{n+1}+v^{n})/2@f$.
@@ -100,23 +144,36 @@ bool DriftKineticPush::check_discrepancy(PetscReal dt, const PointByField& pn, c
   FRk = get_residue_r(dt, pn, p0);
   FVhk = get_residue_v(dt, pn, p0);
 
-  dRk = pn.r - p0.r;
-  dVhk = pn.p_parallel - p0.p_parallel;
+  const PetscReal r_scale =
+    atol + rtol * std::max(
+      PetscReal(1.0),
+      std::max(
+        std::max(pn.r.length(), p0.r.length()),
+        (dt * Vp).length()
+      )
+    );
 
-  return (FRk < atol) && //
-         (FVhk * dt < atol);
+  const PetscReal v_scale =
+    atol + rtol * std::max(
+      PetscReal(1.0),
+      std::max(
+        std::max(std::abs(pn.p_parallel), std::abs(p0.p_parallel)),
+        std::abs(dt * ah)
+      )
+    );
+
+  return (FRk <= r_scale) && (FVhk <= v_scale);
 }
 
-PetscReal DriftKineticPush::get_residue_r(PetscReal dt, const PointByField& pn,
-  const PointByField& p0)
+PetscReal DriftKineticPush::get_residue_r( PetscReal dt, const PointByField& pn, const PointByField& p0)
 {
-  return (pn.r - p0.r - dRk).length();
+  return (pn.r - p0.r - dt * Vp).length();
 }
 
 PetscReal DriftKineticPush::get_residue_v(PetscReal dt, const PointByField& pn,
   const PointByField& p0)
 {
-  return std::abs((pn.p_parallel - p0.p_parallel) - dVhk);
+  return std::abs(pn.p_parallel - p0.p_parallel - dt * ah);
 }
 
 /// @brief Implicit position update @f$\mathbf{R}^{n+1}=\mathbf{R}^{n}+\tau\mathbf{V}_p@f$.
@@ -136,14 +193,13 @@ void DriftKineticPush::update_v_parallel(PetscReal dt, PointByField& pn, const P
 /// and the effective force @f$q\mathbf{E}-\mu\nabla B@f$ used by the motion equations.
 void DriftKineticPush::update_fields(const PointByField& pn, const PointByField& p0) {
   // Interpolated fields at the midpoint of the trajectory.
-  set_fields(p0.r, pn.r, Eh, Bh, bh, gradBh, rotBh);
+  set_fields(p0.r, pn.r, Eh, lenBh, bh, gradBh, rotBh);
 
   // Derived quantities.
-  lenBh = Bh.length();
   rotbh = (bh.cross(gradBh) + rotBh) / lenBh;
 
-  Bh_eff = lenBh * bh.normalized() + (Vh / qm) * rotbh;
-  lenBh_eff = bh.normalized().dot(Bh_eff);
+  Bh_eff = lenBh * bh + (Vh / qm) * rotbh;
+  lenBh_eff = bh.dot(Bh_eff);
   bh_eff = Bh_eff / lenBh_eff;
 
   F_eff = (qm * mp * Eh - p0.mu_p * gradBh);

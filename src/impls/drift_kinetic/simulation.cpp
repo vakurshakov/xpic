@@ -194,7 +194,7 @@ PetscErrorCode Simulation::form_iteration(
   auto* simulation = (Simulation*)ctx;
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
   PetscCall(simulation->form_current());
-  PetscCall(simulation->form_function(vf));
+  //PetscCall(simulation->form_function(vf));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

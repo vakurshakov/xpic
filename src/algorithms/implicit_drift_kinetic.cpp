@@ -135,7 +135,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_E(
 }
 
 PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
-  Vector3R& gradB_p, Vector3R& b_p, const DriftKineticSegment& s)
+  Vector3R& gradB_p, const Vector3R& b_p, const DriftKineticSegment& s)
 {
   PetscFunctionBeginHot;
   DriftKineticShapeGradB sh;
@@ -324,11 +324,12 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_rotB(
 }
 
 PetscErrorCode DriftKineticEsirkepov::interpolate( //
-    Vector3R& E_p, Vector3R& B_p, Vector3R& b_p, Vector3R& gradB_p, Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0)
+  Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p, Vector3R& gradB_p, //
+  Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0)
 {
   PetscFunctionBeginHot;
 
-  B_p = {};
+  lenB_p = 0;
   E_p = {};
   gradB_p = {};
   rotB_p = {};
@@ -346,7 +347,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
   PetscCall(interpolate_B(Bn_p, Bn_g, pR0));
   PetscCall(interpolate_B(Bn1_p, Bn1_g, pRn));
 
-  B_p = 0.5 * (Bn1_p + Bn_p);
+  lenB_p = 0.5 * (Bn1_p.length() + Bn_p.length());
 
   Vector3R bn_p = Bn_p.normalized();
   Vector3R bn1_p = Bn1_p.normalized();
@@ -354,7 +355,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
   b_p = 0.5 * (bn_p + bn1_p);
 
   PetscReal lenb_p = b_p.length();
-  b_p /= (lenb_p*lenb_p);
+  Vector3R hatb_p =  b_p / (lenb_p*lenb_p);
 
   std::vector<DriftKineticSegment> segmented_track = //
     cell_segments(periodic_track, CellSplitMode::cell_centers);
@@ -364,7 +365,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
     Vector3R Es_p = {};
     Vector3R rotBs_p = {};
     PetscCall(interpolate_E(Es_p, segment));
-    PetscCall(interpolate_gradB(gradBs_p, b_p, segment));
+    PetscCall(interpolate_gradB(gradBs_p, hatb_p, segment));
     PetscCall(interpolate_rotB(rotBs_p, segment));
     PetscReal dts = track.dRs_len > 0 ? segment.dRs_len / track.dRs_len : 1.0;
     E_p += Es_p * dts;
@@ -372,7 +373,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
     rotB_p += rotBs_p * dts;
   }
 
-  b_p *= (lenb_p * lenb_p);
+  b_p /= lenb_p;
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -399,10 +400,10 @@ PetscErrorCode DriftKineticEsirkepov::decomposition(
   Vector3R b_p = (bn1_p + bn_p) / 2.;
 
   PetscReal lenb_p = b_p.length();
-  b_p /= (lenb_p*lenb_p);
+  Vector3R hatb_p =  b_p / (lenb_p*lenb_p);
 
-  PetscCall(decomposition_M(pR0, b_p, 0.5 * mu_p));
-  PetscCall(decomposition_M(pRn, b_p, 0.5 * mu_p));
+  PetscCall(decomposition_M(pR0, hatb_p, 0.5 * mu_p));
+  PetscCall(decomposition_M(pRn, hatb_p, 0.5 * mu_p));
 
   std::vector<DriftKineticSegment> segmented_track =
     cell_segments(periodic_track, CellSplitMode::cell_centers);

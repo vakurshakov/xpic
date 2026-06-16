@@ -27,12 +27,12 @@ int main(int argc, char** argv)
 void overwrite_config()
 {
   // Компактная сетка для быстрого счета
-  dx = 1.0;
-  geom_nx = 10;
+  dx = 0.5;
+  geom_nx = 20;
   geom_x = geom_nx * dx;
-  geom_ny = 10;
+  geom_ny = 20;
   geom_y = geom_ny * dx;
-  geom_nz = 200; // Ловушка длиной 100 ячеек
+  geom_nz = 400; // Ловушка длиной 100 ячеек
   geom_z = geom_nz * dx;
 
   // Временной шаг

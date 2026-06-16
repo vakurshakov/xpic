@@ -35,7 +35,7 @@ public:
   bool has_converged() const;
 
   using SetFields = std::function<void(
-    const Vector3R&, const Vector3R&, Vector3R&, Vector3R&, Vector3R&, Vector3R&, Vector3R&)>;
+    const Vector3R&, const Vector3R&, Vector3R&, PetscReal&, Vector3R&, Vector3R&, Vector3R&)>;
 
   /// @brief Callback supplying the midpoint field values interpolated to the
   /// particle: @f$\mathbf{E}@f$, @f$\mathbf{B}@f$, @f$\mathbf{b}@f$,
@@ -49,6 +49,8 @@ public:
 private:
   /// @brief One Picard sweep: refresh midpoint state and update position/momentum.
   void step(const PetscReal dt, PointByField& pn, const PointByField& p0);
+  /// @brief Evaluates RHS Vp and ah for the current nonlinear state pn.
+  void evaluate_rhs(const PointByField& pn, const PointByField& p0);
 
   /// @brief Checks nonlinear residuals and determines convergence.
   bool check_discrepancy(PetscReal dt, const PointByField& pn, const PointByField& p0);
@@ -78,16 +80,14 @@ private:
   // -- Nonlinear iteration state and residuals -----------------------------
   PetscInt it = 0;          ///< Current iteration index.
   PetscInt maxit = 60;      ///< Maximum number of iterations.
-  PetscReal atol = 1e-12;   ///< Absolute tolerance.
+  PetscReal atol = 1e-14;   ///< Absolute tolerance.
   PetscReal rtol = 1e-12;   ///< Relative tolerance.
-  Vector3R dRk = Vector3R{0, 0, 0};  ///< Position increment of the previous iteration.
-  PetscReal dVhk = 0;       ///< Parallel-velocity increment of the previous iteration.
   PetscReal FRk, FVhk;      ///< Position and velocity residuals.
   bool converged = false;
 
   // -- Fields interpolated to the particle (set by `set_fields`) -----------
   Vector3R Eh;      ///< Midpoint electric field @f$\mathbf{E}^{n+1/2}@f$.
-  Vector3R Bh;      ///< Midpoint magnetic field @f$\mathbf{B}^{n+1/2}@f$.
+  //Vector3R Bh;      ///< Midpoint magnetic field @f$\mathbf{B}^{n+1/2}@f$.
   Vector3R bh;      ///< Unit vector along @f$\mathbf{B}^{n+1/2}@f$.
   Vector3R gradBh;  ///< Gradient of the field magnitude @f$\nabla B@f$.
   Vector3R rotBh;   ///< Curl of the magnetic field @f$\mathrm{rot}\,\mathbf{B}@f$.
