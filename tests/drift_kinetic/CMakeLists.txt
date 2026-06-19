@@ -33,6 +33,9 @@ add_test(
 )
 set_property(TEST "drift_kinetic_exb_ex1_plot" PROPERTY DEPENDS "drift_kinetic_exb_ex1")
 set_property(TEST "drift_kinetic_exb_ex1_plot" PROPERTY LABELS impls eccapfim)
+# The script only writes a PNG; force the non-interactive Agg backend so it does
+# not pull in Qt (and the snap libraries that crash python via LD_LIBRARY_PATH).
+set_property(TEST "drift_kinetic_exb_ex1_plot" PROPERTY ENVIRONMENT "MPLBACKEND=Agg")
 
 #set(test drift_kinetic_push_ex3)
 
