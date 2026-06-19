@@ -4,6 +4,7 @@ set(tests
   #drift_kinetic_push_ex1
   #drift_kinetic_push_ex2
   drift_kinetic_ex1
+  drift_kinetic_exb_ex1
   drift_kinetic_ex2
   drift_kinetic_energy_ei_ex1
   #drift_kinetic_ex3
@@ -24,6 +25,14 @@ foreach(test ${tests})
   set_property(TEST "${test}" PROPERTY LABELS impls eccapfim)
   set_property(TEST "${test}" PROPERTY RUN_SERIAL true)
 endforeach()
+
+# Visualization of the ExB drift comparison, executed after the model run.
+add_test(
+  NAME "drift_kinetic_exb_ex1_plot"
+  COMMAND ${CMAKE_SOURCE_DIR}/tests/drift_kinetic/drift_kinetic_exb_ex1.py
+)
+set_property(TEST "drift_kinetic_exb_ex1_plot" PROPERTY DEPENDS "drift_kinetic_exb_ex1")
+set_property(TEST "drift_kinetic_exb_ex1_plot" PROPERTY LABELS impls eccapfim)
 
 #set(test drift_kinetic_push_ex3)
 

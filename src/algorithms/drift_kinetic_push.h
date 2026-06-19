@@ -80,7 +80,7 @@ private:
   // -- Nonlinear iteration state and residuals -----------------------------
   PetscInt it = 0;          ///< Current iteration index.
   PetscInt maxit = 60;      ///< Maximum number of iterations.
-  PetscReal atol = 1e-14;   ///< Absolute tolerance.
+  PetscReal atol = 1e-12;   ///< Absolute tolerance.
   PetscReal rtol = 1e-12;   ///< Relative tolerance.
   PetscReal FRk, FVhk;      ///< Position and velocity residuals.
   bool converged = false;

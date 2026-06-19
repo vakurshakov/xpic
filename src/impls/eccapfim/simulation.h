@@ -114,6 +114,21 @@ public:
   const Simulation& simulation;
 };
 
+/// @brief Single-particle coordinate (and velocity) trace. It mirrors the
+/// automatic `PointByFieldTrace` of the `drift_kinetic` implementation so that
+/// the kinetic trajectory of a single particle can be compared against the
+/// guiding-center one directly. The first particle found in `storage` is
+/// traced, which is intended for tests that seed exactly one particle.
+class ParticleTrace : public TableDiagnostic {
+public:
+  ParticleTrace(
+    const std::string& out_dir, const interfaces::Particles& particles);
+  PetscErrorCode add_columns(PetscInt t) override;
+
+private:
+  const interfaces::Particles& particles;
+};
+
 }  // namespace eccapfim
 
 #endif  // SRC_ECCAPFIM_SIMULATION_H

@@ -49,8 +49,15 @@ PetscErrorCode Simulation::initialize()
   PetscCall(world.initialize());
   PetscCall(log_information());
 
-  PetscCall(PetscLogStageRegister("Commands run", &stagenums[0]));
-  PetscCall(PetscLogStageRegister("Diagnostics run", &stagenums[1]));
+  // Registering is idempotent so that several simulations can be created and
+  // run within a single process (e.g. comparison tests).
+  PetscCall(PetscLogStageGetId("Commands run", &stagenums[0]));
+  if (stagenums[0] < 0)
+    PetscCall(PetscLogStageRegister("Commands run", &stagenums[0]));
+
+  PetscCall(PetscLogStageGetId("Diagnostics run", &stagenums[1]));
+  if (stagenums[1] < 0)
+    PetscCall(PetscLogStageRegister("Diagnostics run", &stagenums[1]));
 
   da = world.da;
   da_rho = world.da_rho;

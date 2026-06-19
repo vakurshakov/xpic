@@ -21,6 +21,10 @@ PetscErrorCode Simulation::initialize_implementation()
 
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
 
+  if (!particles_.empty())
+    diagnostics_.emplace_back(
+      std::make_unique<ParticleTrace>(CONFIG().out_dir, *particles_[0]));
+
   PetscCall(PetscLogStagePop());
   PetscCall(init_clock.pop());
   LOG("Initialization took {:6.4e} seconds", init_clock.get(__FUNCTION__));
@@ -164,6 +168,12 @@ PetscErrorCode Simulation::init_iteration()
 
 #if !SNES_ITERATE_B
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
+  // Seed E_loc with the current field too. For a self-consistent run it is
+  // overwritten by the solver/NPC; for a fixed-field (test-particle) run, where
+  // `form_function` is disabled and the NPC does not refill E_loc, this is what
+  // lets the particle actually feel E (and thus ExB-drift) instead of only
+  // gyrating around B.
+  PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, E_loc));
 #endif
 
   PetscCall(PetscLogStagePop());
@@ -303,7 +313,7 @@ PetscErrorCode Simulation::impl_form_iteration(Vec x, Vec f)
   PetscCall(clock.push(__FUNCTION__));
   PetscCall(clear_sources());
   PetscCall(form_current());
-  PetscCall(form_function(f));
+  //PetscCall(form_function(f));
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -587,6 +597,33 @@ PetscErrorCode ConvergenceHistory::add_columns(PetscInt t)
   else {
     for (PetscInt i = 0; i < len; ++i)
       add(12, "ConvHist", "{:8.6e}", hist[i]);
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
+ParticleTrace::ParticleTrace(
+  const std::string& out_dir, const interfaces::Particles& particles)
+  : TableDiagnostic(out_dir + "/temporal/particle_trace.txt"), particles(particles)
+{
+}
+
+PetscErrorCode ParticleTrace::add_columns(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  for (const auto& cell : particles.storage) {
+    if (cell.empty())
+      continue;
+
+    const Point& point = cell.front();
+    add(20, "t_[1/wpe]", "{: .9e}", t * dt);
+    add(20, "x_[c/wpe]", "{: .9e}", point.x());
+    add(20, "y_[c/wpe]", "{: .9e}", point.y());
+    add(20, "z_[c/wpe]", "{: .9e}", point.z());
+    add(20, "px_[mc]", "{: .9e}", point.px());
+    add(20, "py_[mc]", "{: .9e}", point.py());
+    add(20, "pz_[mc]", "{: .9e}", point.pz());
+    break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
