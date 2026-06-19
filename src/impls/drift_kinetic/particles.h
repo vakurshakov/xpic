@@ -35,6 +35,10 @@ public:
     return dk_curr_storage;
   }
 
+  /// @brief Owning simulation, used by diagnostics that need the current
+  /// fields (e.g. interpolating |B| at the gyrocenter).
+  const Simulation& simulation() const { return simulation_; }
+
   void set_coord_is_gc(bool v) { coord_is_gc_ = v; }
   bool coord_is_gc() const { return coord_is_gc_; }
 

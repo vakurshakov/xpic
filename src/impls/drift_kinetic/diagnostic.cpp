@@ -1,6 +1,7 @@
 #include "diagnostic.h"
 
 #include "src/impls/drift_kinetic/simulation.h"
+#include "src/algorithms/simple_interpolation.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/shape.h"
@@ -52,27 +53,30 @@ namespace {
 // the per-direction kinetic energy density per particle.
 
 inline std::vector<PetscReal> dk_get_velocity(
-  const Particles&, const PointByField& point)
+  const Particles&, const PointByField& point, PetscReal)
 {
   return {point.p[X], point.p[Y], point.p[Z]};
 }
 
 inline std::vector<PetscReal> dk_get_velocity_parallel(
-  const Particles&, const PointByField& point)
+  const Particles&, const PointByField& point, PetscReal)
 {
   return {point.p_parallel};
 }
 
 inline std::vector<PetscReal> dk_get_temperature_parallel(
-  const Particles& particles, const PointByField& point)
+  const Particles& particles, const PointByField& point, PetscReal)
 {
   return {particles.parameters.m * POW2(point.p_parallel)};
 }
 
 inline std::vector<PetscReal> dk_get_temperature_perp(
-  const Particles& particles, const PointByField& point)
+  const Particles&, const PointByField& point, PetscReal lenB)
 {
-  return {particles.parameters.m * POW2(point.p_perp)};
+  // Perpendicular temperature from the adiabatic invariant: 2 * mu * B =
+  // m * v_perp^2, evaluated with the current B at the gyrocenter (mu is
+  // conserved while p_perp goes stale as B evolves after the push).
+  return {2.0 * point.mu_p * lenB};
 }
 
 // Project the gyrocenter velocity Vph (stored in `point.p` after
@@ -97,7 +101,7 @@ inline Vector3R dk_v_cyl(const PointByField& point)
 }
 
 inline std::vector<PetscReal> dk_get_momentum_flux(
-  const Particles& particles, const PointByField& point)
+  const Particles& particles, const PointByField& point, PetscReal)
 {
   const PetscReal m = particles.parameters.m;
   const auto& v = point.p;
@@ -112,7 +116,7 @@ inline std::vector<PetscReal> dk_get_momentum_flux(
 }
 
 inline std::vector<PetscReal> dk_get_momentum_flux_diag(
-  const Particles& particles, const PointByField& point)
+  const Particles& particles, const PointByField& point, PetscReal)
 {
   const PetscReal m = particles.parameters.m;
   const auto& v = point.p;
@@ -124,7 +128,7 @@ inline std::vector<PetscReal> dk_get_momentum_flux_diag(
 }
 
 inline std::vector<PetscReal> dk_get_momentum_flux_cyl(
-  const Particles& particles, const PointByField& point)
+  const Particles& particles, const PointByField& point, PetscReal)
 {
   const PetscReal m = particles.parameters.m;
   const Vector3R v = dk_v_cyl(point);
@@ -139,7 +143,7 @@ inline std::vector<PetscReal> dk_get_momentum_flux_cyl(
 }
 
 inline std::vector<PetscReal> dk_get_momentum_flux_diag_cyl(
-  const Particles& particles, const PointByField& point)
+  const Particles& particles, const PointByField& point, PetscReal)
 {
   const PetscReal m = particles.parameters.m;
   const Vector3R v = dk_v_cyl(point);
@@ -269,6 +273,17 @@ PetscErrorCode DkDistributionMoment::collect()
   // Итерация по дрейфово-кинетическому хранилищу dk_curr_storage
   const auto& dk_storage = dk_particles.get_dk_curr_storage();
 
+  // DK moments receive |B| interpolated at the gyrocenter; check out the
+  // current B field once before the particle loop. (The non-DK `moment`
+  // path never touches B.)
+  Arr B_arr_local = nullptr;
+  const auto& sim = dk_particles.simulation();
+  if (dk_moment) {
+    PetscCall(DMGlobalToLocal(sim.da, sim.B, INSERT_VALUES, sim.B_loc));
+    PetscCall(DMDAVecGetArrayRead(sim.da, sim.B_loc,
+      reinterpret_cast<void***>(&B_arr_local)));
+  }
+
 #pragma omp parallel for private(shape)
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
     Vector3I vg{
@@ -285,9 +300,20 @@ PetscErrorCode DkDistributionMoment::collect()
 
       ::Point dummy_point(point.r, point.p);
 
-      std::vector<PetscReal> moments = dk_moment
-        ? dk_moment(dk_particles, point)
-        : moment(particles, dummy_point);
+      std::vector<PetscReal> moments;
+      if (dk_moment) {
+        // Interpolate |B| at the gyrocenter with the 2nd-order spline (same
+        // kernel as DriftKineticEsirkepov::interpolate_B).
+        Vector3R B_p{};
+        ::Shape sh_B;
+        sh_B.setup(point.r, 1.5, spline_of_2nd_order);
+        SimpleInterpolation interp(sh_B);
+        SimpleInterpolation::Context B_ctx{{B_p, B_arr_local}};
+        interp.process({}, B_ctx);
+        moments = dk_moment(dk_particles, point, B_p.length());
+      } else {
+        moments = moment(particles, dummy_point);
+      }
       auto msize = static_cast<PetscInt>(moments.size());
 
       for (PetscInt i = 0; i < shape.shm; ++i) {
@@ -306,6 +332,12 @@ PetscErrorCode DkDistributionMoment::collect()
       }
     }
   }
+
+  if (dk_moment) {
+    PetscCall(DMDAVecRestoreArrayRead(sim.da, sim.B_loc,
+      reinterpret_cast<void***>(&B_arr_local)));
+  }
+
   PetscCall(DMDAVecRestoreArrayDOFWrite(da, field_loc, &arr));
   PetscCall(DMLocalToGlobal(da, field_loc, ADD_VALUES, field));
   PetscFunctionReturn(PETSC_SUCCESS);

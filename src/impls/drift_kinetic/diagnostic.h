@@ -12,9 +12,11 @@ class Simulation;
 
 /// @brief Moment getter taking a drift-kinetic `PointByField` directly so it
 /// can read `p_parallel`, `p_perp`, `mu_p` instead of going through the
-/// gyrocenter velocity stored in `Point::p`.
+/// gyrocenter velocity stored in `Point::p`. `lenB` is the magnitude of the
+/// current magnetic field interpolated to the gyrocenter (used by
+/// `temperature_perp`, ignored by the others).
 using DkMoment = std::vector<PetscReal> (*)(
-  const Particles&, const PointByField&);
+  const Particles&, const PointByField&, PetscReal lenB);
 
 /// @brief Map a moment name to a DK-specific getter. Returns nullptr if the
 /// name is not a DK-specific moment (callers should then fall back to the
