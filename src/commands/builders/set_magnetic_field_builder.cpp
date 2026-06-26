@@ -13,6 +13,8 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
   PetscFunctionBeginUser;
   std::set<std::string_view> available_setters{
     "SetUniformField",
+    "SetGradientField",
+    "SetAzimuthalField",
     "SetCoilsField",
     "SetCosineField",
     "SetGeneralCosineField",
@@ -48,6 +50,41 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
     Vector3R value = parse_vector(setter, "value");
     setup = SetUniformField(value);
     LOG("    Field value: {} {} {}", REP3_A(value));
+  }
+  else if (name == "SetGradientField") {
+    LOG("  Using SetGradientField setter");
+    Vector3R value = parse_vector(setter, "value");
+    PetscReal length = setter.at("length").get<PetscReal>();
+
+    std::string axis_name = "X";
+    if (setter.contains("axis"))
+      setter.at("axis").get_to(axis_name);
+
+    PetscInt axis;
+    if (axis_name == "X" || axis_name == "x")      axis = 0;
+    else if (axis_name == "Y" || axis_name == "y") axis = 1;
+    else if (axis_name == "Z" || axis_name == "z") axis = 2;
+    else throw std::runtime_error("Unknown axis for SetGradientField: " + axis_name);
+
+    PetscReal origin = 0.0;
+    if (setter.contains("origin"))
+      origin = setter.at("origin").get<PetscReal>();
+
+    setup = SetGradientField(value, axis, length, origin);
+    LOG("    Field value: {} {} {}, axis: {}, length: {}, origin: {}",
+      REP3_A(value), axis_name, length, origin);
+  }
+  else if (name == "SetAzimuthalField") {
+    LOG("  Using SetAzimuthalField setter");
+    PetscReal value = setter.at("value").get<PetscReal>();
+    Vector3R center = parse_vector(setter, "center");
+
+    PetscReal radius = 0.0;
+    if (setter.contains("radius"))
+      radius = setter.at("radius").get<PetscReal>();
+
+    setup = SetAzimuthalField(value, center[X], center[Y], radius);
+    LOG("    Field |B|: {}, center: {} {}, radius: {}", value, center[X], center[Y], radius);
   }
   else if (name == "SetCoilsField") {
     LOG("  Using SetCoilsField setter");

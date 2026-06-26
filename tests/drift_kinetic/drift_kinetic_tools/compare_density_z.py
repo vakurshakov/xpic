@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Compare ln|delta n_c(t)| between two drift_kinetic runs on one figure.
+"""Compare ln|delta n_c(t)| across drift_kinetic runs on one figure.
 
 Mirrors the right panel of `drift_kinetic_density_z.py`'s ``delta_n.png``,
-but for *two* runs at once. Per run, the script computes the modulus of
-the mode-1 density Fourier coefficient
+but for an *arbitrary* number of runs at once (one primary run A plus one or
+more comparison runs). Per run, the script computes the modulus of the
+mode-1 density Fourier coefficient
 
     delta n_c(t) = (2/Lz) * integral_0^Lz <n_ions>_{x,y}/n0 * sin(k z) dz,
 
@@ -32,8 +33,7 @@ from lib.constants import const, init_constants
 from lib.plot import bbox, labelsize, ticksize
 
 import matplotlib.pyplot as plt
-from matplotlib.lines import Line2D
-from matplotlib.legend_handler import HandlerTuple
+from matplotlib.ticker import MaxNLocator
 
 if any(shutil.which(tool) is None for tool in ("latex", "dvipng")):
     plt.rc("text", usetex=False)
@@ -50,11 +50,36 @@ from drift_kinetic_density_z import (
     solve_ion_sound_dispersion,
 )
 
+# Distinct colors for an arbitrary number of comparison runs; run A (the
+# primary run, which sets T and Gamma) is always first (red).
+RUN_COLORS = ["red", "blue", "green", "gold", "darkorange", "purple",
+              "saddlebrown", "magenta", "teal", "navy"]
+
+
+def run_color(i):
+    return RUN_COLORS[i % len(RUN_COLORS)]
+
+
+# Legend font size: reduced relative to the axis labels (labelsize + 4),
+# matching the smaller-legend look of drift_kinetic_exb_ex1.py.
+def legend_fs():
+    return ticksize + 4
+
+
+def exb_ticks(ax):
+    # Axis-tick format from drift_kinetic_exb_ex1.py: ticks on all four sides,
+    # pointing inward, plus minor ticks. Tick-label size is kept (ticksize + 4).
+    ax.minorticks_on()
+    ax.tick_params(axis="both", which="both", direction="in",
+                   top=True, bottom=True, left=True, right=True,
+                   labelsize=ticksize + 4)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("config_a", help="config.json of the primary run")
-    parser.add_argument("config_b", help="config.json of the comparison run")
+    parser.add_argument("configs_b", nargs="+",
+                        help="config.json of one or more comparison runs")
     parser.add_argument("--n0", type=float, default=1.0,
                         help="Background density used to normalise the "
                              "Fourier mode (default 1.0).")
@@ -67,11 +92,16 @@ def parse_args():
                         help="Upper x-axis limit of the right plot in units "
                              "of T (e.g. 2.75 means draw up to 2.75 T). "
                              "Default: full data span.")
+    parser.add_argument("--ylim", type=float, nargs=2, default=None,
+                        metavar=("YMIN", "YMAX"),
+                        help="y-axis limits of the comparison panel (the "
+                             "ln|delta n_c| plot). The two values are sorted, "
+                             "e.g. --ylim -3 -5 sets [-5, -3].")
     parser.add_argument("--species", default="ions",
                         help="Species whose density mode-1 modulus is "
                              "compared (default: ions).")
     parser.add_argument("--theory-delta-n", type=float, nargs="+",
-                        default=[0.0276, 0.023],
+                        default=[0.02843, 0.03],
                         help="One or more initial loading amplitudes "
                              "delta_n_0 used to anchor the theoretical "
                              "Landau envelopes delta_n_0 * exp(-Gamma t). "
@@ -183,8 +213,10 @@ def load_run(config_path, species_name, n0):
 def main():
     args = parse_args()
     run_a = load_run(args.config_a, args.species, args.n0)
-    out_dir_a = run_a["out_dir"]                       # capture before B
-    run_b = load_run(args.config_b, args.species, args.n0)
+    out_dir_a = run_a["out_dir"]            # capture before others reset const
+    runs = [run_a]
+    for cb in args.configs_b:
+        runs.append(load_run(cb, args.species, args.n0))
 
     if run_a["T_theory"] is None:
         raise RuntimeError("Could not derive T_theory for run A; aborting")
@@ -213,6 +245,16 @@ def main():
             tex = rf"{base:g}\cdot10^{{{exp}}}"
         return rf"$N_{{ppc}} = {tex}$"
 
+    # Per-run legend labels: prefer the N_ppc label, but if several runs share
+    # the same N_ppc (e.g. comparing different tests at fixed Np) fall back to
+    # the test directory names so the legend stays unambiguous.
+    base_labels = [label(r) for r in runs]
+    if len(set(base_labels)) != len(base_labels):
+        base_labels = [os.path.basename(os.path.dirname(r["config_path"]))
+                       for r in runs]
+    for r, lbl in zip(runs, base_labels):
+        r["plot_label"] = lbl
+
     fig, (ax_prof, ax) = plt.subplots(1, 2, figsize=(15.0, 7.0))
 
     # --- Left panel: initial density profile from run A (mirrors
@@ -232,76 +274,94 @@ def main():
 
     if run_a["profile0"] is not None:
         ax_prof.plot(run_a["z"], run_a["profile0"] / run_a["n0"],
-                     color="red", marker="o", linestyle="-",
+                     color="black", marker="o", linestyle="-",
                      linewidth=3.0, markersize=9.0, label=r"$n_i/n_0$")
 
     ax_prof.set_xlim(0.0, run_a["Lz"])
     ax_prof.set_ylim(ylim_lo, ylim_hi)
-    ax_prof.set_xlabel(r"$z~(c/\omega_{pe})$", fontsize=labelsize + 4)
+    ax_prof.set_xlabel(r"$z,\ c/\omega_{pe}$", fontsize=labelsize + 4)
     ax_prof.set_ylabel(rf"$\langle \frac{{n}}{{n_{{0}}}} \rangle_{{x,y}}(z)$",
                        fontsize=labelsize + 4)
-    ax_prof.tick_params(labelsize=ticksize + 4)
     ax_prof.grid(True, alpha=0.3)
     ax_prof.axhline(1.0, color="grey", linewidth=0.8, linestyle="--")
     draw_amplitude_lines(ax_prof, x_label_pos=0.01 * run_a["Lz"], ha="left")
-    ax_prof.text(0.97, 0.97, "(а)", transform=ax_prof.transAxes,
-                 ha="right", va="top", fontsize=labelsize + 4, bbox=panel_bbox)
-    ax_prof.legend(loc="lower left", fontsize=labelsize + 4)
+    ax_prof.text(0.03, 0.97, "(a)", transform=ax_prof.transAxes,
+                 ha="left", va="top", fontsize=labelsize + 4, bbox=panel_bbox)
+    ax_prof.legend(loc="upper right", fontsize=legend_fs())
+    exb_ticks(ax_prof)
     ax_prof.set_box_aspect(1)
 
     eps = 1e-30                          # guard log(0) at exact zeros
-    for run, color in ((run_a, "red"), (run_b, "blue")):
+    # Order the data curves by descending particle number so the run with
+    # the largest Np is drawn first (top of the legend) and gets the first
+    # color (red), then blue, green, yellow for decreasing Np.
+    def np_key(run):
+        try:
+            return float(run["Np"])
+        except (TypeError, ValueError):
+            return float("-inf")
+
+    order = sorted(range(len(runs)), key=lambda i: np_key(runs[i]),
+                   reverse=True)
+    # Draw so the first curve (red) sits on top, then blue, then green:
+    # higher zorder for earlier ranks. Legend order still follows the plot
+    # order (red, blue, green from top to bottom).
+    for rank, i in enumerate(order):
+        run = runs[i]
+        color = run_color(rank)
         t_over_T = run["times"] / T_norm
         ax.plot(t_over_T, np.log(np.maximum(run["mod"], eps)),
                 color=color, marker="o", markersize=4.0,
-                linewidth=2.0, label=label(run))
+                linewidth=2.0, label=run["plot_label"],
+                zorder=5 + (len(order) - rank))
 
     # Theoretical Landau envelopes from run A: ln(delta_n_0) - Gamma t,
     # one per requested initial amplitude. Same anchoring choice as
     # density_z.py's delta_n.png (envelope tied to the initial loading
     # amplitude, not to a data peak). Colors are paired with the data
     # curves above so reader can tell which theory belongs to which run.
+    # A single theoretical Landau envelope ln(delta_n_0) - Gamma t, with
+    # Gamma from the primary run A and delta_n_0 the first requested initial
+    # amplitude (default: run A's measured t=0 mode amplitude).
     Gamma_a = run_a["Gamma"]
     deltas = [d for d in args.theory_delta_n if d > 0.0]
-    theory_colors = ("darkred", "darkblue", "darkgreen", "darkorange")
-    theory_used_colors = []
+    if not deltas and len(run_a["mod"]) > 0 and run_a["mod"][0] > 0.0:
+        deltas = [float(run_a["mod"][0])]
     if deltas and Gamma_a is not None:
         t_max = max(
-            float(run_a["times"][-1]) if len(run_a["times"]) else 0.0,
-            float(run_b["times"][-1]) if len(run_b["times"]) else 0.0,
-        )
+            (float(r["times"][-1]) if len(r["times"]) else 0.0) for r in runs)
         t_th = np.linspace(0.0, t_max, 1200)
-        for k, delta_n0 in enumerate(deltas):
-            color = theory_colors[k % len(theory_colors)]
-            theory_used_colors.append(color)
-            ln_env = np.log(delta_n0) - Gamma_a * t_th
-            ax.plot(t_th / T_norm, ln_env, color=color, linewidth=1.0,
-                    linestyle="--", alpha=0.9,
-                    label="_nolegend_")
+        ax.plot(t_th / T_norm, np.log(deltas[0]) - Gamma_a * t_th,
+                color="black", linewidth=1.5, linestyle="--", alpha=0.9,
+                label=r"$\delta n \propto e^{-\Gamma t}$")
 
     x_max = max(
-        float(run_a["times"][-1]) / T_norm if len(run_a["times"]) else 0.0,
-        float(run_b["times"][-1]) / T_norm if len(run_b["times"]) else 0.0,
-    )
+        (float(r["times"][-1]) / T_norm if len(r["times"]) else 0.0)
+        for r in runs)
     if args.t_max_T is not None and args.t_max_T > 0.0:
         x_max = args.t_max_T
     ax.set_xlim(0.0, x_max)
+    # Vertical dashed guides at t = 0.5 T, 1 T, 1.5 T, ... across the whole
+    # range (same dashed style as the amplitude lines on panel (a)), unlabeled.
+    k = 1
+    while 0.5 * k <= x_max + 1e-9:
+        ax.axvline(0.5 * k, color="tab:gray", linewidth=1.0,
+                   linestyle="--", alpha=0.8, zorder=0)
+        k += 1
     ax.set_xlabel(r"$t/T$", fontsize=labelsize + 4)
     ax.set_ylabel(r"$\ln(|\delta n_k/n_0\,(t)|)$", fontsize=labelsize + 4)
-    ax.tick_params(labelsize=ticksize + 4)
-    ax.grid(True, alpha=0.3)
-    handles, labels_ = ax.get_legend_handles_labels()
-    if theory_used_colors:
-        proxies = tuple(
-            Line2D([0], [0], color=c, linewidth=1.5, linestyle="--", alpha=0.9)
-            for c in theory_used_colors
-        )
-        handles.append(proxies)
-        labels_.append(r"$\delta n \propto e^{-\Gamma t}$")
-    ax.legend(handles, labels_, loc="lower left", fontsize=labelsize + 4,
-              handler_map={tuple: HandlerTuple(ndivide=None, pad=0.0)})
-    ax.text(0.97, 0.97, "(б)", transform=ax.transAxes,
-            ha="right", va="top", fontsize=labelsize + 4, bbox=panel_bbox)
+    if args.ylim is not None:
+        ax.set_ylim(*sorted(args.ylim))
+    # Horizontal grid only; the vertical structure is the 0.5 T dashed guides.
+    ax.grid(True, axis="y", alpha=0.3)
+    ax.legend(loc="upper right", fontsize=legend_fs())
+    ax.text(0.03, 0.97, "(b)", transform=ax.transAxes,
+            ha="left", va="top", fontsize=labelsize + 4, bbox=panel_bbox)
+    exb_ticks(ax)
+    # Cap the number of major ticks so the (large) tick labels don't crowd
+    # into each other on either axis.
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=6, prune="both"))
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=6))
     ax.set_box_aspect(1)
 
     out_dir = os.path.join(out_dir_a, args.out_subdir)
@@ -311,10 +371,10 @@ def main():
     fig.savefig(out_path, dpi=args.dpi, bbox_inches="tight")
     plt.close(fig)
     print(f"Comparison figure written to {out_path}")
-    print(f"  A: Np = {run_a['Np']}, T = {run_a['T_theory']:.4g}, "
-          f"Gamma = {run_a['Gamma']:.4g}")
-    print(f"  B: Np = {run_b['Np']}, T = {run_b['T_theory']}, "
-          f"Gamma = {run_b['Gamma']}")
+    for i, run in enumerate(runs):
+        tag = chr(ord("A") + i)
+        print(f"  {tag}: {run['plot_label']}, Np = {run['Np']}, "
+              f"T = {run['T_theory']}, Gamma = {run['Gamma']}")
 
     # Separate figure: |delta n_m(t)| comparison for modes m = 2, 3, 4
     # between the two runs, no theory overlay. Same x-axis convention
@@ -323,14 +383,15 @@ def main():
     fig_m, axes_m = plt.subplots(1, len(modes_extra),
                                  figsize=(7.0 * len(modes_extra), 7.0))
     for ax_m, m in zip(axes_m, modes_extra):
-        for run, color in ((run_a, "red"), (run_b, "blue")):
+        for i, run in enumerate(runs):
+            color = run_color(i)
             t_over_T = run["times"] / T_norm
             mod_m = run["mods_extra"].get(m)
             if mod_m is None or len(mod_m) == 0:
                 continue
             ax_m.plot(t_over_T, np.log(np.maximum(mod_m, eps)),
                       color=color, marker="o", markersize=4.0,
-                      linewidth=2.0, label=label(run))
+                      linewidth=2.0, label=run["plot_label"])
         ax_m.set_xlim(0.0, x_max)
         ax_m.set_xlabel(r"$t/T$", fontsize=labelsize + 4)
         ax_m.set_ylabel(rf"$\ln(|\delta n_{m}/n_0\,(t)|)$",
@@ -435,16 +496,18 @@ def main():
             A_mid.append(0.5 * abs(v_p - v_m))
         return (np.array(t_mid), np.array(B_mid), np.array(A_mid))
 
-    fig_d, axes_d = plt.subplots(2, 2, figsize=(15.0, 14.0))
+    n_runs = len(runs)
+    fig_d, axes_d = plt.subplots(n_runs, 2, figsize=(15.0, 7.0 * n_runs),
+                                 squeeze=False)
     delta_for_run = {}
-    if len(deltas) >= 1:
-        delta_for_run[id(run_a)] = deltas[0]
-    if len(deltas) >= 2:
-        delta_for_run[id(run_b)] = deltas[1]
+    for i, run in enumerate(runs):
+        if deltas:
+            delta_for_run[id(run)] = deltas[i] if i < len(deltas) else deltas[-1]
 
-    for row, (run, color, panel_letter) in enumerate((
-            (run_a, "red", ("(а)", "(б)")),
-            (run_b, "blue", ("(в)", "(г)")))):
+    for row, run in enumerate(runs):
+        color = run_color(row)
+        panel_letter = (f"({chr(ord('a') + 2 * row)})",
+                        f"({chr(ord('a') + 2 * row + 1)})")
 
         t = run["times"]
         signed = run.get("coeff")
@@ -464,7 +527,7 @@ def main():
         ax_l = axes_d[row, 0]
         ax_l.axhline(0.0, color="grey", linewidth=0.8, linestyle="--")
         ax_l.plot(t_over_T, signed, color=color, linewidth=1.5, alpha=0.85,
-                  label=rf"$\delta n_c(t)$, {label(run)}")
+                  label=rf"$\delta n_c(t)$, {run['plot_label']}")
         valid = np.isfinite(B_avg)
         if np.any(valid):
             ax_l.plot(t_over_T[valid], B_avg[valid],
@@ -529,16 +592,16 @@ def main():
     plt.close(fig_d)
     print(f"Decomposition figure written to {decomp_path}")
 
-    if Gamma_a is not None and len(deltas) >= 2:
-        runs_cfg = (
-            ("A (red,  10000)", run_a, deltas[0], slice(-4, None)),
-            ("B (blue, 2000)",  run_b, deltas[1], slice(-3, None)),
-        )
-        for tag, run, delta_n0, sel in runs_cfg:
+    if Gamma_a is not None and deltas:
+        for i, run in enumerate(runs):
+            delta_n0 = deltas[i] if i < len(deltas) else deltas[-1]
+            tag = chr(ord("A") + i)
             maxs = local_maxima(run["mod"])
-            picked = maxs[sel]
-            print(f"  {tag}: maxima used = {len(picked)} / {len(maxs)} "
-                  f"(delta_n_0 = {delta_n0:g})")
+            # Primary run usually has a clean last peak — keep the last four;
+            # comparison runs are noisier at the tail — use the last three.
+            picked = maxs[-4:] if i == 0 else maxs[-3:]
+            print(f"  {tag}: {run['plot_label']}, maxima used = {len(picked)} "
+                  f"/ {len(maxs)} (delta_n_0 = {delta_n0:g})")
             worst, rows = deviation_at_maxima(run, delta_n0, Gamma_a, picked)
             for t, data, theory, rel in rows:
                 print(f"    t/T = {t / T_norm:7.3f}  data = {data:.4g}  "

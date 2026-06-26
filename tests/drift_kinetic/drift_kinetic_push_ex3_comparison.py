@@ -21,8 +21,8 @@ PUSHERS = [
 ]
 
 COLORS = {
-    "Boris": "green",
-    "DK": "saddlebrown",
+    "Boris": "black",
+    "DK": "red",
 }
 
 

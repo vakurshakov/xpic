@@ -434,13 +434,13 @@ PetscErrorCode PointByFieldTrace::add_columns(PetscInt t)
   }
 
   if (found) {
-    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
-    add(13, "x_[c/wpe]", "{: .6e}", point.x());
-    add(13, "y_[c/wpe]", "{: .6e}", point.y());
-    add(13, "z_[c/wpe]", "{: .6e}", point.z());
-    add(13, "p_par_[mc]", "{: .6e}", point.p_par());
-    add(13, "p_perp_[mc]", "{: .6e}", point.p_perp_ref());
-    add(13, "mu_p_[mc^2/B]", "{: .6e}", point.mu());
+    add(24, "t_[1/wpe]", "{: .15e}", t * dt);
+    add(24, "x_[c/wpe]", "{: .15e}", point.x());
+    add(24, "y_[c/wpe]", "{: .15e}", point.y());
+    add(24, "z_[c/wpe]", "{: .15e}", point.z());
+    add(24, "p_par_[mc]", "{: .15e}", point.p_par());
+    add(24, "p_perp_[mc]", "{: .15e}", point.p_perp_ref());
+    add(24, "mu_p_[mc^2/B]", "{: .15e}", point.mu());
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);

@@ -133,12 +133,21 @@ def parse_args():
                         help="Projection plane to draw (default: xy)")
     parser.add_argument("--drift",
                         choices=("exb", "gradb", "trap",
-                                 "energy_dK", "energy_dW", "charge"),
+                                 "energy_dK", "energy_dW", "charge",
+                                 "energy_charge", "trap_energy_dK"),
                         default="exb",
                         help="Drift type shown as the legend title "
                              "(default: exb)")
+    parser.add_argument("--path", default=None,
+                        help="Run name (or directory) holding the "
+                             "dk_diagnostic.txt for the energy panel of "
+                             "--drift trap_energy_dK, e.g. "
+                             "drift_kinetic_mirror_ex1")
     parser.add_argument("--time", type=float, default=None,
                         help="Upper limit on the time axis (for --drift energy_dK)")
+    parser.add_argument("--energy", type=float, default=None,
+                        help="Symmetric +-limit on the energy y axis "
+                             "(for --drift energy_dK/energy_dW/energy_charge)")
     parser.add_argument("--out", default=None,
                         help="Output image path "
                              "(default: <dir>/traces_<plane>.png)")
@@ -224,6 +233,40 @@ def plot_trap(args):
     print(f"Saved {out}")
 
 
+def _load_dt(directory):
+    """Time step dt from config.json, searched in `directory` and its parent."""
+    import json
+    for d in (directory, os.path.dirname(os.path.abspath(directory))):
+        path = os.path.join(d, "config.json")
+        if os.path.exists(path):
+            with open(path) as f:
+                return float(json.load(f)["Geometry"]["dt"])
+    raise FileNotFoundError(
+        f"config.json not found in {directory} or its parent")
+
+
+def _resolve_run_dir(path):
+    """Locate the temporal directory holding dk_diagnostic.txt for `path`.
+
+    `path` may be a run name under ../output, a run directory, or the
+    temporal directory itself.
+    """
+    base = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "output"))
+    candidates = [
+        path,
+        os.path.join(path, "temporal"),
+        os.path.join(base, path),
+        os.path.join(base, path, "temporal"),
+    ]
+    for d in candidates:
+        if os.path.exists(os.path.join(d, "dk_diagnostic.txt")):
+            return d
+    raise FileNotFoundError(
+        f"dk_diagnostic.txt not found for --path {path!r} "
+        f"(looked in: {', '.join(candidates)})")
+
+
 def _load_dk_diagnostic(directory):
     path = os.path.join(directory, "dk_diagnostic.txt")
     if not os.path.exists(path):
@@ -260,12 +303,15 @@ def _plot_energy_curve(args, t, y, ylabel, out_suffix,
 
     ax.set_xlim(0.0, float(args.time) if args.time is not None else float(t.max()))
     if symmetric:
-        m = float(np.max(np.abs(y))) or 1.0
+        if args.energy is not None:
+            m = float(args.energy)
+        else:
+            m = float(np.max(np.abs(y))) or 1.0
         ax.set_ylim(-m * 1.05, m * 1.05)
     else:
         hi = float(np.max(y)) or 1.0
         ax.set_ylim(0.0, hi * 1.05)
-    ax.set_xlabel(r"$t/\tau$", fontsize=labelsize + 4)
+    ax.set_xlabel(r"$t,\ \omega_{pe}^{-1}$", fontsize=labelsize + 4)
     ax.set_ylabel(ylabel, fontsize=labelsize + 4)
     ax.tick_params(labelsize=ticksize + 4)
     ax.yaxis.get_offset_text().set_fontsize(ticksize + 4)
@@ -305,6 +351,191 @@ def plot_charge(args):
                        color="saddlebrown", symmetric=False)
 
 
+def plot_energy_charge(args):
+    """Energy drift (top) and charge residual (bottom) stacked vertically,
+    sharing a single time axis."""
+    data, idx = _load_dk_diagnostic(args.dir)
+    # Time is the step index, i.e. t/tau in dimensionless units (no dt scaling).
+    t = data[:, idx["Time"]]
+    W = data[:, idx["wEB+wK"]]
+    dW = (W - W[0]) / W[0]
+    charge = data[:, idx["N2dQ_tot"]]
+
+    if args.time is not None:
+        mask = t <= args.time
+        t, dW, charge = t[mask], dW[mask], charge[mask]
+
+    fig, gs = figure(1, 2, figsize=(14, 10))
+    ax_top = fig.add_subplot(gs[0])
+    ax_bot = fig.add_subplot(gs[1], sharex=ax_top)
+
+    ax_top.plot(t, dW, color="#2ca02c", linestyle="-", linewidth=3.0, zorder=2)
+    ax_top.axhline(0.0, color="black", linestyle=":", linewidth=1.5, zorder=3)
+    if args.energy is not None:
+        m = float(args.energy)
+    else:
+        m = float(np.max(np.abs(dW))) or 1.0
+    ax_top.set_ylim(-m * 1.05, m * 1.05)
+    ax_top.set_ylabel(r"$\Delta W(t)/W(0)$", fontsize=labelsize + 4)
+
+    ax_bot.plot(t, charge, color="#ff7f0e", linestyle="-", linewidth=3.0,
+                zorder=2)
+    ax_bot.axhline(0.0, color="black", linestyle=":", linewidth=1.5, zorder=3)
+    hi = float(np.max(charge)) or 1.0
+    ax_bot.set_ylim(0.0, hi * 1.05)
+    ax_bot.set_ylabel(r"$\mathcal{R}_\rho(t)$", fontsize=labelsize + 4)
+    ax_bot.set_xlabel(r"$t/\tau$", fontsize=labelsize + 4)
+
+    x_hi = float(args.time) if args.time is not None else float(t.max())
+    ax_top.set_xlim(0.0, x_hi)
+    for ax in (ax_top, ax_bot):
+        ax.tick_params(labelsize=ticksize + 4)
+        ax.yaxis.get_offset_text().set_fontsize(ticksize + 4)
+        ax.xaxis.get_offset_text().set_fontsize(ticksize + 4)
+        ax.grid(True)
+    # Shared x axis: only the bottom panel keeps the time tick labels.
+    ax_top.tick_params(labelbottom=False)
+
+    # Panel labels in the top-right corner of each subplot.
+    for ax, panel in ((ax_top, "(a)"), (ax_bot, "(b)")):
+        ax.text(0.97, 0.95, panel, transform=ax.transAxes,
+                ha="right", va="top", fontsize=labelsize + 2,
+                bbox=dict(facecolor="white", edgecolor="none", alpha=0.6,
+                          boxstyle="round,pad=0.2"))
+
+    fig.tight_layout()
+    out = args.out or os.path.join(args.dir, "traces_energy_charge.png")
+    fig.savefig(out, dpi=args.dpi)
+    print(f"Saved {out}")
+
+
+# --- trap_energy_dK: three square panels in the style of drift_kinetic_exb_ex1.py
+# Sizes mirror the example exactly.
+EX_COLOR_KIN = "black"
+EX_COLOR_DK = "red"
+EX_COLOR_TH = "black"
+EX_LABELSIZE = 17
+EX_TICKSIZE = 13
+EX_LEGENDSIZE = 12
+EX_PANELSIZE = 17
+
+
+def _ex_mark_ends(ax, xs, ys, color):
+    ax.plot(xs[0], ys[0], "o", mfc="white", mec=color, mew=1.5, ms=7, zorder=5)
+    ax.plot(xs[-1], ys[-1], "o", color=color, ms=7, zorder=5)
+
+
+def _ex_style_axes(ax, panel):
+    ax.minorticks_on()
+    ax.tick_params(axis="both", which="both", direction="in",
+        top=True, bottom=True, left=True, right=True, labelsize=EX_TICKSIZE)
+    ax.tick_params(axis="x", which="both", labelbottom=True, labeltop=False)
+    ax.tick_params(axis="y", which="both", labelleft=True, labelright=False)
+    # Panel tag in the top-right corner, as in the example figures.
+    ax.text(0.94, 0.98, panel, transform=ax.transAxes,
+        ha="right", va="top", fontsize=EX_PANELSIZE,
+        bbox=dict(facecolor="white", edgecolor="none", alpha=0.6,
+            boxstyle="round,pad=0.2"))
+
+
+def plot_trap_energy_dK(args):
+    """Three square panels in the drift_kinetic_exb_ex1.py style:
+    (a), (b) magnetic-trap trajectories (two pitch fractions, Boris=kinetic in
+    red, DK=drift-kinetic in blue) and (c) the energy_dK time series from the
+    run given by --path, formatted like the energy panel of
+    drift_kinetic_energy.py (Delta W_K / W_K(0) vs omega_pe t)."""
+    if args.path is None:
+        raise SystemExit(
+            "--drift trap_energy_dK requires --path <run> for the energy panel")
+
+    # LaTeX look without a TeX install: Computer Modern mathtext on a serif
+    # face, matching drift_kinetic_curv_ex3_convergence.py.
+    plt.rcParams["text.usetex"] = False
+    plt.rcParams["mathtext.fontset"] = "cm"
+    plt.rcParams["font.family"] = "serif"
+
+    a, b = args.plane[0], args.plane[1]
+    ca, cb = COL[a], COL[b]
+
+    fig, gs = figure(ncols=3, nrows=1, figsize=(14, 4.5))
+
+    # (a), (b): magnetic-trap trajectories for the two pitch fractions, same
+    # data as --drift trap but recoloured (Boris -> kinetic/red,
+    # DK -> drift-kinetic/blue) with the example's legend wording.
+    panels = ["(a)", "(b)"]
+    traj_axes = []
+    legend_handles = legend_labels = None
+    for col, (panel, (_, pitch_frac, _, curves)) in enumerate(
+            zip(panels, TRAP_PANELS)):
+        ax = subplot(fig, gs, col, 0)
+        for prefix, omega_dt, _color, _style, method in curves:
+            filename = f"{prefix}_omega_dt_{omega_dt:.4f}_pf_{pitch_frac:.3f}.txt"
+            data, name = load_named_trace(args.dir, filename)
+            xs, ys = data[:, ca], data[:, cb]
+
+            # Draw drift-kinetic above kinetic.
+            if method == "B":
+                color, width, zorder = EX_COLOR_KIN, 1.0, 2
+                label = rf"kinetic: $\tau = {omega_dt:g}/\Omega_e$"
+            else:
+                color, width, zorder = EX_COLOR_DK, 2.0, 4
+                label = rf"drift-kinetic: $\tau = {omega_dt:g}/\Omega_e$"
+            ax.plot(xs, ys, color=color, linewidth=width, zorder=zorder,
+                    label=label)
+            _ex_mark_ends(ax, xs, ys, color)
+            print(f"  {panel} pf={pitch_frac:.3f} {method}: {name}")
+
+        ax.set_xlabel(rf"${a},\ c/\omega_{{pe}}$", fontsize=EX_LABELSIZE)
+        ax.set_ylabel(rf"${b},\ c/\omega_{{pe}}$", fontsize=EX_LABELSIZE)
+        ax.set_box_aspect(1)
+        _ex_style_axes(ax, panel)
+        traj_axes.append(ax)
+        # One shared legend for (a)+(b); grab the handles from the first panel.
+        if legend_handles is None:
+            legend_handles, legend_labels = ax.get_legend_handles_labels()
+
+    # (c): energy_dK from --path, in the style of the energy panel of
+    # drift_kinetic_energy.py (axhline at 0, omega_pe t on x).
+    energy_dir = _resolve_run_dir(args.path)
+    data, idx = _load_dk_diagnostic(energy_dir)
+    # Time is the step index, i.e. t/tau in dimensionless units (no dt scaling).
+    t = data[:, idx["Time"]]
+    dK = data[:, idx["dK"]]
+    wK0 = data[0, idx["wK"]]
+    cum = np.cumsum(dK) / wK0
+
+    ax = subplot(fig, gs, 2, 0)
+    ax.plot(t, cum, color="#2ca02c", lw=2.0)
+    ax.axhline(0.0, color=EX_COLOR_TH, ls="--", lw=1.0)
+    ax.set_xlim(0.0, float(t.max()))
+    m = float(np.max(np.abs(cum))) or 1.0
+    ax.set_ylim(-m * 1.05, m * 1.05)
+    ax.set_xlabel(r"$t/\tau$", fontsize=EX_LABELSIZE)
+    ax.set_ylabel(r"$\Delta W_K(t)/W_K(0)$", fontsize=EX_LABELSIZE)
+    ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    ax.yaxis.get_offset_text().set_fontsize(EX_TICKSIZE)
+    ax.set_box_aspect(1)
+    _ex_style_axes(ax, "(c)")
+    print(f"  (c) energy_dK from {energy_dir}: "
+          f"final dW_K/W_K(0) = {cum[-1]:.3e}")
+
+    fig.tight_layout(pad=1.2, w_pad=2.5)
+
+    # Shared legend for (a)+(b), centred between the two panels and just a touch
+    # above them.
+    pos_a = traj_axes[0].get_position()
+    pos_b = traj_axes[1].get_position()
+    mid_x = 0.25 * (pos_a.x0 + pos_a.x1 + pos_b.x0 + pos_b.x1)
+    top_y = max(pos_a.y1, pos_b.y1)
+    fig.legend(legend_handles, legend_labels, loc="lower center",
+               bbox_to_anchor=(mid_x, top_y + 0.01), ncol=1,
+               fontsize=EX_LEGENDSIZE)
+
+    out = args.out or os.path.join(args.dir, "traces_trap_energy_dK.png")
+    fig.savefig(out, dpi=args.dpi, bbox_inches="tight")
+    print(f"Saved {out}")
+
+
 def main():
     args = parse_args()
 
@@ -322,6 +553,14 @@ def main():
 
     if args.drift == "charge":
         plot_charge(args)
+        return
+
+    if args.drift == "energy_charge":
+        plot_energy_charge(args)
+        return
+
+    if args.drift == "trap_energy_dK":
+        plot_trap_energy_dK(args)
         return
 
     a, b = args.plane[0], args.plane[1]

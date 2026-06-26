@@ -144,23 +144,16 @@ bool DriftKineticPush::check_discrepancy(PetscReal dt, const PointByField& pn, c
   FRk = get_residue_r(dt, pn, p0);
   FVhk = get_residue_v(dt, pn, p0);
 
-  const PetscReal r_scale =
-    atol + rtol * std::max(
-      PetscReal(1.0),
-      std::max(
-        std::max(pn.r.length(), p0.r.length()),
-        (dt * Vp).length()
-      )
-    );
-
-  const PetscReal v_scale =
-    atol + rtol * std::max(
-      PetscReal(1.0),
-      std::max(
-        std::max(std::abs(pn.p_parallel), std::abs(p0.p_parallel)),
-        std::abs(dt * ah)
-      )
-    );
+  // The residual of each implicit equation is measured against the size of the
+  // update that equation produces over the step: the drift displacement
+  // `dt * Vp` for the position and the parallel-velocity increment `dt * ah`.
+  // This makes the test a bound on the *relative* error of the discrete
+  // equations of motion, independent of the (arbitrary) coordinate origin and
+  // of the absolute particle position. The relative scale is what carries the
+  // tolerance; `atol` is only a floor guarding the degenerate case of a
+  // vanishing update (Vp -> 0 or ah -> 0).
+  const PetscReal r_scale = atol + rtol * (dt * Vp).length();
+  const PetscReal v_scale = atol + rtol * std::abs(dt * ah);
 
   return (FRk <= r_scale) && (FVhk <= v_scale);
 }

@@ -35,6 +35,98 @@ PetscErrorCode SetUniformField::operator()(Vec vec)
 }
 
 
+SetGradientField::SetGradientField(
+  const Vector3R& value, PetscInt axis, PetscReal length, PetscReal origin)
+  : value_(value), axis_(axis), length_(length), origin_(origin)
+{
+}
+
+
+SetAzimuthalField::SetAzimuthalField(
+  PetscReal value, PetscReal center_x, PetscReal center_y, PetscReal radius)
+  : value_(value), center_x_(center_x), center_y_(center_y), radius_(radius)
+{
+}
+
+PetscErrorCode SetAzimuthalField::operator()(Vec vec)
+{
+  PetscFunctionBeginUser;
+  DM da;
+  PetscCall(VecGetDM(vec, &da));
+
+  Vector3I start, size;
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+
+  Vector3R*** arr;
+  PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
+
+  const bool linear = radius_ > 0.0;
+
+#pragma omp parallel for
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    PetscInt x = start[X] + g % size[X];
+    PetscInt y = start[Y] + (g / size[X]) % size[Y];
+    PetscInt z = start[Z] + (g / size[X]) / size[Y];
+
+    // Yee staggering: Bx lives at (i, j+1/2, k+1/2), By at (i+1/2, j, k+1/2),
+    // so each transverse component is sampled at its own half-shifted node.
+    const PetscReal rx_bx = x * dx - center_x_;
+    const PetscReal ry_bx = (y + 0.5) * dy - center_y_;
+    const PetscReal rx_by = (x + 0.5) * dx - center_x_;
+    const PetscReal ry_by = y * dy - center_y_;
+    // Linear: divide by the constant `radius`; normalized: divide by local r.
+    const PetscReal denom_bx = linear ? radius_ : std::hypot(rx_bx, ry_bx);
+    const PetscReal denom_by = linear ? radius_ : std::hypot(rx_by, ry_by);
+
+    arr[z][y][x][X] =
+      (!linear && denom_bx < 1e-10) ? 0.0 : -value_ * ry_bx / denom_bx;
+    arr[z][y][x][Y] =
+      (!linear && denom_by < 1e-10) ? 0.0 : +value_ * rx_by / denom_by;
+    arr[z][y][x][Z] = 0.0;
+  }
+
+  PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
+  LOG("  Azimuthal field is set, |B| {}, center ({} {}), radius {}",
+    value_, center_x_, center_y_, radius_);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode SetGradientField::operator()(Vec vec)
+{
+  PetscFunctionBeginUser;
+  DM da;
+  PetscCall(VecGetDM(vec, &da));
+
+  Vector3I start, size;
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+
+  Vector3R*** arr;
+  PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
+
+  const PetscReal d[3] = {dx, dy, dz};
+
+#pragma omp parallel for
+  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+    PetscInt x = start[X] + g % size[X];
+    PetscInt y = start[Y] + (g / size[X]) % size[Y];
+    PetscInt z = start[Z] + (g / size[X]) / size[Y];
+
+    const PetscInt idx[3] = {x, y, z};
+    const PetscReal s = idx[axis_] * d[axis_];
+    const PetscReal scale = 1.0 + (s - origin_) / length_;
+
+    arr[z][y][x][X] = value_[X] * scale;
+    arr[z][y][x][Y] = value_[Y] * scale;
+    arr[z][y][x][Z] = value_[Z] * scale;
+  }
+
+  PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
+  LOG("  Gradient field is set, value ({} {} {}), axis {}, length {}, origin {}",
+    REP3_A(value_), axis_, length_, origin_);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+
 SetCosineField::SetCosineField(
   BoxGeometry field_box, const Vector3R& field_amplitude,
   const Vector3R& field_wave_number)

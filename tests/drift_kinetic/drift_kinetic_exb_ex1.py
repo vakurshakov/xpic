@@ -15,8 +15,8 @@ OUT = os.path.join(HERE, "output", "drift_kinetic_exb_ex1")
 DK_DIR = os.path.join(OUT, "drift_kinetic")
 KIN_DIR = os.path.join(OUT, "eccapfim")
 
-COLOR_KIN = "red"
-COLOR_DK = "blue"
+COLOR_KIN = "black"
+COLOR_DK = "red"
 COLOR_TH = "black"
 
 LABELSIZE = 17
@@ -135,7 +135,7 @@ def main():
     if ymax > 0:
         ax.set_ylim(-1.1 * ymax, 1.1 * ymax)
     ax.set_xlabel(r"$t,\ \omega_{pe}^{-1}$", fontsize=LABELSIZE)
-    ax.set_ylabel(r"$(V_{dk} - V_{th}) / V_{th}$", fontsize=LABELSIZE)
+    ax.set_ylabel(r"$(V(t) - V_E) / V_E$", fontsize=LABELSIZE)
     ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     ax.yaxis.get_offset_text().set_fontsize(OFFSETSIZE)
     ax.legend(loc="upper left", fontsize=LEGENDSIZE)

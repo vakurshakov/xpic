@@ -74,15 +74,22 @@
 #   density_z      -- (x, y)-averaged density profile <n>(z) for every species
 #                     with a density diagnostic, all curves on one figure;
 #                     handled by drift_kinetic_density_z.py
-#   compare_density_z:<other_test>[:<t_max_T>]
-#                  -- ln|delta n_c(t)| comparison vs another test's run, on a
-#                     single panel (no profile panel). Legend labels carry
-#                     each run's per-species Np. The other test must live at
-#                     ../output/<other_test>/config.json. Repeat the token to
-#                     compare against several runs. Optional <t_max_T> bounds
-#                     the right plot's x-axis in units of T (e.g.
-#                     compare_density_z:drift_kinetic_sound_ex6:2.75 draws
-#                     up to 2.75 T). Handled by compare_density_z.py.
+#   compare_density_z:<other_tests>[:<t_max_T>]
+#                  -- ln|delta n_c(t)| comparison of the current run against
+#                     one or more other tests, all overlaid on one figure.
+#                     <other_tests> is a comma-separated list, e.g.
+#                     compare_density_z:A,B,C — and/or repeat the token
+#                     (compare_density_z:A compare_density_z:B ...); every name
+#                     is merged into a single comparison, not separate figures.
+#                     Legend labels carry each run's per-species Np, or fall
+#                     back to the test names if the Np values coincide. Each
+#                     other test must live at ../output/<other_test>/config.json.
+#                     Optional <t_max_T> on any token bounds the shared x-axis
+#                     in units of T (e.g. compare_density_z:A,B:2.75). An
+#                     optional bracketed [ymin,ymax] sets the comparison
+#                     panel's y-limit (e.g. compare_density_z:A,B:[-5,-3] or
+#                     compare_density_z:A,B:2.75:[-5,-3]). Last value of each
+#                     wins. Handled by compare_density_z.py.
 #   jspec[:sub][:M]
 #                  -- Ballistic-spectrum diagnostic for ion-sound runs. From
 #                     the (x,y)-averaged J_z(z,t) of electrons and ions
@@ -691,30 +698,60 @@ if [ "${RUN_DENSITY_Z}" -eq 1 ]; then
     "${PY}" "${SCRIPT_DIR}/drift_kinetic_density_z.py" "${CONFIG}"
 fi
 
-for spec in "${COMPARE_DENSITY_Z[@]}"; do
-    # spec is either "<other_name>" or "<other_name>:<t_max_T>", where
-    # t_max_T is the upper x-axis limit of the right plot in units of T.
-    other_name="${spec%%:*}"
-    if [ "${spec}" != "${other_name}" ]; then
-        t_max_T="${spec#*:}"
-    else
-        t_max_T=""
+# All compare_density_z:<names>[:<t_max_T>][:[ymin,ymax]] tokens are merged
+# into a single figure: the current run plus every requested other run overlaid
+# together. <names> is a comma-separated list of test names. Any extra colon-
+# part is either a numeric t_max_T (shared x-axis limit) or a bracketed
+# [ymin,ymax] (y-axis limit of the comparison panel). Last value of each wins.
+if [ "${#COMPARE_DENSITY_Z[@]}" -gt 0 ]; then
+    cmp_other_configs=()
+    cmp_other_names=()
+    cmp_t_max_T=""
+    cmp_ylim=""
+    for spec in "${COMPARE_DENSITY_Z[@]}"; do
+        IFS=':' read -r -a sparts <<< "${spec}"
+        name_list="${sparts[0]}"
+        # Remaining colon-parts: a bracketed [ymin,ymax] sets the y-limit, any
+        # other (numeric) part sets t_max_T.
+        si=1
+        while [ "${si}" -lt "${#sparts[@]}" ]; do
+            part="${sparts[$si]}"
+            case "${part}" in
+                '['*) cmp_ylim="${part}" ;;
+                *)    [ -n "${part}" ] && cmp_t_max_T="${part}" ;;
+            esac
+            si=$((si + 1))
+        done
+        IFS=',' read -r -a these_names <<< "${name_list}"
+        for other_name in "${these_names[@]}"; do
+            [ -n "${other_name}" ] || continue
+            other_config="${TEST_DIR}/output/${other_name}/config.json"
+            if [ ! -f "${other_config}" ]; then
+                echo "compare_density_z: config not found for '${other_name}': ${other_config}" >&2
+                continue
+            fi
+            cmp_other_configs+=("${other_config}")
+            cmp_other_names+=("${other_name}")
+        done
+    done
+    if [ "${#cmp_other_configs[@]}" -gt 0 ]; then
+        joined="$(IFS=_; echo "${cmp_other_names[*]}")"
+        out_name="compare_${TEST_NAME}_vs_${joined}.png"
+        echo "==> compare ln|delta n_c|: ${TEST_NAME} + ${#cmp_other_names[@]} run(s): ${cmp_other_names[*]}${cmp_t_max_T:+ (t_max = ${cmp_t_max_T} T)}${cmp_ylim:+ (ylim = ${cmp_ylim})}"
+        cmp_args=("${CONFIG}" "${cmp_other_configs[@]}" --filename "${out_name}")
+        if [ -n "${cmp_t_max_T}" ]; then
+            cmp_args+=(--t-max-T "${cmp_t_max_T}")
+        fi
+        if [ -n "${cmp_ylim}" ]; then
+            yl="${cmp_ylim#[}"; yl="${yl%]}"; yl="${yl// /}"
+            IFS=',' read -r ylo yhi <<< "${yl}"
+            if [ -n "${ylo}" ] && [ -n "${yhi}" ]; then
+                cmp_args+=(--ylim "${ylo}" "${yhi}")
+            fi
+        fi
+        "${PY}" "${SCRIPT_DIR}/compare_density_z.py" "${cmp_args[@]}"
     fi
-    other_config="${TEST_DIR}/output/${other_name}/config.json"
-    if [ ! -f "${other_config}" ]; then
-        echo "compare_density_z: config not found for '${other_name}': ${other_config}" >&2
-        continue
-    fi
-    echo "==> compare ln|delta n_c| vs ${other_name}${t_max_T:+ (t_max = ${t_max_T} T)}"
-    out_name="compare_${TEST_NAME}_vs_${other_name}.png"
-    if [ -n "${t_max_T}" ]; then
-        "${PY}" "${SCRIPT_DIR}/compare_density_z.py" "${CONFIG}" "${other_config}" \
-            --filename "${out_name}" --t-max-T "${t_max_T}"
-    else
-        "${PY}" "${SCRIPT_DIR}/compare_density_z.py" "${CONFIG}" "${other_config}" \
-            --filename "${out_name}"
-    fi
-done
+fi
 
 for i in "${!FP_Y_ZMODE[@]}"; do
     zmode="${FP_Y_ZMODE[$i]}"

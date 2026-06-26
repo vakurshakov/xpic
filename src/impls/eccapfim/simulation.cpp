@@ -616,13 +616,13 @@ PetscErrorCode ParticleTrace::add_columns(PetscInt t)
       continue;
 
     const Point& point = cell.front();
-    add(20, "t_[1/wpe]", "{: .9e}", t * dt);
-    add(20, "x_[c/wpe]", "{: .9e}", point.x());
-    add(20, "y_[c/wpe]", "{: .9e}", point.y());
-    add(20, "z_[c/wpe]", "{: .9e}", point.z());
-    add(20, "px_[mc]", "{: .9e}", point.px());
-    add(20, "py_[mc]", "{: .9e}", point.py());
-    add(20, "pz_[mc]", "{: .9e}", point.pz());
+    add(24, "t_[1/wpe]", "{: .15e}", t * dt);
+    add(24, "x_[c/wpe]", "{: .15e}", point.x());
+    add(24, "y_[c/wpe]", "{: .15e}", point.y());
+    add(24, "z_[c/wpe]", "{: .15e}", point.z());
+    add(24, "px_[mc]", "{: .15e}", point.px());
+    add(24, "py_[mc]", "{: .15e}", point.py());
+    add(24, "pz_[mc]", "{: .15e}", point.pz());
     break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);

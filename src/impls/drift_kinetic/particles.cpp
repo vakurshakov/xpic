@@ -145,6 +145,27 @@ PetscErrorCode Particles::form_iteration()
 
         push.process(dt, curr, prev);
 
+        // --- TEMP DEBUG: per-step residual of energy identity (44) ---
+{
+  Vector3R E_p{}, b_p{}, gradB_p{}, rotB_p{};
+  PetscReal lenB_p = 0;
+  PetscCallAbort(PETSC_COMM_WORLD,
+    util_local.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, curr.r, prev.r));
+
+  drift_kinetic::DriftKineticEsirkepov bmag(B_arr);   // |B| на n+1/2 поле
+  Vector3R B0v{}, B1v{};
+  PetscCallAbort(PETSC_COMM_WORLD, bmag.interpolate_B(B0v, prev.r));
+  PetscCallAbort(PETSC_COMM_WORLD, bmag.interpolate_B(B1v, curr.r));
+
+  const PetscReal lhs = (curr.r - prev.r).dot(gradB_p);
+  const PetscReal rhs = B1v.length() - B0v.length();
+  LOG("DK44 res={: .3e} dW=-mu*res={: .3e} (lhs={: .3e} rhs={: .3e})",
+      lhs - rhs, -prev.mu_p * (lhs - rhs), lhs, rhs);
+  const PetscReal work = q * (curr.r - prev.r).dot(E_p);   // = ΔW за шаг
+LOG("DK44 res={: .3e}  |Ep|={: .3e}  q*dr*Ep={: .3e}", lhs - rhs, E_p.length(), work);
+
+}
+
         avgit +=  (PetscReal)push.get_iteration_number() * inv_size;
         maxit = std::max(maxit, (PetscInt)push.get_iteration_number());
 

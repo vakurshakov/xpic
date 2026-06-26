@@ -61,6 +61,87 @@ from drift_kinetic_force_pressure_y import draw_frame, style_axes
 from drift_kinetic_force_pressure_3D_y import SPECIES, find_field_dir, find_moment_dir
 
 
+# --- Publication styling for the --use-mb (-M.B pressure) main figure ---
+# Font sizes and axis-styling copied from drift_kinetic_exb_ex1.py so the
+# fp1d:MB figure matches that plot's look (inward ticks on every side,
+# white-boxed panel tag, comma-separated "quantity, units" axis labels).
+MB_LABELSIZE = 17
+MB_TICKSIZE = 13
+MB_LEGENDSIZE = 16
+MB_PANELSIZE = 17
+MB_OFFSETSIZE = 15
+
+# Zoomed-in y-limits requested for the two panels (less empty space while
+# keeping the upper-left legend clear of the curves).
+MB_YLIM_F = (-0.7e-4, 0.7e-4)
+MB_YLIM_P = (0.16, 0.22)
+
+
+def style_mb_axes(ax, panel, ylabel, ylim):
+    """exb_ex1-style axis decoration: inward minor/major ticks on all four
+    sides and a white-boxed panel tag in the upper-right corner."""
+    ax.set_xlabel(r"$x,\ c/\omega_{pe}$", fontsize=MB_LABELSIZE)
+    ax.set_ylabel(ylabel, fontsize=MB_LABELSIZE)
+    ax.set_ylim(*ylim)
+    ax.set_box_aspect(1)
+    ax.minorticks_on()
+    ax.tick_params(axis="both", which="both", direction="in",
+        top=True, bottom=True, left=True, right=True, labelsize=MB_TICKSIZE)
+    ax.text(0.97, 0.97, panel, transform=ax.transAxes,
+        ha="right", va="top", fontsize=MB_PANELSIZE,
+        bbox=dict(facecolor="white", edgecolor="none", alpha=0.6,
+            boxstyle="round,pad=0.2"))
+
+
+def draw_mb_frame(ax_F, ax_P, xs, cx, q, B0_2_half,
+                  grad_label, jb_label, rot_label, avg_sub):
+    """Horizontal two-panel (-M.B) force-balance / B-profile figure.
+
+    (a) force balance:  -dp/dx (purple), -J_y^tot B_z (orange dashed + dots),
+        -(rot M)_y B_z (green dotted).
+    (b) magnetic field: B_theory (blue), B_model (red dashed + dots).
+    Legends go to the upper-left corner; panel tags (a)/(b) to upper-right.
+    """
+    ax_F.cla()
+    ax_P.cla()
+
+    B0_sq = 2.0 * B0_2_half
+    B_theory = np.sqrt(np.maximum(B0_sq - 2.0 * q["p_perp"], 0.0))
+    B_mag = np.sqrt(np.maximum(2.0 * q["B2_half"], 0.0))
+
+    # (a) Force balance.
+    ax_F.axhline(0.0, color="k", linewidth=0.8, alpha=0.5)
+    ax_F.axvline(cx, color="k", linewidth=0.6, alpha=0.3, linestyle=":")
+    ax_F.set_xlim(100, 500)
+    mevery = max(1, len(xs) // 40)
+    ax_F.plot(xs, q["neg_dp_dx"], color="red", linewidth=1.6,
+              label=grad_label)
+    ax_F.plot(xs, -q["curlM_Bz"], color="blue", linewidth=1.6,
+              label=rot_label)
+    ax_F.plot(xs, -q["JyBz"], color="blue", linewidth=1.6, linestyle=":",
+              marker=".", markersize=6, markevery=mevery, label=jb_label)
+    ax_F.ticklabel_format(axis="y", style="sci", scilimits=(0, 0),
+                          useMathText=True)
+    ax_F.yaxis.get_offset_text().set_fontsize(MB_OFFSETSIZE)
+    ax_F.legend(loc="upper left", fontsize=MB_LEGENDSIZE)
+    style_mb_axes(ax_F, "(b)",
+                  rf"$\langle F_x\rangle_{{{avg_sub}}},"
+                  r"\ n_0 m_e c\,\omega_{pe}$", MB_YLIM_F)
+
+    # (b) Magnetic-field profile.
+    ax_P.axvline(cx, color="k", linewidth=0.6, alpha=0.3, linestyle=":")
+    ax_P.set_xlim(100, 500)
+    ax_P.plot(xs, B_mag, color="red", linewidth=1.6,
+              label=r"$B_{\mathrm{model}}$")
+    ax_P.plot(xs, B_theory, color="blue", linewidth=1.6, linestyle=":",
+              marker=".", markersize=6, markevery=mevery,
+              label=r"$B_{\mathrm{theory}}$")
+    ax_P.legend(loc="upper left", fontsize=MB_LEGENDSIZE)
+    style_mb_axes(ax_P, "(c)",
+                  rf"$\langle B\rangle_{{{avg_sub}}},"
+                  r"\ m_e c\,\omega_{pe}/e$", MB_YLIM_P)
+
+
 def load_vec_3d(path: str, name: str) -> np.ndarray:
     """Read a 3D vector FieldView as (Nz, Ny, Nx, 3), float32."""
     Nx, Ny, Nz = const.Nx, const.Ny, const.Nz
@@ -875,19 +956,32 @@ def main():
         print(f"[warn] no snapshots in [{args.start_idx}, {end_idx}].")
         return
 
-    fig, (ax_F, ax_P) = plt.subplots(2, 1, figsize=(10, 12), sharex=True)
+    # The --use-mb (-M.B pressure) figure uses the exb_ex1-styled horizontal
+    # layout (draw_mb_frame); the default keeps the stacked draw_frame look.
+    if args.use_mb:
+        fig, (ax_F, ax_P) = plt.subplots(1, 2, figsize=(12, 6))
+    else:
+        fig, (ax_F, ax_P) = plt.subplots(2, 1, figsize=(10, 12), sharex=True)
 
     grad_label = r"$-dp_{\perp}/dx$"
     jb_label = r"$-J_{y}^{\mathrm{tot}} B_z$"
     rot_label = r"$-(\mathrm{rot}\,M)_{y}\,B_z$"
 
+    def draw_main(ax_F, ax_P, q, avg_sub):
+        if args.use_mb:
+            draw_mb_frame(ax_F, ax_P, xs, cx, q, B0_2_half,
+                          grad_label, jb_label, rot_label, avg_sub)
+        else:
+            draw_frame(ax_F, ax_P, xs, cx, q, B0_2_half, time_avg=True,
+                       grad_label=grad_label, jb_label=jb_label,
+                       rot_label=rot_label, force_sym=r"F_x", avg_sub=avg_sub)
+
     def render(k):
         idx, q = drawn[k]
-        draw_frame(ax_F, ax_P, xs, cx, q, B0_2_half, time_avg=True,
-                   grad_label=grad_label, jb_label=jb_label,
-                   rot_label=rot_label, force_sym=r"F_x", avg_sub=r"z,y")
-        fig.suptitle(rf"$\omega_{{pe}}\,t = {idx * const.dts:.2f}$",
-                     bbox=bbox, fontsize=labelsize)
+        draw_main(ax_F, ax_P, q, r"z,y")
+        if not args.use_mb:
+            fig.suptitle(rf"$\omega_{{pe}}\,t = {idx * const.dts:.2f}$",
+                         bbox=bbox, fontsize=labelsize)
         figname = os.path.join(out_dir, f"{idx:04d}.png")
         print(f"Processing {figname} (idx={idx})")
         fig.tight_layout(rect=(0, 0, 1, 0.97))
@@ -906,9 +1000,7 @@ def main():
             accum[key] += q[key]
     mean_q = {key: v / len(drawn) for key, v in accum.items()}
 
-    draw_frame(ax_F, ax_P, xs, cx, mean_q, B0_2_half, time_avg=True,
-               grad_label=grad_label, jb_label=jb_label, rot_label=rot_label,
-               force_sym=r"F_x", avg_sub=r"z,y,t")
+    draw_main(ax_F, ax_P, mean_q, r"z,y,t")
     fig.suptitle("")
     fig.tight_layout()
     mean_path = os.path.join(out_dir, args.mean_name)
