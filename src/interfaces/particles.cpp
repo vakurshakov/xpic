@@ -442,7 +442,7 @@ PetscErrorCode Particles::calculate_moments()
 
         for (j = 0; j < msize; ++j) {
 #pragma omp atomic update
-          mflux_arr[z][y][x][j] += shape.cache[i] * moments[j];
+          mflux_arr[z][y][x][j] += (moments[j] * mpw) * shape.cache[i];
         }
       }
     }
