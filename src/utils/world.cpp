@@ -39,16 +39,21 @@ PetscErrorCode World::initialize()
   PetscCall(DMSetFromOptions(da));
   PetscCall(DMSetUp(da));
 
-  Region region{
-    .dim = 3,
-    .dof = 1,
-    .start = Vector4I(0, 0, 0, 0),
-    .size = Vector4I(geom_nx, geom_ny, geom_nz, 1),
+  auto create_reg = [&](PetscInt dof) {
+    return Region{
+      .dim = 3,
+      .dof = dof,
+      .start = Vector4I(0, 0, 0, 0),
+      .size = Vector4I(geom_nx, geom_ny, geom_nz, dof),
+    };
   };
-  PetscCall(create_local_dm(da, region, PETSC_COMM_WORLD, &da_rho));
+
+  PetscCall(create_local_dm(da, create_reg(1), PETSC_COMM_WORLD, &da_rho));
+  PetscCall(create_local_dm(da, create_reg(6), PETSC_COMM_WORLD, &da_mflux));
 
   PetscCall(DMSetApplicationContext(da, this));
   PetscCall(DMSetApplicationContext(da_rho, this));
+  PetscCall(DMSetApplicationContext(da_mflux, this));
 
   PetscCall(DMDAGetNeighbors(da, &neighbors));
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));

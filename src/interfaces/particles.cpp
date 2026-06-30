@@ -9,6 +9,7 @@ Particles::Particles(const World& world, const SortParameters& parameters)
   : world(world),
     da(world.da),
     da_rho(world.da_rho),
+    da_mflux(world.da_mflux),
     parameters(parameters),
     storage(world.size.elements_product())
 {
@@ -24,10 +25,12 @@ Particles::Particles(const World& world, const SortParameters& parameters)
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &J));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da_rho, &rho[0]));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da_rho, &rho[1]));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da_mflux, &mflux));
 
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &J_loc));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da_rho, &rho_loc[0]));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da_rho, &rho_loc[1]));
+  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da_mflux, &mflux_loc));
 }
 
 PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
@@ -386,16 +389,7 @@ struct DefaultRhoShape {
   }
 };
 
-PetscErrorCode Particles::initialize_rho()
-{
-  PetscFunctionBeginUser;
-  PetscCall(calculate_rho());
-  PetscCall(VecCopy(rho[1], rho[0]));
-  PetscCall(VecCopy(rho_loc[1], rho_loc[0]));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Particles::calculate_rho()
+PetscErrorCode Particles::calculate_moments()
 {
   PetscFunctionBeginUser;
   auto r = rho[1];
@@ -407,19 +401,36 @@ PetscErrorCode Particles::calculate_rho()
 
   PetscCall(VecSet(r, 0));
   PetscCall(VecSet(r_loc, 0));
+  PetscCall(VecSet(mflux, 0));
+  PetscCall(VecSet(mflux_loc, 0));
 
   PetscCall(DMDAVecGetArrayWrite(da_rho, r_loc, &r_arr));
+  PetscCall(DMDAVecGetArrayDOFWrite(da_mflux, mflux_loc, &mflux_arr));
 
   DefaultRhoShape shape;
   const PetscReal q = parameters.q;
+  const PetscReal m = parameters.m;
   const PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
 
 #pragma omp parallel for private(shape)
   for (auto&& cell : storage) {
     for (auto&& point : cell) {
-      shape.setup(point.r);
+      auto&& r = point.r;
+      auto&& v = point.p;
 
-      PetscInt i, x, y, z;
+      shape.setup(r);
+
+      constexpr PetscInt msize = 6;
+      const PetscReal moments[msize] = {
+        m * v[X] * v[X],
+        m * v[X] * v[Y],
+        m * v[X] * v[Z],
+        m * v[Y] * v[Y],
+        m * v[Y] * v[Z],
+        m * v[Z] * v[Z],
+      };
+
+      PetscInt i, j, x, y, z;
 
       for (i = 0; i < shape.shm; ++i) {
         x = shape.start[X] + i % shape.shw;
@@ -428,12 +439,20 @@ PetscErrorCode Particles::calculate_rho()
 
 #pragma omp atomic update
         r_arr[z][y][x] += (q * mpw) * shape.cache[i];
+
+        for (j = 0; j < msize; ++j) {
+#pragma omp atomic update
+          mflux_arr[z][y][x][j] += shape.cache[i] * moments[j];
+        }
       }
     }
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da_rho, r_loc, &r_arr));
+  PetscCall(DMDAVecRestoreArrayDOFWrite(da_mflux, mflux_loc, &mflux_arr));
+
   PetscCall(DMLocalToGlobal(da_rho, r_loc, ADD_VALUES, r));
+  PetscCall(DMLocalToGlobal(da_mflux, mflux_loc, ADD_VALUES, mflux));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
