@@ -235,7 +235,8 @@
     "xticks",
     "ylabel",
     "ylim",
-    "yticks"
+    "yticks",
+    "mflux"
   ],
   "cSpell.enabled": true,
 }
