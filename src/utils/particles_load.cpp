@@ -108,6 +108,37 @@ PetscReal cosine_hump_inv_cdf(PetscReal u)
   }
   return s;
 }
+
+// Factor `n` into three positive integers out[0] <= out[1] <= out[2] with
+// out[0]*out[1]*out[2] == n, choosing the triple closest to a cube (minimal
+// out[2] - out[0]). Falls back to (1, 1, n) for primes. Used to spread the
+// `Np` particles of a cell over a balanced sub-lattice.
+void factor_three(PetscInt n, PetscInt out[3])
+{
+  out[0] = 1;
+  out[1] = 1;
+  out[2] = n;
+  PetscInt best_spread = n - 1;
+
+  const auto a_max = static_cast<PetscInt>(std::cbrt(static_cast<double>(n)));
+  for (PetscInt a = 1; a <= a_max; ++a) {
+    if (n % a != 0)
+      continue;
+    const PetscInt m = n / a;
+    const auto b_max = static_cast<PetscInt>(std::sqrt(static_cast<double>(m)));
+    for (PetscInt b = a; b <= b_max; ++b) {
+      if (m % b != 0)
+        continue;
+      const PetscInt c = m / b;  // a <= b <= c
+      if (c - a < best_spread) {
+        best_spread = c - a;
+        out[0] = a;
+        out[1] = b;
+        out[2] = c;
+      }
+    }
+  }
+}
 }  // namespace
 
 Vector3R CoordinateInBoxQuietSine::operator()()
@@ -171,6 +202,43 @@ Vector3R CoordinateInBoxDisplacedSine::operator()()
     r[a] += scale * (std::cos(phase) - 1.0);
   }
 
+  return r;
+}
+
+Vector3R CoordinateInBoxQuiet::operator()()
+{
+  const PetscReal L[3]{
+    box.max[X] - box.min[X],
+    box.max[Y] - box.min[Y],
+    box.max[Z] - box.min[Z],
+  };
+
+  // Number of grid cells covered by the box along each axis.
+  PetscInt Nc[3];
+  for (Axis a : {X, Y, Z})
+    Nc[a] = std::max<PetscInt>(1,
+      static_cast<PetscInt>(std::llround(L[a] / Dx[a])));
+
+  // Balanced per-cell sub-lattice np[X] * np[Y] * np[Z] == Np, so the global
+  // lattice has G[a] = Nc[a] * np[a] nodes and each cell owns exactly np[a]
+  // of them per axis.
+  PetscInt np[3];
+  factor_three(Np, np);
+
+  const PetscInt G[3]{Nc[X] * np[X], Nc[Y] * np[Y], Nc[Z] * np[Z]};
+
+  // Mixed-radix decomposition of the global particle index into node indices.
+  std::size_t idx = counter;
+  PetscInt g[3];
+  g[X] = static_cast<PetscInt>(idx % G[X]); idx /= G[X];
+  g[Y] = static_cast<PetscInt>(idx % G[Y]); idx /= G[Y];
+  g[Z] = static_cast<PetscInt>(idx % G[Z]);
+
+  Vector3R r;
+  for (Axis a : {X, Y, Z})
+    r[a] = box.min[a] + (g[a] + 0.5) / static_cast<PetscReal>(G[a]) * L[a];
+
+  ++counter;
   return r;
 }
 

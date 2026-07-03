@@ -94,7 +94,7 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "electrons"},
           {"paired_with", "ions"},
-          {"coordinate", {{"name", "CoordinateInBox"}, {"min", {0.0, 0.0, 0.0}}, {"max", {30.0, 30.0, 30.0}}}},
+          {"coordinate", {{"name", "CoordinateInBoxQuiet"}, {"min", {0.0, 0.0, 0.0}}, {"max", {30.0, 30.0, 30.0}}}},
           {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
           {"momentum_paired", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
         },

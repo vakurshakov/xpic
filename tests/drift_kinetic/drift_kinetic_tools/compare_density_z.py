@@ -107,6 +107,20 @@ def parse_args():
                              "Landau envelopes delta_n_0 * exp(-Gamma t). "
                              "Each value produces a separate curve. Pass a "
                              "single non-positive value to skip the theory.")
+    parser.add_argument("--fft-window", default="hann",
+                        choices=("none", "hann"),
+                        help="Window applied before the FFT of the signed "
+                             "delta_n_c(t) time series (default: hann). A "
+                             "window suppresses spectral leakage so two close "
+                             "beating peaks stand out; pass 'none' for the "
+                             "narrowest possible peaks.")
+    parser.add_argument("--fft-pad", type=int, default=4,
+                        help="Zero-padding factor for the FFT (default: 4). "
+                             "Only interpolates the spectrum; the true "
+                             "frequency resolution stays 2*pi/T_total.")
+    parser.add_argument("--fft-xmax", type=float, default=3.0,
+                        help="Upper limit of the FFT panel x-axis in units of "
+                             "omega_r (default: 3.0).")
     return parser.parse_args()
 
 
@@ -591,6 +605,177 @@ def main():
     fig_d.savefig(decomp_path, dpi=args.dpi, bbox_inches="tight")
     plt.close(fig_d)
     print(f"Decomposition figure written to {decomp_path}")
+
+    # ------------------------------------------------------------------
+    # Separate figure: FFT of the signed mode-1 time series delta_n_c(t).
+    # Diagnostic for the envelope modulation seen in ln|delta n_c|:
+    #   * a single peak at omega_r  -> the wiggles are |cos| cusps / noise,
+    #     the single-exponential Landau fit is clean;
+    #   * two close peaks           -> genuine beating between two modes.
+    # For the two-peak case the script prints the split Delta_omega and the
+    # implied beat period 2*pi/Delta_omega, and compares it with the beat
+    # period read off the time series itself (spacing of the |delta n_c|
+    # envelope minima), i.e. Delta_t_beat and 2*pi/Delta_t_beat. Two peaks
+    # only count as real beating if Delta_omega exceeds both the Landau
+    # half-width Gamma and the frequency resolution 2*pi/T_total.
+    omega_r_a = 2.0 * np.pi / T_norm
+
+    def compute_spectrum(times, signed, window, pad):
+        """Magnitude spectrum of the DC-removed, uniformly-resampled signal.
+        Returns (omega, |FFT|) or (None, None) if the series is too short."""
+        t = np.asarray(times, dtype=float)
+        y = np.asarray(signed, dtype=float)
+        good = np.isfinite(t) & np.isfinite(y)
+        t, y = t[good], y[good]
+        if len(t) < 8:
+            return None, None
+        dt = float(np.median(np.diff(t)))
+        if dt <= 0.0:
+            return None, None
+        # Resample onto a strictly uniform grid (the diagnostic cadence is
+        # uniform, but interpolation guards against any missing frames).
+        n = int(np.floor((t[-1] - t[0]) / dt)) + 1
+        t_u = t[0] + dt * np.arange(n)
+        y_u = np.interp(t_u, t, y)
+        y_u = y_u - np.mean(y_u)             # drop DC (ballistic tail / offset)
+        if window == "hann" and len(y_u) > 1:
+            y_u = y_u * np.hanning(len(y_u))
+        nfft = 1
+        while nfft < max(pad, 1) * len(y_u):
+            nfft *= 2
+        spec = np.abs(np.fft.rfft(y_u, n=nfft))
+        omega = 2.0 * np.pi * np.fft.rfftfreq(nfft, d=dt)
+        return omega, spec
+
+    def find_spectral_peaks(omega, power, w_lo, w_hi, rel_thresh, min_sep):
+        """Local maxima of `power` in (w_lo, w_hi) above rel_thresh of the
+        in-band maximum, greedily merged when closer than `min_sep`. Returned
+        sorted by descending power as a list of (omega, power)."""
+        band = (omega >= w_lo) & (omega <= w_hi)
+        idx = np.where(band)[0]
+        if len(idx) == 0:
+            return []
+        pmax = float(np.max(power[idx]))
+        if pmax <= 0.0:
+            return []
+        pk = []
+        for j in idx:
+            if j == 0 or j == len(power) - 1:
+                continue
+            if (power[j] >= power[j - 1] and power[j] >= power[j + 1]
+                    and power[j] >= rel_thresh * pmax):
+                pk.append((float(omega[j]), float(power[j])))
+        pk.sort(key=lambda p: p[1], reverse=True)
+        merged = []
+        for w, p in pk:
+            if all(abs(w - w0) > min_sep for w0, _ in merged):
+                merged.append((w, p))
+        return merged
+
+    def measure_beat_period(times, mod):
+        """Beat period from the time series: the spacing of the minima of the
+        |delta n_c| peak-height envelope (the |cos| peaks are at every ~T/2;
+        their slow modulation is the beat). Returns Delta_t_beat or None."""
+        idx_pk = local_maxima(mod)           # |cos| peaks, ~ every T/2
+        if len(idx_pk) < 5:
+            return None
+        tp = np.array([times[k] for k in idx_pk], dtype=float)
+        hp = np.array([mod[k] for k in idx_pk], dtype=float)
+        nodes = [j for j in range(1, len(hp) - 1)
+                 if hp[j] < hp[j - 1] and hp[j] < hp[j + 1]]
+        if len(nodes) < 2:
+            return None
+        return float(np.median(np.diff(tp[nodes])))
+
+    fig_f, ax_f = plt.subplots(figsize=(8.5, 7.0))
+    w_lo_plot, w_hi_plot = 0.0, args.fft_xmax * omega_r_a
+    ax_f.axvline(1.0, color="black", linestyle="--", linewidth=1.5,
+                 alpha=0.9, label=r"$\omega_r$ (theory)")
+    if Gamma_a is not None and Gamma_a > 0.0:
+        ax_f.axvspan((omega_r_a - Gamma_a) / omega_r_a,
+                     (omega_r_a + Gamma_a) / omega_r_a,
+                     color="tab:gray", alpha=0.2,
+                     label=r"$\omega_r \pm \Gamma$")
+
+    print("FFT diagnostics (signed delta_n_c, peak search in "
+          f"[0.3, {args.fft_xmax:.1f}] * omega_r):")
+    for rank, i in enumerate(order):
+        run = runs[i]
+        color = run_color(rank)
+        omega, power = compute_spectrum(
+            run["times"], run["coeff"], args.fft_window, args.fft_pad)
+        if omega is None:
+            print(f"  {run['plot_label']}: spectrum unavailable "
+                  "(series too short)")
+            continue
+        inband = (omega >= w_lo_plot) & (omega <= w_hi_plot)
+        pmax_band = float(np.max(power[inband])) if np.any(inband) else 0.0
+        if pmax_band <= 0.0:
+            continue
+        ax_f.plot(omega / omega_r_a, power / pmax_band, color=color,
+                  linewidth=2.0, label=run["plot_label"])
+
+        T_total = float(run["times"][-1] - run["times"][0])
+        dw_res = 2.0 * np.pi / T_total if T_total > 0.0 else float("inf")
+        Gamma_run = run["Gamma"] if run["Gamma"] is not None else 0.0
+        min_sep = max(dw_res, Gamma_run)
+        peaks = find_spectral_peaks(omega, power, 0.3 * omega_r_a, w_hi_plot,
+                                    rel_thresh=0.25, min_sep=min_sep)
+        for wp, pp in peaks[:2]:
+            ax_f.plot(wp / omega_r_a, pp / pmax_band, marker="v",
+                      color=color, markersize=11.0, linestyle="",
+                      markeredgecolor="black")
+
+        print(f"  {run['plot_label']}:")
+        print(f"    omega_r(theory) = {omega_r_a:.6g}, Gamma = {Gamma_run:.3g}"
+              f", resolution 2pi/T_tot = {dw_res:.3g}")
+        if not peaks:
+            print("    no significant peak found")
+            continue
+        for j, (wp, pp) in enumerate(peaks[:2]):
+            print(f"    peak[{j}]: omega = {wp:.6g} "
+                  f"(= {wp / omega_r_a:.4f} omega_r), "
+                  f"rel.power = {pp / pmax_band:.3f}")
+        if len(peaks) >= 2:
+            w0, w1 = sorted([peaks[0][0], peaks[1][0]])
+            dW = w1 - w0
+            T_beat_fft = 2.0 * np.pi / dW if dW > 0.0 else float("inf")
+            resolvable = dW > max(dw_res, Gamma_run)
+            tag = ("resolvable -> genuine beating" if resolvable
+                   else "NOT resolvable (< max(Gamma, 2pi/T_tot)) "
+                        "-> treat as single peak")
+            print(f"    -> TWO peaks: Delta_omega = {dW:.6g}  ({tag})")
+            print(f"       T_beat = 2pi/Delta_omega = {T_beat_fft:.6g} "
+                  f"(= {T_beat_fft / T_norm:.3f} T)")
+            dt_beat = measure_beat_period(run["times"], run["mod"])
+            if dt_beat is not None and dt_beat > 0.0:
+                print(f"       time-domain Delta_t_beat = {dt_beat:.6g} "
+                      f"(= {dt_beat / T_norm:.3f} T) -> "
+                      f"2pi/Delta_t_beat = {2.0 * np.pi / dt_beat:.6g} "
+                      f"(compare with Delta_omega = {dW:.6g})")
+            else:
+                print("       time-domain beat: too few envelope minima "
+                      "to measure")
+        else:
+            print("    -> SINGLE peak at omega_r: envelope wiggles are |cos| "
+                  "cusps / noise; single-exponential fit is clean")
+
+    ax_f.set_xlim(w_lo_plot / omega_r_a, w_hi_plot / omega_r_a)
+    ax_f.set_xlabel(r"$\omega / \omega_r$", fontsize=labelsize + 4)
+    ax_f.set_ylabel(r"$|\widehat{\delta n_c}(\omega)|$ (norm.)",
+                    fontsize=labelsize + 4)
+    ax_f.grid(True, alpha=0.3)
+    ax_f.legend(loc="upper right", fontsize=legend_fs())
+    ax_f.text(0.03, 0.97, "(c)", transform=ax_f.transAxes, ha="left",
+              va="top", fontsize=labelsize + 4, bbox=panel_bbox)
+    exb_ticks(ax_f)
+    ax_f.set_box_aspect(1)
+    fft_path = os.path.join(
+        out_dir, os.path.splitext(args.filename)[0] + "_fft.png")
+    fig_f.tight_layout(pad=0.6)
+    fig_f.savefig(fft_path, dpi=args.dpi, bbox_inches="tight")
+    plt.close(fig_f)
+    print(f"FFT figure written to {fft_path}")
 
     if Gamma_a is not None and deltas:
         for i, run in enumerate(runs):

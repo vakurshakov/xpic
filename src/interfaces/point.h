@@ -38,23 +38,19 @@ struct PointByField {
   Vector3R r;
   Vector3R p;
   PetscReal p_parallel;
-  /// @todo del p_perp or mu_p
-  PetscReal p_perp;
   PetscReal mu_p;
 
   PointByField() = default;
 
-  PointByField(
-    const Vector3R& r, PetscReal p_perp, PetscReal p_parallel, PetscReal mu_p)
-    : r(r), p{},  p_parallel(p_parallel), p_perp(p_perp), mu_p(mu_p)
+  PointByField(const Vector3R& r, PetscReal p_parallel, PetscReal mu_p)
+    : r(r), p{}, p_parallel(p_parallel), mu_p(mu_p)
   {}
 
   PointByField(const Point& point, const Vector3R& Bp, PetscReal mp, PetscReal qm)
     : r(point.r + point.p.cross(Bp.normalized()) / (qm * Bp.length())),
       p(point.p),
       p_parallel(point.p.dot(Bp.normalized())),
-      p_perp(point.p.transverse_to(Bp).length()),
-      mu_p(mp * p_perp * p_perp / (2.0 * Bp.length()))
+      mu_p(mp * point.p.transverse_to(Bp).squared() / (2.0 * Bp.length()))
   {}
 
   // clang-format off: access modifiers
@@ -67,9 +63,16 @@ struct PointByField {
   PetscReal z() const { return r.z(); }
 
   PetscReal& p_par() { return p_parallel; }
-  PetscReal& p_perp_ref() { return p_perp; }
   PetscReal p_par() const { return p_parallel; }
-  PetscReal p_perp_ref() const { return p_perp; }
+
+  /// @brief Perpendicular momentum recovered from the stored momentum vector:
+  /// @f$p_\perp = \sqrt{|p|^2 - p_\parallel^2}@f$. Equivalent to the adiabatic
+  /// form @f$\sqrt{2\mu B / m}@f$ at construction (`mu_p` is the conserved
+  /// invariant kept instead of a redundant `p_perp` member).
+  PetscReal p_perp() const
+  {
+    return std::sqrt(std::max(0.0, p.squared() - p_parallel * p_parallel));
+  }
 
   PetscReal& mu() { return mu_p; }
   PetscReal mu() const { return mu_p; }

@@ -28,8 +28,7 @@ from lib.plot import bbox, labelsize, ticksize
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 
-if any(shutil.which(tool) is None for tool in ("latex", "dvipng")):
-    plt.rc("text", usetex=False)
+plt.rc("text", usetex=False)  # Cyrillic panel labels are incompatible with usetex
 
 
 def parse_args():
@@ -65,7 +64,7 @@ def parse_args():
                              "the model n0 + sin(2 pi z/Lz) * [alpha + "
                              "delta_n * cos(2 pi t/T + phi_0)]. Default: "
                              "0.015616 (external fit).")
-    parser.add_argument("--theory-delta-n", type=float, default=0.0235,#0.0275,
+    parser.add_argument("--theory-delta-n", type=float, default=0.028,#0.0275,
                         help="Oscillation amplitude delta_n in the antinode. "
                              "Default: 0.083856 (external fit). Pass NaN to "
                              "fall back to in-script fitting / config / 0.")

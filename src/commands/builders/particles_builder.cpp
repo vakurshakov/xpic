@@ -62,6 +62,13 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = (box.max - box.min).elements_product() * frac;
     gen = CoordinateInBoxQuietSine{std::move(box), amplitude, wave_number, 0};
   }
+  else if (name == "CoordinateInBoxQuiet") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    number_of_particles = (box.max - box.min).elements_product() * frac;
+    gen = CoordinateInBoxQuiet{std::move(box), Np, 0};
+  }
   else if (name == "CoordinateInCylinderCosineHump") {
     CylinderGeometry cyl;
     load_geometry(info, cyl);

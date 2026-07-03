@@ -8,16 +8,7 @@ import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../tools"))
 
-import matplotlib as mpl
-
 from lib.plot_utils import figure, subplot
-
-# plot_utils enables usetex, but no system LaTeX is available here. Disable it
-# and render math with the bundled Computer Modern font (mathtext "cm"), which
-# reproduces the LaTeX look of the ex3 figures without needing a TeX install.
-mpl.rcParams["text.usetex"] = False
-mpl.rcParams["mathtext.fontset"] = "cm"
-mpl.rcParams["font.family"] = "serif"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "output", "drift_kinetic_curv_ex3")
@@ -91,7 +82,7 @@ def style_axes(ax, panel):
         top=True, bottom=True, left=True, right=True, labelsize=TICKSIZE)
     ax.tick_params(axis="x", which="both", labelbottom=True, labeltop=False)
     ax.tick_params(axis="y", which="both", labelleft=True, labelright=False)
-    ax.text(0.94, 0.98, panel, transform=ax.transAxes,
+    ax.text(0.88, 0.98, panel, transform=ax.transAxes,
         ha="right", va="top", fontsize=PANELSIZE,
         bbox=dict(facecolor="white", edgecolor="none", alpha=0.6,
             boxstyle="round,pad=0.2"))
@@ -191,9 +182,9 @@ def main():
         print(f"{run_dir:>20}: max |rel. error| = {np.max(rel_err):.3e}")
     ax.axhline(0.0, color=COLOR_TH, ls="--", lw=1.0)
     ax.set_xlim(0.0, 300.0)
-    ax.set_ylim(0.0, 3e-3)
+    ax.set_ylim(0.0, 2e-3)
     ax.set_xlabel(r"$t,\ \omega_{pe}^{-1}$", fontsize=LABELSIZE)
-    ax.set_ylabel(r"$|(V(t) - V_\kappa) / V_\kappa|$", fontsize=LABELSIZE)
+    ax.set_ylabel(r"$\delta_V(t)$", fontsize=LABELSIZE)
     ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     ax.yaxis.get_offset_text().set_fontsize(OFFSETSIZE)
     ax.legend(loc="upper left", fontsize=LEGENDSIZE)

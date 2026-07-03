@@ -353,8 +353,19 @@ def plot_charge(args):
 
 def plot_energy_charge(args):
     """Energy drift (top) and charge residual (bottom) stacked vertically,
-    sharing a single time axis."""
+    sharing a single time axis, in the drift_kinetic_exb_ex1.py style."""
     data, idx = _load_dk_diagnostic(args.dir)
+
+    # LaTeX look without a TeX install: Computer Modern mathtext on a serif
+    # face, matching drift_kinetic_curv_ex3_convergence.py.
+    plt.rcParams["text.usetex"] = False
+    plt.rcParams["mathtext.fontset"] = "cm"
+    plt.rcParams["font.family"] = "serif"
+
+    # Slightly larger fonts than the base ex1 style for this two-panel figure.
+    label_fs = EX_LABELSIZE + 4
+    tick_fs = EX_TICKSIZE + 4
+
     # Time is the step index, i.e. t/tau in dimensionless units (no dt scaling).
     t = data[:, idx["Time"]]
     W = data[:, idx["wEB+wK"]]
@@ -369,39 +380,35 @@ def plot_energy_charge(args):
     ax_top = fig.add_subplot(gs[0])
     ax_bot = fig.add_subplot(gs[1], sharex=ax_top)
 
-    ax_top.plot(t, dW, color="#2ca02c", linestyle="-", linewidth=3.0, zorder=2)
-    ax_top.axhline(0.0, color="black", linestyle=":", linewidth=1.5, zorder=3)
+    ax_top.plot(t, dW, color="#2ca02c", linestyle="-", linewidth=2.0, zorder=2)
+    ax_top.axhline(0.0, color=EX_COLOR_TH, linestyle="--", linewidth=1.0,
+                   zorder=3)
     if args.energy is not None:
         m = float(args.energy)
     else:
         m = float(np.max(np.abs(dW))) or 1.0
     ax_top.set_ylim(-m * 1.05, m * 1.05)
-    ax_top.set_ylabel(r"$\Delta W(t)/W(0)$", fontsize=labelsize + 4)
+    ax_top.set_ylabel(r"$\delta_W(t)$", fontsize=label_fs)
 
-    ax_bot.plot(t, charge, color="#ff7f0e", linestyle="-", linewidth=3.0,
+    ax_bot.plot(t, charge, color="#ff7f0e", linestyle="-", linewidth=2.0,
                 zorder=2)
-    ax_bot.axhline(0.0, color="black", linestyle=":", linewidth=1.5, zorder=3)
+    ax_bot.axhline(0.0, color=EX_COLOR_TH, linestyle="--", linewidth=1.0,
+                   zorder=3)
     hi = float(np.max(charge)) or 1.0
     ax_bot.set_ylim(0.0, hi * 1.05)
-    ax_bot.set_ylabel(r"$\mathcal{R}_\rho(t)$", fontsize=labelsize + 4)
-    ax_bot.set_xlabel(r"$t/\tau$", fontsize=labelsize + 4)
+    ax_bot.set_ylabel(r"$\mathcal{R}_\rho(t)$", fontsize=label_fs)
+    ax_bot.set_xlabel(r"$t/\tau$", fontsize=label_fs)
 
     x_hi = float(args.time) if args.time is not None else float(t.max())
     ax_top.set_xlim(0.0, x_hi)
-    for ax in (ax_top, ax_bot):
-        ax.tick_params(labelsize=ticksize + 4)
-        ax.yaxis.get_offset_text().set_fontsize(ticksize + 4)
-        ax.xaxis.get_offset_text().set_fontsize(ticksize + 4)
-        ax.grid(True)
-    # Shared x axis: only the bottom panel keeps the time tick labels.
-    ax_top.tick_params(labelbottom=False)
 
-    # Panel labels in the top-right corner of each subplot.
     for ax, panel in ((ax_top, "(a)"), (ax_bot, "(b)")):
-        ax.text(0.97, 0.95, panel, transform=ax.transAxes,
-                ha="right", va="top", fontsize=labelsize + 2,
-                bbox=dict(facecolor="white", edgecolor="none", alpha=0.6,
-                          boxstyle="round,pad=0.2"))
+        ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        _ex_style_axes(ax, panel)
+        ax.tick_params(axis="both", which="both", labelsize=tick_fs)
+        ax.yaxis.get_offset_text().set_fontsize(tick_fs)
+    # Shared x axis: only the bottom panel keeps the time tick labels.
+    ax_top.tick_params(axis="x", which="both", labelbottom=False)
 
     fig.tight_layout()
     out = args.out or os.path.join(args.dir, "traces_energy_charge.png")

@@ -53,56 +53,182 @@ void DriftKineticPush::set_fields_callback(SetFields&& callback)
   this->set_fields = std::move(callback);
 }
 
-/// @brief Picard iteration over the nonlinear midpoint equations until the
-/// position and parallel-momentum residuals fall below the tolerances.
+void DriftKineticPush::set_solver(DriftKineticSolver solver)
+{
+  this->solver = solver;
+}
+
+void DriftKineticPush::set_relaxation(PetscReal beta0, PetscReal beta_min)
+{
+  this->beta0 = beta0;
+  this->beta_min = beta_min;
+}
+
+void DriftKineticPush::set_anderson_clip(PetscReal gamma_min, PetscReal gamma_max)
+{
+  this->gamma_min = gamma_min;
+  this->gamma_max = gamma_max;
+}
+
+void DriftKineticPush::set_divergence_factor(PetscReal div_factor)
+{
+  this->div_factor = div_factor;
+}
+
+PetscReal DriftKineticPush::get_residual_norm() const
+{
+  return fnorm;
+}
+
+/// @brief Solves the midpoint equations of motion as a fixed-point problem.
+/// Dispatches to the selected nonlinear solver and reports non-convergence.
 void DriftKineticPush::process(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
   converged = false;
-  FRk = PETSC_MAX_REAL;
-  FVhk = PETSC_MAX_REAL;
+  FRk = FVhk = PETSC_MAX_REAL;
+
+  switch (solver) {
+    case DriftKineticSolver::DKPICARD:
+      process_picard(dt, pn, p0);
+      break;
+    case DriftKineticSolver::DKANDERSON:
+      process_anderson(dt, pn, p0);
+      break;
+  }
+
+  if (!converged)
+    LOG("WARNING: DK Push not converged: it={}, |f|={: .3e}, FRk={: .4e}, FVhk={: .4e}",
+        it, fnorm, FRk, FVhk);
+}
+
+/// @brief Fixed-point solve by a safeguarded, adaptively damped Anderson(1)
+/// acceleration over the Picard map G.
+/// The map and its residual:  G(x) = (R^n + dt*Vp(x),  v^n + dt*ah(x)),
+///                            f(x) = G(x) - x,  with x = (R^{n+1}, v_par^{n+1}).
+void DriftKineticPush::process_anderson(
+  PetscReal dt, PointByField& pn, const PointByField& p0)
+{
+  AndersonState st;
+  st.beta = beta0;
 
   for (it = 0; it < maxit; ++it) {
+    // Evaluate the Picard map: iterate x, image g, residual f and its norm ‖f‖.
+    evaluate_map(dt, pn, p0, st);
 
-    // 1. Evaluate RHS at the current nonlinear guess pn
+    // Check the true nonlinear residual before taking the next step.
+    if (check_discrepancy(dt, pn, p0)) { converged = true; return; }
+
+    // Hand control back to the outer substep logic if the iteration diverges.
+    if (is_diverging(st)) return;
+
+    // Safeguarded Anderson(1) (or damped-Picard fallback) update of the iterate.
+    anderson_update(pn, st);
+
+    // Remember the current iterate/image/residual for the next acceleration step.
+    shift_history(st);
+  }
+
+  // Final check after the last update.
+  evaluate_rhs(pn, p0);
+  converged = check_discrepancy(dt, pn, p0);
+}
+
+/// @brief Forms the Picard map image `g = (R^n + dt*Vp, v^n + dt*ah)`, the
+/// residual `f = g - x` and its norm at the current iterate `pn`.
+void DriftKineticPush::evaluate_map(
+  PetscReal dt, const PointByField& pn, const PointByField& p0, AndersonState& st)
+{
+  // Current iterate x_k = (pn.r, pn.p_parallel).
+  st.x_r = pn.r;
+  st.x_v = pn.p_parallel;
+
+  // G(x_k): evaluate RHS (sets Vp, ah), then form image g_k and residual f_k.
+  evaluate_rhs(pn, p0);
+  st.g_r = p0.r + dt * Vp;
+  st.g_v = p0.p_parallel + dt * ah;
+  st.f_r = st.g_r - st.x_r;
+  st.f_v = st.g_v - st.x_v;
+
+  fnorm = std::sqrt(st.f_r.dot(st.f_r) + st.f_v * st.f_v);
+  if (st.fnorm0 < 0.0) st.fnorm0 = fnorm;
+}
+
+/// @brief Divergence guard: the residual is non-finite or has grown beyond
+/// `div_factor` times its initial value, so the outer substep control takes over.
+bool DriftKineticPush::is_diverging(const AndersonState& st) const
+{
+  return !std::isfinite(fnorm) || fnorm > div_factor * st.fnorm0;
+}
+
+/// @brief Safeguarded Anderson(1) acceleration of the iterate. Accelerates only
+/// from a consecutive pair whose residual did not grow; otherwise falls back to
+/// a damped-Picard step that shrinks `beta` to recondition the next pair.
+void DriftKineticPush::anderson_update(PointByField& pn, AndersonState& st)
+{
+  const bool accelerate = st.have_history && fnorm <= st.fnorm_prev;
+  if (accelerate) {
+    // Anderson(1) extrapolation coefficient from the residual increment.
+    const Vector3R  dfr = st.f_r - st.fr_prev;
+    const PetscReal dfv = st.f_v - st.fv_prev;
+    const PetscReal den = dfr.dot(dfr) + dfv * dfv;
+    PetscReal gamma = (den > 1e-300) ? (st.f_r.dot(dfr) + st.f_v * dfv) / den : 0.0;
+    gamma = std::clamp(gamma, gamma_min, gamma_max);
+
+    // Relaxed Anderson(1):  x_{k+1} = x̄ + beta (ḡ - x̄)
+    //   x̄ = x_k - gamma (x_k - x_{k-1}),  ḡ = g_k - gamma (g_k - g_{k-1})
+    const Vector3R  xbar_r = st.x_r - gamma * (st.x_r - st.xr_prev);
+    const PetscReal xbar_v = st.x_v - gamma * (st.x_v - st.xv_prev);
+    const Vector3R  gbar_r = st.g_r - gamma * (st.g_r - st.gr_prev);
+    const PetscReal gbar_v = st.g_v - gamma * (st.g_v - st.gv_prev);
+
+    pn.r          = xbar_r + st.beta * (gbar_r - xbar_r);
+    pn.p_parallel = xbar_v + st.beta * (gbar_v - xbar_v);
+
+    st.beta = std::min(1.0, st.beta * 1.3);  // residual is dropping: relax the damping
+  } else {
+    // Damped Picard fallback (also the it==0 step). Restart-friendly: a bad
+    // step shrinks beta so the next consecutive pair is well-conditioned.
+    pn.r          = st.x_r + st.beta * st.f_r;
+    pn.p_parallel = st.x_v + st.beta * st.f_v;
+    if (st.have_history && fnorm > st.fnorm_prev)
+      st.beta = std::max(beta_min, 0.5 * st.beta);
+  }
+}
+
+/// @brief Shifts the current iterate/image/residual into the history slots used
+/// by the next Anderson(1) acceleration step.
+void DriftKineticPush::shift_history(AndersonState& st)
+{
+  st.xr_prev = st.x_r; st.xv_prev = st.x_v;
+  st.gr_prev = st.g_r; st.gv_prev = st.g_v;
+  st.fr_prev = st.f_r; st.fv_prev = st.f_v;
+  st.fnorm_prev = fnorm;
+  st.have_history = true;
+}
+
+/// @brief Classical Picard iteration over the nonlinear midpoint equations until
+/// the position and parallel-momentum residuals fall below the tolerances.
+void DriftKineticPush::process_picard(
+  PetscReal dt, PointByField& pn, const PointByField& p0)
+{
+  for (it = 0; it < maxit; ++it) {
+    // Evaluate RHS at the current nonlinear guess pn (sets Vp, ah).
     evaluate_rhs(pn, p0);
 
-    // 2. Check true nonlinear residual
-    if (check_discrepancy(dt, pn, p0)) {
-      converged = true;
-      return;
-    }
+    // Check the true nonlinear residual before taking the next step.
+    if (check_discrepancy(dt, pn, p0)) { converged = true; return; }
 
-    // 3. Picard update
+    // Picard update of position and parallel momentum.
     update_r(dt, pn, p0);
     update_v_parallel(dt, pn, p0);
   }
 
-  // Final check after the last Picard update
+  // Final check after the last Picard update.
   evaluate_rhs(pn, p0);
-  if (check_discrepancy(dt, pn, p0)) {
-    converged = true;
-    return;
-  }
+  converged = check_discrepancy(dt, pn, p0);
+}
 
-  LOG("WARNING: DK Push failed to converge after {} iterations. FRk={: .4e}, FVhk={: .4e}",
-      maxit, FRk, FVhk);
-}
-/*
-void DriftKineticPush::process(
-  PetscReal dt, PointByField& pn, const PointByField& p0)
-{
-  for (it = 0; it < maxit; ++it) {
-    step(dt, pn, p0);
-    if (check_discrepancy(dt, pn, p0)) {
-      converged = true;
-      return;
-    }
-  }
-  LOG("WARNING: DK Push failed to converge after {} iterations. FRk={: .4e}, FVhk={: .4e}",
-      maxit, FRk, FVhk);
-}
-*/
 /// @brief Single Picard sweep: recompute the midpoint state, then update the
 /// guiding-center position and parallel momentum from it.
 void DriftKineticPush::step(const PetscReal dt, PointByField& pn, const PointByField& p0) {
@@ -189,6 +315,7 @@ void DriftKineticPush::update_fields(const PointByField& pn, const PointByField&
   set_fields(p0.r, pn.r, Eh, lenBh, bh, gradBh, rotBh);
 
   // Derived quantities.
+  bh.normalized();
   rotbh = (bh.cross(gradBh) + rotBh) / lenBh;
 
   Bh_eff = lenBh * bh + (Vh / qm) * rotbh;

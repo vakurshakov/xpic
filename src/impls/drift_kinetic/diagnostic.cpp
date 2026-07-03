@@ -439,7 +439,7 @@ PetscErrorCode PointByFieldTrace::add_columns(PetscInt t)
     add(24, "y_[c/wpe]", "{: .15e}", point.y());
     add(24, "z_[c/wpe]", "{: .15e}", point.z());
     add(24, "p_par_[mc]", "{: .15e}", point.p_par());
-    add(24, "p_perp_[mc]", "{: .15e}", point.p_perp_ref());
+    add(24, "p_perp_[mc]", "{: .15e}", point.p_perp());
     add(24, "mu_p_[mc^2/B]", "{: .15e}", point.mu());
   }
 
@@ -640,26 +640,26 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
 
   dF = (w_E - w_E0) + (w_B - w_B0);
 
-  add(24, "dK", "{: .16e}", (K - K0));
+  add(24, "dK", "{: .15e}", (K - K0));
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;
-    add(24, "dK_" + name, "{: .16e}", K_by_sort[i] - K0_by_sort[i]);
+    add(24, "dK_" + name, "{: .15e}", K_by_sort[i] - K0_by_sort[i]);
   }
-  add(24, "dE", "{: .16e}", (w_E - w_E0));
-  add(24, "dB", "{: .16e}", (w_B - w_B0));
-  add(24, "dE+dB+dK", "{: .16e}", dF + (K - K0));
-  add(24, "dMB", "{: .16e}", (a_MB - a_MB0));
-  add(24, "dt * a_EJ", "{: .16e}", (dt * a_EJ));
-  add(24, "dEB-dMB+dt*dEJ", "{: .16e}", dF - (a_MB - a_MB0) + dt * a_EJ);
-  add(24, "dK-dMB+dt*dEJ", "{: .16e}", (K - K0) + (a_MB - a_MB0) - dt * a_EJ);
-  add(24, "wK", "{: .16e}", (K));
+  add(24, "dE", "{: .15e}", (w_E - w_E0));
+  add(24, "dB", "{: .15e}", (w_B - w_B0));
+  add(24, "dE+dB+dK", "{: .15e}", dF + (K - K0));
+  add(24, "dMB", "{: .15e}", (a_MB - a_MB0));
+  add(24, "dt * a_EJ", "{: .15e}", (dt * a_EJ));
+  add(24, "dEB-dMB+dt*dEJ", "{: .15e}", dF - (a_MB - a_MB0) + dt * a_EJ);
+  add(24, "dK-dMB+dt*dEJ", "{: .15e}", (K - K0) + (a_MB - a_MB0) - dt * a_EJ);
+  add(24, "wK", "{: .15e}", (K));
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;
-    add(24, "wK_" + name, "{: .16e}", K_by_sort[i]);
+    add(24, "wK_" + name, "{: .15e}", K_by_sort[i]);
   }
-  add(24, "wE", "{: .16e}", (w_E));
-  add(24, "wB", "{: .16e}", (w_B));
-  add(24, "wEB + wK", "{: .16e}", w_E + w_B + K);
+  add(24, "wE", "{: .15e}", (w_E));
+  add(24, "wB", "{: .15e}", (w_B));
+  add(24, "wEB + wK", "{: .15e}", w_E + w_B + K);
 
   const PetscReal dWE = w_E - w_E0;
   const PetscReal dWB = w_B - w_B0;
@@ -674,11 +674,11 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
 
   const PetscReal field_balance_direct = dWE + dWB + dt * (a_EJ + a_EM);
 
-  add(24, "dWE", "{: .16e}", dWE);
-  add(24, "dWB", "{: .16e}", dWB);
-  add(24, "dt*EJ", "{: .16e}", dt * a_EJ);
-  add(24, "dt*ErotM", "{: .16e}", dt * a_EM);
-  add(24, "dWE+dWB+dt*(EJ+ErotM)", "{: .16e}", field_balance_direct);
+  add(24, "dWE", "{: .15e}", dWE);
+  add(24, "dWB", "{: .15e}", dWB);
+  add(24, "dt*EJ", "{: .15e}", dt * a_EJ);
+  add(24, "dt*ErotM", "{: .15e}", dt * a_EM);
+  add(24, "dWE+dWB+dt*(EJ+ErotM)", "{: .15e}", field_balance_direct);
 
   Vec sum = nullptr;
   Vec diff = nullptr;

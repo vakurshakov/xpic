@@ -148,7 +148,7 @@ private:
     add(20, "y_[c/wpe]", "{: .9e}", point.y());
     add(20, "z_[c/wpe]", "{: .9e}", point.z());
     add(20, "p_par_[mc]", "{: .9e}", point.p_par());
-    add(20, "p_perp_[mc]", "{: .9e}", point.p_perp_ref());
+    //add(20, "p_perp_[mc]", "{: .9e}", point.p_perp_ref());
     add(20, "mu_p_[mc^2/B]", "{: .9e}", point.mu());
     PetscFunctionReturn(PETSC_SUCCESS);
   }

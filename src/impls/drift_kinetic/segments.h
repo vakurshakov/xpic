@@ -14,8 +14,8 @@
 namespace drift_kinetic {
 
 enum class CellSplitMode {
-  cell_edges,    // split at integer boundaries: 0, 1, 2, ...
-  cell_centers,  // split at half-integer boundaries: 0.5, 1.5, 2.5, ...
+  cell_edges,
+  cell_centers,
 };
 
 struct DriftKineticSegment{

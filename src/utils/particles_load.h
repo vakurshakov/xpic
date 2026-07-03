@@ -71,6 +71,30 @@ struct CoordinateInBoxQuietSine {
   mutable std::size_t counter = 0;
 };
 
+// Regular (fully deterministic) uniform-box loader, following the "quiet
+// start" idea of `CoordinateInBoxQuietSine` but taken to the limit: instead
+// of scattering particles at random (`CoordinateInBox`) or along a
+// low-discrepancy sequence, the particles are placed on a regular lattice so
+// that EVERY grid cell contains exactly `Np` particles at exactly the target
+// uniform density — zero loading noise.
+//
+// Per cell the `Np` particles form a sub-lattice np[X] * np[Y] * np[Z] = Np,
+// factored as balanced as possible (near the cube root). Globally this is a
+// single regular grid with G[a] = Ncell[a] * np[a] nodes along each axis,
+// node `g` sitting at the cell-centred position (g + 0.5) / G[a] of the box,
+// so no particle lands on a box face and each cell owns exactly np[a] nodes
+// per axis. Cell sizes are read from the global `Dx`.
+//
+// Stateful via `counter`; MPI-safe because the node at a given global index
+// is a pure function of the index — every rank walks the same lattice and
+// keeps the nodes that fall inside its sub-domain.
+struct CoordinateInBoxQuiet {
+  Vector3R operator()();
+  BoxGeometry box;
+  PetscInt Np = 1;  // particles per grid cell
+  mutable std::size_t counter = 0;
+};
+
 struct CoordinateInCylinderCosineHump {
   Vector3R operator()();
   CylinderGeometry cyl;
