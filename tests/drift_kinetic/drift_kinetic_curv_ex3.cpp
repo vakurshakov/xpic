@@ -26,7 +26,7 @@
 
 static constexpr char help[] = "Curvature drift comparison: drift_kinetic vs eccapfim.\n";
 
-static constexpr PetscReal cell = 0.125;
+static constexpr PetscReal cell = 0.5;
 static constexpr PetscReal B0_value = 1.0;  // constant |B|
 static constexpr PetscReal R_value = 15.0;  // field-line (curvature) radius (large R -> small rot B error)
 static constexpr PetscReal margin = 1;  // gyro-radius + interpolation stencil around the arc
@@ -40,8 +40,8 @@ static constexpr PetscInt grid_ny = grid_nx;
 static constexpr PetscInt grid_nz = 10;
 
 static constexpr PetscReal total_time = 300.0;
-static constexpr PetscReal dt_kinetic = 0.025;
-static constexpr PetscReal dt_drift = 2.5;
+static constexpr PetscReal dt_kinetic = 0.1;
+static constexpr PetscReal dt_drift = 10.0;
 
 static const Vector3R center(margin, margin, 0.0);
 // Particle on the +x side of the circle: there e_phi = +y, so p0 = (v_perp, v_par, 0).

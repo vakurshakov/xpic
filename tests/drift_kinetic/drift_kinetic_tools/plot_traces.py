@@ -368,8 +368,13 @@ def plot_energy_charge(args):
 
     # Time is the step index, i.e. t/tau in dimensionless units (no dt scaling).
     t = data[:, idx["Time"]]
-    W = data[:, idx["wEB+wK"]]
-    dW = (W - W[0]) / W[0]
+    # Cumulative sum of the per-step cancellation-free increments (dE, dB from
+    # the WAXPY-based dW = 1/2 (X+X_prev).(X-X_prev), dK from Kahan-summed
+    # kinetic energy) instead of (W - W0)/W0 from absolute energy sums: the
+    # latter subtracts two large near-equal numbers and loses precision as
+    # W0 dominates the difference over a long run.
+    W0 = data[0, idx["wEB+wK"]]
+    dW = np.cumsum(data[:, idx["dE+dB+dK"]]) / W0
     charge = data[:, idx["N2dQ_tot"]]
 
     if args.time is not None:

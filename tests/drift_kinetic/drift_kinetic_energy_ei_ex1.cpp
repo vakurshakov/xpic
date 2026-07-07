@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 void overwrite_config()
 {
   dx = 10.;
-  geom_nx = 3.;
+  geom_nx = 5.;
   geom_x = geom_nx * dx;
 
   dt = 10.;
@@ -58,7 +58,7 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", "electrons"},
-        {"Np", 100},
+        {"Np", 20},
         {"n", +1.0},
         {"q", -1.0},
         {"m", +1.0},
@@ -67,7 +67,7 @@ void overwrite_config()
       },
       {
         {"sort_name", "ions"},
-        {"Np", 100},
+        {"Np", 20},
         {"n", +1.0},
         {"q", +1.0},
         {"m", +100.0},
@@ -86,7 +86,7 @@ void overwrite_config()
             "setter",
             {
               {"name", "SetUniformField"},
-              {"value", {0.0, 0.0, 1.0}},
+              {"value", {0.0, 0.0, 0.1}},
             },
           },
         },

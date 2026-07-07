@@ -434,13 +434,13 @@ PetscErrorCode PointByFieldTrace::add_columns(PetscInt t)
   }
 
   if (found) {
-    add(24, "t_[1/wpe]", "{: .15e}", t * dt);
-    add(24, "x_[c/wpe]", "{: .15e}", point.x());
-    add(24, "y_[c/wpe]", "{: .15e}", point.y());
-    add(24, "z_[c/wpe]", "{: .15e}", point.z());
-    add(24, "p_par_[mc]", "{: .15e}", point.p_par());
-    add(24, "p_perp_[mc]", "{: .15e}", point.p_perp());
-    add(24, "mu_p_[mc^2/B]", "{: .15e}", point.mu());
+    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
+    add(13, "x_[c/wpe]", "{: .6e}", point.x());
+    add(13, "y_[c/wpe]", "{: .6e}", point.y());
+    add(13, "z_[c/wpe]", "{: .6e}", point.z());
+    add(13, "p_par_[mc]", "{: .6e}", point.p_par());
+    add(13, "p_perp_[mc]", "{: .6e}", point.p_perp());
+    add(13, "mu_p_[mc^2/B]", "{: .6e}", point.mu());
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -475,17 +475,11 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 
 
   if (!initialized) {
-    PetscCall(VecNorm(simulation.E, NORM_2, &w_E));
-    PetscCall(VecNorm(simulation.B, NORM_2, &w_B));
     PetscCall(VecDot(simulation.M, simulation.B, &a_MB));
-    w_E = 0.5 * POW2(w_E);
-    w_B = 0.5 * POW2(w_B);
     calculate_kinetic_energies(K_by_sort, K);
     initialized = true;
   }
 
-  w_E0 = w_E;
-  w_B0 = w_B;
   K0 = K;
   K0_by_sort = K_by_sort;
   PetscCall(TableDiagnostic::diagnose(t));
@@ -497,6 +491,12 @@ PetscErrorCode EnergyConservation::initialize()
   PetscFunctionBeginUser;
   PetscCall(init_charge_conservation());
   PetscCall(collect_charge_densities());
+
+  PetscCall(DMCreateGlobalVector(simulation.da, &E_prev));
+  PetscCall(DMCreateGlobalVector(simulation.da, &B_prev));
+  PetscCall(VecCopy(simulation.E, E_prev));
+  PetscCall(VecCopy(simulation.B, B_prev));
+
   PetscCall(TableDiagnostic::initialize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -512,6 +512,9 @@ PetscErrorCode EnergyConservation::finalize()
   charge_locals.clear();
   charge_fields.clear();
   current_densities.clear();
+
+  PetscCall(VecDestroy(&E_prev));
+  PetscCall(VecDestroy(&B_prev));
 
   PetscCall(MatDestroy(&divE));
   PetscCall(DMDestroy(&charge_da));
@@ -625,60 +628,59 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   add(6, "Time", "{:d}", t);
   for (const auto& sort : simulation.particles_) {
     const auto& name = sort->parameters.sort_name;
-    add(16, "MaxPushIt_" + name, "{:d}", sort->get_max_iteration_number());
+    add(13, "MaxPushIt_" + name, "{:d}", sort->get_max_iteration_number());
   }
-  add(16, "AvgFieldIt", "{:d}", simulation.last_field_itnum);
+  add(13, "AvgFieldIt", "{:d}", simulation.last_field_itnum);
 
-  PetscCall(VecNorm(simulation.E, NORM_2, &w_E));
-  PetscCall(VecNorm(simulation.B, NORM_2, &w_B));
+  PetscCall(VecDot(simulation.E, simulation.E, &w_E));
+  PetscCall(VecDot(simulation.B, simulation.B, &w_B));
   PetscCall(VecNorm(simulation.M, NORM_2, &w_M));
   PetscCall(VecDot(simulation.E_hk, simulation.J, &a_EJ));
   PetscCall(VecDot(simulation.M, simulation.B, &a_MB));
-  w_E = 0.5 * POW2(w_E);
-  w_B = 0.5 * POW2(w_B);
+  w_E *= 0.5;
+  w_B *= 0.5;
   calculate_kinetic_energies(K_by_sort, K);
 
-  dF = (w_E - w_E0) + (w_B - w_B0);
+  Vec fsum = nullptr;
+  Vec fdiff = nullptr;
+  PetscCall(DMGetGlobalVector(simulation.da, &fsum));
+  PetscCall(DMGetGlobalVector(simulation.da, &fdiff));
 
-  add(24, "dK", "{: .15e}", (K - K0));
+  PetscCall(VecWAXPY(fdiff, -1.0, E_prev, simulation.E));
+  PetscCall(VecWAXPY(fsum, +1.0, E_prev, simulation.E));
+  PetscCall(VecDot(fsum, fdiff, &dWE));
+  dWE *= 0.5;
+
+  PetscCall(VecWAXPY(fdiff, -1.0, B_prev, simulation.B));
+  PetscCall(VecWAXPY(fsum, +1.0, B_prev, simulation.B));
+  PetscCall(VecDot(fsum, fdiff, &dWB));
+  dWB *= 0.5;
+
+  PetscCall(VecCopy(simulation.E, E_prev));
+  PetscCall(VecCopy(simulation.B, B_prev));
+
+  PetscCall(DMRestoreGlobalVector(simulation.da, &fsum));
+  PetscCall(DMRestoreGlobalVector(simulation.da, &fdiff));
+
+  dF = dWE + dWB;
+
+  add(13, "dK", "{: .6e}", (K - K0));
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;
-    add(24, "dK_" + name, "{: .15e}", K_by_sort[i] - K0_by_sort[i]);
+    add(24, "dK_" + name, "{: .6e}", K_by_sort[i] - K0_by_sort[i]);
   }
-  add(24, "dE", "{: .15e}", (w_E - w_E0));
-  add(24, "dB", "{: .15e}", (w_B - w_B0));
-  add(24, "dE+dB+dK", "{: .15e}", dF + (K - K0));
-  add(24, "dMB", "{: .15e}", (a_MB - a_MB0));
-  add(24, "dt * a_EJ", "{: .15e}", (dt * a_EJ));
-  add(24, "dEB-dMB+dt*dEJ", "{: .15e}", dF - (a_MB - a_MB0) + dt * a_EJ);
-  add(24, "dK-dMB+dt*dEJ", "{: .15e}", (K - K0) + (a_MB - a_MB0) - dt * a_EJ);
-  add(24, "wK", "{: .15e}", (K));
+  add(13, "dE", "{: .6e}", dWE);
+  add(13, "dB", "{: .6e}", dWB);
+  add(13, "dE+dB+dK", "{: .6e}", dF + (K - K0));
+  add(13, "dK-dMB+dt*dEJ", "{: .6e}", (K - K0) + (a_MB - a_MB0) - dt * a_EJ);
+  add(13, "wK", "{: .6e}", (K));
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;
-    add(24, "wK_" + name, "{: .15e}", K_by_sort[i]);
+    add(13, "wK_" + name, "{: .6e}", K_by_sort[i]);
   }
-  add(24, "wE", "{: .15e}", (w_E));
-  add(24, "wB", "{: .15e}", (w_B));
-  add(24, "wEB + wK", "{: .15e}", w_E + w_B + K);
-
-  const PetscReal dWE = w_E - w_E0;
-  const PetscReal dWB = w_B - w_B0;
-
-  Vec rotM_vec = nullptr;
-  PetscReal a_EM = 0.0;
-
-  PetscCall(DMGetGlobalVector(simulation.da, &rotM_vec));
-  PetscCall(MatMult(simulation.rotM, simulation.M, rotM_vec));
-  PetscCall(VecDot(simulation.E_hk, rotM_vec, &a_EM));
-  PetscCall(DMRestoreGlobalVector(simulation.da, &rotM_vec));
-
-  const PetscReal field_balance_direct = dWE + dWB + dt * (a_EJ + a_EM);
-
-  add(24, "dWE", "{: .15e}", dWE);
-  add(24, "dWB", "{: .15e}", dWB);
-  add(24, "dt*EJ", "{: .15e}", dt * a_EJ);
-  add(24, "dt*ErotM", "{: .15e}", dt * a_EM);
-  add(24, "dWE+dWB+dt*(EJ+ErotM)", "{: .15e}", field_balance_direct);
+  add(13, "wE", "{: .6e}", (w_E));
+  add(13, "wB", "{: .6e}", (w_B));
+  add(13, "wEB + wK", "{: .6e}", w_E + w_B + K);
 
   Vec sum = nullptr;
   Vec diff = nullptr;

@@ -373,7 +373,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
     rotB_p += rotBs_p * dts;
   }
 
-  //b_p =  b_p / lenb_p;
+  b_p = b_p.normalized();
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

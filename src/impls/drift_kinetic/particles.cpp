@@ -8,6 +8,30 @@
 
 namespace drift_kinetic {
 
+namespace {
+
+// Kahan compensated summation: `add()` folds the rounding error of each
+// addition into `c` and subtracts it back on the next term, so the running
+// sum stays accurate to ~eps regardless of how many terms are added (plain
+// summation drifts to ~eps*N for N particles).
+struct KahanSum {
+  PetscReal sum = 0.0;
+  PetscReal c = 0.0;
+
+  void add(PetscReal value)
+  {
+    const PetscReal y = value - c;
+    const PetscReal t = sum + y;
+    c = (t - sum) - y;
+    sum = t;
+  }
+};
+
+#pragma omp declare reduction(kahan_add:KahanSum : omp_out.add(omp_in.sum)) \
+  initializer(omp_priv = KahanSum{})
+
+}  // namespace
+
 PointByField make_point_at_gc(
   const Point& point, const Vector3R& Bp, PetscReal mp)
 {
@@ -82,7 +106,7 @@ PetscErrorCode Particles::initialize_point_by_field(const Arr B_arr)
 
 PetscReal Particles::kinetic_energy_local() const
 {
-  PetscReal w = 0.0;
+  KahanSum w;
   const PetscReal mpw = parameters.n / static_cast<PetscReal>(parameters.Np);
   PetscCallAbort(PETSC_COMM_WORLD,
     DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
@@ -90,18 +114,18 @@ PetscReal Particles::kinetic_energy_local() const
     DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
   drift_kinetic::DriftKineticEsirkepov esirkepov(simulation_.B_arr);
-#pragma omp parallel for reduction(+ : w)
+#pragma omp parallel for reduction(kahan_add : w)
   for (auto&& cell : dk_curr_storage) {
     for (auto&& point : cell) {
       Vector3R B_p{};
       PetscCallAbort(PETSC_COMM_WORLD, esirkepov.interpolate_B(B_p, point.r));
-      w += POW2(point.p_parallel) + 2.0 * point.mu_p * B_p.length() / parameters.m;
+      w.add(POW2(point.p_parallel) + 2.0 * point.mu_p * B_p.length() / parameters.m);
     }
   }
 
   PetscCallAbort(PETSC_COMM_WORLD,
     DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
-  return 0.5 * parameters.m * mpw * w;
+  return 0.5 * parameters.m * mpw * w.sum;
 }
 
 PetscReal Particles::get_average_iteration_number() const
@@ -128,6 +152,17 @@ PetscErrorCode Particles::form_iteration()
 
   const PetscReal inv_size = size > 0 ? 1.0 / static_cast<PetscReal>(size) : 0.0;
 
+  // If the full-step Picard solve doesn't converge, the step is bisected and
+  // each half is solved (and, on convergence, deposited) on its own -- down
+  // to `max_substep_depth` halvings, beyond which the deepest attempt is
+  // accepted as-is. Depositing per substep (rather than lumping the whole,
+  // possibly inconsistent, trajectory into one `decomposition()` call) keeps
+  // the charge/moment contribution of every sub-interval tied to the state
+  // that actually produced it, so splitting doesn't create or destroy charge:
+  // each substep's `a0`/`b0` are weighted by its own share `dt_sub / dt` of
+  // the full step, and those shares sum to exactly 1.
+  constexpr PetscInt max_substep_depth = 4;
+
 #pragma omp parallel for reduction(+ : avgit) reduction(max : maxit)
     for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
       const auto& prev_cell = dk_prev_storage[g];
@@ -143,17 +178,40 @@ PetscErrorCode Particles::form_iteration()
           [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
             Vector3R& gradB_p, Vector3R& rotB_p) { util_local.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0); });
 
-        push.process(dt, curr, prev);
+        PetscReal it_sum = 0.0;
+        PetscInt it_max = 0;
 
-        avgit +=  (PetscReal)push.get_iteration_number() * inv_size;
-        maxit = std::max(maxit, (PetscInt)push.get_iteration_number());
+        std::function<void(PetscReal, PointByField&, const PointByField&, PetscInt)> solve_segment =
+          [&](PetscReal dt_sub, PointByField& pn, const PointByField& p0, PetscInt depth) {
+            push.process(dt_sub, pn, p0);
 
-        const PetscReal a0 = qn_Np(curr);
-        const PetscReal b0 = curr.mu_p * n_Np(curr);
-        const Vector3R Vph = (curr.r - prev.r) / dt;
-        curr.p = Vph;
+            it_sum += (PetscReal)push.get_iteration_number();
+            it_max = std::max(it_max, (PetscInt)push.get_iteration_number());
 
-        util_local.decomposition(curr.r, prev.r, Vph, a0, b0);
+            if (!push.has_converged() && depth < max_substep_depth) {
+              PointByField mid(p0);
+              mid.r = 0.5 * (p0.r + pn.r);
+              mid.p_parallel = 0.5 * (p0.p_parallel + pn.p_parallel);
+
+              const PetscReal dt_half = 0.5 * dt_sub;
+              solve_segment(dt_half, mid, p0, depth + 1);
+              solve_segment(dt_half, pn, mid, depth + 1);
+              return;
+            }
+
+            const PetscReal a0 = qn_Np(pn);
+            const PetscReal b0 = pn.mu_p * n_Np(pn);
+            const Vector3R Vp_sub = (pn.r - p0.r) / dt_sub;
+
+            util_local.decomposition(pn.r, p0.r, Vp_sub, a0 * (dt_sub / dt), b0 * (dt_sub / dt));
+          };
+
+        solve_segment(dt, curr, prev, 0);
+
+        avgit += it_sum * inv_size;
+        maxit = std::max(maxit, it_max);
+
+        curr.p = (curr.r - prev.r) / dt;
 
         ++i;
       }

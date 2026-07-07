@@ -101,7 +101,7 @@ def parse_args():
                         help="Species whose density mode-1 modulus is "
                              "compared (default: ions).")
     parser.add_argument("--theory-delta-n", type=float, nargs="+",
-                        default=[0.02843, 0.03],
+                        default=[0.023, 0.03],
                         help="One or more initial loading amplitudes "
                              "delta_n_0 used to anchor the theoretical "
                              "Landau envelopes delta_n_0 * exp(-Gamma t). "

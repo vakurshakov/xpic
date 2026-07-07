@@ -89,8 +89,9 @@ public:
   PetscErrorCode add_columns(PetscInt t) override;
 
   const Simulation& simulation;
-  PetscReal w_E = 0, w_E0 = 0;
-  PetscReal w_B = 0, w_B0 = 0;
+  PetscReal w_E = 0;
+  PetscReal w_B = 0;
+  PetscReal dWE = 0, dWB = 0;
   PetscReal dF = 0;
   PetscReal a_EJ = 0;
   PetscReal a_MB = 0, a_MB0 = 0;
@@ -106,6 +107,8 @@ private:
 
   DM charge_da = nullptr;
   Mat divE = nullptr;
+  Vec E_prev = nullptr;
+  Vec B_prev = nullptr;
   std::vector<PetscReal> K0_by_sort;
   std::vector<PetscReal> K_by_sort;
   std::vector<Vec> charge_locals;

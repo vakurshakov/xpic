@@ -11,8 +11,8 @@
 
 namespace drift_kinetic {
 
-static constexpr PetscReal atol = 1e-10;
-static constexpr PetscReal rtol = 1e-10;
+static constexpr PetscReal atol = 1e-14;
+static constexpr PetscReal rtol = 1e-14;
 static constexpr PetscReal stol = 0;
 static constexpr PetscReal divtol = PETSC_DETERMINE;
 static constexpr PetscInt maxit = 1000;
@@ -61,8 +61,8 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
 
-  //PetscCall(SNESSetType(snes, SNESNGMRES));
-  PetscCall(SNESSetType(snes, SNESANDERSON));
+  PetscCall(SNESSetType(snes, SNESNGMRES));
+  //PetscCall(SNESSetType(snes, SNESANDERSON));
 
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
@@ -174,8 +174,6 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 
   PetscCall(SNESGetSolution(snes, &sol));
   PetscCall(from_snes(sol, E_hk, B_hk));
-
-  //PetscCall(form_current());
 
   PetscCall(VecAXPBY(E, 2, -1, E_hk));
   PetscCall(VecAXPBY(B, 2, -1, B_hk));

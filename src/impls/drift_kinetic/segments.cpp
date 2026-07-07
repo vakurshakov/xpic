@@ -30,7 +30,8 @@ PeriodicBox make_periodic_box(Axis axis, CellSplitMode mode)
     axis, axis, length);
 
   if (mode == CellSplitMode::cell_centers)
-    return PeriodicBox{0.5, length + 0.5, length};
+    //return PeriodicBox{0.5, length + 0.5, length};
+    return PeriodicBox{-0.5, length - 0.5, length};
   return PeriodicBox{0.0, length, length};
 }
 

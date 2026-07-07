@@ -47,15 +47,17 @@ def parse_args():
                         help="Filename of the assembled mp4 inside <out-subdir>")
     parser.add_argument("--theory-period", type=float, default=None,
                         help="Period T in units of 1/w_pe. Default: computed "
-                             "from the EXACT complex root of the ion-acoustic "
-                             "dispersion relation (eq. 3.19) using the plasma "
-                             "parameters in the config. Pass a value to "
+                             "from the complex root of the full kinetic "
+                             "ion-acoustic dispersion relation eps(k,w)=0 "
+                             "(plasma dispersion function for both electrons "
+                             "and ions, so finite T_i is included) using the "
+                             "plasma parameters in the config. Pass a value to "
                              "override the computed one.")
     parser.add_argument("--theory-gamma", type=float, default=None,
                         help="Landau damping rate Gamma in units of w_pe. "
-                             "Default: computed from the EXACT dispersion "
-                             "relation (eq. 3.19), i.e. Gamma = -Im(omega). "
-                             "Pass a value to override.")
+                             "Default: computed from the full kinetic "
+                             "dispersion relation eps(k,w)=0, i.e. "
+                             "Gamma = -Im(omega). Pass a value to override.")
     parser.add_argument("--theory-n0", type=float, default=1.000000,
                         help="Background density n0 in the theoretical curve "
                              "(default: 1.000000, external fit).")
@@ -200,6 +202,7 @@ def extract_plasma_params():
         return sum(comps) / len(comps) if comps else 0.0
 
     T_e = temperature(electron)
+    T_i = temperature(ion)
     m_e = float(electron["m"])
     m_i = float(ion["m"])
     n_e = float(electron.get("n", 1.0))
@@ -208,34 +211,106 @@ def extract_plasma_params():
     q_i = float(ion["q"])
 
     v_Te = np.sqrt(T_e / (m_e * mec2))
+    v_Ti = np.sqrt(T_i / (m_i * mec2)) if T_i > 0.0 else 0.0
     c_s = np.sqrt(T_e / (m_i * mec2))
     r_De = v_Te                           # = v_Te / w_pe, w_pe = 1
     # Plasma frequencies squared, normalized so that w_pe^2 = 1.
     omega_pe2 = n_e * q_e ** 2 / m_e
     omega_pi2 = (n_i * q_i ** 2 / m_i) / omega_pe2
+    # Ion Debye length r_Di = v_Ti / w_pi (in c/w_pe, w_pe = 1). Infinite for
+    # cold ions, in which case the ion term reverts to the cold fluid limit.
+    r_Di = v_Ti / np.sqrt(omega_pi2) if v_Ti > 0.0 else float("inf")
     return {
-        "T_e": T_e, "m_e": m_e, "m_i": m_i,
-        "v_Te": v_Te, "c_s": c_s, "r_De": r_De,
+        "T_e": T_e, "T_i": T_i, "m_e": m_e, "m_i": m_i,
+        "v_Te": v_Te, "v_Ti": v_Ti, "c_s": c_s,
+        "r_De": r_De, "r_Di": r_Di,
         "omega_pi2": omega_pi2,
     }
 
 
+def _faddeeva(z, N=42):
+    """Faddeeva function w(z) = exp(-z^2) erfc(-i z) via Weideman's rational
+    approximation (J. A. C. Weideman, SIAM J. Numer. Anal. 31, 1994). Accurate
+    to ~1e-13 for N = 42 and valid in the whole complex plane: the rational
+    series is used directly in the upper half-plane (Im z >= 0) and the
+    reflection w(z) = 2 exp(-z^2) - w(-z) continues it to the lower half-plane
+    (damped modes, Im z < 0). Pure numpy, so no scipy dependency."""
+    z = complex(z)
+    if z.imag < 0.0:
+        return 2.0 * np.exp(-z * z) - _faddeeva(-z, N)
+    a = _weideman_coeffs(N)
+    L = np.sqrt(N / np.sqrt(2.0))
+    Z = (L + 1j * z) / (L - 1j * z)
+    p = np.polyval(a, Z)
+    return 2.0 * p / (L - 1j * z) ** 2 + (1.0 / np.sqrt(np.pi)) / (L - 1j * z)
+
+
+_WEIDEMAN_CACHE = {}
+
+
+def _weideman_coeffs(N):
+    """Cached Taylor coefficients of Weideman's rational approximation."""
+    a = _WEIDEMAN_CACHE.get(N)
+    if a is None:
+        M = 2 * N
+        k = np.arange(-M + 1, M)
+        L = np.sqrt(N / np.sqrt(2.0))
+        theta = k * np.pi / M
+        t = L * np.tan(theta / 2.0)
+        f = np.concatenate(([0.0], np.exp(-t ** 2) * (L ** 2 + t ** 2)))
+        a = np.flipud((np.real(np.fft.fft(np.fft.fftshift(f))) / (2 * M))[1:N + 1])
+        _WEIDEMAN_CACHE[N] = a
+    return a
+
+
+def plasma_dispersion_Z(zeta):
+    """Plasma dispersion function Z(zeta) = i sqrt(pi) w(zeta) (Fried & Conte),
+    the analytic continuation of (1/sqrt(pi)) int exp(-x^2)/(x - zeta) dx onto
+    the Landau contour. Z'(zeta) = -2 (1 + zeta Z(zeta))."""
+    return 1j * np.sqrt(np.pi) * _faddeeva(zeta)
+
+
+def kinetic_dielectric(omega, k, params):
+    """Electrostatic dielectric function of an unmagnetized two-species
+    Maxwellian plasma (electrons + ions):
+
+        eps(k, w) = 1 + sum_s 1/(k^2 r_Ds^2) [1 + zeta_s Z(zeta_s)],
+        zeta_s = w / (sqrt(2) k v_Ts).
+
+    Landau damping of *both* species enters through Z. In the fast-wave limit
+    zeta_s >> 1 the species term -> -w_ps^2/w^2, recovering the cold fluid
+    dispersion; the finite-T corrections (ion pressure ~ 3 T_i and ion Landau
+    damping) are what the old cold-ion relation (eq. 3.19) dropped. Cold ions
+    (r_Di = inf) fall back to the exact -w_pi^2/w^2 term."""
+    v_Te = params["v_Te"]
+    r_De = params["r_De"]
+    root2 = np.sqrt(2.0)
+
+    zeta_e = omega / (root2 * k * v_Te)
+    eps = 1.0 + (1.0 + zeta_e * plasma_dispersion_Z(zeta_e)) / (k * r_De) ** 2
+
+    v_Ti = params.get("v_Ti", 0.0)
+    r_Di = params.get("r_Di", float("inf"))
+    if v_Ti and np.isfinite(r_Di):
+        zeta_i = omega / (root2 * k * v_Ti)
+        eps = eps + (1.0 + zeta_i * plasma_dispersion_Z(zeta_i)) / (k * r_Di) ** 2
+    else:
+        eps = eps - params["omega_pi2"] / omega ** 2   # cold-ion limit
+    return eps
+
+
 def solve_ion_sound_dispersion(k, params):
-    """Exact complex root of the ion-acoustic dispersion relation (eq. 3.19):
+    """Complex root of the *full kinetic* ion-acoustic dispersion relation
+    eps(k, w) = 0 (see kinetic_dielectric), keeping the plasma dispersion
+    function for both electrons and ions. This supersedes the old cold-ion
+    cubic (eq. 3.19): it accounts for finite ion temperature both in the real
+    frequency (ion-pressure shift ~ 3 T_i) and in the damping (ion Landau
+    damping), so runs that differ only in T_i now yield different theory.
 
-        1 - w_pi^2/w^2 + (1/(k^2 r_De^2)) (1 + i sqrt(pi/2) w/(k v_Te)) = 0.
-
-    Multiplying through by w^2 turns it into a cubic in w:
-
-        i B w^3 + A w^2 - w_pi^2 = 0,
-        A = 1 + 1/(k^2 r_De^2),
-        B = sqrt(pi/2) / (k^3 r_De^2 v_Te).
-
-    Unlike the approximate (3.20)/(3.21), this keeps the imaginary term in
-    full, so both Re(w) and Im(w) are exact. Returns (omega_r, gamma) =
-    (Re w, -Im w) of the ion-acoustic branch: positive real part, Re closest
-    to the approximate w_s = k c_s / sqrt(1 + k^2 r_De^2). gamma > 0 means a
-    damped wave (amplitude ~ exp(-gamma t))."""
+    The old cold-ion cubic still provides the initial guess; a complex Newton
+    iteration on the full eps then refines it. Returns (omega_r, gamma) =
+    (Re w, -Im w) of the ion-acoustic branch; gamma > 0 is a damped wave
+    (amplitude ~ exp(-gamma t))."""
     r_De = params["r_De"]
     v_Te = params["v_Te"]
     c_s = params["c_s"]
@@ -249,6 +324,18 @@ def solve_ion_sound_dispersion(k, params):
     omega_s_approx = k * c_s / np.sqrt(1.0 + krde2)
     positive = [w for w in roots if w.real > 0.0] or list(roots)
     w = min(positive, key=lambda w: abs(w.real - omega_s_approx))
+
+    # Complex Newton on the full kinetic eps, seeded with the cold-ion root.
+    for _ in range(200):
+        f = kinetic_dielectric(w, k, params)
+        h = 1e-6 * abs(w) + 1e-12
+        fp = (kinetic_dielectric(w + h, k, params) - f) / h
+        if fp == 0:
+            break
+        step = f / fp
+        w -= step
+        if abs(step) <= 1e-13 * abs(w):
+            break
     return float(abs(w.real)), float(-w.imag)
 
 
@@ -324,10 +411,11 @@ def main():
     n0 = args.theory_n0
     alpha = args.theory_alpha
 
-    # --- Ion-acoustic dispersion (eq. 3.19) -----------------------------
+    # --- Ion-acoustic dispersion (full kinetic eps(k,w)=0) --------------
     # The wave period T and the Landau decrement Gamma are taken from the
-    # EXACT complex root of (3.19), not the approximate (3.20)/(3.21).
-    # CLI --theory-period / --theory-gamma override the computed values.
+    # complex root of the full kinetic dielectric (plasma dispersion function
+    # for electrons and ions, so finite T_i enters), not the approximate
+    # (3.20)/(3.21). CLI --theory-period / --theory-gamma override them.
     amp_cfg, wn_cfg = find_sine_perturbation()
     plasma = extract_plasma_params()
     k_wave = T_disp = Gamma_disp = omega_s_apx = None
@@ -343,7 +431,7 @@ def main():
         period_src = "CLI override"
     elif T_disp is not None:
         T_theory = T_disp
-        period_src = "exact dispersion 3.19"
+        period_src = "full kinetic dispersion"
     else:
         T_theory = 8500.0
         period_src = "fallback"
@@ -354,7 +442,7 @@ def main():
         gamma_src = "CLI override"
     elif Gamma_disp is not None:
         Gamma = Gamma_disp
-        gamma_src = "exact dispersion 3.19"
+        gamma_src = "full kinetic dispersion"
     else:
         Gamma = 0.0
         gamma_src = "none (damping overlay disabled)"
