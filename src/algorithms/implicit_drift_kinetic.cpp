@@ -378,6 +378,28 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode DriftKineticEsirkepov::interpolate_B_endpoints(
+  EndpointB& f, const Vector3R& Rn, const Vector3R& R0)
+{
+  PetscFunctionBeginHot;
+  f = {};
+
+  DriftKineticSegment track = make_track(R0, Rn);
+  std::vector<DriftKineticSegment> periodic_track =
+    periodic_segments(track, CellSplitMode::cell_centers);
+
+  Vector3R pR0 = make_begin(periodic_track.front());
+  Vector3R pRn = make_end(periodic_track.back());
+
+  PetscCall(interpolate_B(f.Bn_0, Bn_g, pR0));
+  PetscCall(interpolate_B(f.Bn1_0, Bn1_g, pR0));
+  PetscCall(interpolate_B(f.Bnh_0, Bnh_g, pR0));
+  PetscCall(interpolate_B(f.Bn_n, Bn_g, pRn));
+  PetscCall(interpolate_B(f.Bn1_n, Bn1_g, pRn));
+  PetscCall(interpolate_B(f.Bnh_n, Bnh_g, pRn));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode DriftKineticEsirkepov::decomposition(
   const Vector3R& Rn, const Vector3R& R0, const Vector3R& Vp, PetscReal q_p, PetscReal mu_p)
 {

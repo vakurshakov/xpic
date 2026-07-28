@@ -26,6 +26,39 @@ public:
   PetscErrorCode sync_dk_curr_storage();
   PetscErrorCode prepare_storage();
   PetscErrorCode form_iteration();
+  PetscErrorCode restore_from_prev_storage();
+  void set_energy_audit(bool value) { energy_audit_enabled_ = value; }
+
+  /// @brief Three-level decomposition of the per-particle energy defect,
+  /// filled by `form_iteration()` when the energy audit is enabled (i.e. on
+  /// the final, post-SNES deposition of the step). Each level mirrors one
+  /// discrete identity of the scheme; all sums carry the deposition weight
+  /// `n_Np`, so `D_total` is directly comparable to the global
+  /// `dK-dMB+dt*dEJ` column:
+  ///  - `D_push`  = sum of dK_par + mu*dt*V.gradB - q*dt*E.V, the discrete
+  ///    parallel-work identity with V = (R1-R0)/dt — nonzero means the
+  ///    pusher did not solve the discrete equations (or the Vp/ah formulas
+  ///    are inconsistent);
+  ///  - `D_gradB` = sum of mu*(dt*V.gradB - hatb.(B^{n+1/2}(R1) -
+  ///    B^{n+1/2}(R0))), the energy-consistent gradB interpolation rule with
+  ///    hatb = b/|b|^2, b = (b^n + b^{n+1})/2 — nonzero (with small D_push)
+  ///    points at `interpolate_gradB()`, segmentation or periodic wrapping;
+  ///  - `D_total` = sum of dK_par + mu*(B^{n+1}(R1) - B^n(R0)) - W_E - W_M,
+  ///    where W_M is the particle's share of M^{n+1/2}.(B^{n+1}-B^n) exactly
+  ///    as `decomposition_M()` deposits it — the particle-side estimate of
+  ///    the global defect. With exact identities D_total = D_push - D_gradB;
+  ///    if the first two are small but this is not, look at the M deposition
+  ///    weights, time interpolation of B or substepping.
+  /// `max_*` are the largest per-particle magnitudes (same weights).
+  struct EnergyAudit {
+    PetscReal D_push = 0.0;
+    PetscReal D_gradB = 0.0;
+    PetscReal D_total = 0.0;
+    PetscReal max_D_push = 0.0;
+    PetscReal max_D_gradB = 0.0;
+  };
+
+  const EnergyAudit& energy_audit() const { return audit_; }
 
   PetscReal kinetic_energy_local() const;
   PetscReal get_average_iteration_number() const;
@@ -61,7 +94,10 @@ protected:
   PetscReal avgit = 0.0;
   PetscInt maxit = 0;
   bool coord_is_gc_ = false;
+  bool energy_audit_enabled_ = false;
+  EnergyAudit audit_;
   Simulation& simulation_;
+
 
   friend class InjectParticles;
   friend class SetPairedParticles;

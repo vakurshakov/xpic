@@ -11,8 +11,8 @@
 
 namespace drift_kinetic {
 
-static constexpr PetscReal atol = 1e-14;
-static constexpr PetscReal rtol = 1e-14;
+static constexpr PetscReal atol = 1e-10;
+static constexpr PetscReal rtol = 1e-10;
 static constexpr PetscReal stol = 0;
 static constexpr PetscReal divtol = PETSC_DETERMINE;
 static constexpr PetscInt maxit = 1000;
@@ -70,12 +70,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(SNESSetFromOptions(snes));
 
   PetscCall(init_particles(*this, particles_));
-
-  // Re-walk the JSON to set DK-specific per-sort flags without touching
-  // the generic `init_particles` path. `coord_is_gc=true` instructs DK
-  // loaders to treat sampled `r` as the guiding center (skip the Larmor
-  // shift). This is what allows e/i to coincide at the same GC when both
-  // sorts are seeded from a shared coordinate stream.
   {
     const Configuration::json_t& json = CONFIG().json;
     auto it = json.find("Particles");
@@ -175,6 +169,14 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscCall(SNESGetSolution(snes, &sol));
   PetscCall(from_snes(sol, E_hk, B_hk));
 
+  for (auto& sort : particles_)
+    sort->set_energy_audit(true);
+
+  //PetscCall(form_current());
+
+  for (auto& sort : particles_)
+    sort->set_energy_audit(false);
+
   PetscCall(VecAXPBY(E, 2, -1, E_hk));
   PetscCall(VecAXPBY(B, 2, -1, B_hk));
 
@@ -202,6 +204,9 @@ PetscErrorCode Simulation::form_current()
 
   PetscCall(VecSet(J, 0.0));
   PetscCall(VecSet(M, 0.0));
+
+  //for (auto& sort : particles_)
+  //  PetscCall(sort->restore_from_prev_storage());
 
   for (auto& sort : particles_) {
     PetscCall(VecSet(sort->J, 0.0));

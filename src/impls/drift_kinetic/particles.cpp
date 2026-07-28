@@ -152,18 +152,15 @@ PetscErrorCode Particles::form_iteration()
 
   const PetscReal inv_size = size > 0 ? 1.0 / static_cast<PetscReal>(size) : 0.0;
 
-  // If the full-step Picard solve doesn't converge, the step is bisected and
-  // each half is solved (and, on convergence, deposited) on its own -- down
-  // to `max_substep_depth` halvings, beyond which the deepest attempt is
-  // accepted as-is. Depositing per substep (rather than lumping the whole,
-  // possibly inconsistent, trajectory into one `decomposition()` call) keeps
-  // the charge/moment contribution of every sub-interval tied to the state
-  // that actually produced it, so splitting doesn't create or destroy charge:
-  // each substep's `a0`/`b0` are weighted by its own share `dt_sub / dt` of
-  // the full step, and those shares sum to exactly 1.
   constexpr PetscInt max_substep_depth = 4;
 
-#pragma omp parallel for reduction(+ : avgit) reduction(max : maxit)
+  KahanSum aud_push, aud_gradB, aud_total;
+  PetscReal aud_max_push = 0.0;
+  PetscReal aud_max_gradB = 0.0;
+
+#pragma omp parallel for reduction(+ : avgit) reduction(max : maxit) \
+  reduction(kahan_add : aud_push, aud_gradB, aud_total) \
+  reduction(max : aud_max_push, aud_max_gradB)
     for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
       const auto& prev_cell = dk_prev_storage[g];
 
@@ -180,6 +177,12 @@ PetscErrorCode Particles::form_iteration()
 
         PetscReal it_sum = 0.0;
         PetscInt it_max = 0;
+
+        // Per-particle energy defects, accumulated over (sub)segments; see
+        // `Particles::EnergyAudit` for the meaning of the three levels.
+        PetscReal D_push_p = 0.0;
+        PetscReal D_gradB_p = 0.0;
+        PetscReal D_total_p = 0.0;
 
         std::function<void(PetscReal, PointByField&, const PointByField&, PetscInt)> solve_segment =
           [&](PetscReal dt_sub, PointByField& pn, const PointByField& p0, PetscInt depth) {
@@ -204,6 +207,40 @@ PetscErrorCode Particles::form_iteration()
             const Vector3R Vp_sub = (pn.r - p0.r) / dt_sub;
 
             util_local.decomposition(pn.r, p0.r, Vp_sub, a0 * (dt_sub / dt), b0 * (dt_sub / dt));
+
+            if (energy_audit_enabled_) {
+              // Per-(sub)segment defects of the discrete energy identities of
+              // the scheme; see `Particles::EnergyAudit` for the three levels.
+              drift_kinetic::DriftKineticEsirkepov::EndpointB f;
+              PetscCallAbort(PETSC_COMM_WORLD,
+                util_local.interpolate_B_endpoints(f, pn.r, p0.r));
+
+              // hatb = b/|b|^2 with b = (b^n + b^{n+1})/2 — the same vector
+              // the gradB rule and the magnetization deposit use.
+              const Vector3R b_mid =
+                0.5 * (f.Bn_0.normalized() + f.Bn1_n.normalized());
+              const Vector3R hatb = b_mid / b_mid.squared();
+
+              const PetscReal dK_par =
+                0.5 * m * (POW2(pn.p_parallel) - POW2(p0.p_parallel));
+              const PetscReal dK_mu =
+                pn.mu_p * (f.Bn1_n.length() - f.Bn_0.length());
+              const PetscReal W_E = q * dt_sub * push.get_Eh().dot(Vp_sub);
+              const PetscReal W_gradB =
+                pn.mu_p * dt_sub * Vp_sub.dot(push.get_gradBh());
+              // Right-hand side of the gradB interpolation rule:
+              // hatb . (B^{n+1/2}(R1) - B^{n+1/2}(R0)).
+              const PetscReal W_hB = pn.mu_p * hatb.dot(f.Bnh_n - f.Bnh_0);
+              // Particle share of M^{n+1/2} . (B^{n+1} - B^n) as deposited:
+              // half of mu*hatb at each endpoint, weighted like the deposit.
+              const PetscReal W_M = 0.5 * pn.mu_p * (dt_sub / dt) *
+                hatb.dot((f.Bn1_0 - f.Bn_0) + (f.Bn1_n - f.Bn_n));
+
+              const PetscReal wt = n_Np(pn);
+              D_push_p += wt * (dK_par + W_gradB - W_E);
+              D_gradB_p += wt * (W_gradB - W_hB);
+              D_total_p += wt * (dK_par + dK_mu - W_E - W_M);
+            }
           };
 
         solve_segment(dt, curr, prev, 0);
@@ -211,11 +248,27 @@ PetscErrorCode Particles::form_iteration()
         avgit += it_sum * inv_size;
         maxit = std::max(maxit, it_max);
 
+        if (energy_audit_enabled_) {
+          aud_push.add(D_push_p);
+          aud_gradB.add(D_gradB_p);
+          aud_total.add(D_total_p);
+          aud_max_push = std::max(aud_max_push, std::abs(D_push_p));
+          aud_max_gradB = std::max(aud_max_gradB, std::abs(D_gradB_p));
+        }
+
         curr.p = (curr.r - prev.r) / dt;
 
         ++i;
       }
     }
+
+  if (energy_audit_enabled_) {
+    audit_.D_push = aud_push.sum;
+    audit_.D_gradB = aud_gradB.sum;
+    audit_.D_total = aud_total.sum;
+    audit_.max_D_push = aud_max_push;
+    audit_.max_D_gradB = aud_max_gradB;
+  }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
@@ -267,6 +320,7 @@ PetscErrorCode Particles::sync_dk_curr_storage()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/*
 PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
@@ -278,6 +332,72 @@ PetscErrorCode Particles::prepare_storage()
       size += (PetscInt)curr.size();
     }
   }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+*/
+
+PetscErrorCode Particles::prepare_storage()
+{
+  PetscFunctionBeginUser;
+
+  size = 0;
+
+  PetscCheck(
+    dk_curr_storage.size() == dk_prev_storage.size(),
+    PETSC_COMM_WORLD,
+    PETSC_ERR_ARG_SIZ,
+    "DK current and previous storages have different sizes: %zu != %zu",
+    dk_curr_storage.size(),
+    dk_prev_storage.size());
+
+  for (PetscInt g = 0;
+       g < static_cast<PetscInt>(dk_curr_storage.size());
+       ++g) {
+    const auto& curr = dk_curr_storage[g];
+    auto& prev = dk_prev_storage[g];
+
+    prev.assign(curr.begin(), curr.end());
+
+    size += static_cast<PetscInt>(curr.size());
+  }
+
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Particles::restore_from_prev_storage()
+{
+  PetscFunctionBeginUser;
+
+  PetscCheck(
+    dk_curr_storage.size() == dk_prev_storage.size(),
+    PETSC_COMM_WORLD,
+    PETSC_ERR_ARG_SIZ,
+    "DK current and previous storages have different sizes: %zu != %zu",
+    dk_curr_storage.size(),
+    dk_prev_storage.size());
+
+  PetscInt restored_size = 0;
+
+  for (PetscInt g = 0;
+       g < static_cast<PetscInt>(dk_prev_storage.size());
+       ++g) {
+    auto& curr = dk_curr_storage[g];
+    const auto& prev = dk_prev_storage[g];
+
+    curr.assign(prev.begin(), prev.end());
+
+    restored_size += static_cast<PetscInt>(prev.size());
+  }
+
+  PetscCheck(
+    restored_size == size,
+    PETSC_COMM_WORLD,
+    PETSC_ERR_PLIB,
+    "Restored DK particle number differs from saved number: "
+    "restored=%" PetscInt_FMT ", saved=%" PetscInt_FMT,
+    restored_size,
+    size);
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

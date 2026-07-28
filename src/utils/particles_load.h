@@ -68,6 +68,7 @@ struct CoordinateInBoxQuietSine {
   BoxGeometry box;
   Vector3R amplitude;
   Vector3R wave_number;
+  Vector3R phase{0.0, 0.0, 0.0};
   mutable std::size_t counter = 0;
 };
 
@@ -148,7 +149,7 @@ struct MaxwellCosinePerturbation {
 };
 
 // Maxwell-Juttner sampling + bulk velocity shifted by a sine profile,
-// V(r) = velocity * sin(2*pi*m*r/L), where `velocity` is given directly
+// V(r) = velocity * sin(2*pi*m*r/L + phi), where `velocity` is given directly
 // in units of c (no implicit sqrt(T/m) scaling, unlike CosinePerturbation).
 struct MaxwellShiftedSine {
   Vector3R operator()(const Vector3R& coordinate);
@@ -156,6 +157,7 @@ struct MaxwellShiftedSine {
   BoxGeometry box;
   Vector3R velocity;
   Vector3R wave_number;
+  Vector3R phase{0.0, 0.0, 0.0};
 };
 
 struct AngularMomentum {

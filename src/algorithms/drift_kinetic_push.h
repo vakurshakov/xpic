@@ -36,6 +36,13 @@ public:
   /// @brief Returns true if the last call to `process()` converged within tolerances.
   bool has_converged() const;
 
+  /// @brief Midpoint field values at the last accepted nonlinear iterate.
+  /// Valid right after `process()`; used by the per-particle energy audit.
+  const Vector3R& get_Eh() const { return Eh; }
+  const Vector3R& get_gradBh() const { return gradBh; }
+  const Vector3R& get_rotBh() const { return rotBh; }
+  const Vector3R& get_rotbh() const { return rotbh; }
+
   using SetFields = std::function<void(
     const Vector3R&, const Vector3R&, Vector3R&, PetscReal&, Vector3R&, Vector3R&, Vector3R&)>;
 
@@ -87,8 +94,8 @@ private:
   // -- Nonlinear iteration state and residuals -----------------------------
   PetscInt it = 0;
   PetscInt maxit = 60;
-  PetscReal atol = 1e-14;
-  PetscReal rtol = 1e-14;
+  PetscReal atol = 1e-12;
+  PetscReal rtol = 1e-12;
   PetscReal FRk, FVhk;
   bool converged = false;
 

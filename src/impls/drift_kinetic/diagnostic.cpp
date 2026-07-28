@@ -673,6 +673,26 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   add(13, "dB", "{: .6e}", dWB);
   add(13, "dE+dB+dK", "{: .6e}", dF + (K - K0));
   add(13, "dK-dMB+dt*dEJ", "{: .6e}", (K - K0) + (a_MB - a_MB0) - dt * a_EJ);
+
+  // Three-level particle-side decomposition of the energy defect, filled by
+  // the audited (post-SNES) `form_iteration()` of the previous step — the
+  // same step the `dK-dMB+dt*dEJ` column above covers.
+  // @see drift_kinetic::Particles::EnergyAudit
+  for (const auto& sort : simulation.particles_) {
+    const auto& name = sort->parameters.sort_name;
+    const auto& audit = sort->energy_audit();
+
+    PetscReal sums[3]{audit.D_push, audit.D_gradB, audit.D_total};
+    PetscReal maxs[2]{audit.max_D_push, audit.max_D_gradB};
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, sums, 3, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, maxs, 2, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+
+    add(24, "D_push_" + name, "{: .6e}", sums[0]);
+    add(24, "D_gradB_" + name, "{: .6e}", sums[1]);
+    add(24, "D_total_" + name, "{: .6e}", sums[2]);
+    add(24, "maxD_push_" + name, "{: .6e}", maxs[0]);
+    add(24, "maxD_gradB_" + name, "{: .6e}", maxs[1]);
+  }
   add(13, "wK", "{: .6e}", (K));
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;

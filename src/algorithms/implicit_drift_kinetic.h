@@ -45,6 +45,26 @@ public:
   PetscErrorCode interpolate(Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p, Vector3R& gradB_p, //
                              Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0);
 
+  /// @brief Magnetic fields interpolated with the `S2` kernel at the
+  /// periodically wrapped track endpoints (`*_0` at R0, `*_n` at Rn), exactly
+  /// as `interpolate()`/`decomposition()` see them: `Bn` from the n-th time
+  /// layer, `Bn1` from the (n+1)-th, `Bnh` from the half-step field
+  /// B^{n+1/2}. Used by the per-particle energy audit.
+  struct EndpointB {
+    Vector3R Bn_0, Bn1_0, Bnh_0;
+    Vector3R Bn_n, Bn1_n, Bnh_n;
+  };
+  PetscErrorCode interpolate_B_endpoints(EndpointB& f, //
+                                         const Vector3R& Rn, const Vector3R& R0);
+
+  /// @brief Reference curl for the energy audit: the grid curl `rotB_g`
+  /// (E-staggered, e.g. `rotM * B^{n+1/2}`) point-interpolated with the `S2`
+  /// electric shape at the wrapped track endpoints and averaged. Independent
+  /// of `interpolate_rotB()`, so their mismatch exposes staggering, sign or
+  /// segmentation bugs as O(1) against an O(dx^2) truncation background.
+  PetscErrorCode interpolate_rotB_grid(Vector3R& rotB_p, Vector3R*** rotB_g, //
+                                       const Vector3R& Rn, const Vector3R& R0);
+
   PetscErrorCode decomposition(const Vector3R& Rn, const Vector3R& R0,//
                                const Vector3R& Vp, PetscReal q_p, PetscReal mu_p);
 

@@ -168,9 +168,10 @@ Vector3R CoordinateInBoxQuietSine::operator()()
   for (Axis a : {X, Y, Z}) {
     if (amplitude[a] == 0.0 || wave_number[a] == 0.0)
       continue;
-    const PetscReal phase = 2.0 * M_PI * wave_number[a] * (r[a] - box.min[a]) / L[a];
+    const PetscReal arg =
+      2.0 * M_PI * wave_number[a] * (r[a] - box.min[a]) / L[a] + phase[a];
     const PetscReal scale = amplitude[a] * L[a] / (2.0 * M_PI * wave_number[a]);
-    r[a] += scale * (std::cos(phase) - 1.0);
+    r[a] += scale * (std::cos(arg) - std::cos(phase[a]));
   }
 
   ++counter;
@@ -374,9 +375,9 @@ Vector3R MaxwellShiftedSine::operator()(const Vector3R& coordinate)
 
   v_m /= std::sqrt(params.m * params.m + v_m.squared());
 
-  v_m[X] += velocity[X] * std::sin(2.0 * M_PI * wave_number[X] * coordinate[X] / Lx);
-  v_m[Y] += velocity[Y] * std::sin(2.0 * M_PI * wave_number[Y] * coordinate[Y] / Ly);
-  v_m[Z] += velocity[Z] * std::sin(2.0 * M_PI * wave_number[Z] * coordinate[Z] / Lz);
+  v_m[X] += velocity[X] * std::sin(2.0 * M_PI * wave_number[X] * coordinate[X] / Lx + phase[X]);
+  v_m[Y] += velocity[Y] * std::sin(2.0 * M_PI * wave_number[Y] * coordinate[Y] / Ly + phase[Y]);
+  v_m[Z] += velocity[Z] * std::sin(2.0 * M_PI * wave_number[Z] * coordinate[Z] / Lz + phase[Z]);
 
   return v_m;
 }

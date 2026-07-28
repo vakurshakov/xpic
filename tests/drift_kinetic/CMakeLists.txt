@@ -13,6 +13,7 @@ set(tests
   #drift_kinetic_ex3
   drift_kinetic_mirror_ex1
   #drift_kinetic_sound_ex1
+  drift_kinetic_eigen_sound_ex1
   #drift_kinetic_sound_ex3
   #drift_kinetic_betta_ex1
   #drift_kinetic_beta_ex3

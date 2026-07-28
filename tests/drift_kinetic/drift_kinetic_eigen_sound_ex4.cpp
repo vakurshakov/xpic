@@ -3,10 +3,32 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Test of energy and charge conservation for \"drift_kinetic\" implementation.  \n"
-  "The simplest case is tested: plasma cube of size L=5.0 (N=10) is modeled \n"
-  "in periodic boundaries for 100 cycles (dt=1.5). There are only maxwellian\n"
-  "electrons with the temperature T=100 eV, ions are stationary background. \n";
+  "Ion-sound EIGENMODE test for \"drift_kinetic\" implementation.             \n"
+  "A single kinetic ion-acoustic eigenmode is loaded exactly at t = 0:       \n"
+  "for every species the density and the parallel bulk velocity are set to   \n"
+  "  dn_s(z)/n_s = a_n_s sin(k z + phi_n_s),                                  \n"
+  "  du_s(z)     = C_u_s sin(k z + phi_u_s),                                  \n"
+  "with the amplitudes and phases obtained from the linear kinetic response  \n"
+  "to a field E0 (script tests/drift_kinetic/ion_sound.py).  Because the      \n"
+  "electron and ion amplitudes/phases differ, the two sorts are loaded by     \n"
+  "SEPARATE SetParticles presets (no shared/paired coordinate).              \n";
+
+
+namespace eigen {
+
+constexpr double E0 = 6.113431e-05;
+
+constexpr double a_n_e = 9.999809e-02;
+constexpr double phi_n_e = -3.014719;
+constexpr double a_n_i = 1.000000e-01;
+constexpr double phi_n_i = -3.014722;
+
+constexpr double C_u_e = 1.416097e-03;
+constexpr double phi_u_e = -3.076224;
+constexpr double C_u_i = 1.416124e-03;
+constexpr double phi_u_i = -3.076226;
+
+}  // namespace eigen
 
 void overwrite_config();
 
@@ -23,9 +45,6 @@ int main(int argc, char** argv)
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
-  //PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
-  //PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));
-
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -33,15 +52,15 @@ int main(int argc, char** argv)
 void overwrite_config()
 {
   dx = 10;
-  geom_ny = 6;
-  geom_y = geom_ny * dx;
-  geom_nx = 6;
+  geom_nx = 3;
   geom_x = geom_nx * dx;
+  geom_ny = 3;
+  geom_y = geom_ny * dx;
   geom_nz = 20;
-  geom_z = geom_nz * dx;
+  geom_z = geom_nz * dx;  // Lz = 200 c/wpe
 
-  dt = 5;
-  geom_nt = 12000;
+  dt = 10;
+  geom_nt = 20000;
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
@@ -68,19 +87,21 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", "electrons"},
-        {"Np", 2500},
+        {"Np", 10000},
         {"n", +1.0},
         {"q", -1.0},
         {"m", +1.0},
-        {"T", +5.0},
+        {"T", +10.0},
+        {"coord_is_gc", true},
       },
       {
         {"sort_name", "ions"},
-        {"Np", 2500},
+        {"Np", 10000},
         {"n", +1.0},
         {"q", +1.0},
         {"m", +100.0},
-        {"T", +0.01},
+        {"T", +0.1},
+        {"coord_is_gc", true},
       }},
     },
     {
@@ -99,62 +120,73 @@ void overwrite_config()
           },
         },
         {
+          {"command", "SetElectricField"},
+          {"field", "E"},
+          {
+            "setter",
+            {
+              {"name", "SetCosineField"},
+              {"min", {0.0, 0.0, 0.0}},
+              {"max", {geom_x, geom_y, geom_z}},
+              {"amplitude", {0.0, 0.0, eigen::E0}},
+              {"wave_number", {0.0, 0.0, 1.0}},
+            },
+          },
+        },
+        {
           {"command", "SetParticles"},
           {"particles", "electrons"},
           {"coordinate", {
-            {"name", "CoordinateInBoxSineDensity"},
+            {"name", "CoordinateInBoxQuietSine"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
-            {"amplitude",  {0.0, 0.0, 0.1}},
+            {"amplitude", {0.0, 0.0, eigen::a_n_e}},
             {"wave_number", {0.0, 0.0, 1.0}},
+            {"phase", {0.0, 0.0, eigen::phi_n_e}},
           }},
-          {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+          {"momentum", {
+            {"name", "MaxwellShiftedSine"},
+            {"min", {0.0, 0.0, 0.0}},
+            {"max", {geom_x, geom_y, geom_z}},
+            {"velocity", {0.0, 0.0, eigen::C_u_e}},
+            {"wave_number", {0.0, 0.0, 1.0}},
+            {"phase", {0.0, 0.0, eigen::phi_u_e}},
+          }},
         },
         {
           {"command", "SetParticles"},
           {"particles", "ions"},
           {"coordinate", {
-            {"name", "CoordinateInBoxSineDensity"},
+            {"name", "CoordinateInBoxQuietSine"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
-            {"amplitude", {0.0, 0.0, 0.1}},
+            {"amplitude", {0.0, 0.0, eigen::a_n_i}},
             {"wave_number", {0.0, 0.0, 1.0}},
+            {"phase", {0.0, 0.0, eigen::phi_n_i}},
           }},
-          {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+          {"momentum", {
+            {"name", "MaxwellShiftedSine"},
+            {"min", {0.0, 0.0, 0.0}},
+            {"max", {geom_x, geom_y, geom_z}},
+            {"velocity", {0.0, 0.0, eigen::C_u_i}},
+            {"wave_number", {0.0, 0.0, 1.0}},
+            {"phase", {0.0, 0.0, eigen::phi_u_i}},
+          }},
         },
       },
     },
     {
       "Diagnostics",
-  {
+      {
         {
           {"diagnostic", "FieldView"},
           {"field", "E"},
-          {"out_dir", "E_planeY"},
-          {"region", {{"type", "2D"}, {"plane", "Y"}}},
-        },
-        {
-          {"diagnostic", "FieldView"},
-          {"field", "E"},
-          {"out_dir", "E_planeZ"},
-          {"region", {{"type", "2D"}, {"plane", "Z"}}},
+          {"out_dir", "E"},
         },
         {
           {"diagnostic", "FieldView"},
           {"field", "B"},
-          {"out_dir", "B_planeY"},
-          {"region", {{"type", "2D"}, {"plane", "Y"}}},
-        },
-        {
-          {"diagnostic", "FieldView"},
-          {"field", "B"},
-          {"out_dir", "B_planeZ"},
-          {"region", {{"type", "2D"}, {"plane", "Z"}}},
-        },
-        {
-          {"diagnostic", "FieldViewZAvg"},
-          {"field", "B"},
-          {"out_dir", "B_ZAvg"},
+          {"out_dir", "B"},
         },
         {
           {"diagnostic", "FieldView"},
