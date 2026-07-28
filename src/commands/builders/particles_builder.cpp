@@ -63,6 +63,21 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = (box.max - box.min).elements_product() * frac;
     gen = CoordinateInBoxQuietSine{std::move(box), amplitude, wave_number, phase, 0};
   }
+  else if (name == "CoordinateInBoxQuietSinePaired") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    Vector3R amplitude = parse_vector(info, "amplitude");
+    Vector3R wave_number = parse_vector(info, "wave_number");
+    Vector3R phase = info.contains("phase") ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
+
+    number_of_particles = (box.max - box.min).elements_product() * frac;
+    if (number_of_particles % 2 != 0)
+      throw std::runtime_error(
+        "CoordinateInBoxQuietSinePaired requires an even number of particles");
+    gen = CoordinateInBoxQuietSinePaired{
+      std::move(box), amplitude, wave_number, phase};
+  }
   else if (name == "CoordinateInBoxQuiet") {
     BoxGeometry box;
     load_geometry(info, box);
@@ -134,7 +149,18 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
 
     gen = MaxwellShiftedSine(particles.parameters, box, velocity, wave_number, phase);
   }
+  else if (name == "MaxwellShiftedSineQuiet") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    Vector3R velocity = parse_vector(info, "velocity");
+    Vector3R wave_number = parse_vector(info, "wave_number");
+    Vector3R phase = info.contains("phase") ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
+
+    gen = MaxwellShiftedSineQuiet(
+      particles.parameters, box, velocity, wave_number, phase);
+  }
   else {
-    throw std::runtime_error("Unknown coordinate generator name " + name);
+    throw std::runtime_error("Unknown momentum generator name " + name);
   }
 }

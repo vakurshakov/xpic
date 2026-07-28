@@ -72,6 +72,22 @@ struct CoordinateInBoxQuietSine {
   mutable std::size_t counter = 0;
 };
 
+// Antithetic-pair variant of `CoordinateInBoxQuietSine`: every generated
+// coordinate is returned twice. Use together with `MaxwellShiftedSineQuiet`,
+// which assigns opposite thermal velocities to the two particles while
+// preserving the same bulk sine shift. The pair then has exactly zero thermal
+// current at one position.
+struct CoordinateInBoxQuietSinePaired {
+  Vector3R operator()();
+  BoxGeometry box;
+  Vector3R amplitude;
+  Vector3R wave_number;
+  Vector3R phase{0.0, 0.0, 0.0};
+  mutable std::size_t pair_counter = 0;
+  mutable bool return_second = false;
+  mutable Vector3R paired_coordinate;
+};
+
 // Regular (fully deterministic) uniform-box loader, following the "quiet
 // start" idea of `CoordinateInBoxQuietSine` but taken to the limit: instead
 // of scattering particles at random (`CoordinateInBox`) or along a
@@ -158,6 +174,22 @@ struct MaxwellShiftedSine {
   Vector3R velocity;
   Vector3R wave_number;
   Vector3R phase{0.0, 0.0, 0.0};
+};
+
+// Antithetic quiet-start form of `MaxwellShiftedSine`. A sampled thermal
+// velocity is followed by its exact opposite; the same prescribed bulk sine
+// shift is added to both. Together with `CoordinateInBoxQuietSinePaired`, each
+// collocated pair therefore has mean velocity equal to the requested shift
+// and zero thermal current.
+struct MaxwellShiftedSineQuiet {
+  Vector3R operator()(const Vector3R& coordinate);
+  SortParameters params;
+  BoxGeometry box;
+  Vector3R velocity;
+  Vector3R wave_number;
+  Vector3R phase{0.0, 0.0, 0.0};
+  bool return_antithetic = false;
+  Vector3R thermal_velocity;
 };
 
 struct AngularMomentum {

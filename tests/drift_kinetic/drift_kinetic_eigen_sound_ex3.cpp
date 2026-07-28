@@ -137,7 +137,7 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "electrons"},
           {"coordinate", {
-            {"name", "CoordinateInBoxQuietSine"},
+            {"name", "CoordinateInBoxQuietSinePaired"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"amplitude", {0.0, 0.0, eigen::a_n_e}},
@@ -145,7 +145,7 @@ void overwrite_config()
             {"phase", {0.0, 0.0, eigen::phi_n_e}},
           }},
           {"momentum", {
-            {"name", "MaxwellShiftedSine"},
+            {"name", "MaxwellShiftedSineQuiet"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"velocity", {0.0, 0.0, eigen::C_u_e}},
@@ -157,7 +157,7 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "ions"},
           {"coordinate", {
-            {"name", "CoordinateInBoxQuietSine"},
+            {"name", "CoordinateInBoxQuietSinePaired"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"amplitude", {0.0, 0.0, eigen::a_n_i}},
@@ -165,7 +165,7 @@ void overwrite_config()
             {"phase", {0.0, 0.0, eigen::phi_n_i}},
           }},
           {"momentum", {
-            {"name", "MaxwellShiftedSine"},
+            {"name", "MaxwellShiftedSineQuiet"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"velocity", {0.0, 0.0, eigen::C_u_i}},

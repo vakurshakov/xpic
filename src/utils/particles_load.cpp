@@ -139,27 +139,25 @@ void factor_three(PetscInt n, PetscInt out[3])
     }
   }
 }
-}  // namespace
 
-Vector3R CoordinateInBoxQuietSine::operator()()
+Vector3R quiet_sine_coordinate(const BoxGeometry& box,
+  const Vector3R& amplitude, const Vector3R& wave_number,
+  const Vector3R& phase, std::size_t index)
 {
-  static const PetscReal L[3]{
+  const PetscReal L[3]{
     box.max[X] - box.min[X],
     box.max[Y] - box.min[Y],
     box.max[Z] - box.min[Z],
   };
 
   static constexpr std::size_t bases[3] = {2, 3, 5};
-
-  // Halton index starts at 1 to keep u in (0, 1) on the very first call.
-  const std::size_t i = counter + 1;
   std::size_t halton_slot = 0;
 
   Vector3R r;
   for (Axis a : {X, Y, Z}) {
     PetscReal u;
     if (amplitude[a] != 0.0 && wave_number[a] != 0.0)
-      u = van_der_corput(i, bases[halton_slot++]);
+      u = van_der_corput(index, bases[halton_slot++]);
     else
       u = random_01();
     r[a] = box.min[a] + u * L[a];
@@ -174,8 +172,32 @@ Vector3R CoordinateInBoxQuietSine::operator()()
     r[a] += scale * (std::cos(arg) - std::cos(phase[a]));
   }
 
+  return r;
+}
+}  // namespace
+
+Vector3R CoordinateInBoxQuietSine::operator()()
+{
+  // Halton index starts at 1 to keep u in (0, 1) on the very first call.
+  Vector3R r = quiet_sine_coordinate(
+    box, amplitude, wave_number, phase, counter + 1);
   ++counter;
   return r;
+}
+
+Vector3R CoordinateInBoxQuietSinePaired::operator()()
+{
+  if (return_second) {
+    return_second = false;
+    return paired_coordinate;
+  }
+
+  // Halton index starts at 1 to keep u in (0, 1) on the first pair.
+  paired_coordinate = quiet_sine_coordinate(
+    box, amplitude, wave_number, phase, pair_counter + 1);
+  ++pair_counter;
+  return_second = true;
+  return paired_coordinate;
 }
 
 Vector3R CoordinateInBoxDisplacedSine::operator()()
@@ -334,6 +356,39 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
   return result;
 }
 
+namespace {
+Vector3R sample_thermal_velocity(const SortParameters& params)
+{
+  Vector3R result{
+    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tx, params.m),
+    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Ty, params.m),
+    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tz, params.m),
+  };
+  result /= std::sqrt(params.m * params.m + result.squared());
+  return result;
+}
+
+Vector3R sine_velocity_shift(const BoxGeometry& box, const Vector3R& velocity,
+  const Vector3R& wave_number, const Vector3R& phase,
+  const Vector3R& coordinate)
+{
+  const PetscReal L[3]{
+    box.max[X] - box.min[X],
+    box.max[Y] - box.min[Y],
+    box.max[Z] - box.min[Z],
+  };
+
+  return Vector3R{
+    velocity[X] * std::sin(
+      2.0 * M_PI * wave_number[X] * coordinate[X] / L[X] + phase[X]),
+    velocity[Y] * std::sin(
+      2.0 * M_PI * wave_number[Y] * coordinate[Y] / L[Y] + phase[Y]),
+    velocity[Z] * std::sin(
+      2.0 * M_PI * wave_number[Z] * coordinate[Z] / L[Z] + phase[Z]),
+  };
+}
+}  // namespace
+
 Vector3R MaxwellCosinePerturbation::operator()(const Vector3R& coordinate)
 {
   static const PetscReal Lx = (box.max[X] - box.min[X]);
@@ -363,23 +418,25 @@ Vector3R MaxwellCosinePerturbation::operator()(const Vector3R& coordinate)
 
 Vector3R MaxwellShiftedSine::operator()(const Vector3R& coordinate)
 {
-  static const PetscReal Lx = (box.max[X] - box.min[X]);
-  static const PetscReal Ly = (box.max[Y] - box.min[Y]);
-  static const PetscReal Lz = (box.max[Z] - box.min[Z]);
+  return sample_thermal_velocity(params)
+    + sine_velocity_shift(box, velocity, wave_number, phase, coordinate);
+}
 
-  Vector3R v_m{
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tx, params.m),
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Ty, params.m),
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tz, params.m),
-  };
+Vector3R MaxwellShiftedSineQuiet::operator()(const Vector3R& coordinate)
+{
+  Vector3R result;
+  if (!return_antithetic) {
+    thermal_velocity = sample_thermal_velocity(params);
+    result = thermal_velocity;
+    return_antithetic = true;
+  }
+  else {
+    result = -1.0 * thermal_velocity;
+    return_antithetic = false;
+  }
 
-  v_m /= std::sqrt(params.m * params.m + v_m.squared());
-
-  v_m[X] += velocity[X] * std::sin(2.0 * M_PI * wave_number[X] * coordinate[X] / Lx + phase[X]);
-  v_m[Y] += velocity[Y] * std::sin(2.0 * M_PI * wave_number[Y] * coordinate[Y] / Ly + phase[Y]);
-  v_m[Z] += velocity[Z] * std::sin(2.0 * M_PI * wave_number[Z] * coordinate[Z] / Lz + phase[Z]);
-
-  return v_m;
+  return result
+    + sine_velocity_shift(box, velocity, wave_number, phase, coordinate);
 }
 
 Vector3R AngularMomentum::operator()(const Vector3R& coordinate)

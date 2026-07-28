@@ -70,6 +70,9 @@ import sys
 import numpy as np
 
 
+# NumPy >= 2.0 renamed trapz -> trapezoid; keep both working.
+_trapz = getattr(np, "trapezoid", None) or np.trapz
+
 MEC2_KEV = 510.99895000  # electron rest energy, keV
 
 # SI constants, only for the optional physical conversion.
@@ -82,12 +85,8 @@ C_SI = 299792458.0
 # --------------------------------------------------------------------------- #
 # Plasma dispersion function Z(zeta) = i sqrt(pi) w(zeta),  w = Faddeeva func. #
 # --------------------------------------------------------------------------- #
-def _cef(x: np.ndarray, n: int = 64) -> np.ndarray:
-    """Faddeeva function w(x) = exp(-x^2) erfc(-i x) for Im(x) >= 0.
-
-    Weideman's rational approximation (SIAM J. Numer. Anal. 31 (1994) 1497),
-    accurate to ~machine precision for moderate |x| with n = 64.
-    """
+def _cef_coefficients(n: int):
+    """Weideman coefficients (a, L); cached, they depend only on `n`."""
     m = 2 * n
     m2 = 2 * m
     k = np.arange(-m + 1, m)
@@ -97,7 +96,16 @@ def _cef(x: np.ndarray, n: int = 64) -> np.ndarray:
     f = np.exp(-t**2) * (ll**2 + t**2)
     f = np.append(0.0, f)
     a = np.fft.fft(np.fft.fftshift(f)).real / m2
-    a = np.flipud(a[1:n + 1])
+    return np.flipud(a[1:n + 1]), ll
+
+
+def _cef(x: np.ndarray, n: int = 64) -> np.ndarray:
+    """Faddeeva function w(x) = exp(-x^2) erfc(-i x) for Im(x) >= 0.
+
+    Weideman's rational approximation (SIAM J. Numer. Anal. 31 (1994) 1497),
+    accurate to ~machine precision for moderate |x| with n = 64.
+    """
+    a, ll = _cef_coefficients(n)
     z = (ll + 1j * x) / (ll - 1j * x)
     p = np.polyval(a, z)
     return 2.0 * p / (ll - 1j * x)**2 + (1.0 / math.sqrt(math.pi)) / (ll - 1j * x)
@@ -717,8 +725,15 @@ def run_model(args):
     for row in rows[1:]:
         common &= set(idx for idx, _ in row["timesteps"])
     common = sorted(common)
+    if args.model_tmax is not None:
+        if args.model_tmax <= 0.0:
+            raise SystemExit("--model-tmax must be positive.")
+        t_limit = args.model_tmax * T_wave
+        tolerance = 1.0e-12 * max(1.0, t_limit)
+        common = [idx for idx in common if idx * const.dts <= t_limit + tolerance]
     if not common:
-        raise SystemExit("No timesteps common to all requested density diagnostics.")
+        raise SystemExit("No timesteps common to all requested density diagnostics "
+                         "inside the requested --model-tmax interval.")
 
     names_per_row = []
     for row in rows:
@@ -727,6 +742,7 @@ def run_model(args):
 
     n0 = 1.0
     z = (np.arange(const.Nz) + 0.5) * const.dz
+    first_harmonic_kernel = np.exp(-1j * k * z)
     times = np.array([idx * const.dts for idx in common], dtype=float)
     t_max = float(times[-1]) if times.size else T_wave
 
@@ -755,6 +771,8 @@ def run_model(args):
               f"  C_u = {C_u:.6e}, phi_u = {phi_u:+.6f}")
         print(f"             theory dn(0) = {theory[s.name][0]:.6e}")
     print(f"  frames = {len(common)} , t in [0, {t_max:.6g}] [1/w_pe]")
+    if args.model_tmax is not None:
+        print(f"  drawing limit = {args.model_tmax:.6g} T")
     print()
 
     # ---- Figure: left = density profile, right = perturbation amplitude ---- #
@@ -793,31 +811,37 @@ def run_model(args):
     ax_z.set_box_aspect(1)
     ax_z.set_title(r"Профиль плотности", fontsize=labelsize, bbox=bbox)
 
-    # Right panel: simulation dn(t) for every species (accumulated), plus the
-    # exact kinetic theory (ballistic + collective) for ions only.
+    # Right panel: the first z-harmonic of simulation dn(t) for every species,
+    # plus the exact kinetic theory and its pure exponential Landau envelope.
     lines_amp = {}
     series_amp = {}
     for row in rows:
         st = dict(style.get(row["species"], {"marker": "o", "linestyle": "-"}))
-        st["label"] = rf"$\delta n_{{{row['species'][0]}}}$ (model)"
+        st["label"] = rf"$|\delta n_{{{row['species'][0]},1}}|$ (model)"
         lines_amp[row["species"]] = ax_amp.plot([], [], **st)[0]
         series_amp[row["species"]] = []
 
     dn_theory_i = theory[ion.name]
+    dn_exponential_i = abs(cn_hat[ion.name]) * np.exp(-Gamma * t_grid)
     ax_amp.plot(t_grid / T_wave, dn_theory_i, color="black", linewidth=2.0,
                 linestyle="-", alpha=0.9,
-                label=r"$\delta n_i$ (theory, ballistic+collective)")
+                label=r"$|\delta n_{i,1}|$ (theory, ballistic+collective)")
+    ax_amp.plot(t_grid / T_wave, dn_exponential_i, color="black", linewidth=1.8,
+                linestyle="--", alpha=0.75,
+                label=r"$|\delta n_{i,1}(0)|e^{-\Gamma t}$")
 
-    amp_hi_lim = max(0.06, 1.25 * float(np.nanmax(dn_theory_i)))
+    amp_hi_lim = max(0.06, 1.25 * float(
+        max(np.nanmax(dn_theory_i), np.nanmax(dn_exponential_i))))
     ax_amp.set_xlim(0.0, t_max / T_wave)
     ax_amp.set_ylim(0.0, amp_hi_lim)
     ax_amp.set_xlabel(r"$t/T$", fontsize=labelsize)
     ax_amp.set_ylabel(
-        r"$\delta n(t) = \sqrt{\frac{2}{L_z}\int"
-        r"\left(\langle n\rangle_{x,y}/n_0 - 1\right)^2 dz}$", fontsize=labelsize)
+        r"$|\delta n_1(t)| = \left|\frac{2}{L_z}\int"
+        r"\left(\langle n\rangle_{x,y}/n_0 - 1\right)e^{-ikz}dz\right|$",
+        fontsize=labelsize)
     ax_amp.tick_params(labelsize=ticksize)
     ax_amp.grid(True, alpha=0.3)
-    ax_amp.set_title(r"Амплитуда возмущения", fontsize=labelsize, bbox=bbox)
+    ax_amp.set_title(r"Амплитуда первой гармоники", fontsize=labelsize, bbox=bbox)
     ax_amp.set_box_aspect(1)
     ax_amp.legend(loc="upper right", fontsize=ticksize)
 
@@ -843,7 +867,8 @@ def run_model(args):
             profile = profile_ext(data)
             lines_z[row["species"]].set_data(z, profile / n0)
             dev = profile / n0 - 1.0
-            series_amp[row["species"]].append(float(np.sqrt(2.0 * np.mean(dev * dev))))
+            dn1 = 2.0 * np.mean(dev * first_harmonic_kernel)
+            series_amp[row["species"]].append(float(abs(dn1)))
             lines_amp[row["species"]].set_data(times_acc, series_amp[row["species"]])
         suptitle.set_text(rf"$t = {t_phys / T_wave:.3f}\,T$")
         return [*lines_z.values(), *lines_amp.values(), suptitle]
@@ -1062,6 +1087,9 @@ def build_parser():
     # --- model-mode parameters ---
     p.add_argument("--species", nargs="+", default=None,
                    help="model mode: sorts to plot (default: every density diagnostic)")
+    p.add_argument("--model-tmax", type=float, default=None,
+                   help="model mode: draw only frames with t/T not greater than "
+                        "this positive number of ion-sound periods")
     p.add_argument("--dpi", type=int, default=120, help="model mode: figure DPI")
     p.add_argument("--out-subdir", default="ion_sound_model",
                    help="model mode: subdir under <out_dir>/processed for the output")

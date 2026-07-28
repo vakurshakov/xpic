@@ -22,6 +22,19 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
   load_coordinate(
     info.at("coordinate"), particles, generate_coordinate, number_of_particles);
 
+  const bool quiet_coordinate =
+    info.at("coordinate").at("name").get<std::string>()
+    == "CoordinateInBoxQuietSinePaired";
+  auto validate_quiet_pair = [quiet_coordinate](
+                               const Configuration::json_t& momentum_info) {
+    const bool quiet_momentum =
+      momentum_info.at("name").get<std::string>() == "MaxwellShiftedSineQuiet";
+    if (quiet_coordinate != quiet_momentum)
+      throw std::runtime_error(
+        "CoordinateInBoxQuietSinePaired and MaxwellShiftedSineQuiet "
+        "must be used together");
+  };
+
   // Drift-kinetic paired loader: one shared coordinate stream for both sorts.
   // Triggered by `"paired_with": "<other_sort_name>"` plus a second momentum
   // generator `"momentum_paired"`. Both sorts must be `drift_kinetic::Particles`.
@@ -36,6 +49,9 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
     auto* dk_b = dynamic_cast<drift_kinetic::Particles*>(&other);
 
     if (dk_a && dk_b) {
+      validate_quiet_pair(info.at("momentum"));
+      validate_quiet_pair(info.at("momentum_paired"));
+
       MomentumGenerator generate_momentum_a;
       load_momentum(info.at("momentum"), particles, generate_momentum_a);
 
@@ -57,6 +73,7 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
       "SetParticles \"paired_with\" requires both sorts to be drift_kinetic");
   }
 
+  validate_quiet_pair(info.at("momentum"));
   MomentumGenerator generate_momentum;
   load_momentum(info.at("momentum"), particles, generate_momentum);
 
