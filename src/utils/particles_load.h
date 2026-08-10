@@ -72,17 +72,44 @@ struct CoordinateInBoxQuietSine {
   mutable std::size_t counter = 0;
 };
 
-// Antithetic-pair variant of `CoordinateInBoxQuietSine`: every generated
-// coordinate is returned twice. Use together with `MaxwellShiftedSineQuiet`,
-// which assigns opposite thermal velocities to the two particles while
-// preserving the same bulk sine shift. The pair then has exactly zero thermal
-// current at one position.
+// Fully deterministic antithetic-pair variant of
+// `CoordinateInBoxQuietSine`: the undisplaced base coordinate uses the 3-D
+// Halton sequence (bases 2, 3, 5) on every axis, including axes without a
+// density perturbation. Separate generator instances with the same box and
+// call count therefore produce the same electron/ion base coordinates while
+// still applying their species-specific sine displacement afterwards.
+//
+// Every displaced coordinate is returned twice. Use together with
+// `MaxwellShiftedSineQuiet`, which assigns opposite thermal velocities to the
+// two collocated particles while preserving the same bulk sine shift.
 struct CoordinateInBoxQuietSinePaired {
   Vector3R operator()();
   BoxGeometry box;
   Vector3R amplitude;
   Vector3R wave_number;
   Vector3R phase{0.0, 0.0, 0.0};
+  mutable std::size_t pair_counter = 0;
+  mutable bool return_second = false;
+  mutable Vector3R paired_coordinate;
+};
+
+// Exact-CDF quiet loader for a single sinusoidally perturbed axis. Unlike the
+// displacement loaders above, this samples
+//   p(s) = 1 + amplitude * sin(2*pi*mode*s/L + phase)
+// without an O(amplitude^2) coordinate-map error. Every coordinate is returned
+// twice so a paired momentum loader can cancel perpendicular thermal current.
+struct CoordinateInBoxQuietSineExactPaired {
+  CoordinateInBoxQuietSineExactPaired(BoxGeometry box,
+    const Vector3R& amplitude, const Vector3R& wave_number,
+    const Vector3R& phase);
+
+  Vector3R operator()();
+
+  BoxGeometry box;
+  Vector3R amplitude;
+  Vector3R wave_number;
+  Vector3R phase{0.0, 0.0, 0.0};
+  Axis axis = Z;
   mutable std::size_t pair_counter = 0;
   mutable bool return_second = false;
   mutable Vector3R paired_coordinate;
@@ -176,11 +203,14 @@ struct MaxwellShiftedSine {
   Vector3R phase{0.0, 0.0, 0.0};
 };
 
-// Antithetic quiet-start form of `MaxwellShiftedSine`. A sampled thermal
-// velocity is followed by its exact opposite; the same prescribed bulk sine
-// shift is added to both. Together with `CoordinateInBoxQuietSinePaired`, each
-// collocated pair therefore has mean velocity equal to the requested shift
-// and zero thermal current.
+// Antithetic quiet-start form of `MaxwellShiftedSine`. Thermal momentum is
+// sampled with a deterministic 6-D Halton Box-Muller sequence instead of the
+// global RNG, stratifying both Gaussian radii and phases and reducing noise in
+// second moments (in particular v_perp^2 and the drift-kinetic magnetic
+// moment). Every sample is followed by its exact opposite; the prescribed
+// bulk sine shift is added to both. Together with
+// `CoordinateInBoxQuietSinePaired`, each collocated pair therefore has the
+// requested mean velocity and exactly zero thermal current.
 struct MaxwellShiftedSineQuiet {
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params;
@@ -190,6 +220,69 @@ struct MaxwellShiftedSineQuiet {
   Vector3R phase{0.0, 0.0, 0.0};
   bool return_antithetic = false;
   Vector3R thermal_velocity;
+  std::size_t pair_counter = 0;
+};
+
+// Non-relativistic Maxwellian velocity loader for drift-kinetic quiet starts.
+// Each accepted sample is followed by its exact opposite. Components are
+// sampled directly with variance T/(m*mec2); unlike the momentum loaders, no
+// relativistic p -> v conversion is applied. Samples with |v| >= c are
+// rejected because a Gaussian has unbounded support while particle velocities
+// must remain subluminal.
+struct MaxwellianVelocityQuiet {
+  explicit MaxwellianVelocityQuiet(const SortParameters& params);
+
+  Vector3R operator()(const Vector3R& coordinate);
+
+  SortParameters params;
+  bool return_antithetic = false;
+  Vector3R thermal_velocity;
+  std::size_t candidate_counter = 0;
+};
+
+// Positive, regularized kinetic ion-sound loading. The coordinate generator
+// supplies the requested density n(z); this generator samples the conditional
+// parallel distribution
+//   F0(v) max(0, 1 + Re[h_hat(v) exp(i(kz+field_phase))]) / normalization(z),
+// with h_hat obtained from the damped linear Vlasov response. A precomputed
+// inverse-CDF table gives quiet antithetic quantiles without correlating
+// rejection attempts with the quiet coordinate sequence. The perpendicular
+// Maxwellian is left unperturbed and paired gyro-angles are opposite at every
+// duplicated coordinate.
+struct KineticIonSoundQuiet {
+  KineticIonSoundQuiet(const SortParameters& params, BoxGeometry box,
+    PetscReal electric_amplitude, PetscReal omega_real, PetscReal gamma,
+    const Vector3R& wave_number, const Vector3R& field_phase,
+    PetscReal velocity_cutoff_vT = 8.0,
+    PetscReal velocity_abs_max = 0.95);
+
+  Vector3R operator()(const Vector3R& coordinate);
+
+  SortParameters params;
+  BoxGeometry box;
+  PetscReal electric_amplitude;
+  PetscReal omega_real;
+  PetscReal gamma;
+  Vector3R wave_number;
+  Vector3R field_phase;
+  PetscReal velocity_cutoff_vT;
+  PetscReal velocity_abs_max;
+  Axis axis = Z;
+  PetscReal vT_parallel = 0.0;
+  PetscReal k_parallel = 0.0;
+  PetscReal v_parallel_max = 0.0;
+  bool return_second = false;
+  Vector3R second_velocity;
+  std::size_t pair_counter = 0;
+  std::size_t perpendicular_counter = 0;
+  std::shared_ptr<std::vector<PetscReal>> inverse_cdf;
+
+private:
+  void build_inverse_cdf();
+  PetscReal sample_parallel(
+    const Vector3R& coordinate, PetscReal quantile) const;
+  Vector3R sample_perpendicular_pair(
+    PetscReal v_parallel_first, PetscReal v_parallel_second);
 };
 
 struct AngularMomentum {

@@ -134,7 +134,8 @@ def parse_args():
     parser.add_argument("--drift",
                         choices=("exb", "gradb", "trap",
                                  "energy_dK", "energy_dW", "charge",
-                                 "energy_charge", "trap_energy_dK"),
+                                 "energy_charge", "energy_charge_loss",
+                                 "trap_energy_dK"),
                         default="exb",
                         help="Drift type shown as the legend title "
                              "(default: exb)")
@@ -147,7 +148,8 @@ def parse_args():
                         help="Upper limit on the time axis (for --drift energy_dK)")
     parser.add_argument("--energy", type=float, default=None,
                         help="Symmetric +-limit on the energy y axis "
-                             "(for --drift energy_dK/energy_dW/energy_charge)")
+                             "(for --drift energy_dK/energy_dW/"
+                             "energy_charge/energy_charge_loss)")
     parser.add_argument("--out", default=None,
                         help="Output image path "
                              "(default: <dir>/traces_<plane>.png)")
@@ -287,6 +289,24 @@ def _load_dk_diagnostic(directory):
     return data, idx
 
 
+def _load_energy_conservation(directory):
+    """Load field-energy changes and losses in the B-B0 convention."""
+    path = os.path.join(directory, "energy_conservation.txt")
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"energy_conservation.txt not found in {directory}")
+    with open(path) as f:
+        header = f.readline().split()
+    idx = {name: i for i, name in enumerate(header)}
+    required = ("Time", "dE", "dB", "Damped(E+B)")
+    missing = [name for name in required if name not in idx]
+    if missing:
+        raise ValueError(
+            f"{path} has no required column(s): {', '.join(missing)}")
+    data = np.loadtxt(path, skiprows=1)
+    return data, idx
+
+
 def _plot_energy_curve(args, t, y, ylabel, out_suffix,
                        color="darkgreen", symmetric=True):
     if args.time is not None:
@@ -351,9 +371,15 @@ def plot_charge(args):
                        color="saddlebrown", symmetric=False)
 
 
-def plot_energy_charge(args):
+def plot_energy_charge(args, include_damping_loss=False):
     """Energy drift (top) and charge residual (bottom) stacked vertically,
-    sharing a single time axis, in the drift_kinetic_exb_ex1.py style."""
+    sharing a single time axis, in the drift_kinetic_exb_ex1.py style.
+
+    When ``include_damping_loss`` is true, combine the drift-kinetic dK with
+    the field-energy changes and damping loss from energy_conservation.txt.
+    The latter consistently measures magnetic perturbation energy (B-B0)^2/2
+    instead of the full B^2/2 used by the DK diagnostic.
+    """
     data, idx = _load_dk_diagnostic(args.dir)
 
     # LaTeX look without a TeX install: Computer Modern mathtext on a serif
@@ -374,7 +400,22 @@ def plot_energy_charge(args):
     # latter subtracts two large near-equal numbers and loses precision as
     # W0 dominates the difference over a long run.
     W0 = data[0, idx["wEB+wK"]]
-    dW = np.cumsum(data[:, idx["dE+dB+dK"]]) / W0
+    if include_damping_loss:
+        loss_data, loss_idx = _load_energy_conservation(args.dir)
+        loss_t = loss_data[:, loss_idx["Time"]]
+        if loss_t.shape != t.shape or not np.allclose(loss_t, t):
+            raise ValueError(
+                "Time columns in dk_diagnostic.txt and "
+                "energy_conservation.txt do not match")
+        energy_increment = (
+            data[:, idx["dK"]]
+            + loss_data[:, loss_idx["dE"]]
+            + loss_data[:, loss_idx["dB"]]
+            + loss_data[:, loss_idx["Damped(E+B)"]]
+        )
+    else:
+        energy_increment = data[:, idx["dE+dB+dK"]]
+    dW = np.cumsum(energy_increment) / W0
     charge = data[:, idx["N2dQ_tot"]]
 
     if args.time is not None:
@@ -394,6 +435,36 @@ def plot_energy_charge(args):
         m = float(np.max(np.abs(dW))) or 1.0
     ax_top.set_ylim(-m * 1.05, m * 1.05)
     ax_top.set_ylabel(r"$\delta_W(t)$", fontsize=label_fs)
+
+    # Zoom the settled tail inside the energy panel.  Scaling both axes to
+    # the last 30% of the trace makes its small residual range visible after
+    # a much larger initial transient.
+    if t.size >= 2:
+        tail_start = t[0] + 0.7 * (t[-1] - t[0])
+        tail_mask = t >= tail_start
+        tail_t = t[tail_mask]
+        tail_dW = dW[tail_mask]
+
+        ax_zoom = ax_top.inset_axes([0.38, 0.08, 0.28, 0.36])
+        ax_zoom.plot(tail_t, tail_dW, color="#2ca02c",
+                     linestyle="-", linewidth=1.5)
+        ax_zoom.set_xlim(float(tail_t[0]), float(tail_t[-1]))
+
+        tail_lo = float(np.min(tail_dW))
+        tail_hi = float(np.max(tail_dW))
+        tail_span = tail_hi - tail_lo
+        tail_pad = (0.12 * tail_span if tail_span else
+                    max(0.05 * abs(tail_lo), np.finfo(float).eps))
+        ax_zoom.set_ylim(tail_lo - tail_pad, tail_hi + tail_pad)
+        ax_zoom.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        ax_zoom.minorticks_on()
+        ax_zoom.tick_params(axis="both", which="both", direction="in",
+                            top=True, right=True,
+                            labelsize=max(tick_fs - 5, 8))
+        ax_zoom.yaxis.get_offset_text().set_fontsize(max(tick_fs - 5, 8))
+        ax_zoom.grid(True, alpha=0.25)
+        ax_top.indicate_inset_zoom(
+            ax_zoom, edgecolor="0.25", linewidth=0.8, alpha=0.75)
 
     ax_bot.plot(t, charge, color="#ff7f0e", linestyle="-", linewidth=2.0,
                 zorder=2)
@@ -415,9 +486,12 @@ def plot_energy_charge(args):
     # Shared x axis: only the bottom panel keeps the time tick labels.
     ax_top.tick_params(axis="x", which="both", labelbottom=False)
 
-    fig.tight_layout()
-    out = args.out or os.path.join(args.dir, "traces_energy_charge.png")
-    fig.savefig(out, dpi=args.dpi)
+    # Keep extra padding around the large math labels; the default tight
+    # layout can clip the left edge of delta_W(t) for some font backends.
+    fig.tight_layout(pad=2.0)
+    suffix = "energy_charge_loss" if include_damping_loss else "energy_charge"
+    out = args.out or os.path.join(args.dir, f"traces_{suffix}.png")
+    fig.savefig(out, dpi=args.dpi, bbox_inches="tight", pad_inches=0.15)
     print(f"Saved {out}")
 
 
@@ -569,6 +643,10 @@ def main():
 
     if args.drift == "energy_charge":
         plot_energy_charge(args)
+        return
+
+    if args.drift == "energy_charge_loss":
+        plot_energy_charge(args, include_damping_loss=True)
         return
 
     if args.drift == "trap_energy_dK":

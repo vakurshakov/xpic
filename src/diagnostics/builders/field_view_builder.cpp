@@ -32,6 +32,17 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
   if (info.contains("region"))
     parse_region(info.at("region"), region, field);
 
+  if (info.contains("component")) {
+    if (region.dof != Vector3R::dim)
+      throw std::runtime_error(
+        "FieldView component selection requires a vector field");
+
+    const Axis component =
+      get_component(info.at("component").get<std::string>());
+    region.start[C] = component;
+    region.size[C] = 1;
+  }
+
   if (info.contains("out_dir"))
     info.at("out_dir").get_to(out_dir);
 

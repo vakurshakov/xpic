@@ -1,4 +1,5 @@
 #include "particles.h"
+#include "src/algorithms/adaptive_substepping.h"
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/simulation.h"
@@ -146,6 +147,10 @@ PetscErrorCode Particles::form_iteration()
 
   avgit = 0.0;
   maxit = 0;
+  push_retries_ = 0;
+  push_leaf_failures_ = 0;
+  max_push_leaf_residue_r_ = 0.0;
+  max_push_leaf_residue_v_ = 0.0;
 
   PetscReal q = parameters.q;
   PetscReal m = parameters.m;
@@ -158,9 +163,10 @@ PetscErrorCode Particles::form_iteration()
   PetscReal aud_max_push = 0.0;
   PetscReal aud_max_gradB = 0.0;
 
-#pragma omp parallel for reduction(+ : avgit) reduction(max : maxit) \
+#pragma omp parallel for reduction(+ : avgit, push_retries_, push_leaf_failures_) \
   reduction(kahan_add : aud_push, aud_gradB, aud_total) \
-  reduction(max : aud_max_push, aud_max_gradB)
+  reduction(max : maxit, max_push_leaf_residue_r_, max_push_leaf_residue_v_, \
+    aud_max_push, aud_max_gradB)
     for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
       const auto& prev_cell = dk_prev_storage[g];
 
@@ -175,33 +181,28 @@ PetscErrorCode Particles::form_iteration()
           [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
             Vector3R& gradB_p, Vector3R& rotB_p) { util_local.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0); });
 
-        PetscReal it_sum = 0.0;
-        PetscInt it_max = 0;
-
-        // Per-particle energy defects, accumulated over (sub)segments; see
-        // `Particles::EnergyAudit` for the meaning of the three levels.
+        // Per-particle energy defects are accumulated only by accepted leaf
+        // segments. Failed parent attempts that trigger a retry are discarded.
         PetscReal D_push_p = 0.0;
         PetscReal D_gradB_p = 0.0;
         PetscReal D_total_p = 0.0;
 
-        std::function<void(PetscReal, PointByField&, const PointByField&, PetscInt)> solve_segment =
-          [&](PetscReal dt_sub, PointByField& pn, const PointByField& p0, PetscInt depth) {
-            push.process(dt_sub, pn, p0);
-
-            it_sum += (PetscReal)push.get_iteration_number();
-            it_max = std::max(it_max, (PetscInt)push.get_iteration_number());
-
-            if (!push.has_converged() && depth < max_substep_depth) {
-              PointByField mid(p0);
-              mid.r = 0.5 * (p0.r + pn.r);
-              mid.p_parallel = 0.5 * (p0.p_parallel + pn.p_parallel);
-
-              const PetscReal dt_half = 0.5 * dt_sub;
-              solve_segment(dt_half, mid, p0, depth + 1);
-              solve_segment(dt_half, pn, mid, depth + 1);
-              return;
-            }
-
+        AdaptiveSubstepStats stats;
+        auto attempt = [&](PetscReal dt_sub, PointByField& pn,
+                         const PointByField& p0) {
+          push.process(dt_sub, pn, p0);
+          return AdaptiveSubstepAttempt{
+            push.has_converged(), push.get_iteration_number(),
+            push.get_FRk(), push.get_FVhk()};
+        };
+        auto midpoint = [](const PointByField& p0, const PointByField& pn) {
+          PointByField mid(p0);
+          mid.r = 0.5 * (p0.r + pn.r);
+          mid.p_parallel = 0.5 * (p0.p_parallel + pn.p_parallel);
+          return mid;
+        };
+        auto accept = [&](PetscReal dt_sub, PointByField& pn,
+                        const PointByField& p0) {
             const PetscReal a0 = qn_Np(pn);
             const PetscReal b0 = pn.mu_p * n_Np(pn);
             const Vector3R Vp_sub = (pn.r - p0.r) / dt_sub;
@@ -241,12 +242,19 @@ PetscErrorCode Particles::form_iteration()
               D_gradB_p += wt * (W_gradB - W_hB);
               D_total_p += wt * (dK_par + dK_mu - W_E - W_M);
             }
-          };
+        };
 
-        solve_segment(dt, curr, prev, 0);
+        adaptive_substep(dt, curr, prev, max_substep_depth,
+          attempt, midpoint, accept, stats);
 
-        avgit += it_sum * inv_size;
-        maxit = std::max(maxit, it_max);
+        avgit += static_cast<PetscReal>(stats.iteration_sum) * inv_size;
+        maxit = std::max(maxit, stats.max_iterations);
+        push_retries_ += stats.retries;
+        push_leaf_failures_ += stats.leaf_failures;
+        max_push_leaf_residue_r_ =
+          std::max(max_push_leaf_residue_r_, stats.max_leaf_residue_r);
+        max_push_leaf_residue_v_ =
+          std::max(max_push_leaf_residue_v_, stats.max_leaf_residue_v);
 
         if (energy_audit_enabled_) {
           aud_push.add(D_push_p);
@@ -274,6 +282,22 @@ PetscErrorCode Particles::form_iteration()
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
+
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_retries_, 1,
+    MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_leaf_failures_, 1,
+    MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_r_, 1,
+    MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_v_, 1,
+    MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+
+  if (push_leaf_failures_ > 0 && !fail_on_terminal_nonconvergence_) {
+    LOG("WARNING: DK Push terminal non-convergence: sort={}, leaf_failures={}, "
+        "max FRk={: .4e}, max FVhk={: .4e}",
+      parameters.sort_name, push_leaf_failures_,
+      max_push_leaf_residue_r_, max_push_leaf_residue_v_);
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

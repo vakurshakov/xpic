@@ -1,5 +1,7 @@
 #include "diagnostic.h"
 
+#include <algorithm>
+
 #include "src/impls/drift_kinetic/simulation.h"
 #include "src/algorithms/simple_interpolation.h"
 #include "src/utils/geometries.h"
@@ -343,6 +345,149 @@ PetscErrorCode DkDistributionMoment::collect()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+std::unique_ptr<DkDistributionFunction> DkDistributionFunction::create(
+  const std::string& out_dir, const Particles& particles,
+  const DkPhaseAxis& v_parallel, const DkPhaseAxis& mu_p,
+  PetscInt diagnose_period, PetscInt max_frames)
+{
+  if (!(v_parallel.max > v_parallel.min) || v_parallel.bins <= 0)
+    throw std::runtime_error(
+      "DkDistributionFunction requires a non-empty v_parallel range and positive bins");
+  if (!(mu_p.max > mu_p.min) || mu_p.bins <= 0)
+    throw std::runtime_error(
+      "DkDistributionFunction requires a non-empty mu_p range and positive bins");
+  if (diagnose_period <= 0)
+    throw std::runtime_error(
+      "DkDistributionFunction diagnose_period must be positive");
+  if (max_frames == 0 || max_frames < -1)
+    throw std::runtime_error(
+      "DkDistributionFunction max_frames must be positive or unlimited (-1)");
+
+  MPI_Comm comm = MPI_COMM_NULL;
+  PetscCallAbort(PETSC_COMM_WORLD,
+    MPI_Comm_dup(PETSC_COMM_WORLD, &comm));
+  return std::unique_ptr<DkDistributionFunction>(
+    new DkDistributionFunction(out_dir, particles, v_parallel, mu_p,
+      diagnose_period, max_frames, comm));
+}
+
+DkDistributionFunction::DkDistributionFunction(const std::string& out_dir,
+  const Particles& particles, const DkPhaseAxis& v_parallel,
+  const DkPhaseAxis& mu_p, PetscInt diagnose_period,
+  PetscInt max_frames, MPI_Comm comm)
+  : interfaces::Diagnostic(out_dir, diagnose_period), particles(particles),
+    v_parallel(v_parallel), mu_p(mu_p), max_frames(max_frames), comm(comm)
+{
+}
+
+PetscErrorCode DkDistributionFunction::finalize()
+{
+  PetscFunctionBeginUser;
+  if (comm != MPI_COMM_NULL)
+    PetscCallMPI(MPI_Comm_free(&comm));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
+{
+  if (t % diagnose_period_ != 0 ||
+      (max_frames > 0 && frames_written >= max_frames))
+    return PETSC_SUCCESS;
+
+  PetscFunctionBeginUser;
+  const Vector3I& local_start = particles.world.start;
+  const Vector3I& local_size = particles.world.size;
+  const PetscInt nv = v_parallel.bins;
+  const PetscInt nmu = mu_p.bins;
+  const PetscReal dv = (v_parallel.max - v_parallel.min) / nv;
+  const PetscReal dmu = (mu_p.max - mu_p.min) / nmu;
+  const PetscReal marker_density =
+    particles.parameters.n /
+    static_cast<PetscReal>(particles.parameters.Np);
+  const PetscReal histogram_weight = marker_density / (dv * dmu);
+
+  const std::size_t velocity_cells =
+    static_cast<std::size_t>(nv) * static_cast<std::size_t>(nmu);
+  const std::size_t local_cells =
+    static_cast<std::size_t>(local_size.elements_product());
+  std::vector<float> histogram(local_cells * velocity_cells, 0.0f);
+
+  PetscInt included_local = 0;
+  PetscInt omitted_local = 0;
+  const auto& storage = particles.get_dk_curr_storage();
+#pragma omp parallel for reduction(+ : included_local, omitted_local)
+  for (PetscInt g = 0; g < static_cast<PetscInt>(storage.size()); ++g) {
+    for (const auto& point : storage[g]) {
+      const PetscInt iv = static_cast<PetscInt>(
+        std::floor((point.p_parallel - v_parallel.min) / dv));
+      const PetscInt imu = static_cast<PetscInt>(
+        std::floor((point.mu_p - mu_p.min) / dmu));
+      if (iv < 0 || iv >= nv || imu < 0 || imu >= nmu) {
+        ++omitted_local;
+        continue;
+      }
+      const std::size_t index =
+        (static_cast<std::size_t>(g) * nv + iv) * nmu + imu;
+#pragma omp atomic update
+      histogram[index] += static_cast<float>(histogram_weight);
+      ++included_local;
+    }
+  }
+
+  PetscInt counts[2]{included_local, omitted_local};
+  PetscCallMPI(MPI_Allreduce(
+    MPI_IN_PLACE, counts, 2, MPIU_INT, MPI_SUM, comm));
+  const PetscInt total = counts[0] + counts[1];
+  const PetscReal omitted_fraction =
+    total > 0 ? static_cast<PetscReal>(counts[1]) / total : 0.0;
+  LOG("  DkDistributionFunction {}: included {}, omitted {} ({:.6e})",
+    particles.parameters.sort_name, counts[0], counts[1], omitted_fraction);
+
+  const PetscInt global_sizes[5]{
+    geom_nz, geom_ny, geom_nx, nv, nmu};
+  const PetscInt local_sizes[5]{
+    local_size[Z], local_size[Y], local_size[X], nv, nmu};
+  const PetscInt file_starts[5]{
+    local_start[Z], local_start[Y], local_start[X], 0, 0};
+  PetscMPIInt global_sizes_mpi[5];
+  PetscMPIInt local_sizes_mpi[5];
+  PetscMPIInt file_starts_mpi[5];
+  for (PetscInt i = 0; i < 5; ++i) {
+    PetscCall(PetscMPIIntCast(global_sizes[i], &global_sizes_mpi[i]));
+    PetscCall(PetscMPIIntCast(local_sizes[i], &local_sizes_mpi[i]));
+    PetscCall(PetscMPIIntCast(file_starts[i], &file_starts_mpi[i]));
+  }
+
+  MPI_Datatype file_view = MPI_DATATYPE_NULL;
+  PetscCallMPI(MPI_Type_create_subarray(5, global_sizes_mpi,
+    local_sizes_mpi, file_starts_mpi, MPI_ORDER_C, MPI_FLOAT, &file_view));
+  PetscCallMPI(MPI_Type_commit(&file_view));
+
+  const std::filesystem::path filename =
+    std::filesystem::path(out_dir_) / format_time(t);
+  PetscMPIInt rank = 0;
+  PetscCallMPI(MPI_Comm_rank(comm, &rank));
+  if (rank == 0) {
+    std::filesystem::create_directories(filename.parent_path());
+    std::filesystem::remove(filename);
+  }
+  PetscCallMPI(MPI_Barrier(comm));
+
+  MPI_File file = MPI_FILE_NULL;
+  PetscCallMPI(MPI_File_open(comm, filename.c_str(),
+    MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file));
+  PetscCallMPI(MPI_File_set_view(
+    file, 0, MPI_FLOAT, file_view, "native", MPI_INFO_NULL));
+  PetscMPIInt write_count = 0;
+  PetscCall(PetscMPIIntCast(histogram.size(), &write_count));
+  PetscCallMPI(MPI_File_write_all(
+    file, histogram.data(), write_count, MPI_FLOAT, MPI_STATUS_IGNORE));
+  PetscCallMPI(MPI_File_close(&file));
+  PetscCallMPI(MPI_Type_free(&file_view));
+  ++frames_written;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 std::unique_ptr<MatMultFieldView> MatMultFieldView::create(
   const std::string& out_dir, DM da, Vec source, Mat op,
   const Region& region)
@@ -629,6 +774,13 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   for (const auto& sort : simulation.particles_) {
     const auto& name = sort->parameters.sort_name;
     add(13, "MaxPushIt_" + name, "{:d}", sort->get_max_iteration_number());
+    const std::string retries_title = "PushRetries_" + name;
+    const std::string failures_title = "PushLeafFailures_" + name;
+    add(std::max<PetscInt>(13, static_cast<PetscInt>(retries_title.size())),
+      retries_title, "{:d}", sort->get_push_retries());
+    add(std::max<PetscInt>(13, static_cast<PetscInt>(failures_title.size())),
+      failures_title, "{:d}",
+      sort->get_push_leaf_failures());
   }
   add(13, "AvgFieldIt", "{:d}", simulation.last_field_itnum);
 

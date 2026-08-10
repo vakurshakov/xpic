@@ -1,5 +1,7 @@
 #include "segments.h"
 
+#include <limits>
+
 namespace drift_kinetic {
 
 constexpr PetscReal split_eps = 1e-14;
@@ -10,6 +12,13 @@ struct PeriodicBox {
   PetscReal upper = 0.0;
   PetscReal length = 0.0;
 };
+
+PetscReal boundary_tolerance(const PeriodicBox& box)
+{
+  const PetscReal scale = std::max(
+    {PetscReal{1.0}, std::abs(box.lower), std::abs(box.upper), box.length});
+  return PetscReal{64.0} * std::numeric_limits<PetscReal>::epsilon() * scale;
+}
 
 DriftKineticSegment make_segment(const Vector3R& Rs0, const Vector3R& Rsn)
 {
@@ -37,13 +46,11 @@ PeriodicBox make_periodic_box(Axis axis, CellSplitMode mode)
 
 PetscReal clamp_periodic_coordinate(PetscReal value, const PeriodicBox& box)
 {
-  if (std::abs(value - box.lower) <= split_eps)
+  const PetscReal tolerance = boundary_tolerance(box);
+
+  if (std::abs(value - box.lower) <= tolerance)
     return box.lower;
-  if (std::abs(value - box.upper) <= split_eps)
-    return box.upper;
-  if (value < box.lower && value > box.lower - split_eps)
-    return box.lower;
-  if (value > box.upper && value < box.upper + split_eps)
+  if (std::abs(value - box.upper) <= tolerance)
     return box.upper;
   return value;
 }
@@ -82,11 +89,12 @@ void canonicalize_to_periodic_box(PetscReal& start, PetscReal& end, const Period
   start = clamp_periodic_coordinate(start, box);
 
   const PetscReal dir = end - start;
-  if (dir < -split_eps && std::abs(start - box.lower) <= split_eps) {
+  const PetscReal tolerance = boundary_tolerance(box);
+  if (dir < -split_eps && std::abs(start - box.lower) <= tolerance) {
     start += box.length;
     end += box.length;
   }
-  else if (dir > split_eps && std::abs(start - box.upper) <= split_eps) {
+  else if (dir > split_eps && std::abs(start - box.upper) <= tolerance) {
     start -= box.length;
     end -= box.length;
   }
@@ -250,14 +258,15 @@ std::vector<DriftKineticSegment> periodic_segments(
 
     for (Axis axis : {X, Y, Z}) {
       const PeriodicBox box = make_periodic_box(axis, mode);
+      const PetscReal tolerance = boundary_tolerance(box);
       Rs0[axis] = clamp_periodic_coordinate(Rs0[axis], box);
       Rsn[axis] = clamp_periodic_coordinate(Rsn[axis], box);
 
-      PetscCheckAbort(Rs0[axis] >= box.lower - split_eps && Rs0[axis] <= box.upper + split_eps,
+      PetscCheckAbort(Rs0[axis] >= box.lower - tolerance && Rs0[axis] <= box.upper + tolerance,
         PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
         "Periodic segment start is outside bounds on axis %d: %.16e, [%.16e, %.16e]",
         axis, Rs0[axis], box.lower, box.upper);
-      PetscCheckAbort(Rsn[axis] >= box.lower - split_eps && Rsn[axis] <= box.upper + split_eps,
+      PetscCheckAbort(Rsn[axis] >= box.lower - tolerance && Rsn[axis] <= box.upper + tolerance,
         PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
         "Periodic segment end is outside bounds on axis %d: %.16e, [%.16e, %.16e]",
         axis, Rsn[axis], box.lower, box.upper);

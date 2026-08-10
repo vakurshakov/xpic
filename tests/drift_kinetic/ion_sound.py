@@ -65,6 +65,7 @@ directly in code units.
 import argparse
 import math
 import os
+import re
 import sys
 
 import numpy as np
@@ -427,12 +428,13 @@ def run_theory(args):
 # Model mode: compare the exact kinetic n_s(z, t) against a finished run       #
 # --------------------------------------------------------------------------- #
 def species_from_config(config):
-    """Build (electron, ion) Species from config['Particles'] (T[keV]->code)."""
+    """Build species using the parallel temperature (Tz, or legacy T)."""
     electron = ion = None
     for s in config.get("Particles", []):
         q = float(s.get("q", 0.0))
+        temperature_kev = float(s["Tz"] if "Tz" in s else s.get("T", 0.0))
         sp = Species(s.get("sort_name", ""), float(s.get("n", 1.0)), q,
-                     float(s["m"]), float(s.get("T", 0.0)) / MEC2_KEV)
+                     float(s["m"]), temperature_kev / MEC2_KEV)
         if q < 0.0 and electron is None:
             electron = sp
         elif q > 0.0 and ion is None:
@@ -498,17 +500,184 @@ def wave_number_from_config(config):
     return 1.0
 
 
+def kinetic_loader_for_species(config, name):
+    """Return a KineticIonSoundQuiet momentum block, or None."""
+    preset = preset_for_species(config, name)
+    if preset is None:
+        return None
+    momentum = preset.get("momentum", {})
+    if momentum.get("name") != "KineticIonSoundQuiet":
+        return None
+    return momentum
+
+
+def distribution_diagnostic_for_species(config, name):
+    """Return the 5-D drift-kinetic distribution diagnostic for a sort."""
+    for diagnostic in config.get("Diagnostics", []):
+        if diagnostic.get("diagnostic") == "DkDistributionFunction" and \
+                diagnostic.get("particles") == name:
+            return diagnostic
+    return None
+
+
+def density_diagnostic_for_species(config, name):
+    """Return the scalar density diagnostic for a sort, or None."""
+    for diagnostic in config.get("Diagnostics", []):
+        if diagnostic.get("diagnostic") == "DistributionMoment" and \
+                diagnostic.get("particles") == name and \
+                diagnostic.get("moment") == "density":
+            return diagnostic
+    return None
+
+
+def diagnostic_frame_path(const, config_dir, subdir, frame):
+    """Find a diagnostic frame in the configured input or run directory."""
+    filename = f"{frame:04d}"
+    candidates = [os.path.join(const.in_dir, subdir, filename),
+                  os.path.join(config_dir, subdir, filename)]
+    return next((path for path in candidates if os.path.isfile(path)), None)
+
+
+def load_kinetic_distribution_ic(config, const, config_dir, species, k,
+                                 frame=0):
+    """Read a realized initial condition from a 5-D distribution dump.
+
+    The DkDistributionFunction histogram is integrated over mu_p and averaged
+    over x,y.  Its velocity distribution in every z cell is treated as a
+    conditional PDF and multiplied by the separately deposited density moment.
+    This retains the realized velocity-space loading while making its zeroth
+    moment identical to the density diagnostic used in the comparison plots.
+
+    Returns a mapping accepted by solve_vlasov_poisson().  An empty mapping
+    means that this config has no DkDistributionFunction diagnostics.  The
+    momentum loader is deliberately irrelevant here: the dump is the realized
+    initial condition, regardless of how the particles were generated.
+    """
+    result = {}
+    diagnosed_species = [
+        (s, distribution_diagnostic_for_species(config, s.name))
+        for s in species
+    ]
+    diagnosed_species = [(s, diagnostic)
+                          for s, diagnostic in diagnosed_species
+                          if diagnostic is not None]
+    if not diagnosed_species:
+        return result
+
+    z = (np.arange(const.Nz) + 0.5) * const.dz
+    projector = np.exp(-1j * k * z)
+    frame_times = []
+    for s, diagnostic in diagnosed_species:
+        vinfo = diagnostic["v_parallel"]
+        muinfo = diagnostic["mu_p"]
+        nv, nmu = int(vinfo["bins"]), int(muinfo["bins"])
+        vmin, vmax = float(vinfo["min"]), float(vinfo["max"])
+        mumin, mumax = float(muinfo["min"]), float(muinfo["max"])
+        dv = (vmax - vmin) / nv
+        dmu = (mumax - mumin) / nmu
+        velocity = vmin + (np.arange(nv) + 0.5) * dv
+
+        subdir = diagnostic.get(
+            "out_dir", os.path.join(s.name, "distribution_function"))
+        phase_path = diagnostic_frame_path(
+            const, config_dir, subdir, frame)
+        if phase_path is None:
+            raise SystemExit(
+                f"DkDistributionFunction frame {frame:04d} not found for "
+                f"species '{s.name}' in '{subdir}'.")
+        expected_size = const.Nz * const.Ny * const.Nx * nv * nmu
+        if os.path.getsize(phase_path) != expected_size * 4:
+            raise SystemExit(
+                f"unexpected size of {phase_path}: "
+                f"expected {expected_size * 4} bytes")
+
+        # mmap avoids holding the ~100 MB electron frame and its float64 copy
+        # simultaneously.  The reduced (Nz,Nv) marginal is small.
+        phase_data = np.memmap(
+            phase_path, dtype=np.float32, mode="r",
+            shape=(const.Nz, const.Ny, const.Nx, nv, nmu))
+        f_parallel = phase_data.sum(axis=4, dtype=np.float64).mean(
+            axis=(1, 2)) * dmu
+        del phase_data
+
+        phase_density = np.sum(f_parallel, axis=1) * dv
+        if np.any(phase_density <= 0.0):
+            raise SystemExit(
+                f"zero phase-space density in frame {frame:04d} for '{s.name}'")
+
+        density_diagnostic = density_diagnostic_for_species(config, s.name)
+        density_source = "phase-space marginal"
+        if density_diagnostic is not None:
+            density_subdir = density_diagnostic.get(
+                "out_dir", os.path.join(s.name, "density"))
+            density_path = diagnostic_frame_path(
+                const, config_dir, density_subdir, frame)
+            expected_density_size = const.Nz * const.Ny * const.Nx
+            if density_path is not None and \
+                    os.path.getsize(density_path) == expected_density_size * 4:
+                density = np.fromfile(
+                    density_path, dtype=np.float32,
+                    count=expected_density_size).reshape(
+                        const.Nz, const.Ny, const.Nx).mean(axis=(1, 2))
+                f_parallel *= (density / phase_density)[:, None]
+                density_source = density_path
+
+        # The z average is the equilibrium actually represented by the PIC
+        # markers in this dump.  Keeping it alongside the first harmonic lets
+        # --model-pic linearize about the realized (cut off, regularized and
+        # finite-marker) background instead of silently replacing it by the
+        # analytic Maxwellian configured for the run.
+        equilibrium = np.mean(f_parallel, axis=0)
+        f_hat = 2.0 * np.mean(f_parallel * projector[:, None], axis=0)
+        weights = np.full(nv, dv)
+        density_hat = complex(np.dot(f_hat, weights))
+        velocity_hat = complex(np.dot(velocity * f_hat, weights) / s.n)
+        period = float(diagnostic.get(
+            "diagnose_period", config.get("Geometry", {}).get(
+                "diagnose_period", 1.0)))
+        frame_times.append(frame * period)
+        result[s.name] = {
+            "v": velocity,
+            "weights": weights,
+            "f_hat": f_hat,
+            "equilibrium": equilibrium,
+            "density_hat": density_hat,
+            "velocity_hat": velocity_hat,
+            "phase_path": phase_path,
+            "density_source": density_source,
+            "frame": frame,
+            "time": frame * period,
+        }
+
+    if frame_times and not np.allclose(frame_times, frame_times[0]):
+        raise SystemExit(
+            "kinetic distribution diagnostics use different frame times")
+    return result
+
+
 def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
-                         exact_ic=False, omega0=None, E0=0.0):
+                         exact_ic=False, omega0=None, E0=0.0,
+                         initial_distribution=None, initial_field=None,
+                         use_realized_equilibrium=False):
     """Exact linearized Vlasov-Poisson evolution of one Fourier mode e^{ikz}.
 
     Advances the first-harmonic perturbed distribution of every species,
 
         d/dt f_s(v,t) = -i k v f_s - (q_s/m_s) E(t) dF0s/dv,
-        i k E(t) = sum_s q_s int f_s dv                       (Poisson, eps0=1),
+        i k E(t) = sum_s q_s int f_s dv                       (Poisson, eps0=1).
 
-    from the loaded initial condition. With `exact_ic=False` (default) the fluid
-    (shifted-Maxwellian) IC is used,
+    If `initial_field` is supplied, E is instead an independent state obeying
+
+        dE/dt = -sum_s q_s int v f_s dv                       (Ampere),
+
+    initialized from that saved complex field harmonic.  The Ampere form is
+    equivalent when Gauss' law is exact and, unlike algebraic Poisson, retains
+    the small realized Gauss-law mismatch of a finite-particle PIC dump.
+
+    For the loaded initial condition, if `initial_distribution` contains a
+    species, its saved velocity-bin centres, quadrature weights, and complex
+    first spatial harmonic are used directly.  Otherwise, with
+    `exact_ic=False` (default), the fluid (shifted-Maxwellian) IC is used,
 
         f_s(v,0) = cn_hat_s F0s(v) - u_hat_s dF0s/dv,
 
@@ -520,22 +689,58 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
     (omega0 = omega_s - i Gamma_s), which starts as a pure eigenmode -> |dn(t)|
     decays as e^{-Gamma t} with no ballistic transient.
 
+    With `use_realized_equilibrium=True`, the force term is linearized about
+    the z-averaged distribution saved in the same PIC dump as the initial
+    harmonic.  The default keeps the historical analytic-Maxwellian model.
+
     RK4 on per-species velocity grids; captures the collective (Landau) mode AND
     the ballistic phase-mixing exactly and self-consistently.
 
-    Returns (t_rec, nhat) with nhat[name] the complex first-harmonic density
-    amplitude sampled at `n_record` uniform times t_rec in [0, t_max].
+    Returns (t_rec, nhat, ehat), sampled at `n_record` uniform times in
+    [0, t_max].
     """
+    use_ampere = initial_field is not None
     wp_tot = math.sqrt(sum(s.wp ** 2 for s in species))
     v_max = 7.0 * max(s.vT for s in species)
     # RK4 stability: resolve the plasma oscillation and the advection; also keep
     # enough steps to resolve the wave over the whole window.
-    dt = min(0.9 / wp_tot, 0.5 / (k * v_max), t_max / (4 * n_record))
+    plasma_step = (0.25 if use_ampere else 0.9) / wp_tot
+    dt = min(plasma_step, 0.5 / (k * v_max), t_max / (4 * n_record))
     n_steps = max(int(math.ceil(t_max / dt)), 4 * n_record)
     dt = t_max / n_steps
 
-    grids, dF0, f = {}, {}, {}
+    initial_distribution = initial_distribution or {}
+    grids, weights, dF0, f = {}, {}, {}, {}
     for s in species:
+        saved = initial_distribution.get(s.name)
+        if saved is not None:
+            v = np.asarray(saved["v"], dtype=float)
+            quadrature = np.asarray(saved["weights"], dtype=float)
+            f_initial = np.asarray(saved["f_hat"], dtype=complex)
+            if v.ndim != 1 or v.size < 2 or quadrature.shape != v.shape or \
+                    f_initial.shape != v.shape:
+                raise ValueError(
+                    f"invalid saved distribution for '{s.name}'")
+            if not np.all(np.diff(v) > 0.0) or np.any(quadrature <= 0.0):
+                raise ValueError(
+                    f"non-monotone velocity grid for '{s.name}'")
+            equilibrium = saved.get("equilibrium") \
+                if use_realized_equilibrium else None
+            if equilibrium is None:
+                F0 = s.n / math.sqrt(2.0 * math.pi) / s.vT * \
+                    np.exp(-v ** 2 / (2.0 * s.vT ** 2))
+            else:
+                F0 = np.asarray(equilibrium, dtype=float)
+                if F0.shape != v.shape or np.any(~np.isfinite(F0)) or \
+                        np.any(F0 < 0.0):
+                    raise ValueError(
+                        f"invalid saved equilibrium for '{s.name}'")
+            grids[s.name] = v
+            weights[s.name] = quadrature
+            dF0[s.name] = np.gradient(F0, v, edge_order=2)
+            f[s.name] = f_initial.copy()
+            continue
+
         # Velocity resolution set so the recurrence time 2*pi/(k dv) > 2 t_max.
         nv = int(np.clip(14.0 * s.vT * k * 2.0 * t_max / (2.0 * math.pi),
                          1500, 8000))
@@ -551,6 +756,9 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
         v = np.linspace(-7.0 * s.vT, 7.0 * s.vT, nv)
         F0 = s.n / math.sqrt(2.0 * math.pi) / s.vT * np.exp(-v ** 2 / (2.0 * s.vT ** 2))
         grids[s.name] = v
+        quadrature = np.full(v.size, v[1] - v[0])
+        quadrature[[0, -1]] *= 0.5
+        weights[s.name] = quadrature
         dF0[s.name] = -v / s.vT ** 2 * F0
         if exact_ic:
             # True kinetic eigenmode: -i (q E0 / m) dF0/dv / (omega0* - k v).
@@ -563,27 +771,52 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
         else:
             f[s.name] = cn_hat[s.name] * F0 - u_hat[s.name] * dF0[s.name]
 
-    def rhs(state):
-        rho = sum(s.q * np.trapezoid(state[s.name], grids[s.name]) for s in species)
-        E = rho / (1j * k)
-        return {s.name: -1j * k * grids[s.name] * state[s.name]
-                - (s.q / s.m) * E * dF0[s.name] for s in species}
+    def poisson_field(state):
+        rho = sum(s.q * np.dot(state[s.name], weights[s.name])
+                  for s in species)
+        return rho / (1j * k)
+
+    def rhs(state, field=None):
+        E = field if use_ampere else poisson_field(state)
+        df = {s.name: -1j * k * grids[s.name] * state[s.name]
+              - (s.q / s.m) * E * dF0[s.name] for s in species}
+        if not use_ampere:
+            return df, None
+        dE = -sum(s.q * np.dot(grids[s.name] * state[s.name],
+                               weights[s.name]) for s in species)
+        return df, dE
 
     stride = max(1, n_steps // n_record)
+    field = complex(initial_field) if use_ampere else poisson_field(f)
     t_rec = [0.0]
-    nhat = {s.name: [complex(np.trapezoid(f[s.name], grids[s.name]))]
+    nhat = {s.name: [complex(np.dot(f[s.name], weights[s.name]))]
             for s in species}
+    ehat = [field]
     for step in range(1, n_steps + 1):
-        k1 = rhs(f)
-        k2 = rhs({n: f[n] + 0.5 * dt * k1[n] for n in f})
-        k3 = rhs({n: f[n] + 0.5 * dt * k2[n] for n in f})
-        k4 = rhs({n: f[n] + dt * k3[n] for n in f})
-        f = {n: f[n] + dt / 6.0 * (k1[n] + 2 * k2[n] + 2 * k3[n] + k4[n]) for n in f}
+        k1f, k1e = rhs(f, field)
+        state2 = {n: f[n] + 0.5 * dt * k1f[n] for n in f}
+        field2 = field + 0.5 * dt * k1e if use_ampere else None
+        k2f, k2e = rhs(state2, field2)
+        state3 = {n: f[n] + 0.5 * dt * k2f[n] for n in f}
+        field3 = field + 0.5 * dt * k2e if use_ampere else None
+        k3f, k3e = rhs(state3, field3)
+        state4 = {n: f[n] + dt * k3f[n] for n in f}
+        field4 = field + dt * k3e if use_ampere else None
+        k4f, k4e = rhs(state4, field4)
+        f = {n: f[n] + dt / 6.0 *
+             (k1f[n] + 2 * k2f[n] + 2 * k3f[n] + k4f[n]) for n in f}
+        if use_ampere:
+            field += dt / 6.0 * (k1e + 2 * k2e + 2 * k3e + k4e)
+        else:
+            field = poisson_field(f)
         if step % stride == 0 or step == n_steps:
             t_rec.append(step * dt)
             for s in species:
-                nhat[s.name].append(complex(np.trapezoid(f[s.name], grids[s.name])))
-    return np.array(t_rec), {n: np.array(v) for n, v in nhat.items()}
+                nhat[s.name].append(complex(
+                    np.dot(f[s.name], weights[s.name])))
+            ehat.append(field)
+    return (np.array(t_rec), {n: np.array(v) for n, v in nhat.items()},
+            np.asarray(ehat))
 
 
 def plot_theory_amplitude(species, cn_hat, u_hat, omega0, k, n_periods,
@@ -597,8 +830,9 @@ def plot_theory_amplitude(species, cn_hat, u_hat, omega0, k, n_periods,
     T = 2.0 * math.pi / omega0.real
     Gamma = -omega0.imag
     t_max = n_periods * T
-    t, nhat = solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max,
-                                   exact_ic=exact_ic, omega0=omega0, E0=E0)
+    t, nhat, _ = solve_vlasov_poisson(
+        species, cn_hat, u_hat, k, t_max,
+        exact_ic=exact_ic, omega0=omega0, E0=E0)
 
     colors = {"ions": "red", "electrons": "blue"}
     fig, ax = plt.subplots(figsize=(9.0, 6.0))
@@ -627,14 +861,66 @@ def plot_theory_amplitude(species, cn_hat, u_hat, omega0, k, n_periods,
 
 def field_view_dir(config, field="E"):
     """Output sub-directory of the FieldView diagnostic for `field` (or None)."""
-    for d in config.get("Diagnostics", []):
+    for d in config.get("Diagnostics", []) or []:
         if str(d.get("diagnostic", "")).startswith("FieldView") \
                 and d.get("field") == field:
             return d.get("out_dir")
     return None
 
 
-def prepare_theory(testname):
+def measured_perturbation(const, species, k, frame, config_dir):
+    """Measure the realized first-harmonic IC (cn_hat, u_hat) from the dumps.
+
+    Returns (cn_hat, u_hat, t0) with the same conventions `prepare_theory` uses
+    for the config-derived amplitudes: cn_hat_s is the RELATIVE density
+    amplitude 2/Lz int (n_s/n_s - 1) e^{-ikz} dz, and u_hat_s the ABSOLUTE
+    parallel-velocity amplitude 2/Lz int J_{z,s}/(q_s n_s) e^{-ikz} dz [c].
+
+    Both moments are read from the SAME frame `frame`, and t0 = frame*dts is
+    returned so the caller can start the theory there instead of at t = 0. The
+    current is deposited over a step, so frame 0000 holds J == 0; the default
+    caller passes frame 1. Starting the theory at t0 (rather than back-rotating
+    to 0) keeps the IC exact -- no assumption about what happened before t0.
+
+    The grid shape factor cancels: n_hat and J_hat carry the same deposition
+    kernel as the frames we later compare against, and the evolution is linear.
+    Raises SystemExit if a species has no density or no J frames."""
+    Nx, Ny, Nz = const.Nx, const.Ny, const.Nz
+    z = (np.arange(Nz) + 0.5) * const.dz
+    kernel = np.exp(-1j * k * z)
+
+    def read(sub, ncomp):
+        for base in (const.in_dir, config_dir):
+            path = os.path.join(base, sub, f"{frame:04d}")
+            if not os.path.isfile(path):
+                continue
+            if os.path.getsize(path) != Nx * Ny * Nz * ncomp * 4:
+                continue
+            raw = np.fromfile(path, dtype=np.float32,
+                              count=Nx * Ny * Nz * ncomp)
+            return raw.reshape(Nz, Ny, Nx, ncomp) if ncomp > 1 \
+                else raw.reshape(Nz, Ny, Nx)
+        return None
+
+    cn_hat, u_hat = {}, {}
+    for s in species:
+        dens = read(os.path.join(s.name, "density"), 1)
+        if dens is None:
+            raise SystemExit(
+                f"--ic-from-dump: no 3D density frame {frame:04d} for '{s.name}'.")
+        cur = read(os.path.join(s.name, "J"), 3)
+        if cur is None:
+            raise SystemExit(
+                f"--ic-from-dump: no 3D '{s.name}/J' FieldView frame {frame:04d}; "
+                "add that diagnostic to the config or drop --ic-from-dump.")
+        dn = dens.mean(axis=(1, 2)) / s.n - 1.0
+        jz = cur[..., 2].mean(axis=(1, 2))
+        cn_hat[s.name] = complex(2.0 * np.mean(dn * kernel))
+        u_hat[s.name] = complex(2.0 * np.mean(jz * kernel) / (s.q * s.n))
+    return cn_hat, u_hat, frame * const.dts
+
+
+def prepare_theory(testname, ic_frame=None):
     """Load output/<testname>/config.json, extract plasma parameters and the
     loaded initial condition, solve the dispersion root, and build the complex
     first-harmonic amplitudes cn_hat, u_hat. Returns a context dict shared by the
@@ -690,18 +976,49 @@ def prepare_theory(testname):
     if E0 is None:  # fallback: Poisson  ik E0 = sum_s q_s cn_hat_s
         E0 = float((sum(s.q * cn_hat[s.name] for s in species) / (1j * k)).real)
 
+    # A DkDistributionFunction dump stores the complete realized 5-D
+    # distribution, independently of the particle loader.  Use its
+    # velocity-space first harmonic rather than reducing it to density and bulk
+    # velocity and inventing a shifted Maxwellian.  Frame zero is the
+    # post-loader, pre-timestep state.  An explicit --ic-from-dump FRAME starts
+    # from that later distribution when the corresponding 5-D frame exists.
+    t0 = 0.0
+    ic_measured = None
+    kinetic_ic_frame = 0 if ic_frame is None else ic_frame
+    initial_distribution = load_kinetic_distribution_ic(
+        config, const, config_dir, species, k, kinetic_ic_frame)
+    if initial_distribution:
+        t0 = next(iter(initial_distribution.values()))["time"]
+        ic_measured = kinetic_ic_frame
+        for s in species:
+            saved = initial_distribution.get(s.name)
+            if saved is None:
+                continue
+            cn_hat[s.name] = saved["density_hat"] / s.n
+            u_hat[s.name] = saved["velocity_hat"]
+    elif ic_frame is not None:
+        # Moment-only fallback for older MaxwellShiftedSine tests which have no
+        # DkDistributionFunction initial condition.
+        cn_hat, u_hat, t0 = measured_perturbation(const, species, k, ic_frame,
+                                                  config_dir)
+        ic_measured = ic_frame
+
     return dict(const=const, config=config, config_path=config_path,
                 config_dir=config_dir, species=species, electron=electron,
                 ion=ion, wn=wn, k=k, omega0=omega0, cn_hat=cn_hat, u_hat=u_hat,
-                E0=E0, ic=ic, T_wave=2.0 * math.pi / omega0.real)
+                E0=E0, ic=ic, t0=t0, ic_measured=ic_measured,
+                initial_distribution=initial_distribution,
+                T_wave=2.0 * math.pi / omega0.real)
 
 
 def run_model(args):
-    ctx = prepare_theory(args.model)
+    ctx = prepare_theory(args.model, ic_frame=args.ic_from_dump)
     const, config = ctx["const"], ctx["config"]
     species, electron, ion = ctx["species"], ctx["electron"], ctx["ion"]
     k, omega0, wn = ctx["k"], ctx["omega0"], ctx["wn"]
     cn_hat, u_hat, E0, ic = ctx["cn_hat"], ctx["u_hat"], ctx["E0"], ctx["ic"]
+    initial_distribution = ctx["initial_distribution"]
+    t0 = ctx["t0"]
     omega_r, Gamma, T_wave = omega0.real, -omega0.imag, ctx["T_wave"]
     config_path, config_dir = ctx["config_path"], ctx["config_dir"]
 
@@ -750,9 +1067,14 @@ def run_model(args):
         return data.mean(axis=(1, 2))
 
     # ---- Exact linearized Vlasov-Poisson theory over the run window -------- #
-    t_grid, nhat = solve_vlasov_poisson(species, cn_hat, u_hat, k,
-                                        max(t_max, T_wave * 1e-3),
-                                        exact_ic=args.exact_ic, omega0=omega0, E0=E0)
+    # With --ic-from-dump the IC is the state at t0, so the theory clock starts
+    # there and its time axis is shifted by t0 for plotting.
+    t_grid, nhat, _ = solve_vlasov_poisson(
+        species, cn_hat, u_hat, k,
+        max(t_max - t0, T_wave * 1e-3),
+        exact_ic=args.exact_ic, omega0=omega0, E0=E0,
+        initial_distribution=initial_distribution)
+    t_grid = t_grid + t0
     theory = {s.name: np.abs(nhat[s.name]) / s.n for s in species}
 
     # ---- Summary ---------------------------------------------------------- #
@@ -767,9 +1089,34 @@ def run_model(args):
     print(f"  E0 = {E0:.6e}")
     for s in species:
         a_n, phi_n, C_u, phi_u = ic[s.name]
-        print(f"  {s.name:9s}: a_n = {a_n:.6e}, phi_n = {phi_n:+.6f} ,"
-              f"  C_u = {C_u:.6e}, phi_u = {phi_u:+.6f}")
-        print(f"             theory dn(0) = {theory[s.name][0]:.6e}")
+        if initial_distribution.get(s.name) is not None:
+            saved = initial_distribution[s.name]
+            cn, uh = cn_hat[s.name], u_hat[s.name]
+            def phase_of(c):
+                return (np.angle(c) + math.pi / 2 + math.pi) % (2 * math.pi) - math.pi
+            print(f"  {s.name:9s}: a_n = {a_n:.6e}, phi_n = {phi_n:+.6f}"
+                  "   (config density)")
+            print(f"  {'':9s}  a_n = {abs(cn):.6e}, phi_n = {phase_of(cn):+.6f} ,"
+                  f"  C_u = {abs(uh):.6e}, phi_u = {phase_of(uh):+.6f}"
+                  f"   (distribution frame {saved['frame']:04d})")
+        else:
+            print(f"  {s.name:9s}: a_n = {a_n:.6e}, phi_n = {phi_n:+.6f} ,"
+                  f"  C_u = {C_u:.6e}, phi_u = {phi_u:+.6f}"
+                  "   (config, requested)")
+        if initial_distribution.get(s.name) is None and \
+                ctx["ic_measured"] is not None:
+            cn, uh = cn_hat[s.name], u_hat[s.name]
+            # Inverse of cn_hat = -i a exp(i phi):  a = |cn_hat|, phi = arg + pi/2.
+            def phase_of(c):
+                return (np.angle(c) + math.pi / 2 + math.pi) % (2 * math.pi) - math.pi
+            print(f"  {'':9s}  a_n = {abs(cn):.6e}, phi_n = {phase_of(cn):+.6f} ,"
+                  f"  C_u = {abs(uh):.6e}, phi_u = {phase_of(uh):+.6f}"
+                  f"   (frame {ctx['ic_measured']:04d}, realized)")
+        print(f"             theory dn(t0) = {theory[s.name][0]:.6e}")
+    if ctx["ic_measured"] is not None:
+        source = "distribution" if initial_distribution else "moment"
+        print(f"  theory started from {source} frame {ctx['ic_measured']:04d} "
+              f"(t0 = {t0:.6g} = {t0 / T_wave:.4g} T)")
     print(f"  frames = {len(common)} , t in [0, {t_max:.6g}] [1/w_pe]")
     if args.model_tmax is not None:
         print(f"  drawing limit = {args.model_tmax:.6g} T")
@@ -822,7 +1169,7 @@ def run_model(args):
         series_amp[row["species"]] = []
 
     dn_theory_i = theory[ion.name]
-    dn_exponential_i = abs(cn_hat[ion.name]) * np.exp(-Gamma * t_grid)
+    dn_exponential_i = abs(cn_hat[ion.name]) * np.exp(-Gamma * (t_grid - t0))
     ax_amp.plot(t_grid / T_wave, dn_theory_i, color="black", linewidth=2.0,
                 linestyle="-", alpha=0.9,
                 label=r"$|\delta n_{i,1}|$ (theory, ballistic+collective)")
@@ -888,12 +1235,789 @@ def run_model(args):
     print(f"Final figure written to {png_path}")
 
 
+def compare_label(testname):
+    """Short legend label: drift_..._ex12 -> ex12."""
+    match = re.search(r"(?:^|_)ex(\d+)(?:_|$)", os.path.basename(testname))
+    return f"ex{match.group(1)}" if match else os.path.basename(testname)
+
+
+def harmonic_series(ctx, dz, sort_name, model_tmax=None):
+    """Complex first z-harmonic of the relative density of one sort.
+
+    Returns (times, a1, noise), all sampled on the diagnostic frames:
+
+        times   absolute code time of every frame [1/omega_pe],
+        a1(t) = 2/Lz int (<n_s>_{x,y}/n_s - 1) e^{-ikz} dz          (COMPLEX),
+        noise   mean |m-th z-harmonic| over the m that carry no signal: every
+                m in [1, Nz/2] except the loaded mode and its first two
+                multiples (the second harmonic can be driven nonlinearly).
+                Those harmonics vanish in linear theory, so their level is the
+                discrete-particle floor that also contaminates a1.
+
+    Unlike `load_ion_harmonic` this keeps the PHASE of the harmonic, which is
+    what makes the two ion-acoustic branches separable (see `fit_two_branch`).
+    """
+    const, config_dir = ctx["const"], ctx["config_dir"]
+    species = next(s for s in ctx["species"] if s.name == sort_name)
+
+    rows = dz.collect_rows([sort_name])
+    if not rows and const.in_dir != config_dir:
+        const.in_dir = config_dir
+        const.out_dir = os.path.join(config_dir, "processed")
+        rows = dz.collect_rows([sort_name])
+    if not rows:
+        raise SystemExit(f"No '{sort_name}' density diagnostic found in "
+                         f"'{os.path.basename(config_dir)}'.")
+
+    row = rows[0]
+    steps = row["timesteps"]
+    if model_tmax is not None:
+        t_limit = model_tmax * ctx["T_wave"]
+        tolerance = 1.0e-12 * max(1.0, t_limit)
+        steps = [(idx, name) for idx, name in steps
+                 if idx * const.dts <= t_limit + tolerance]
+    if not steps:
+        raise SystemExit(f"No '{sort_name}' density frames in the requested "
+                         "--model-tmax interval.")
+
+    z = (np.arange(const.Nz) + 0.5) * const.dz
+    kernel = np.exp(-1j * ctx["k"] * z)
+    wn = max(int(round(ctx["wn"])), 1)
+    noise_modes = [m for m in range(1, const.Nz // 2 + 1)
+                   if m % wn != 0 or m // wn > 2]
+
+    times, harmonic, noise = [], [], []
+    for idx, name in steps:
+        data = dz.load_frame(row["dir"], name)
+        if data is None:
+            continue
+        dn_relative = data.mean(axis=(1, 2)) / species.n - 1.0
+        times.append(idx * const.dts)
+        harmonic.append(complex(2.0 * np.mean(dn_relative * kernel)))
+        spectrum = np.abs(np.fft.rfft(dn_relative)) * 2.0 / const.Nz
+        noise.append(float(np.mean(spectrum[noise_modes])) if noise_modes
+                     else math.nan)
+    if not times:
+        raise SystemExit(f"Could not read '{sort_name}' density frames.")
+    return np.asarray(times), np.asarray(harmonic), np.asarray(noise)
+
+
+def electric_harmonic_series(ctx, first_frame=0, model_tmax=None):
+    """Complex first harmonic of the saved longitudinal electric field.
+
+    E_z is face centred in z, unlike density and DkDistributionFunction.  Use
+    the face coordinates here so the complex phase passed to Vlasov--Ampere is
+    consistent with the field that the PIC pusher actually saw.
+    """
+    const, config = ctx["const"], ctx["config"]
+    config_dir, k = ctx["config_dir"], ctx["k"]
+    edir_name = field_view_dir(config, "E")
+    if edir_name is None:
+        raise SystemExit("config has no FieldView diagnostic for field 'E'.")
+
+    epath = os.path.join(const.in_dir, edir_name)
+    if not os.path.isdir(epath):
+        epath = os.path.join(config_dir, edir_name)
+    if not os.path.isdir(epath):
+        raise SystemExit(f"E field frames not found (looked in '{edir_name}').")
+
+    frames = sorted((int(name), name) for name in os.listdir(epath)
+                    if name.isdigit() and int(name) >= first_frame)
+    if model_tmax is not None:
+        t_limit = model_tmax * ctx["T_wave"]
+        tolerance = 1.0e-12 * max(1.0, t_limit)
+        frames = [(idx, name) for idx, name in frames
+                  if idx * const.dts <= t_limit + tolerance]
+    if not frames or frames[0][0] != first_frame:
+        raise SystemExit(
+            f"initial E frame {first_frame:04d} not found in '{epath}'.")
+
+    first_path = os.path.join(epath, frames[0][1])
+    ncomp = 3
+    ncells = os.path.getsize(first_path) // 4 // ncomp
+    if ncells <= 0 or ncells % const.Nz != 0:
+        raise SystemExit(f"unexpected FieldView size: {first_path}")
+    transverse_cells = ncells // const.Nz
+    z_faces = np.arange(const.Nz) * const.dz
+    projector = np.exp(-1j * k * z_faces)
+
+    times, harmonic = [], []
+    for idx, name in frames:
+        path = os.path.join(epath, name)
+        raw = np.fromfile(path, dtype=np.float32, count=ncells * ncomp)
+        if raw.size != ncells * ncomp:
+            raise SystemExit(f"unexpected FieldView size: {path}")
+        profile = raw.reshape(const.Nz, transverse_cells, ncomp)[..., 2].mean(
+            axis=1)
+        times.append(idx * const.dts)
+        harmonic.append(complex(2.0 * np.mean(profile * projector)))
+    return np.asarray(times), np.asarray(harmonic), edir_name
+
+
+def run_model_pic(args):
+    """Linear first-harmonic IVP from realized PIC f(z,v) and E(z).
+
+    Only the selected spatial harmonic is evolved.  Its initial f_hat(v), the
+    z-averaged realized equilibrium F0(v), and the matching electric-field
+    harmonic are read from one PIC frame.  Linear Vlasov--Ampere retains the
+    finite-marker Gauss mismatch without coupling to any other spatial mode.
+    """
+    ic_frame = 1 if args.ic_from_dump is None else args.ic_from_dump
+    ctx = prepare_theory(args.model_pic, ic_frame=ic_frame)
+    const, species = ctx["const"], ctx["species"]
+    initial_distribution = ctx["initial_distribution"]
+    t0, T_wave = ctx["t0"], ctx["T_wave"]
+
+    missing = [s.name for s in species
+               if s.name not in initial_distribution or
+               "equilibrium" not in initial_distribution[s.name]]
+    if missing:
+        raise SystemExit(
+            "--model-pic requires DkDistributionFunction in the selected "
+            f"frame for every species; missing: {', '.join(missing)}")
+
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
+    for path in (os.path.join(repo_dir, "tools"),
+                 os.path.join(tests_dir, "drift_kinetic_tools")):
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from lib.plot import bbox, labelsize, ticksize
+    import drift_kinetic_density_z as dz
+
+    plt.rc("text", usetex=False)
+    density_pic = {}
+    for s in species:
+        times, harmonic, noise = harmonic_series(
+            ctx, dz, s.name, args.model_tmax)
+        keep = times >= t0 - 1.0e-12 * max(1.0, t0)
+        if not np.any(keep):
+            raise SystemExit(
+                f"no '{s.name}' density frames at or after {ic_frame:04d}")
+        density_pic[s.name] = (times[keep], harmonic[keep], noise[keep])
+
+    field_times, field_pic, field_dir = electric_harmonic_series(
+        ctx, first_frame=ic_frame, model_tmax=args.model_tmax)
+    initial_field = complex(field_pic[0])
+    t_end = max([float(field_times[-1])] +
+                [float(row[0][-1]) for row in density_pic.values()])
+    duration = t_end - t0
+    if duration <= 0.0:
+        raise SystemExit("--model-pic needs at least two diagnostic times.")
+
+    t_grid, nhat, E_theory = solve_vlasov_poisson(
+        species, ctx["cn_hat"], ctx["u_hat"], ctx["k"], duration,
+        initial_distribution=initial_distribution,
+        initial_field=initial_field,
+        use_realized_equilibrium=True)
+    t_grid = t_grid + t0
+
+    colors = {"electrons": "tab:blue", "ions": "tab:red"}
+    markers = {"electrons": "o", "ions": "s"}
+    fig, (ax_n, ax_e) = plt.subplots(1, 2, figsize=(15.0, 7.0))
+
+    density_errors = {}
+    for s in species:
+        times, harmonic, _ = density_pic[s.name]
+        measured = np.abs(harmonic) / s.n
+        predicted = np.interp(times, t_grid, np.abs(nhat[s.name]) / s.n)
+        color = colors.get(s.name, None)
+        marker = markers.get(s.name, "o")
+        ax_n.plot(times / T_wave, measured, color=color, marker=marker,
+                  linewidth=1.8, markersize=4.0,
+                  label=rf"$|\delta n_{{{s.name[0]},1}}|$ PIC")
+        ax_n.plot(times / T_wave, predicted, color=color, linestyle="--",
+                  linewidth=2.2,
+                  label=rf"$|\delta n_{{{s.name[0]},1}}|$ model-pic linear")
+        density_errors[s.name] = float(np.sqrt(
+            np.mean(np.square(measured - predicted))))
+
+    field_predicted = np.interp(field_times, t_grid, np.abs(E_theory))
+    ax_e.plot(field_times / T_wave, np.abs(field_pic), color="purple",
+              marker="o", linewidth=1.8, markersize=4.0,
+              label=r"$|E_{z,1}|$ PIC")
+    ax_e.plot(field_times / T_wave, field_predicted, color="black",
+              linestyle="--", linewidth=2.2,
+              label=r"$|E_{z,1}|$ model-pic linear")
+    field_error = float(np.sqrt(np.mean(
+        np.square(np.abs(field_pic) - field_predicted))))
+    for ax in (ax_n, ax_e):
+        ax.set_xlim(t0 / T_wave, t_end / T_wave)
+        ax.tick_params(labelsize=ticksize)
+        ax.grid(True, alpha=0.3)
+        ax.legend(fontsize=ticksize)
+        ax.set_box_aspect(1)
+    ax_n.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax_n.set_ylabel(r"$|\delta n_1|/n_0$", fontsize=labelsize)
+    ax_n.set_title(r"Плотность: PIC и линейная realized-$F_0$ теория",
+                   fontsize=labelsize, bbox=bbox)
+    ax_e.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax_e.set_ylabel(r"$|E_{z,1}|$", fontsize=labelsize)
+    ax_e.set_title(r"Поле: линейный Vlasov--Ampère, гармоника 1",
+                   fontsize=labelsize, bbox=bbox)
+    fig.tight_layout()
+
+    out_dir = os.path.join(const.out_dir, "ion_sound_model_pic")
+    os.makedirs(out_dir, exist_ok=True)
+    png_path = os.path.join(out_dir, "ion_sound_model_pic.png")
+    fig.savefig(png_path, dpi=args.dpi)
+    plt.close(fig)
+
+    rho0 = sum(s.q * initial_distribution[s.name]["density_hat"]
+               for s in species)
+    gauss_field = rho0 / (1j * ctx["k"])
+    print("=" * 70)
+    print(f"MODEL_PIC: {args.model_pic}")
+    print("=" * 70)
+    print(f"  IC frame = {ic_frame:04d}, t0 = {t0:.6g} "
+          f"= {t0 / T_wave:.6g} T")
+    print(f"  field source = {field_dir}/{ic_frame:04d}")
+    print(f"  E_k(t0) PIC   = {initial_field.real:+.6e}"
+          f"{initial_field.imag:+.6e}j")
+    print(f"  E_k(t0) Gauss = {gauss_field.real:+.6e}"
+          f"{gauss_field.imag:+.6e}j")
+    print(f"  |Gauss mismatch| = {abs(initial_field - gauss_field):.6e}")
+    for s in species:
+        saved = initial_distribution[s.name]
+        equilibrium_density = float(np.dot(
+            saved["equilibrium"], saved["weights"]))
+        print(f"  {s.name:9s}: integral F0_pic dv = "
+              f"{equilibrium_density:.9e}, density RMSE = "
+              f"{density_errors[s.name]:.6e}")
+    print(f"  field RMSE = {field_error:.6e}")
+    print(f"PIC-informed theory figure written to {png_path}")
+
+
+def fit_two_branch(t, a, omega_guess, gamma_guess,
+                   omega_range=(0.85, 1.20), gamma_range=(0.05, 4.0),
+                   n_grid=41, n_passes=7):
+    """Least-squares fit of both ion-acoustic branches to a COMPLEX signal:
+
+        a(t) = A_p exp(-i w t - g t) + A_m exp(+i w t - g t).
+
+    The dispersion relation has the root pair +-w_s - i Gamma, so anything that
+    is not a pure travelling eigenmode carries both.  Their interference beats
+    at 2 w, which is exactly the wobble seen on |a(t)| around the exponential.
+    Fitting the complex harmonic rather than its modulus separates them, and
+    since the model is LINEAR in A_p, A_m, zero-mean noise in `a` does not bias
+    the fitted amplitudes -- a log-fit of |a| has no such property.
+
+    (w, g) are found by successive grid refinement over `omega_range` *
+    omega_guess and `gamma_range` * gamma_guess (no SciPy dependency); A_p, A_m
+    follow from a 2x2 normal-equation solve at every candidate.
+
+    Returns (w, g, A_p, A_m, relative_residual).
+    """
+    t = np.asarray(t, dtype=float)
+    a = np.asarray(a, dtype=complex)
+    scale = float(np.linalg.norm(a))
+
+    def solve(w, g):
+        basis = np.exp(-g * t) * np.vstack([np.exp(-1j * w * t),
+                                            np.exp(+1j * w * t)])
+        gram = basis.conj() @ basis.T
+        rhs = basis.conj() @ a
+        try:
+            coefficients = np.linalg.solve(gram, rhs)
+        except np.linalg.LinAlgError:  # degenerate window: branches collinear
+            coefficients = np.linalg.lstsq(basis.T, a, rcond=None)[0]
+        return coefficients, float(np.linalg.norm(a - basis.T @ coefficients))
+
+    lo_w, hi_w = (r * omega_guess for r in omega_range)
+    lo_g, hi_g = (r * gamma_guess for r in gamma_range)
+    best = None
+    for _ in range(n_passes):
+        for w in np.linspace(lo_w, hi_w, n_grid):
+            for g in np.linspace(lo_g, hi_g, n_grid):
+                coefficients, residual = solve(w, g)
+                if best is None or residual < best[0]:
+                    best = (residual, w, g, coefficients)
+        # Re-bracket within one grid step of the current optimum.
+        step_w = (hi_w - lo_w) / (n_grid - 1)
+        step_g = (hi_g - lo_g) / (n_grid - 1)
+        lo_w, hi_w = best[1] - step_w, best[1] + step_w
+        lo_g, hi_g = max(best[2] - step_g, 0.0), best[2] + step_g
+
+    residual, w, g, coefficients = best
+    return (w, g, complex(coefficients[0]), complex(coefficients[1]),
+            residual / scale if scale > 0.0 else math.nan)
+
+
+def load_ion_harmonic(testname, args, dz):
+    """Load the relative ion-density first harmonic for one finished run."""
+    ctx = prepare_theory(testname, ic_frame=args.ic_from_dump)
+    times, harmonic, _ = harmonic_series(ctx, dz, ctx["ion"].name,
+                                         args.model_tmax)
+    return {
+        "testname": testname,
+        "label": compare_label(testname),
+        "time": times / ctx["T_wave"],
+        "amplitude": np.abs(harmonic),
+        "T_wave": ctx["T_wave"],
+        "Gamma": -ctx["omega0"].imag,
+        "a0": abs(ctx["cn_hat"][ctx["ion"].name]),
+        "t0": ctx["t0"],
+        "out_dir": ctx["const"].out_dir,
+    }
+
+
+def run_compare(args):
+    """Compare ion first-harmonic amplitudes from --model and --compare runs."""
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
+    for path in (os.path.join(repo_dir, "tools"),
+                 os.path.join(tests_dir, "drift_kinetic_tools")):
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from lib.plot import bbox, labelsize, ticksize
+    import drift_kinetic_density_z as dz
+
+    plt.rc("text", usetex=False)
+    runs = [load_ion_harmonic(name, args, dz)
+            for name in [args.model, *args.compare]]
+    base = runs[0]
+
+    fig, ax = plt.subplots(figsize=(8.5, 7.0))
+    colors = plt.get_cmap("tab10").colors
+    markers = ("o", "s", "^", "D", "v", "P")
+    for i, run in enumerate(runs):
+        ax.plot(run["time"], run["amplitude"],
+                color=colors[i % len(colors)], marker=markers[i % len(markers)],
+                linestyle="-", linewidth=2.2, markersize=4.5,
+                label=run["label"])
+
+    x_max = max(float(run["time"][-1]) for run in runs)
+    theory_start = base["t0"] / base["T_wave"]
+    if x_max >= theory_start:
+        t_theory_T = np.linspace(theory_start, x_max, 500)
+        t_theory = t_theory_T * base["T_wave"]
+        dn_exponential = base["a0"] * np.exp(
+            -base["Gamma"] * (t_theory - base["t0"]))
+        # Theory is deliberately excluded from the legend: it should contain
+        # only the compact exN labels requested for the simulation runs.
+        ax.plot(t_theory_T, dn_exponential, color="black", linestyle="--",
+                linewidth=1.8, alpha=0.8, label="_nolegend_")
+    else:
+        dn_exponential = np.empty(0)
+
+    all_maxima = [float(np.nanmax(run["amplitude"])) for run in runs]
+    if dn_exponential.size:
+        all_maxima.append(float(np.nanmax(dn_exponential)))
+    amp_hi_lim = max(0.06, 1.25 * max(all_maxima))
+    ax.set_xlim(0.0, x_max)
+    ax.set_ylim(0.0, amp_hi_lim)
+    ax.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax.set_ylabel(
+        r"$|\delta n_{i,1}(t)|/n_i = \left|\frac{2}{L_z}\int"
+        r"\left(\langle n_i\rangle_{x,y}/n_i - 1\right)e^{-ikz}dz\right|$",
+        fontsize=labelsize)
+    ax.tick_params(labelsize=ticksize)
+    ax.grid(True, alpha=0.3)
+    ax.set_title(r"Амплитуда первой гармоники ионов",
+                 fontsize=labelsize, bbox=bbox)
+    ax.set_box_aspect(1)
+    ax.legend(loc="upper right", fontsize=ticksize)
+    fig.tight_layout()
+
+    out_dir = os.path.join(base["out_dir"], args.out_subdir)
+    os.makedirs(out_dir, exist_ok=True)
+    png_path = os.path.join(out_dir, "ion_sound_compare.png")
+    fig.savefig(png_path, dpi=args.dpi)
+    plt.close(fig)
+
+    print("=" * 70)
+    print(f"COMPARE: {args.model} + {len(args.compare)} run(s)")
+    print("=" * 70)
+    for run in runs:
+        print(f"  {run['label']:8s} {run['testname']}: "
+              f"{run['time'].size} frames, t/T in "
+              f"[{run['time'][0]:.6g}, {run['time'][-1]:.6g}]")
+    print(f"  theory: {base['label']} exponential, "
+          f"Gamma = {base['Gamma']:.6e}")
+    print(f"Comparison figure written to {png_path}")
+
+
+def run_model_adv(args):
+    """Two-branch (+-omega) decomposition of the ion first harmonic.
+
+    |dn_i,1(t)| measured in a PIC run does not decay as a clean e^{-Gamma t}:
+    it wobbles with period T/2 around the exponential.  The cause is that BOTH
+    ion-acoustic branches, +w_s - i Gamma and -w_s - i Gamma, are excited --
+    partly by the residual mismatch of the loaded initial condition to the exact
+    kinetic eigenmode, and dominantly at late times by discrete-particle noise,
+    which is broadband and therefore feeds the counter-propagating branch too.
+    Their interference beats at 2 w:
+
+        |dn_1(t)| = e^{-Gamma t} sqrt(|A_p|^2 + |A_m|^2
+                                      + 2 |A_p| |A_m| cos(2 w t + dphi)),
+
+    with fringe visibility 2r/(1 + r^2) and peak/trough (1 + r)/(1 - r), where
+    r = |A_m| / |A_p|.
+
+    This mode fits that model to the COMPLEX harmonic (see `fit_two_branch`) and
+    plots |A_p| e^{-Gamma t}: the envelope of the travelling wave alone, free of
+    the beat and unbiased by noise.  Gamma comes out of the fit rather than out
+    of a log-fit of the beating modulus.  The noise floor read off the harmonics
+    that carry no signal is drawn alongside, because |A_m| is only meaningful
+    while it stays above it.
+    """
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
+    for path in (os.path.join(repo_dir, "tools"),
+                 os.path.join(tests_dir, "drift_kinetic_tools")):
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from lib.plot import bbox, labelsize, ticksize
+    import drift_kinetic_density_z as dz
+
+    plt.rc("text", usetex=False)  # Cyrillic panel titles are incompatible
+
+    runs = []
+    for testname in args.model_adv:
+        ctx = prepare_theory(testname, ic_frame=args.ic_from_dump)
+        ion, T_wave = ctx["ion"], ctx["T_wave"]
+        omega_s, Gamma_theory = ctx["omega0"].real, -ctx["omega0"].imag
+        times, harmonic, noise = harmonic_series(ctx, dz, ion.name,
+                                                 args.model_tmax)
+        omega, Gamma, A_p, A_m, residual = fit_two_branch(
+            times, harmonic, omega_s, Gamma_theory)
+        runs.append(dict(
+            testname=testname, label=compare_label(testname),
+            time=times / T_wave, amplitude=np.abs(harmonic), noise=noise,
+            envelope=abs(A_p) * np.exp(-Gamma * times),
+            model=np.abs(A_p * np.exp(-1j * omega * times - Gamma * times)
+                         + A_m * np.exp(+1j * omega * times - Gamma * times)),
+            T_wave=T_wave, omega_s=omega_s, Gamma_theory=Gamma_theory,
+            omega=omega, Gamma=Gamma, A_p=A_p, A_m=A_m, residual=residual,
+            out_dir=ctx["const"].out_dir))
+
+    base = runs[0]
+    colors = plt.get_cmap("tab10").colors
+    markers = ("o", "s", "^", "D", "v", "P")
+
+    fig, ax = plt.subplots(figsize=(9.5, 7.0))
+    for i, run in enumerate(runs):
+        color = colors[i % len(colors)]
+        ax.plot(run["time"], run["amplitude"], color=color,
+                marker=markers[i % len(markers)], linestyle="-", linewidth=1.6,
+                markersize=3.5, alpha=0.85, label=run["label"])
+        # One shared legend entry below explains the dashed envelopes; labelling
+        # every run twice would double an already long legend.
+        ax.plot(run["time"], run["envelope"], color=color, linestyle="--",
+                linewidth=2.0, label="_nolegend_")
+    ax.plot([], [], color="tab:gray", linestyle="--", linewidth=2.0,
+            label=r"штрих: $|A_+|e^{-\Gamma t}$")
+    ax.plot(base["time"], base["model"], color="black", linestyle="-",
+            linewidth=1.6, alpha=0.8,
+            label=r"$|A_+e^{-i\omega t}+A_-e^{+i\omega t}|e^{-\Gamma t}$")
+    ax.plot(base["time"], base["noise"], color="tab:gray", linestyle=":",
+            linewidth=1.8, label=rf"{base['label']}: шум по несигнальным $m$")
+
+    drawn = np.concatenate([run["amplitude"] for run in runs])
+    drawn = drawn[np.isfinite(drawn) & (drawn > 0.0)]
+    ax.set_yscale("log")
+    ax.set_xlim(0.0, max(float(run["time"][-1]) for run in runs))
+    # The noise floor starts at ~0 (a quiet start loads the density exactly) and
+    # saturates within a fraction of a period, so bound the axis by its median
+    # rather than by that first, meaningless point.
+    ax.set_ylim(0.3 * float(np.median(base["noise"])), 3.0 * float(drawn.max()))
+    ax.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax.set_ylabel(
+        r"$|\delta n_{i,1}(t)|/n_i = \left|\frac{2}{L_z}\int"
+        r"\left(\langle n_i\rangle_{x,y}/n_i - 1\right)e^{-ikz}dz\right|$",
+        fontsize=labelsize)
+    ax.tick_params(labelsize=ticksize)
+    ax.grid(True, which="both", alpha=0.3)
+    ax.set_title(r"Разложение на встречные ветви", fontsize=labelsize, bbox=bbox)
+    # Log scale leaves the band below the noise floor empty.
+    ax.legend(loc="lower right", fontsize=ticksize, framealpha=0.9)
+    fig.tight_layout()
+
+    out_dir = os.path.join(base["out_dir"], args.out_subdir)
+    os.makedirs(out_dir, exist_ok=True)
+    png_path = os.path.join(out_dir, "ion_sound_two_branch.png")
+    fig.savefig(png_path, dpi=args.dpi)
+    plt.close(fig)
+
+    print("=" * 70)
+    print(f"MODEL_ADV: two-branch fit of {len(runs)} run(s)")
+    print("=" * 70)
+    print("  a(t) = A_p exp(-i w t - g t) + A_m exp(+i w t - g t),  r = |A_m/A_p|")
+    for run in runs:
+        r = abs(run["A_m"]) / abs(run["A_p"]) if run["A_p"] else math.nan
+        span = float(run["time"][-1])
+        # Median, not mean: the floor is ~0 at t = 0 (quiet start) and only
+        # saturates once the random thermal velocities have streamed.
+        noise = float(np.median(run["noise"]))
+        print(f"  {run['label']:8s} {run['testname']}")
+        print(f"    frames = {run['time'].size} , t/T in "
+              f"[{run['time'][0]:.4g}, {span:.4g}] , T = {run['T_wave']:.6g}")
+        print(f"    w   = {run['omega']:.6e}  = {run['omega']/run['omega_s']:.4f} w_s")
+        print(f"    G   = {run['Gamma']:.6e}  = "
+              f"{run['Gamma']/run['Gamma_theory']:.4f} Gamma_theory")
+        print(f"    |A_p| = {abs(run['A_p']):.6e} , |A_m| = {abs(run['A_m']):.6e}"
+              f" , r = {r:.4f}")
+        print(f"    beat: period = {math.pi/run['omega']/run['T_wave']:.4f} T , "
+              f"visibility = {2.0*r/(1.0+r*r):.4f} , "
+              f"peak/trough = {(1.0+r)/(1.0-r) if r < 1.0 else math.inf:.4f}")
+        print(f"    relative residual = {run['residual']:.4f} , "
+              f"noise floor = {noise:.6e}")
+        if span < 1.0:
+            print("    [warn] window shorter than one wave period: the two "
+                  "branches are nearly collinear, r is unreliable.")
+        if abs(run["A_m"]) < noise:
+            print("    [warn] |A_m| is below the noise floor: the "
+                  "counter-propagating branch is not resolved above the "
+                  "discrete-particle noise.")
+    print(f"Two-branch figure written to {png_path}")
+
+
+def density_view_dir(config, species):
+    """Output sub-directory of a species density diagnostic (or its default)."""
+    for diagnostic in config.get("Diagnostics", []) or []:
+        if diagnostic.get("diagnostic") == "DistributionMoment" and \
+                diagnostic.get("particles") == species and \
+                diagnostic.get("moment") == "density":
+            return diagnostic.get("out_dir") or os.path.join(species, "density")
+    return os.path.join(species, "density")
+
+
+def resolve_output_dir(const, config_dir, subdir):
+    """Resolve a diagnostic directory against configured and local run roots."""
+    if os.path.isabs(subdir) and os.path.isdir(subdir):
+        return subdir
+    for root in (const.in_dir, config_dir):
+        path = os.path.join(root, subdir)
+        if os.path.isdir(path):
+            return path
+    return None
+
+
+def numeric_frames(path, expected_bytes):
+    """Return {step: filename} for complete numeric binary frames in `path`."""
+    if path is None:
+        return {}
+    return {
+        int(name): name
+        for name in os.listdir(path)
+        if name.isdigit()
+        and os.path.isfile(os.path.join(path, name))
+        and os.path.getsize(os.path.join(path, name)) == expected_bytes
+    }
+
+
+def load_current_temperature(testname, args):
+    r"""Load the longitudinal resolved-flow temperature inferred from J.
+
+    At every grid point we form the density-normalized bulk velocity
+
+        u_z = J_z / (q n),
+
+    then calculate its density-weighted central second moment,
+
+        T_parallel,J = m <(u_z - <u_z>_n)^2>_n.
+
+    This is the kinetic temperature of the spatially resolved bulk-velocity
+    fluctuations (the coherent wave and grid-scale current noise).  A current
+    density is only a first particle moment, so it cannot recover the full
+    microscopic particle temperature m(<v_z^2>-<v_z>^2).
+    """
+    ctx = prepare_theory(testname)
+    const, config = ctx["const"], ctx["config"]
+    config_dir = ctx["config_dir"]
+    shape = (const.Nz, const.Ny, const.Nx)
+    scalar_bytes = int(np.prod(shape)) * np.dtype(np.float32).itemsize
+    vector_bytes = 3 * scalar_bytes
+    series = {}
+
+    for species in ctx["species"]:
+        density_subdir = density_view_dir(config, species.name)
+        current_subdir = field_view_dir(config, f"{species.name}/J") \
+            or os.path.join(species.name, "J")
+        density_dir = resolve_output_dir(const, config_dir, density_subdir)
+        current_dir = resolve_output_dir(const, config_dir, current_subdir)
+        if density_dir is None or current_dir is None:
+            raise SystemExit(
+                f"--compare-temp: need density and J diagnostics for "
+                f"'{species.name}' in '{testname}' (density={density_subdir}, "
+                f"J={current_subdir}).")
+
+        density_frames = numeric_frames(density_dir, scalar_bytes)
+        current_frames = numeric_frames(current_dir, vector_bytes)
+        # J frame 0000 is zero because no step has yet been deposited.  It is
+        # not a physical temperature sample and would spoil relative changes.
+        common = sorted((set(density_frames) & set(current_frames)) - {0})
+        if args.model_tmax is not None:
+            t_limit = args.model_tmax * ctx["T_wave"]
+            tolerance = 1.0e-12 * max(1.0, t_limit)
+            common = [idx for idx in common
+                      if idx * const.dts <= t_limit + tolerance]
+        if not common:
+            raise SystemExit(
+                f"--compare-temp: no common nonzero density/J frames for "
+                f"'{species.name}' in '{testname}'.")
+
+        times, temperatures = [], []
+        for idx in common:
+            density = np.fromfile(
+                os.path.join(density_dir, density_frames[idx]),
+                dtype=np.float32, count=int(np.prod(shape))).reshape(shape)
+            current = np.fromfile(
+                os.path.join(current_dir, current_frames[idx]),
+                dtype=np.float32, count=3 * int(np.prod(shape))).reshape(*shape, 3)
+
+            valid = np.isfinite(density) & np.isfinite(current[..., 2]) \
+                & (density > max(abs(species.n) * 1.0e-12, 1.0e-30))
+            if not np.any(valid):
+                continue
+            n = density[valid].astype(np.float64)
+            uz = current[..., 2][valid].astype(np.float64) / (species.q * n)
+            weight = float(np.sum(n))
+            mean_uz = float(np.sum(n * uz) / weight)
+            variance = float(np.sum(n * (uz - mean_uz) ** 2) / weight)
+            temperatures.append(species.m * variance * MEC2_KEV)
+            times.append(idx * const.dts / ctx["T_wave"])
+
+        if not times:
+            raise SystemExit(
+                f"--compare-temp: all density/J frames for '{species.name}' "
+                f"in '{testname}' are empty or invalid.")
+        series[species.name] = {
+            "time": np.asarray(times),
+            "temperature": np.asarray(temperatures),
+            "configured_temperature": species.T * MEC2_KEV,
+        }
+
+    return {
+        "testname": testname,
+        "label": compare_label(testname),
+        "series": series,
+        "out_dir": const.out_dir,
+    }
+
+
+def run_compare_temp(args):
+    """Compare electron/ion longitudinal velocity variance inferred from J."""
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
+    tools_dir = os.path.join(repo_dir, "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from lib.plot import bbox, labelsize, ticksize
+
+    plt.rc("text", usetex=False)
+    runs = [load_current_temperature(name, args)
+            for name in [args.model, *args.compare_temp]]
+
+    fig, (ax_temp, ax_relative) = plt.subplots(
+        2, 1, figsize=(10.0, 10.0), sharex=True)
+    colors = plt.get_cmap("tab10").colors
+    linestyles = {"electrons": "-", "ions": "--"}
+    species_symbols = {"electrons": "e", "ions": "i"}
+    positive_temperatures = []
+
+    for run_idx, run in enumerate(runs):
+        color = colors[run_idx % len(colors)]
+        for species_name, values in run["series"].items():
+            time = values["time"]
+            temperature = values["temperature"]
+            symbol = species_symbols.get(species_name, species_name)
+            style = linestyles.get(species_name, "-")
+            label = rf"{run['label']}, ${symbol}$"
+            ax_temp.plot(time, temperature, color=color, linestyle=style,
+                         linewidth=2.2, label=label)
+            delta = temperature - temperature[0]
+            ax_relative.plot(time, delta, color=color, linestyle=style,
+                             linewidth=2.2, label=label)
+            positive_temperatures.extend(
+                temperature[np.isfinite(temperature) & (temperature > 0.0)])
+
+    if positive_temperatures:
+        spread = max(positive_temperatures) / min(positive_temperatures)
+        if spread >= 20.0:
+            ax_temp.set_yscale("log")
+    ax_temp.set_ylabel(r"$T_{\parallel,J}$ [keV]", fontsize=labelsize)
+    ax_temp.set_title(r"Продольная температура из $J_z$",
+                      fontsize=labelsize, bbox=bbox)
+    ax_temp.grid(True, alpha=0.3, which="both")
+    ax_temp.tick_params(labelsize=ticksize)
+    ax_temp.legend(loc="best", fontsize=ticksize, ncol=2)
+
+    ax_relative.axhline(0.0, color="black", linewidth=0.9, alpha=0.6)
+    all_deltas = [
+        np.abs(values["temperature"] - values["temperature"][0])
+        for run in runs for values in run["series"].values()
+    ]
+    delta_max = max(float(np.nanmax(delta)) for delta in all_deltas)
+    if delta_max > 0.0:
+        ax_relative.set_yscale("symlog", linthresh=max(delta_max * 3.0e-2,
+                                                        1.0e-12))
+    ax_relative.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax_relative.set_ylabel(r"$T_{\parallel,J}(t)-T_{\parallel,J}(t_1)$ [keV]",
+                           fontsize=labelsize)
+    ax_relative.set_title(r"Изменение $T_{\parallel,J}$ (обмен энергией)",
+                          fontsize=labelsize, bbox=bbox)
+    ax_relative.grid(True, alpha=0.3)
+    ax_relative.tick_params(labelsize=ticksize)
+
+    x_max = max(float(values["time"][-1])
+                for run in runs for values in run["series"].values())
+    ax_relative.set_xlim(0.0, x_max)
+    fig.tight_layout()
+
+    out_dir = os.path.join(runs[0]["out_dir"], args.out_subdir)
+    os.makedirs(out_dir, exist_ok=True)
+    png_path = os.path.join(out_dir, "ion_sound_compare_temp.png")
+    fig.savefig(png_path, dpi=args.dpi)
+    plt.close(fig)
+
+    print("=" * 70)
+    print(f"COMPARE_TEMP: {args.model} + {len(args.compare_temp)} run(s)")
+    print("=" * 70)
+    print("  T_parallel,J = m <(J_z/(q n) - <J_z/(q n)>_n)^2>_n")
+    print("  This is resolved bulk-flow/noise energy, not the full particle "
+          "second-moment temperature.")
+    for run in runs:
+        for species_name, values in run["series"].items():
+            temperature = values["temperature"]
+            change = temperature[-1] / temperature[0] - 1.0 \
+                if temperature[0] != 0.0 else math.nan
+            print(f"  {run['label']:8s} {species_name:9s}: "
+                  f"{temperature.size} frames, "
+                  f"T_J = {temperature[0]:.6e} -> {temperature[-1]:.6e} keV, "
+                  f"change = {change:+.3%}, "
+                  f"T_config = {values['configured_temperature']:.6e} keV")
+    print(f"Temperature comparison figure written to {png_path}")
+
+
 def run_model_electric(args):
-    ctx = prepare_theory(args.model_electric)
+    # Frame 0000 contains the field prescribed by SetElectricField, before the
+    # first self-consistent particle/field step.  For the electric comparison
+    # the default IVP therefore starts from the realized frame 0001.
+    electric_ic_frame = 1 if args.ic_from_dump is None else args.ic_from_dump
+    ctx = prepare_theory(args.model_electric, ic_frame=electric_ic_frame)
     const, config = ctx["const"], ctx["config"]
     species = ctx["species"]
     k, omega0 = ctx["k"], ctx["omega0"]
     cn_hat, u_hat, E0, ic = ctx["cn_hat"], ctx["u_hat"], ctx["E0"], ctx["ic"]
+    initial_distribution = ctx["initial_distribution"]
+    t0 = ctx["t0"]
     omega_r, Gamma, T_wave = omega0.real, -omega0.imag, ctx["T_wave"]
     config_dir = ctx["config_dir"]
 
@@ -914,9 +2038,14 @@ def run_model_electric(args):
     if not os.path.isdir(epath):
         raise SystemExit(f"E field frames not found (looked in '{edir_name}').")
 
-    frames = sorted((int(n), n) for n in os.listdir(epath) if n.isdigit())
+    frames = sorted((int(n), n) for n in os.listdir(epath)
+                    if n.isdigit() and int(n) >= electric_ic_frame)
     if not frames:
-        raise SystemExit(f"no E frames in {epath}.")
+        raise SystemExit(
+            f"no E frames at or after {electric_ic_frame:04d} in {epath}.")
+    if frames[0][0] != electric_ic_frame:
+        raise SystemExit(
+            f"initial E frame {electric_ic_frame:04d} not found in {epath}.")
     idxs = [i for i, _ in frames]
     names = [n for _, n in frames]
     times = np.array([i * const.dts for i in idxs], dtype=float)
@@ -937,16 +2066,31 @@ def run_model_electric(args):
         return load_Ez(name).reshape(const.Nz, nx_plane).mean(axis=1)
 
     # Simulation amplitude, same recipe as the density: average over the
-    # transverse cells first (filters PIC noise / higher transverse structure),
-    # then the L2 metric  dE(t) = sqrt( (2/Lz) int <E_z>_x^2 dz ) = |E_z_hat|.
+    # transverse cells first, then retain only the requested z harmonic.
+    # Unlike the former L2 metric, this excludes the DC component and every
+    # other longitudinal mode from the comparison.
+    # E_z lives on z faces, whereas density and the phase-space histogram live
+    # at cell centres.  Their Fourier amplitudes must use their own staggered
+    # coordinates; the modulus is unchanged, but the complex phase supplied to
+    # the Vlasov--Ampere IVP is not.
+    z = np.arange(const.Nz) * const.dz
+    first_harmonic_kernel = np.exp(-1j * k * z)
     profiles = [Ez_profile(n) for n in names]
-    dE_sim = np.array([np.sqrt(2.0 * np.mean(pz ** 2)) for pz in profiles])
+    E_sim = np.array([2.0 * np.mean(pz * first_harmonic_kernel)
+                      for pz in profiles])
+    dE_sim = np.abs(E_sim)
+    initial_field = complex(E_sim[0])
 
-    # ---- Theory: E_hat(t) = (sum_s q_s n_hat_s) / (i k),  |E| = |sum|/k ----- #
-    t_grid, nhat = solve_vlasov_poisson(species, cn_hat, u_hat, k,
-                                        max(t_max, T_wave * 1e-3))
-    rho_hat = sum(s.q * nhat[s.name] for s in species)
-    dE_theory = np.abs(rho_hat) / k
+    # E is evolved from the saved first harmonic by longitudinal Ampere.  This
+    # preserves the realized finite-particle Gauss-law mismatch instead of
+    # replacing E(0001) immediately by rho(0001)/(ik).
+    t_grid, nhat, E_theory = solve_vlasov_poisson(
+        species, cn_hat, u_hat, k,
+        max(t_max - t0, T_wave * 1e-3),
+        initial_distribution=initial_distribution,
+        initial_field=initial_field)
+    t_grid = t_grid + t0
+    dE_theory = np.abs(E_theory)
 
     # ---- Summary ---------------------------------------------------------- #
     print("=" * 70)
@@ -954,17 +2098,27 @@ def run_model_electric(args):
     print("=" * 70)
     print(f"  k = {k:.6e} (mode {ctx['wn']:.0f}, Lz = {const.Lz:.6g})")
     print(f"  omega_s = {omega_r:.6e} ,  Gamma_s = {Gamma:.6e} ,  T = {T_wave:.6g}")
-    print(f"  E0 (config/Poisson) = {E0:.6e}")
+    print(f"  E0 (configured frame 0000) = {E0:.6e}")
     for s in species:
         a_n, phi_n, C_u, phi_u = ic[s.name]
         print(f"  {s.name:9s}: a_n = {a_n:.6e}, phi_n = {phi_n:+.6f} ,"
               f"  C_u = {C_u:.6e}, phi_u = {phi_u:+.6f}")
-    print(f"  E frames = {len(names)} in '{edir_name}' , t in [0, {t_max:.6g}]")
-    print(f"  |E|(0): theory = {dE_theory[0]:.6e} , model = {dE_sim[0]:.6e}")
+    if ctx["ic_measured"] is not None:
+        print(f"  IC measured from frame {ctx['ic_measured']:04d} "
+              f"(t0 = {t0:.6g} = {t0 / T_wave:.4g} T)")
+        for s in species:
+            print(f"  {s.name:9s}: |cn_hat| = {abs(cn_hat[s.name]):.6e} , "
+                  f"|u_hat| = {abs(u_hat[s.name]):.6e}   (realized)")
+    print(f"  E frames = {len(names)} in '{edir_name}' , "
+          f"t in [{times[0]:.6g}, {t_max:.6g}]")
+    i0 = int(np.argmin(np.abs(times - t0)))
+    print(f"  E_1(t0): theory/model = "
+          f"{E_theory[0].real:+.6e}{E_theory[0].imag:+.6e}j")
+    print(f"  |E_1|(t0): theory = {dE_theory[0]:.6e} , "
+          f"model = {dE_sim[i0]:.6e}")
     print()
 
-    # ---- Figure: left = E_z(z) profile, right = |E|(t) amplitude ---------- #
-    z = (np.arange(const.Nz) + 0.5) * const.dz
+    # ---- Figure: left = E_z(z) profile, right = |E_1|(t) amplitude -------- #
     e_lim = max(1e-30, 1.3 * float(max(np.max(np.abs(pz)) for pz in profiles)))
     amp_hi_lim = max(float(np.nanmax(dE_theory)), float(np.nanmax(dE_sim))) * 1.25
 
@@ -984,14 +2138,18 @@ def run_model_electric(args):
     ax_z.set_title(r"Профиль поля $E_z$", fontsize=labelsize, bbox=bbox)
 
     (line_amp,) = ax_amp.plot([], [], color="purple", marker="o", linestyle="-",
-                              linewidth=2.5, markersize=4.0, label=r"$|E_z|$ (model)")
+                              linewidth=2.5, markersize=4.0,
+                              zorder=3,
+                              label=r"$|E_{z,1}|$ (model)")
     ax_amp.plot(t_grid / T_wave, dE_theory, color="black", linewidth=2.0,
-                label=r"$|E_z|$ (theory, Vlasov-Poisson)")
-    ax_amp.set_xlim(0.0, t_max / T_wave)
+                zorder=2,
+                label=r"$|E_{z,1}|$ (theory, Vlasov--Ampere)")
+    ax_amp.set_xlim(t0 / T_wave, t_max / T_wave)
     ax_amp.set_ylim(0.0, amp_hi_lim)
     ax_amp.set_xlabel(r"$t/T$", fontsize=labelsize)
     ax_amp.set_ylabel(
-        r"$|E_z|(t) = \sqrt{\frac{2}{L_z}\int \langle E_z\rangle_x^2\,dz}$",
+        r"$|E_{z,1}(t)| = \left|\frac{2}{L_z}\int"
+        r"\langle E_z\rangle_{x,y}e^{-ikz}\,dz\right|$",
         fontsize=labelsize)
     ax_amp.tick_params(labelsize=ticksize)
     ax_amp.grid(True, alpha=0.3)
@@ -1033,6 +2191,359 @@ def run_model_electric(args):
     print(f"Final figure written to {png_path}")
 
 
+# --------------------------------------------------------------------------- #
+# Phase-space mode: f(z, v_parallel) from the 5-D DK histogram                 #
+# --------------------------------------------------------------------------- #
+def regularized_kinetic_parallel(species, z, v, loader, density_amplitude,
+                                 density_phase, Lz):
+    """Velocity-bin-averaged theory used by KineticIonSoundQuiet.
+
+    Returns (f_parallel, n_target, F0), with f_parallel shaped (Nz, Nv) and
+    normalized independently at every z. This is an ordinary positive PDF,
+    unlike the analytically continued Landau eigenfunction when its linear
+    perturbation makes 1+h negative.  Both f_parallel and F0 are averages over
+    the same finite velocity bins as the diagnostic; evaluating the narrow
+    electron resonance only at bin centres substantially biases the comparison.
+    """
+    mode_vec = loader.get("wave_number", [0.0, 0.0, 1.0])
+    phase_vec = loader.get("field_phase", [0.0, 0.0, 0.0])
+    mode = float(mode_vec[2])
+    field_phase = float(phase_vec[2])
+    k = 2.0 * math.pi * mode / Lz
+    E0 = float(loader["electric_amplitude"])
+    omega = float(loader["omega_real"])
+    gamma = float(loader["gamma"])
+
+    coefficient = species.q * E0 / (species.m * species.vT**2)
+    theta = k * z[:, None] + field_phase
+
+    def weighted_pdf(velocity):
+        velocity = np.asarray(velocity)
+        F0_values = np.exp(-velocity**2 / (2.0 * species.vT**2)) / \
+            (math.sqrt(2.0 * math.pi) * species.vT)
+        detuning = omega - k * velocity
+        h = -coefficient * velocity[None, :] * (
+            gamma * np.cos(theta) + detuning[None, :] * np.sin(theta)
+        ) / (detuning[None, :]**2 + gamma**2)
+        return np.maximum(0.0, 1.0 + h) * F0_values[None, :]
+
+    cutoff = min(float(loader.get("velocity_cutoff_vT", 8.0)) * species.vT,
+                 float(loader.get("velocity_abs_max", 0.95)))
+    normalization_v = np.linspace(-cutoff, cutoff, 8193)
+    normalization = _trapz(
+        weighted_pdf(normalization_v), normalization_v, axis=1)
+    if np.any(normalization <= 0.0):
+        raise SystemExit("regularized kinetic PDF has zero normalization")
+
+    dv = float(v[1] - v[0]) if v.size > 1 else 2.0 * cutoff
+    samples_per_bin = 32
+    offsets = ((np.arange(samples_per_bin) + 0.5) /
+               samples_per_bin - 0.5) * dv
+    velocity_samples = (v[:, None] + offsets[None, :]).reshape(-1)
+    weighted = weighted_pdf(velocity_samples).reshape(
+        z.size, v.size, samples_per_bin).mean(axis=2)
+    F0 = (np.exp(-velocity_samples**2 /
+                 (2.0 * species.vT**2)) /
+          (math.sqrt(2.0 * math.pi) * species.vT)).reshape(
+              v.size, samples_per_bin).mean(axis=1)
+
+    n_target = species.n * (
+        1.0 + density_amplitude * np.sin(k * z + density_phase))
+    f_parallel = n_target[:, None] * weighted / normalization[:, None]
+    return f_parallel, n_target, F0
+
+
+def run_phase(args):
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
+    tools_dir = os.path.join(repo_dir, "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+
+    from lib.constants import const, init_constants
+
+    config_path = os.path.join(
+        tests_dir, "output", args.phase, "config.json")
+    if not os.path.isfile(config_path):
+        raise SystemExit(f"config not found: {config_path}")
+    init_constants(config_path)
+    config_dir = os.path.dirname(config_path)
+    if not os.path.isdir(const.in_dir):
+        const.in_dir = config_dir
+        const.out_dir = os.path.join(config_dir, "processed")
+
+    electron, ion = species_from_config(const.config)
+    all_species = [s for s in (electron, ion) if s is not None]
+    requested = set(args.species or [s.name for s in all_species])
+    species = [s for s in all_species if s.name in requested]
+    unknown = requested - {s.name for s in species}
+    if unknown:
+        raise SystemExit("unknown --species: " + ", ".join(sorted(unknown)))
+    if not species:
+        raise SystemExit("no species selected for --phase")
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import TwoSlopeNorm
+
+    fig, axes = plt.subplots(len(species), 3,
+                             figsize=(16.0, 5.0 * len(species)),
+                             squeeze=False)
+    summaries = []
+    parallel_marginals = []
+
+    for row, sp in enumerate(species):
+        diagnostic = distribution_diagnostic_for_species(const.config, sp.name)
+        loader = kinetic_loader_for_species(const.config, sp.name)
+        preset = preset_for_species(const.config, sp.name)
+        if diagnostic is None:
+            raise SystemExit(
+                f"no DkDistributionFunction diagnostic for '{sp.name}'")
+        if loader is None or preset is None:
+            raise SystemExit(
+                f"no KineticIonSoundQuiet loader for '{sp.name}'")
+
+        vinfo = diagnostic["v_parallel"]
+        muinfo = diagnostic["mu_p"]
+        nv, nmu = int(vinfo["bins"]), int(muinfo["bins"])
+        vmin, vmax = float(vinfo["min"]), float(vinfo["max"])
+        mumin, mumax = float(muinfo["min"]), float(muinfo["max"])
+        dv, dmu = (vmax - vmin) / nv, (mumax - mumin) / nmu
+        v = vmin + (np.arange(nv) + 0.5) * dv
+        z = (np.arange(const.Nz) + 0.5) * const.dz
+
+        subdir = diagnostic.get(
+            "out_dir", os.path.join(sp.name, "distribution_function"))
+        candidates = [os.path.join(const.in_dir, subdir,
+                                   f"{args.phase_frame:04d}"),
+                      os.path.join(config_dir, subdir,
+                                   f"{args.phase_frame:04d}")]
+        frame_path = next((path for path in candidates if os.path.isfile(path)),
+                          None)
+        if frame_path is None:
+            raise SystemExit(
+                f"phase-space frame {args.phase_frame:04d} not found for "
+                f"'{sp.name}' in '{subdir}'")
+
+        expected_size = const.Nz * const.Ny * const.Nx * nv * nmu
+        if os.path.getsize(frame_path) != expected_size * 4:
+            raise SystemExit(
+                f"unexpected size of {frame_path}: expected {expected_size * 4} bytes")
+        raw = np.fromfile(frame_path, dtype=np.float32, count=expected_size)
+        data = raw.reshape(const.Nz, const.Ny, const.Nx, nv, nmu)
+        f_model = data.sum(axis=4).mean(axis=(1, 2)) * dmu
+
+        coord = preset.get("coordinate", {})
+        amplitude = float(coord.get("amplitude", [0.0, 0.0, 0.0])[2])
+        density_phase = float(coord.get("phase", [0.0, 0.0, 0.0])[2])
+        f_theory, n_target, F0 = regularized_kinetic_parallel(
+            sp, z, v, loader, amplitude, density_phase, const.Lz)
+
+        baseline = n_target[:, None] * F0[None, :]
+        expected_markers = f_theory * dv * const.Nx * const.Ny * \
+            next(float(p["Np"]) for p in const.config["Particles"]
+                 if p.get("sort_name") == sp.name) / sp.n
+        mask = (expected_markers >= 5.0) & (baseline > 0.0)
+        delta_model = np.full_like(f_model, np.nan, dtype=float)
+        delta_theory = np.full_like(f_theory, np.nan, dtype=float)
+        delta_model[mask] = f_model[mask] / baseline[mask] - 1.0
+        delta_theory[mask] = f_theory[mask] / baseline[mask] - 1.0
+        residual = delta_model - delta_theory
+
+        finite_reference = np.concatenate([
+            np.abs(delta_model[np.isfinite(delta_model)]),
+            np.abs(delta_theory[np.isfinite(delta_theory)])])
+        color_limit = max(0.05, float(np.nanpercentile(
+            finite_reference, 99.0))) if finite_reference.size else 1.0
+        residual_limit = max(0.02, float(np.nanpercentile(
+            np.abs(residual[np.isfinite(residual)]), 99.0))) \
+            if np.any(np.isfinite(residual)) else 1.0
+
+        panels = [delta_model, delta_theory, residual]
+        titles = ["PIC", "regularized theory", "PIC - theory"]
+        limits = [color_limit, color_limit, residual_limit]
+        for col, (panel, title, limit) in enumerate(zip(panels, titles, limits)):
+            ax = axes[row, col]
+            im = ax.imshow(panel.T, origin="lower", aspect="auto",
+                           extent=(0.0, const.Lz, vmin / sp.vT, vmax / sp.vT),
+                           cmap="RdBu_r", norm=TwoSlopeNorm(
+                               vmin=-limit, vcenter=0.0, vmax=limit))
+            ax.set_title(f"{sp.name}: {title}")
+            ax.set_xlabel(r"$z\;(c/\omega_{pe})$")
+            if col == 0:
+                ax.set_ylabel(r"$v_\parallel/v_T$")
+            fig.colorbar(im, ax=ax, pad=0.02,
+                         label=r"$f_\parallel/[n(z)F_0]-1$")
+
+        n_model = np.sum(f_model, axis=1) * dv
+        n_theory = np.sum(f_theory, axis=1) * dv
+        u_model = np.sum(f_model * v[None, :], axis=1) * dv / \
+            np.maximum(n_model, 1.0e-300)
+        u_theory = np.sum(f_theory * v[None, :], axis=1) * dv / \
+            np.maximum(n_theory, 1.0e-300)
+        weighted_l1 = np.sum(np.abs(f_model - f_theory)) * dv / \
+            max(np.sum(np.abs(f_theory)) * dv, 1.0e-300)
+        weighted_rms = math.sqrt(np.mean(
+            ((f_model[mask] - f_theory[mask]) /
+             np.maximum(f_theory[mask], 1.0e-300))**2)) if np.any(mask) else math.nan
+        mode = float(loader.get("wave_number", [0.0, 0.0, 1.0])[2])
+        field_phase = float(loader.get(
+            "field_phase", [0.0, 0.0, 0.0])[2])
+        k = 2.0 * math.pi * mode / const.Lz
+        theta = k * z + field_phase
+        phase_projector = np.exp(-1j * theta)[:, None]
+        conditional_model = f_model / np.maximum(n_model[:, None], 1.0e-300)
+        conditional_theory = f_theory / np.maximum(n_theory[:, None], 1.0e-300)
+        relative_model = conditional_model / np.maximum(F0[None, :], 1.0e-300) - 1.0
+        relative_theory = conditional_theory / np.maximum(F0[None, :], 1.0e-300) - 1.0
+        harmonic_model = 2.0 * np.mean(
+            relative_model * phase_projector, axis=0)
+        harmonic_theory = 2.0 * np.mean(
+            relative_theory * phase_projector, axis=0)
+        summaries.append((sp.name,
+                          float(np.max(np.abs(n_model - n_target) / sp.n)),
+                          float(np.max(np.abs(n_theory - n_target) / sp.n)),
+                          float(np.max(np.abs(u_model - u_theory))),
+                          float(weighted_l1), float(weighted_rms)))
+        # Sum over all spatial z cells (and divide by Nz so the result retains
+        # the units of a velocity PDF).  f_model has already been integrated
+        # over mu_p and averaged over x,y above.
+        parallel_marginals.append({
+            "species": sp,
+            "v": v,
+            "model": np.mean(f_model, axis=0),
+            "theory": np.mean(f_theory, axis=0),
+            "maxwell": sp.n * F0,
+            "resonance": float(loader["omega_real"]) / k,
+            "resonance_width": float(loader["gamma"]) / abs(k),
+            "harmonic_model": harmonic_model,
+            "harmonic_theory": harmonic_theory,
+            "coefficient": sp.q * float(loader["electric_amplitude"]) /
+                           (sp.m * sp.vT**2),
+            "omega": float(loader["omega_real"]),
+            "gamma": float(loader["gamma"]),
+            "k": k,
+        })
+
+    fig.suptitle(
+        f"Ion-sound phase space, {args.phase}, frame {args.phase_frame:04d}")
+    fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.97))
+    out_dir = os.path.join(const.out_dir, "ion_sound_phase")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(
+        out_dir, f"ion_sound_phase_{args.phase_frame:04d}.png")
+    fig.savefig(out_path, dpi=args.dpi)
+    plt.close(fig)
+
+    # A separate one-dimensional view makes the parallel marginal and its
+    # tails readable without the z-dependent colour scale of the phase plot.
+    # Plot v_T f/n so electron and ion curves are dimensionless and directly
+    # comparable despite their very different thermal speeds.
+    marginal_fig, marginal_axes = plt.subplots(
+        len(parallel_marginals), 2,
+        figsize=(15.0, 4.2 * len(parallel_marginals)), squeeze=False)
+    for row, item in enumerate(parallel_marginals):
+        sp = item["species"]
+        ax = marginal_axes[row, 0]
+        velocity = item["v"] / sp.vT
+        scale = sp.vT / sp.n
+        pic = item["model"] * scale
+        theory = item["theory"] * scale
+        maxwell = item["maxwell"] * scale
+
+        ax.semilogy(velocity, pic, drawstyle="steps-mid", linewidth=1.4,
+                    label=r"PIC: $\sum_z f/N_z$")
+        ax.semilogy(velocity, theory, linewidth=1.8,
+                    label="regularized kinetic theory")
+        ax.semilogy(velocity, maxwell, "--", linewidth=1.3,
+                    label="Maxwellian")
+        resonance_vt = item["resonance"] / sp.vT
+        if velocity[0] <= resonance_vt <= velocity[-1]:
+            ax.axvline(resonance_vt, color="0.35", linestyle=":",
+                       linewidth=1.1, label=r"$v_{res}=\omega_r/k$")
+        positive = np.concatenate((pic[pic > 0.0], theory[theory > 0.0]))
+        if positive.size:
+            ax.set_ylim(max(float(np.min(positive)) * 0.5, 1.0e-9),
+                        max(float(np.max(positive)) * 1.35, 1.0e-8))
+        ax.set_xlabel(r"$v_\parallel/v_T$")
+        ax.set_ylabel(r"$v_T\langle f_\parallel\rangle_z/n_0$")
+        ax.set_title(f"{sp.name}: parallel-velocity marginal")
+        ax.grid(True, which="both", alpha=0.25)
+        ax.legend(loc="best")
+
+        # Summing over a full wavelength cancels the O(delta) kinetic
+        # perturbation.  The neighbouring panel therefore isolates its first
+        # spatial Fourier harmonic and zooms into omega_r/k instead of trying
+        # to find the resonance in the z-summed marginal.
+        resonance_ax = marginal_axes[row, 1]
+        resonance = item["resonance"]
+        width = item["resonance_width"]
+        if item["v"][0] <= resonance <= item["v"][-1]:
+            dv = float(item["v"][1] - item["v"][0])
+            half_window = max(8.0 * width, 2.5 * dv)
+            lo = max(float(item["v"][0] - 0.5 * dv), resonance - half_window)
+            hi = min(float(item["v"][-1] + 0.5 * dv), resonance + half_window)
+            selected = (item["v"] >= lo) & (item["v"] <= hi)
+            dense_v = np.linspace(lo, hi, 1200)
+            detuning = item["omega"] - item["k"] * dense_v
+            linear_h = np.abs(item["coefficient"] * dense_v) / np.sqrt(
+                detuning**2 + item["gamma"]**2)
+
+            resonance_ax.plot(dense_v / sp.vT, linear_h, color="0.25",
+                              linewidth=1.3, label="continuous linear theory")
+            resonance_ax.plot(
+                item["v"][selected] / sp.vT,
+                np.abs(item["harmonic_theory"][selected]), "o-",
+                linewidth=1.5, markersize=5,
+                label="regularized theory, bin-averaged")
+            resonance_ax.plot(
+                item["v"][selected] / sp.vT,
+                np.abs(item["harmonic_model"][selected]), "s",
+                markersize=5, label="PIC bins")
+            resonance_ax.axvspan(
+                (resonance - width) / sp.vT,
+                (resonance + width) / sp.vT,
+                color="tab:red", alpha=0.12,
+                label=r"$|v-v_{res}|<\Gamma/k$")
+            resonance_ax.axvline(resonance / sp.vT, color="tab:red",
+                                 linestyle=":", linewidth=1.1)
+            resonance_ax.set_xlim(lo / sp.vT, hi / sp.vT)
+            resonance_ax.set_ylabel(r"$|\widehat{\delta f/F_0}_1|$")
+            resonance_ax.legend(loc="best", fontsize="small")
+        else:
+            resonance_ax.text(
+                0.5, 0.5,
+                r"Resonance is outside the loaded range" "\n" +
+                rf"$v_{{res}}/v_T={resonance / sp.vT:.2f}$, " +
+                rf"$|v_\parallel|_{{max}}/v_T={max(abs(item['v'])) / sp.vT:.2f}$",
+                ha="center", va="center", transform=resonance_ax.transAxes)
+            resonance_ax.set_yticks([])
+        resonance_ax.set_xlabel(r"$v_\parallel/v_T$")
+        resonance_ax.set_title(f"{sp.name}: resonant first z harmonic")
+        resonance_ax.grid(True, alpha=0.25)
+
+    marginal_fig.suptitle(
+        f"Parallel distribution summed over z, {args.phase}, "
+        f"frame {args.phase_frame:04d}")
+    marginal_fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.97))
+    marginal_path = os.path.join(
+        out_dir, f"ion_sound_vparallel_{args.phase_frame:04d}.png")
+    marginal_fig.savefig(marginal_path, dpi=args.dpi)
+    plt.close(marginal_fig)
+
+    print("=" * 70)
+    print(f"PHASE: {args.phase}, frame {args.phase_frame:04d}")
+    print("=" * 70)
+    for name, dn_model, dn_theory, du, l1, rms in summaries:
+        print(f"  {name:9s}: max|n_model-n_target|/n0 = {dn_model:.6e}, "
+              f"quadrature = {dn_theory:.6e}")
+        print(f"             max|u_model-u_theory| = {du:.6e}, "
+              f"L1 = {l1:.6e}, masked RMS = {rms:.6e}")
+    print(f"Phase-space figure written to {out_path}")
+    print(f"Parallel marginal figure written to {marginal_path}")
+
+
 def build_parser():
     p = argparse.ArgumentParser(
         description="Ion-sound kinetic theory (--theory) and comparison against "
@@ -1044,10 +2555,45 @@ def build_parser():
                    help="model mode: test name (e.g. drift_kinetic_eigen_sound_ex1); "
                         "reads output/<name>/config.json and compares the exact "
                         "kinetic n_s(z,t) against the run's density diagnostics")
+    p.add_argument("--model-pic", default=None, metavar="TEST",
+                   help="PIC-informed linear model: evolve only the first "
+                        "spatial harmonic with linear Vlasov--Ampere from "
+                        "the realized DkDistributionFunction and E harmonic "
+                        "in one saved frame. "
+                        "Defaults to frame 0001; --ic-from-dump selects another")
+    p.add_argument("--compare", nargs="+", action="append", default=None,
+                   metavar="TEST",
+                   help="comparison mode: add up to five finished tests to "
+                        "--model (the option may be repeated). Draws one static "
+                        "plot with only the ion first-harmonic amplitudes and "
+                        "the base run's exponentially damped theory")
+    p.add_argument("--compare-temp", nargs="+", action="append", default=None,
+                   metavar="TEST",
+                   help="temperature-comparison mode: add up to five finished "
+                        "tests to --model. Infers u_z=J_z/(q*n) and compares "
+                        "the density-weighted longitudinal velocity variance "
+                        "of electrons and ions")
+    p.add_argument("--model_adv", nargs="+", default=None, metavar="TEST",
+                   help="two-branch mode: one or more test names; fits the "
+                        "COMPLEX ion first harmonic to "
+                        "A_p e^{-i w t} + A_m e^{+i w t}, both damped as "
+                        "e^{-Gamma t}, and plots the travelling-wave envelope "
+                        "|A_p| e^{-Gamma t} free of the 2 w beat that the two "
+                        "branches produce on |dn_1|. Gamma comes from the "
+                        "linear least-squares problem, so it is not biased by "
+                        "the beat nor by zero-mean particle noise")
     p.add_argument("--model_electric", default=None,
                    help="field-comparison mode: test name; compares the exact "
                         "theory |E_z|(t) (first harmonic) against the run's E "
-                        "FieldView frames (same L2 amplitude metric as density)")
+                        "FieldView frames. By default the Vlasov--Ampere IVP "
+                        "starts from distribution_function/0001 and E/0001; "
+                        "--ic-from-dump selects another starting frame")
+    p.add_argument("--phase", default=None,
+                   help="phase-space mode: test name; read the 5-D "
+                        "DkDistributionFunction and compare f(z,v_parallel) "
+                        "with the regularized kinetic loading theory")
+    p.add_argument("--phase-frame", type=int, default=0, metavar="FRAME",
+                   help="phase-space diagnostic frame to read (default: 0)")
     # --- theory-mode parameters ---
     p.add_argument("--me", type=float, default=1.0, help="electron mass [m_e]")
     p.add_argument("--mi", type=float, default=100.0, help="ion mass [m_e]")
@@ -1087,6 +2633,16 @@ def build_parser():
     # --- model-mode parameters ---
     p.add_argument("--species", nargs="+", default=None,
                    help="model mode: sorts to plot (default: every density diagnostic)")
+    p.add_argument("--ic-from-dump", type=int, nargs="?", const=1, default=None,
+                   metavar="FRAME",
+                   help="model modes: start the theory from the REALIZED initial "
+                        "condition measured in dump FRAME (default 1) instead of "
+                        "the amplitudes requested in config.json. Needs a 3D "
+                        "'<sort>/J' FieldView for the velocity moment; frame 0 is "
+                        "unusable because J is deposited over a step. The theory "
+                        "clock then starts at t0 = FRAME*dts. --model-pic uses "
+                        "frame 1 by default and requires a phase-space dump and "
+                        "E FieldView from the same frame")
     p.add_argument("--model-tmax", type=float, default=None,
                    help="model mode: draw only frames with t/T not greater than "
                         "this positive number of ion-sound periods")
@@ -1102,6 +2658,67 @@ def build_parser():
 def main():
     p = build_parser()
     args = p.parse_args()
+
+    if args.model_pic is not None:
+        conflicts = (args.model is not None or args.model_electric is not None or
+                     args.model_adv is not None or args.phase is not None or
+                     args.compare is not None or args.compare_temp is not None)
+        if conflicts:
+            p.error("--model-pic cannot be combined with other model/compare modes.")
+        if args.ic_from_dump is not None and args.ic_from_dump < 0:
+            p.error("--ic-from-dump must be non-negative.")
+        if args.model_tmax is not None and args.model_tmax <= 0.0:
+            p.error("--model-tmax must be positive.")
+        run_model_pic(args)
+        return
+
+    if args.phase is not None:
+        if args.phase_frame < 0:
+            p.error("--phase-frame must be non-negative.")
+        if args.model is not None or args.model_electric is not None or \
+                args.compare is not None or args.compare_temp is not None:
+            p.error("--phase cannot be combined with model/compare modes.")
+        run_phase(args)
+        return
+
+    if args.model_adv is not None:
+        if args.model is not None or args.model_electric is not None or \
+                args.compare is not None or args.compare_temp is not None:
+            p.error("--model_adv cannot be combined with model/compare modes.")
+        if len(args.model_adv) > 6:
+            p.error("--model_adv accepts at most six tests.")
+        if args.model_tmax is not None and args.model_tmax <= 0.0:
+            p.error("--model-tmax must be positive.")
+        run_model_adv(args)
+        return
+
+    if args.compare_temp is not None:
+        args.compare_temp = [name for group in args.compare_temp for name in group]
+        if args.model is None:
+            p.error("--compare-temp requires --model.")
+        if args.compare is not None:
+            p.error("--compare-temp cannot be combined with --compare.")
+        if args.model_electric is not None:
+            p.error("--compare-temp cannot be used with --model_electric.")
+        if len(args.compare_temp) > 5:
+            p.error("--compare-temp accepts at most five additional tests.")
+        if args.model_tmax is not None and args.model_tmax <= 0.0:
+            p.error("--model-tmax must be positive.")
+        run_compare_temp(args)
+        return
+
+    if args.compare is not None:
+        args.compare = [name for group in args.compare for name in group]
+        if args.model is None:
+            p.error("--compare requires --model.")
+        if args.model_electric is not None:
+            p.error("--compare cannot be used with --model_electric.")
+        if len(args.compare) > 5:
+            p.error("--compare accepts at most five additional tests.")
+        if args.model_tmax is not None and args.model_tmax <= 0.0:
+            p.error("--model-tmax must be positive.")
+        run_compare(args)
+        return
 
     if args.model_electric is not None:
         run_model_electric(args)

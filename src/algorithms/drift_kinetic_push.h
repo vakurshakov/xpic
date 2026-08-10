@@ -36,6 +36,12 @@ public:
   /// @brief Returns true if the last call to `process()` converged within tolerances.
   bool has_converged() const;
 
+  /// @brief Position-equation residual from the last `process()` call.
+  PetscReal get_FRk() const;
+
+  /// @brief Parallel-velocity-equation residual from the last `process()` call.
+  PetscReal get_FVhk() const;
+
   /// @brief Midpoint field values at the last accepted nonlinear iterate.
   /// Valid right after `process()`; used by the per-particle energy audit.
   const Vector3R& get_Eh() const { return Eh; }

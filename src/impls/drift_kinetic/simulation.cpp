@@ -72,6 +72,20 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_particles(*this, particles_));
   {
     const Configuration::json_t& json = CONFIG().json;
+    bool fail_on_terminal_nonconvergence = false;
+    if (auto it = json.find("DriftKineticPush");
+        it != json.end() && it->contains("fail_on_terminal_nonconvergence")) {
+      it->at("fail_on_terminal_nonconvergence")
+        .get_to(fail_on_terminal_nonconvergence);
+    }
+    for (auto& sort : particles_)
+      sort->set_fail_on_terminal_nonconvergence(
+        fail_on_terminal_nonconvergence);
+    LOG("  drift_kinetic: fail_on_terminal_nonconvergence = {}",
+      fail_on_terminal_nonconvergence);
+  }
+  {
+    const Configuration::json_t& json = CONFIG().json;
     auto it = json.find("Particles");
     if (it != json.end()) {
       for (auto&& info : *it) {
@@ -229,6 +243,7 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
   PetscCall(DMDAVecGetArrayRead(da, Bn1_loc, &Bn1_arr));
 
+  Particles* terminal_failure = nullptr;
   for (auto& sort : particles_) {
     sort->E_arr = E_arr;
     sort->B_arr = B_arr;
@@ -237,7 +252,18 @@ PetscErrorCode Simulation::form_current()
     PetscCall(sort->form_iteration());
     PetscCall(VecAXPY(J, 1, sort->J));
     PetscCall(VecAXPY(M, 1, sort->M));
-    LOG("Avg push it = {}, Max push it = {}", sort->get_average_iteration_number(), sort->get_max_iteration_number());
+    LOG("Push \"{}\": avg it={}, max it={}, retries={}, leaf failures={}, "
+        "max leaf FRk={: .4e}, max leaf FVhk={: .4e}",
+      sort->parameters.sort_name,
+      sort->get_average_iteration_number(), sort->get_max_iteration_number(),
+      sort->get_push_retries(), sort->get_push_leaf_failures(),
+      sort->get_max_push_leaf_residue_r(),
+      sort->get_max_push_leaf_residue_v());
+    if (terminal_failure == nullptr &&
+        sort->fail_on_terminal_nonconvergence() &&
+        sort->get_push_leaf_failures() > 0) {
+      terminal_failure = sort.get();
+    }
   }
 
   PetscCall(VecDot(M, B, &energy_cons->a_MB0));
@@ -246,6 +272,17 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, Bn_loc, &Bn_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, Bn1_loc, &Bn1_arr));
+
+  PetscCheck(terminal_failure == nullptr, PETSC_COMM_WORLD,
+    PETSC_ERR_NOT_CONVERGED,
+    "DK Push terminal non-convergence for sort %s: leaf_failures=%" PetscInt_FMT
+    ", max FRk=%g, max FVhk=%g",
+    terminal_failure ? terminal_failure->parameters.sort_name.c_str() : "",
+    terminal_failure ? terminal_failure->get_push_leaf_failures() : 0,
+    (double)(terminal_failure
+      ? terminal_failure->get_max_push_leaf_residue_r() : 0.0),
+    (double)(terminal_failure
+      ? terminal_failure->get_max_push_leaf_residue_v() : 0.0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

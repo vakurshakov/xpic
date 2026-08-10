@@ -22,17 +22,21 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
   load_coordinate(
     info.at("coordinate"), particles, generate_coordinate, number_of_particles);
 
+  const auto coordinate_name =
+    info.at("coordinate").at("name").get<std::string>();
   const bool quiet_coordinate =
-    info.at("coordinate").at("name").get<std::string>()
-    == "CoordinateInBoxQuietSinePaired";
+    coordinate_name == "CoordinateInBoxQuietSinePaired" ||
+    coordinate_name == "CoordinateInBoxQuietSineExactPaired";
   auto validate_quiet_pair = [quiet_coordinate](
                                const Configuration::json_t& momentum_info) {
+    const auto momentum_name = momentum_info.at("name").get<std::string>();
     const bool quiet_momentum =
-      momentum_info.at("name").get<std::string>() == "MaxwellShiftedSineQuiet";
+      momentum_name == "MaxwellShiftedSineQuiet" ||
+      momentum_name == "MaxwellianVelocityQuiet" ||
+      momentum_name == "KineticIonSoundQuiet";
     if (quiet_coordinate != quiet_momentum)
       throw std::runtime_error(
-        "CoordinateInBoxQuietSinePaired and MaxwellShiftedSineQuiet "
-        "must be used together");
+        "paired quiet coordinate and momentum generators must be used together");
   };
 
   // Drift-kinetic paired loader: one shared coordinate stream for both sorts.

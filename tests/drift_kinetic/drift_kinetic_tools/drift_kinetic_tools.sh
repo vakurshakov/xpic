@@ -152,7 +152,7 @@
 #                     plotted vs r. Vector quantities are projected to
 #                     cylindrical (r, phi, z) before binning. Handled by
 #                     drift_kinetic_force_pressure_3D_phi.py.
-#   fp1d[:MB][:START_IDX[:END_IDX]]
+#   fp1d[:MB][:e][:START_IDX[:END_IDX]]
 #                  -- Same two-panel diagnostic as fp3d_y, but reduced to a
 #                     single 1D profile vs x by averaging over BOTH z and y
 #                     (planar Cartesian force balance, no cylindrical hoop
@@ -163,8 +163,13 @@
 #                     and -(rot M)_y B_z, where B_z is de-staggered onto the
 #                     cell node in x and y and J_y / (rot M)_y in y before the
 #                     product, then averaged over z and y. START_IDX /
-#                     END_IDX bound the frames inclusively. Handled by
-#                     drift_kinetic_force_pressure_1D.py.
+#                     END_IDX bound the frames inclusively. Also writes a
+#                     separate electron/positron T_perp / T_parallel
+#                     time-series, density-weighted over y,z and
+#                     150 <= x <= 450, in m_e*c^2 units. Handled by
+#                     drift_kinetic_force_pressure_1D.py. The optional :e flag
+#                     draws only this pair-temperature graph; MB and e may
+#                     be given in either order before START_IDX.
 #
 # Example:
 #   ./drift_kinetic_tools.sh drift_kinetic_hose_ex1 E B
@@ -177,7 +182,7 @@ set -eu
 if [ "$#" -lt 1 ]; then
     cat >&2 <<EOF
 Usage: $0 <test_name> [diagnostics...]
-Diagnostics: E B J M rotM curlM dB cyl:{E,B,J,M,rotM,curlM,dB} dBfft[:N] beta energy energy_compare[:N] eq[:dec|:pol] force[:dec|:pol[:START_IDX]] force_y[:avg|:center[:START_IDX[:tavg[:TAVG_START_IDX]]]] fp_y[:avg|:center[:START_IDX[:END_IDX]]] fp3d_y[:Pi|:avgzy|:pidiag|:noj...][:avg|:center[:START_IDX[:END_IDX[:Y_IDX]]]] fp3d_phi[:avg|:center[:START_IDX[:END_IDX]]] fp1d[:MB][:START_IDX[:END_IDX]] pcyl[:J][:avg|:center[:IDX]] profiles[:dec|:pol] ions electrons density_z compare_density_z:<other_test>[:<t_max_T>] jspec[:sub][:M]
+Diagnostics: E B J M rotM curlM dB cyl:{E,B,J,M,rotM,curlM,dB} dBfft[:N] beta energy energy_compare[:N] eq[:dec|:pol] force[:dec|:pol[:START_IDX]] force_y[:avg|:center[:START_IDX[:tavg[:TAVG_START_IDX]]]] fp_y[:avg|:center[:START_IDX[:END_IDX]]] fp3d_y[:Pi|:avgzy|:pidiag|:noj...][:avg|:center[:START_IDX[:END_IDX[:Y_IDX]]]] fp3d_phi[:avg|:center[:START_IDX[:END_IDX]]] fp1d[:MB][:e][:START_IDX[:END_IDX]] pcyl[:J][:avg|:center[:IDX]] profiles[:dec|:pol] ions electrons density_z compare_density_z:<other_test>[:<t_max_T>] jspec[:sub][:M]
 EOF
     exit 1
 fi
@@ -237,6 +242,7 @@ FP3D_PHI_END_IDX=()
 FP1D_START_IDX=()
 FP1D_END_IDX=()
 FP1D_USE_MB=()
+FP1D_E_ONLY=()
 PCYL_ZMODE=()
 PCYL_IDX=()
 PCYL_MODE=()
@@ -473,21 +479,26 @@ parse_fp3d_phi_token() {
     FP3D_PHI_END_IDX+=("${end}")
 }
 
-# fp1d[:MB][:START_IDX[:END_IDX]] — z-y-averaged 1D force balance.
-# Optional leading MB sub-token switches p_perp to the -M.B definition.
+# fp1d[:MB][:e][:START_IDX[:END_IDX]] — z-y-averaged 1D force balance.
+# Optional MB switches p_perp to -M.B; e draws only the pair-temperature
+# time series. The flags may be given in either order before the indices.
 parse_fp1d_token() {
     local token="$1"
     local start="0"
     local end=""
     local use_mb="0"
+    local e_only="0"
     if [ "${token}" != "fp1d" ]; then
         local rest="${token#fp1d:}"
         IFS=':' read -r -a parts <<< "${rest}"
         local p=0
-        if [ "${#parts[@]}" -gt "${p}" ] && [ "${parts[$p]}" = "MB" ]; then
-            use_mb="1"
-            p=$((p + 1))
-        fi
+        while [ "${#parts[@]}" -gt "${p}" ]; do
+            case "${parts[$p]}" in
+                MB) use_mb="1"; p=$((p + 1)) ;;
+                e)  e_only="1"; p=$((p + 1)) ;;
+                *)  break ;;
+            esac
+        done
         if [ "${#parts[@]}" -gt "${p}" ] && [ -n "${parts[$p]}" ]; then
             start="${parts[$p]}"
         fi
@@ -507,6 +518,7 @@ parse_fp1d_token() {
     FP1D_START_IDX+=("${start}")
     FP1D_END_IDX+=("${end}")
     FP1D_USE_MB+=("${use_mb}")
+    FP1D_E_ONLY+=("${e_only}")
 }
 
 for d in "${DIAGS[@]}"; do
@@ -820,14 +832,24 @@ for i in "${!FP1D_START_IDX[@]}"; do
     start="${FP1D_START_IDX[$i]}"
     end="${FP1D_END_IDX[$i]}"
     use_mb="${FP1D_USE_MB[$i]:-0}"
-    echo "==> force-balance + pressure, z-y-averaged 1D profile vs x" \
-         "(start_idx=${start}, end_idx=${end:-last}, use_mb=${use_mb})"
+    e_only="${FP1D_E_ONLY[$i]:-0}"
+    if [ "${e_only}" = "1" ]; then
+        echo "==> electron/positron T_perp/T_parallel, x-y-z averaged" \
+             "(150 <= x <= 450," \
+             "start_idx=${start}, end_idx=${end:-last})"
+    else
+        echo "==> force-balance + pressure, z-y-averaged 1D profile vs x" \
+             "(start_idx=${start}, end_idx=${end:-last}, use_mb=${use_mb})"
+    fi
     fp1d_args=(--start-idx "${start}")
     if [ -n "${end}" ]; then
         fp1d_args+=(--end-idx "${end}")
     fi
     if [ "${use_mb}" = "1" ]; then
         fp1d_args+=(--use-mb)
+    fi
+    if [ "${e_only}" = "1" ]; then
+        fp1d_args+=(--electron-temperature-only)
     fi
     "${PY}" "${SCRIPT_DIR}/drift_kinetic_force_pressure_1D.py" "${CONFIG}" \
         "${fp1d_args[@]}"

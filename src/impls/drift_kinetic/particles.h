@@ -63,6 +63,25 @@ public:
   PetscReal kinetic_energy_local() const;
   PetscReal get_average_iteration_number() const;
   PetscInt get_max_iteration_number() const;
+  PetscInt get_push_retries() const { return push_retries_; }
+  PetscInt get_push_leaf_failures() const { return push_leaf_failures_; }
+  PetscReal get_max_push_leaf_residue_r() const
+  {
+    return max_push_leaf_residue_r_;
+  }
+  PetscReal get_max_push_leaf_residue_v() const
+  {
+    return max_push_leaf_residue_v_;
+  }
+
+  void set_fail_on_terminal_nonconvergence(bool value)
+  {
+    fail_on_terminal_nonconvergence_ = value;
+  }
+  bool fail_on_terminal_nonconvergence() const
+  {
+    return fail_on_terminal_nonconvergence_;
+  }
   const std::vector<std::list<PointByField>>& get_dk_curr_storage() const
   {
     return dk_curr_storage;
@@ -93,6 +112,11 @@ protected:
   PetscInt size = 0;
   PetscReal avgit = 0.0;
   PetscInt maxit = 0;
+  PetscInt push_retries_ = 0;
+  PetscInt push_leaf_failures_ = 0;
+  PetscReal max_push_leaf_residue_r_ = 0.0;
+  PetscReal max_push_leaf_residue_v_ = 0.0;
+  bool fail_on_terminal_nonconvergence_ = false;
   bool coord_is_gc_ = false;
   bool energy_audit_enabled_ = false;
   EnergyAudit audit_;

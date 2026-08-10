@@ -48,13 +48,23 @@ bool DriftKineticPush::has_converged() const
   return converged;
 }
 
+PetscReal DriftKineticPush::get_FRk() const
+{
+  return FRk;
+}
+
+PetscReal DriftKineticPush::get_FVhk() const
+{
+  return FVhk;
+}
+
 void DriftKineticPush::set_fields_callback(SetFields&& callback)
 {
   this->set_fields = std::move(callback);
 }
 
 /// @brief Solves the midpoint equations of motion as a fixed-point problem by
-/// classical Picard iteration and reports non-convergence.
+/// classical Picard iteration.
 void DriftKineticPush::process(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
@@ -62,10 +72,6 @@ void DriftKineticPush::process(
   FRk = FVhk = PETSC_MAX_REAL;
 
   process_picard(dt, pn, p0);
-
-  if (!converged)
-    LOG("WARNING: DK Push not converged: it={}, FRk={: .4e}, FVhk={: .4e}",
-        it, FRk, FVhk);
 }
 
 /// @brief Classical Picard iteration over the nonlinear midpoint equations until

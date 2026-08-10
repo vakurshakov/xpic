@@ -37,7 +37,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import sys
 
 import numpy as np
@@ -53,8 +52,13 @@ from lib.plot import bbox, labelsize, ticksize
 import matplotlib.pyplot as plt
 from matplotlib.animation import FFMpegWriter, FuncAnimation
 
-if any(shutil.which(tool) is None for tool in ("latex", "dvipng")):
-    plt.rc("text", usetex=False)
+# Keep the publication-style Computer Modern face without depending on a
+# system TeX installation.  This is also important for labels containing
+# both ordinary text and math: every fp1d output is rendered consistently.
+# Match the convention used by plot_traces.py.
+plt.rcParams["text.usetex"] = False
+plt.rcParams["mathtext.fontset"] = "cm"
+plt.rcParams["font.family"] = "serif"
 
 from drift_kinetic_equilibrium import auto_center, list_steps
 from drift_kinetic_force_pressure_y import draw_frame, style_axes
@@ -73,14 +77,68 @@ MB_OFFSETSIZE = 15
 
 # Zoomed-in y-limits requested for the two panels (less empty space while
 # keeping the upper-left legend clear of the curves).
-MB_YLIM_F = (-0.7e-4, 0.7e-4)
+MB_YLIM_F = (-7.5e-5, 7.5e-5)
 MB_YLIM_P = (0.16, 0.22)
+ELECTRON_TEMP_X_MIN = 150.0
+ELECTRON_TEMP_X_MAX = 450.0
+
+
+def x_label():
+    return r"$x,\ c/\omega_{pe}$"
+
+
+def force_label(avg_sub):
+    return (rf"$\langle F_x\rangle_{{{avg_sub}}},\ "
+            r"n_0 m_e c\,\omega_{pe}$")
+
+
+def field_label(avg_sub):
+    return (rf"$\langle |\mathbf{{B}}|\rangle_{{{avg_sub}}},\ "
+            r"m_e c\,\omega_{pe}/e$")
+
+
+def pressure_label(avg_sub):
+    return (rf"$\langle p_\perp\rangle_{{{avg_sub}}},\ "
+            r"n_0 m_e c^2$")
+
+
+def resolve_input_directory(config_path):
+    """Use the config's own directory when OutputDirectory is stale.
+
+    Output trees are sometimes moved or a relative launch path leaves an
+    extra ``output`` component in the saved OutputDirectory.  The launcher
+    has already located the requested run's config.json, so its parent is a
+    reliable fallback when it contains the configured diagnostics and the
+    saved OutputDirectory does not.
+    """
+    config_dir = os.path.dirname(os.path.abspath(config_path))
+    configured_dir = os.path.abspath(const.in_dir)
+
+    diagnostic_subdirs = [
+        diag["out_dir"]
+        for diag in const.config.get("Diagnostics", [])
+        if diag.get("out_dir")
+    ]
+
+    def has_diagnostics(directory):
+        return any(os.path.isdir(os.path.join(directory, subdir))
+                   for subdir in diagnostic_subdirs)
+
+    if (config_dir != configured_dir
+            and has_diagnostics(config_dir)
+            and not has_diagnostics(configured_dir)):
+        print("[warn] configured OutputDirectory has no diagnostics; "
+              f"using config directory instead:\n"
+              f"       configured: {configured_dir}\n"
+              f"       actual:     {config_dir}")
+        const.in_dir = config_dir
+        const.out_dir = os.path.join(config_dir, "processed")
 
 
 def style_mb_axes(ax, panel, ylabel, ylim):
     """exb_ex1-style axis decoration: inward minor/major ticks on all four
     sides and a white-boxed panel tag in the upper-right corner."""
-    ax.set_xlabel(r"$x,\ c/\omega_{pe}$", fontsize=MB_LABELSIZE)
+    ax.set_xlabel(x_label(), fontsize=MB_LABELSIZE)
     ax.set_ylabel(ylabel, fontsize=MB_LABELSIZE)
     ax.set_ylim(*ylim)
     ax.set_box_aspect(1)
@@ -124,22 +182,18 @@ def draw_mb_frame(ax_F, ax_P, xs, cx, q, B0_2_half,
                           useMathText=True)
     ax_F.yaxis.get_offset_text().set_fontsize(MB_OFFSETSIZE)
     ax_F.legend(loc="upper left", fontsize=MB_LEGENDSIZE)
-    style_mb_axes(ax_F, "(b)",
-                  rf"$\langle F_x\rangle_{{{avg_sub}}},"
-                  r"\ n_0 m_e c\,\omega_{pe}$", MB_YLIM_F)
+    style_mb_axes(ax_F, "(b)", force_label(avg_sub), MB_YLIM_F)
 
     # (b) Magnetic-field profile.
     ax_P.axvline(cx, color="k", linewidth=0.6, alpha=0.3, linestyle=":")
     ax_P.set_xlim(100, 500)
     ax_P.plot(xs, B_mag, color="red", linewidth=1.6,
-              label=r"$B_{\mathrm{model}}$")
+              label=r"$|\mathbf{B}|_{\mathrm{model}}$")
     ax_P.plot(xs, B_theory, color="blue", linewidth=1.6, linestyle=":",
               marker=".", markersize=6, markevery=mevery,
               label=r"$B_{\mathrm{theory}}$")
     ax_P.legend(loc="upper left", fontsize=MB_LEGENDSIZE)
-    style_mb_axes(ax_P, "(c)",
-                  rf"$\langle B\rangle_{{{avg_sub}}},"
-                  r"\ m_e c\,\omega_{pe}/e$", MB_YLIM_P)
+    style_mb_axes(ax_P, "(c)", field_label(avg_sub), MB_YLIM_P)
 
 
 def load_vec_3d(path: str, name: str) -> np.ndarray:
@@ -267,11 +321,12 @@ def draw_ampere_figure(drawn, xs, cx, out_dir, args):
         ax_a.plot(xs, q["Jy_tot"], color="saddlebrown", linewidth=2.0,
                   label=r"$J_y^{\mathrm{tot}}$")
         ax_a.plot(xs, q["neg_dBz_dx"], color="darkgreen", linewidth=2.0,
-                  label=r"$-dB_z/dx$")
+                  label=r"$-\partial B_z/\partial x$")
         ax_a.set_xlim(xs[0], xs[-1])
-        ax_a.set_xlabel(r"$x~(c/\omega_{pe})$", fontsize=labelsize)
-        ax_a.set_ylabel(rf"$\langle\,\cdot\,\rangle_{{{avg_sub}}}$"
-                        r" ($e n_0 c$)", fontsize=labelsize)
+        ax_a.set_xlabel(x_label(), fontsize=labelsize)
+        ax_a.set_ylabel(
+            rf"$\langle J_y\rangle_{{{avg_sub}}},\ e n_0 c$",
+            fontsize=labelsize)
         ax_a.tick_params(labelsize=ticksize)
         ax_a.grid(True, alpha=0.3)
         ax_a.ticklabel_format(axis="y", style="sci", scilimits=(0, 0),
@@ -372,25 +427,28 @@ def draw_parallel_correction_figure(drawn, xs, cx, out_dir, args, B0_2_half):
         blue_width = 1.9
 
         ax_F.plot(xs, q["neg_dp_dx"], color=red, linewidth=red_width,
-                  label=r"$-dp_{\perp}/dx$")
+                  label=r"$-\partial p_{\perp}/\partial x$")
         ax_F.plot(xs, -q["curlM_Bz"], color=blue, linewidth=blue_width,
-                  label=r"$-(\mathrm{rot}\,M)_{y}\,B_z$")
+                  label=r"$-(\nabla\times\mathbf{M})_y B_z$")
         ax_F.plot(xs, -q["JyBz"] + f_par, color=blue, linewidth=blue_width,
                   linestyle=":", marker=".", markersize=10.0,
                   markevery=max(1, len(xs) // 50),
                   label=r"$-J_{y}^{\mathrm{tot}} B_z$")
         ax_F.legend(fontsize=leg_fs, loc="lower right").set_zorder(10)
+        ax_F.set_ylabel(force_label(avg_sub), fontsize=lbl)
 
         B_model = np.sqrt(np.maximum(2.0 * q["B2_half"], 0.0))
         B_corr = supplemented_B(q["p_perp"], q["p_par"])
 
         ax_P.plot(xs, B_model, color=red, linewidth=red_width,
-                  label=r"$B_z~-$ модель")
+                  label=r"$|\mathbf{B}|_{\mathrm{model}}$")
         ax_P.plot(xs, B_corr, color=blue, linewidth=blue_width,
                   linestyle=":", marker=".", markersize=10.0,
                   markevery=max(1, len(xs) // 50),
-                  label=r"$B_z = \sqrt{B_0^2 - 2 p_{\perp}}~-$ теория")
+                  label=r"$B_{z,\mathrm{theory}}$")
         ax_P.legend(fontsize=leg_fs, loc="lower right").set_zorder(10)
+        ax_P.set_xlabel(x_label(), fontsize=lbl)
+        ax_P.set_ylabel(field_label(avg_sub), fontsize=lbl)
 
         panel_bbox = dict(facecolor="white", edgecolor="none",
                           alpha=0.75, boxstyle="round,pad=0.25")
@@ -462,13 +520,15 @@ def draw_pressure_figure(drawn, xs, cx, out_dir, args):
         ax_p.axhline(0.0, color="k", linewidth=0.8, alpha=0.5)
         ax_p.axvline(cx, color="k", linewidth=0.6, alpha=0.3, linestyle=":")
         ax_p.plot(xs, q["p_perp_T"], color="darkgreen", linewidth=2.0,
-                  label=r"$p_{\perp}$ (temperature$_{\perp}$)")
+                  label=(r"$p_{\perp}^{(T)}"
+                         r"=\frac{1}{2}\sum_s T_{\perp,s}^{\mathrm{diag}}$"))
         ax_p.plot(xs, q["p_perp_MB"], color="saddlebrown", linewidth=2.0,
-                  linestyle="--", label=r"$p_{\perp} = -\mathbf{M}\cdot\mathbf{B}$")
+                  linestyle="--",
+                  label=(r"$p_{\perp}^{(M)}"
+                         r"=-\sum_s\mathbf{M}_s\cdot\mathbf{B}$"))
         ax_p.set_xlim(xs[0], xs[-1])
-        ax_p.set_xlabel(r"$x~(c/\omega_{pe})$", fontsize=labelsize)
-        ax_p.set_ylabel(rf"$\langle p_{{\perp}}\rangle_{{{avg_sub}}}$"
-                        r" ($n_0 m_e c^2$)", fontsize=labelsize)
+        ax_p.set_xlabel(x_label(), fontsize=labelsize)
+        ax_p.set_ylabel(pressure_label(avg_sub), fontsize=labelsize)
         ax_p.tick_params(labelsize=ticksize)
         ax_p.grid(True, alpha=0.3)
         ax_p.ticklabel_format(axis="y", style="sci", scilimits=(0, 0),
@@ -516,6 +576,154 @@ def draw_pressure_figure(drawn, xs, cx, out_dir, args):
     print(f"p_perp mismatch ||T - (-M.B)||_2 / ||T||_2 : {err:.3f}%")
 
 
+def draw_pair_temperature_figure(history, x_min, x_max, out_dir, args):
+    """Plot species-averaged pair temperatures versus time.
+
+    Each temperature is the ratio of the corresponding x-y-z-averaged moment
+    to the x-y-z-averaged species density, i.e. a density-weighted volume
+    average over ``x_min <= x <= x_max``. In this pair-plasma test the
+    ``ions`` sort has q=+e and m=m_e, so it is treated as positrons. The two
+    plotted curves are arithmetic means over the electron and positron sorts.
+    """
+    times = np.asarray([
+        row[0] * const.dts / const.dt for row in history
+    ])
+    t_perp = 0.5 * (
+        np.asarray([row[1] for row in history])
+        + np.asarray([row[3] for row in history]))
+    t_parallel = 0.5 * (
+        np.asarray([row[2] for row in history])
+        + np.asarray([row[4] for row in history]))
+
+    fig_t, ax_t = plt.subplots(figsize=(6, 6))
+    ax_t.plot(times, t_perp, color="red", linewidth=1.8,
+              label=r"$T_\perp$")
+    ax_t.plot(times, t_parallel, color="blue", linewidth=1.8,
+              label=r"$T_\parallel$")
+
+    if len(times) == 1:
+        time_pad = max(0.5 * const.dts, 0.5)
+        ax_t.set_xlim(times[0] - time_pad, times[0] + time_pad)
+    else:
+        ax_t.set_xlim(times[0], times[-1])
+
+    all_temperatures = (t_perp, t_parallel)
+    temp_min = float(min(values.min() for values in all_temperatures))
+    temp_max = float(max(values.max() for values in all_temperatures))
+    temp_pad = 0.05 * (temp_max - temp_min)
+    if temp_pad == 0.0:
+        temp_pad = 0.05 * max(abs(temp_min), 1.0)
+    ax_t.set_ylim(temp_min - temp_pad, temp_max + temp_pad)
+
+    ax_t.set_xlabel(r"$t/\tau$", fontsize=MB_LABELSIZE)
+    ax_t.set_ylabel(r"$T,\ m_e c^2$", fontsize=MB_LABELSIZE)
+    ax_t.set_box_aspect(1)
+    ax_t.minorticks_on()
+    ax_t.tick_params(axis="both", which="both", direction="in",
+                     top=True, bottom=True, left=True, right=True,
+                     labelsize=MB_TICKSIZE)
+    ax_t.ticklabel_format(axis="y", style="sci", scilimits=(0, 0),
+                          useMathText=True)
+    ax_t.yaxis.get_offset_text().set_fontsize(MB_OFFSETSIZE)
+    ax_t.legend(loc="center right", fontsize=MB_LEGENDSIZE)
+
+    fig_t.tight_layout()
+    output_path = os.path.join(out_dir, "pair_temperature_time.png")
+    fig_t.savefig(output_path, dpi=args.dpi, bbox_inches="tight")
+    plt.close(fig_t)
+    print(f"Electron/positron temperature time series: {output_path}")
+
+
+def draw_pair_temperature_only(args):
+    """Load and draw only the electron/positron temperature time series."""
+    pair_species = ("electrons", "ions")
+    moment_names = ("temperature_perp", "temperature_parallel", "density")
+    moment_dirs = {
+        species: {
+            moment: find_moment_dir(species, moment)
+            for moment in moment_names
+        }
+        for species in pair_species
+    }
+    missing = [
+        f"{species}/{moment}"
+        for species in pair_species
+        for moment, directory in moment_dirs[species].items()
+        if directory is None
+    ]
+    if missing:
+        print(f"[error] missing diagnostics: {missing}")
+        return
+
+    scalar_size = const.Nx * const.Ny * const.Nz * 4
+    moment_steps = {
+        species: {
+            moment: dict(list_steps(directory, scalar_size))
+            for moment, directory in moment_dirs[species].items()
+        }
+        for species in pair_species
+    }
+    common = sorted(set.intersection(
+        *(set(moment_steps[species][moment])
+          for species in pair_species for moment in moment_names)))
+    if not common:
+        print("[error] no timesteps common to electron/positron "
+              "temperature_perp, temperature_parallel and density")
+        return
+
+    end_idx = args.end_idx if args.end_idx is not None else common[-1]
+    if args.start_idx > end_idx:
+        print(f"[error] start_idx {args.start_idx} > end_idx {end_idx}")
+        return
+    selected = [idx for idx in common
+                if args.start_idx <= idx <= end_idx]
+    if not selected:
+        print(f"[warn] no snapshots in [{args.start_idx}, {end_idx}].")
+        return
+
+    xs = (np.arange(const.Nx) + 0.5) * const.dx
+    x_mask = ((xs >= ELECTRON_TEMP_X_MIN)
+              & (xs <= ELECTRON_TEMP_X_MAX))
+    if not np.any(x_mask):
+        print("[error] pair-temperature averaging interval "
+              f"[{ELECTRON_TEMP_X_MIN}, {ELECTRON_TEMP_X_MAX}] contains "
+              "no x cells")
+        return
+    history = []
+    for idx in selected:
+        temperatures = []
+        for species in pair_species:
+            dirs = moment_dirs[species]
+            steps = moment_steps[species]
+            density = load_scalar_3d(
+                dirs["density"], steps["density"][idx])
+            t_perp_diag = load_scalar_3d(
+                dirs["temperature_perp"], steps["temperature_perp"][idx])
+            t_parallel_diag = load_scalar_3d(
+                dirs["temperature_parallel"],
+                steps["temperature_parallel"][idx])
+
+            density_avg = float(np.mean(density[..., x_mask]))
+            safe_density = max(density_avg, 1e-30)
+            temperatures.extend((
+                0.5 * float(np.mean(t_perp_diag[..., x_mask]))
+                / safe_density,
+                float(np.mean(t_parallel_diag[..., x_mask]))
+                / safe_density,
+            ))
+        history.append((idx, *temperatures))
+
+    out_subdir = args.out_subdir or (
+        "force_pressure_1D_MB" if args.use_mb else "force_pressure_1D")
+    out_dir = os.path.join(const.out_dir, out_subdir)
+    os.makedirs(out_dir, exist_ok=True)
+    print(f"Electron/positron temperatures averaged over y,z and "
+          f"{ELECTRON_TEMP_X_MIN:g} <= x <= {ELECTRON_TEMP_X_MAX:g} "
+          f"(start: {selected[0]}, end: {selected[-1]})")
+    draw_pair_temperature_figure(
+        history, ELECTRON_TEMP_X_MIN, ELECTRON_TEMP_X_MAX, out_dir, args)
+
+
 def draw_species_figure(drawn, xs, cx, out_dir, args, have_profiles,
                         species_T_perp_frames, species_T_par_frames,
                         species_n_frames):
@@ -535,7 +743,7 @@ def draw_species_figure(drawn, xs, cx, out_dir, args, have_profiles,
     ax_J_R = ax_J.twinx()
     sp_colors = ("tab:blue", "tab:red")
 
-    def draw_species_panels(idx_T_perp, idx_T_par, idx_n,
+    def draw_species_panels(idx_T_perp, idx_T_par, idx_n, avg_sub,
                             p_perp_1d, pi_yy_1d, J_y_1d, curlM_y_1d,
                             p_perp_sp=None, pi_yy_sp=None,
                             J_y_sp=None, curlM_y_sp=None):
@@ -559,42 +767,55 @@ def draw_species_figure(drawn, xs, cx, out_dir, args, have_profiles,
                         transform=ax.transAxes, ha="center", va="center")
 
         ax_pp.plot(xs, p_perp_1d, color="darkgreen", linewidth=2.0,
-                   label=r"$p_{\perp}$")
+                   label=r"$p_{\perp}^{\mathrm{tot}}$")
         if p_perp_sp is not None:
             for s, color, pp_s in zip(SPECIES, sp_colors, p_perp_sp):
                 ax_pp.plot(xs, pp_s, color=color, linestyle="--",
                            linewidth=1.0, label=rf"$p_{{\perp,{_short(s)}}}$")
 
         ax_Pi.plot(xs, pi_yy_1d, color="purple", linewidth=2.0,
-                   label=r"$\Pi_{yy}$")
+                   label=r"$\Pi_{yy}^{\mathrm{tot}}$")
         if pi_yy_sp is not None:
             for s, color, Pi_s in zip(SPECIES, sp_colors, pi_yy_sp):
                 ax_Pi.plot(xs, Pi_s, color=color, linestyle="--",
                            linewidth=1.0, label=rf"$\Pi_{{yy,{_short(s)}}}$")
 
         ax_J_R.plot(xs, J_y_1d, color="saddlebrown", linewidth=2.0,
-                    label=r"$J_{y, g}$")
+                    label=r"$J_{y,g}^{\mathrm{tot}}$")
         if J_y_sp is not None:
             for s, color, J_s in zip(SPECIES, sp_colors, J_y_sp):
                 ax_J.plot(xs, J_s, color=color, linestyle="--",
                           linewidth=1.0, label=rf"$J_{{y, g, {_short(s)}}}$")
 
         ax_M.plot(xs, curlM_y_1d, color="teal", linewidth=2.0,
-                  label=r"$(\nabla\times M)_{y}$")
+                  label=r"$(\nabla\times\mathbf{M})_y^{\mathrm{tot}}$")
         if curlM_y_sp is not None:
             for s, color, cM_s in zip(SPECIES, sp_colors, curlM_y_sp):
                 ax_M.plot(xs, cM_s, color=color, linestyle="--",
                           linewidth=1.0,
-                          label=rf"$(\nabla\times M)_{{y,{_short(s)}}}$")
+                          label=rf"$(\nabla\times\mathbf{{M}}_{{{_short(s)}}})_y$")
 
-        ax_T.set_ylabel(r"$T$", fontsize=labelsize)
-        ax_n_panel.set_ylabel(r"$n$", fontsize=labelsize)
-        ax_pp.set_ylabel(r"$p_{\perp}$", fontsize=labelsize)
-        ax_Pi.set_ylabel(r"$\Pi_{yy}$", fontsize=labelsize)
-        ax_J.set_ylabel(r"$J_{y}$", fontsize=labelsize)
-        ax_M.set_ylabel(r"$(\nabla\times M)_{y}$", fontsize=labelsize)
-        ax_J.set_xlabel(r"$x$", fontsize=labelsize)
-        ax_M.set_xlabel(r"$x$", fontsize=labelsize)
+        ax_T.set_ylabel(
+            rf"$\langle T_s\rangle_{{{avg_sub}}},\ m_e c^2$",
+            fontsize=labelsize)
+        ax_n_panel.set_ylabel(
+            rf"$\langle n_s\rangle_{{{avg_sub}}},\ n_0$",
+            fontsize=labelsize)
+        ax_pp.set_ylabel(pressure_label(avg_sub), fontsize=labelsize)
+        ax_Pi.set_ylabel(
+            rf"$\langle\Pi_{{yy}}\rangle_{{{avg_sub}}},\ n_0 m_e c^2$",
+            fontsize=labelsize)
+        ax_J.set_ylabel(
+            rf"$\langle J_{{y,g,s}}\rangle_{{{avg_sub}}},\ e n_0 c$",
+            fontsize=labelsize)
+        ax_J_R.set_ylabel(
+            rf"$\langle J_{{y,g}}^{{\mathrm{{tot}}}}\rangle_{{{avg_sub}}},"
+            r"\ e n_0 c$", fontsize=labelsize)
+        ax_M.set_ylabel(
+            rf"$\langle(\nabla\times\mathbf{{M}})_y\rangle_{{{avg_sub}}},"
+            r"\ e n_0 c$", fontsize=labelsize)
+        ax_J.set_xlabel(x_label(), fontsize=labelsize)
+        ax_M.set_xlabel(x_label(), fontsize=labelsize)
 
         legend_kwargs = dict(
             fontsize=ticksize * 1.1, loc="center",
@@ -613,7 +834,6 @@ def draw_species_figure(drawn, xs, cx, out_dir, args, have_profiles,
             else:
                 ax.legend(**legend_kwargs)
         ax_J_R.tick_params(labelsize=ticksize)
-        ax_J_R.set_ylabel("")
 
     def render_species(k):
         idx, q = drawn[k]
@@ -621,6 +841,7 @@ def draw_species_figure(drawn, xs, cx, out_dir, args, have_profiles,
             species_T_perp_frames[k] if have_profiles else None,
             species_T_par_frames[k] if have_profiles else None,
             species_n_frames[k] if have_profiles else None,
+            r"z,y",
             q["p_perp"], q["pi_yy"], q["J_y"], q["curlM_y"],
             p_perp_sp=q["p_perp_sp"], pi_yy_sp=q["pi_yy_sp"],
             J_y_sp=q["J_y_sp"], curlM_y_sp=q["curlM_y_sp"])
@@ -662,6 +883,7 @@ def draw_species_figure(drawn, xs, cx, out_dir, args, have_profiles,
 
     draw_species_panels(
         mean_T_perp, mean_T_par, mean_n,
+        r"z,y,t",
         _mean("p_perp"), _mean("pi_yy"), _mean("J_y"), _mean("curlM_y"),
         p_perp_sp=_mean_sp("p_perp_sp"), pi_yy_sp=_mean_sp("pi_yy_sp"),
         J_y_sp=_mean_sp("J_y_sp"), curlM_y_sp=_mean_sp("curlM_y_sp"))
@@ -704,12 +926,22 @@ def parse_args():
                         help="Use p_perp = -M.B (magnetisation) instead of "
                              "0.5*temperature_perp for the force-balance "
                              "and B-field panels.")
+    parser.add_argument("--electron-temperature-only", action="store_true",
+                        help="Draw only the electron/positron "
+                             "T_perp/T_parallel time series, averaged over "
+                             "y,z and "
+                             "150 <= x <= 450.")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     init_constants(args.config)
+    resolve_input_directory(args.config)
+
+    if args.electron_temperature_only:
+        draw_pair_temperature_only(args)
+        return
 
     b_dir = find_field_dir("B")
     j_dirs = [find_field_dir(f"{s}/J") for s in SPECIES]
@@ -739,6 +971,9 @@ def main():
     # temperature_parallel alone (no density needed) gates the parallel-
     # curvature-correction figure, which needs p_par = sum_s n m <v_par^2>.
     have_tpar = all(d is not None for d in tpar_dirs)
+    have_pair_temperature = (
+        all(d is not None for d in tpar_dirs)
+        and all(d is not None for d in n_dirs))
     if not have_pi:
         print("[warn] species figure skipped: momentum_flux_diag_cyl not "
               "configured for all species")
@@ -773,6 +1008,17 @@ def main():
         n_steps = [dict(list_steps(d, sca_size)) for d in n_dirs]
     else:
         n_steps = None
+    if have_pair_temperature:
+        pair_tpar_steps = [
+            dict(list_steps(directory, sca_size))
+            for directory in tpar_dirs
+        ]
+        pair_n_steps = [
+            dict(list_steps(directory, sca_size))
+            for directory in n_dirs
+        ]
+    else:
+        pair_tpar_steps = pair_n_steps = None
 
     common = set(b_steps)
     for s in (*j_steps, *r_steps, *t_steps):
@@ -789,6 +1035,9 @@ def main():
     if have_profiles:
         for s in n_steps:
             common &= set(s)
+    if have_pair_temperature:
+        for steps in (*pair_tpar_steps, *pair_n_steps):
+            common &= set(steps)
     common = sorted(common)
     if not common:
         print("[error] no timesteps common to all required diagnostics")
@@ -805,6 +1054,8 @@ def main():
           f"start: {args.start_idx}, end: {end_idx})")
 
     xs = (np.arange(const.Nx) + 0.5) * const.dx
+    electron_temp_x_mask = (
+        (xs >= ELECTRON_TEMP_X_MIN) & (xs <= ELECTRON_TEMP_X_MAX))
 
     # Per-cell cos^2 / sin^2 of the azimuthal angle theta = atan2(y-cy, x-cx),
     # used to rebuild Pi_yy = Pi_rr sin^2(theta) + Pi_phiphi cos^2(theta) from
@@ -872,6 +1123,7 @@ def main():
     species_T_perp_frames = []
     species_T_par_frames = []
     species_n_frames = []
+    pair_temperature_history = []
 
     drawn = []
     prev_J_sp = None
@@ -932,6 +1184,27 @@ def main():
             q["pi_yy"] = sum(q["pi_yy_sp"])
         drawn.append((idx, q))
 
+        if have_pair_temperature:
+            temperatures = []
+            for species_idx in range(len(SPECIES)):
+                density = load_scalar_3d(
+                    n_dirs[species_idx], pair_n_steps[species_idx][idx])
+                p_parallel = load_scalar_3d(
+                    tpar_dirs[species_idx],
+                    pair_tpar_steps[species_idx][idx])
+                density_avg = float(np.mean(
+                    density[..., electron_temp_x_mask]))
+                safe_density = max(density_avg, 1e-30)
+                temperatures.extend((
+                    float(np.mean(
+                        p_perp_sp[species_idx][..., electron_temp_x_mask]))
+                    / safe_density,
+                    float(np.mean(
+                        p_parallel[..., electron_temp_x_mask]))
+                    / safe_density,
+                ))
+            pair_temperature_history.append((idx, *temperatures))
+
         if have_pi and have_profiles:
             frame_T_perp, frame_T_par, frame_n = [], [], []
             for t_dir, t_st, tpar_dir, tpar_st, nd, n_st in zip(
@@ -963,9 +1236,9 @@ def main():
     else:
         fig, (ax_F, ax_P) = plt.subplots(2, 1, figsize=(10, 12), sharex=True)
 
-    grad_label = r"$-dp_{\perp}/dx$"
+    grad_label = r"$-\partial p_{\perp}/\partial x$"
     jb_label = r"$-J_{y}^{\mathrm{tot}} B_z$"
-    rot_label = r"$-(\mathrm{rot}\,M)_{y}\,B_z$"
+    rot_label = r"$-(\nabla\times\mathbf{M})_y B_z$"
 
     def draw_main(ax_F, ax_P, q, avg_sub):
         if args.use_mb:
@@ -975,6 +1248,9 @@ def main():
             draw_frame(ax_F, ax_P, xs, cx, q, B0_2_half, time_avg=True,
                        grad_label=grad_label, jb_label=jb_label,
                        rot_label=rot_label, force_sym=r"F_x", avg_sub=avg_sub)
+            ax_F.set_ylabel(force_label(avg_sub), fontsize=labelsize + 4)
+            ax_P.set_xlabel(x_label(), fontsize=labelsize + 4)
+            ax_P.set_ylabel(field_label(avg_sub), fontsize=labelsize + 4)
 
     def render(k):
         idx, q = drawn[k]
@@ -1006,6 +1282,15 @@ def main():
     mean_path = os.path.join(out_dir, args.mean_name)
     fig.savefig(mean_path, dpi=args.dpi)
     plt.close(fig)
+
+    if pair_temperature_history:
+        draw_pair_temperature_figure(
+            pair_temperature_history,
+            ELECTRON_TEMP_X_MIN, ELECTRON_TEMP_X_MAX, out_dir, args)
+    else:
+        print("[warn] electron/positron temperature time series skipped: "
+              "temperature_parallel or density is not configured for both "
+              "species")
 
     draw_ampere_figure(drawn, xs, cx, out_dir, args)
 

@@ -18,6 +18,7 @@ public:
       "{\n"
       "  \"diagnostic\": \"FieldView\", -- Name of the diagnostic, constant.\n"
       "  \"field\": \"E\", -- Field name set by `PetscObjectSetName()`.\n"
+      "  \"component\": \"z\", -- Optional x/y/z component of a vector field.\n"
       "  \"start\": [ox, oy, oz], -- Starting point of a diagnosed region, in\n"
       "                              global coordinates of c/w_pe units.\n"
       "                              Optional, zeros will be used if empty.\n"

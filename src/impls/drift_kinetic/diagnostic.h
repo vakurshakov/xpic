@@ -42,6 +42,39 @@ protected:
   DkMoment dk_moment = nullptr;
 };
 
+struct DkPhaseAxis {
+  PetscReal min = 0.0;
+  PetscReal max = 0.0;
+  PetscInt bins = 0;
+};
+
+/// Five-dimensional histogram of the drift-kinetic distribution in
+/// (x, y, z, v_parallel, mu_p). Spatial ownership follows the particle DM;
+/// every rank writes its own spatial slab directly into one MPI-IO file.
+class DkDistributionFunction : public interfaces::Diagnostic {
+public:
+  static std::unique_ptr<DkDistributionFunction> create(
+    const std::string& out_dir, const Particles& particles,
+    const DkPhaseAxis& v_parallel, const DkPhaseAxis& mu_p,
+    PetscInt diagnose_period, PetscInt max_frames = -1);
+
+  PetscErrorCode finalize() override;
+  PetscErrorCode diagnose(PetscInt t) override;
+
+private:
+  DkDistributionFunction(const std::string& out_dir,
+    const Particles& particles, const DkPhaseAxis& v_parallel,
+    const DkPhaseAxis& mu_p, PetscInt diagnose_period,
+    PetscInt max_frames, MPI_Comm comm);
+
+  const Particles& particles;
+  DkPhaseAxis v_parallel;
+  DkPhaseAxis mu_p;
+  PetscInt max_frames;
+  PetscInt frames_written = 0;
+  MPI_Comm comm = MPI_COMM_NULL;
+};
+
 /// @brief FieldView wrapper that applies a linear operator (a `Mat`) to a
 /// source `Vec` at every diagnose() call and writes the result via the
 /// inherited FieldView machinery. Generic enough to cover any
