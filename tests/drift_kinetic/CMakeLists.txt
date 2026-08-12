@@ -27,6 +27,7 @@ set(tests
   drift_kinetic_ringdown_ex4
   drift_kinetic_ringdown_ex5
   drift_kinetic_ringdown_ex6
+  drift_kinetic_ringdown_ex7
   #drift_kinetic_sound_ex3
   #drift_kinetic_betta_ex1
   #drift_kinetic_beta_ex3
@@ -77,6 +78,14 @@ set_property(TEST "drift_kinetic_ringdown_ex5" PROPERTY TIMEOUT 43200)
 set_property(TEST "drift_kinetic_ringdown_ex6" APPEND PROPERTY
   LABELS ringdown long longwave)
 set_property(TEST "drift_kinetic_ringdown_ex6" PROPERTY TIMEOUT 21600)
+
+# Te = 10 keV counterpart of ex1 in a longer box, which halves dt/dz at the
+# unchanged dt and brings the electron CFL number below one.  It is a
+# standalone test like ex5/ex6, and its marker-step count is several times
+# that of ex1, hence the longer timeout.
+set_property(TEST "drift_kinetic_ringdown_ex7" APPEND PROPERTY
+  LABELS ringdown long)
+set_property(TEST "drift_kinetic_ringdown_ex7" PROPERTY TIMEOUT 43200)
 
 add_test(
   NAME "ion_sound_ringdown_synthetic"
