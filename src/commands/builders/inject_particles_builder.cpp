@@ -18,6 +18,13 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   auto&& ionized = simulation_.get_named_particles(ionized_name);
   auto&& ejected = simulation_.get_named_particles(ejected_name);
 
+  for (const char* key : {"momentum_i", "momentum_e"}) {
+    if (info.at(key).at("name").get<std::string>() ==
+        "KineticIonSoundMomentsQuiet")
+      throw std::runtime_error(
+        "KineticIonSoundMomentsQuiet is valid only for a paired SetParticles command");
+  }
+
   /// @note Since we can use this as a quasi-neutral
   /// start, we choose t in [0, 1] by default
   PetscInt injection_start = 0;

@@ -14,6 +14,7 @@ set(tests
   drift_kinetic_mirror_ex1
   #drift_kinetic_sound_ex1
   drift_kinetic_eigen_sound_ex7
+  drift_kinetic_eigen_sound_ex15
   # Archived kinetic-loading experiments retained for reference only:
   #drift_kinetic_eigen_sound_ex10
   #drift_kinetic_eigen_sound_ex11
@@ -28,6 +29,8 @@ set(tests
   drift_kinetic_ringdown_ex5
   drift_kinetic_ringdown_ex6
   drift_kinetic_ringdown_ex7
+  drift_kinetic_ringdown_ex8
+  drift_kinetic_ringdown_ex10
   #drift_kinetic_sound_ex3
   #drift_kinetic_betta_ex1
   #drift_kinetic_beta_ex3
@@ -43,6 +46,13 @@ foreach(test ${tests})
   set_property(TEST "${test}" PROPERTY LABELS impls eccapfim)
   set_property(TEST "${test}" PROPERTY RUN_SERIAL true)
 endforeach()
+
+set_property(TEST "drift_kinetic_eigen_sound_ex15" APPEND PROPERTY
+  LABELS ion_sound long)
+# About 5.9e9 marker-steps: allow proportionally more time than ringdown_ex7.
+set_property(TEST "drift_kinetic_eigen_sound_ex15" PROPERTY TIMEOUT 115200)
+set_property(TEST "drift_kinetic_eigen_sound_ex15" PROPERTY
+  FIXTURES_REQUIRED ion_sound_mode_constants)
 
 set_property(TEST "drift_kinetic_ringdown_ex0" APPEND PROPERTY
   LABELS free_streaming ringdown)
@@ -87,6 +97,16 @@ set_property(TEST "drift_kinetic_ringdown_ex7" APPEND PROPERTY
   LABELS ringdown long)
 set_property(TEST "drift_kinetic_ringdown_ex7" PROPERTY TIMEOUT 43200)
 
+# mi/me = 25 variant of ex1: eigenmode loading (as in eigen_sound_ex15) plus
+# 8192 markers per cell.  About 4.5e9 marker-steps, i.e. ~0.8 of ex15, so it
+# gets the same timeout.  Its literal mode constants are validated by
+# ion_sound_constants_synthetic.
+set_property(TEST "drift_kinetic_ringdown_ex10" APPEND PROPERTY
+  LABELS ringdown ion_sound long)
+set_property(TEST "drift_kinetic_ringdown_ex10" PROPERTY TIMEOUT 115200)
+set_property(TEST "drift_kinetic_ringdown_ex10" PROPERTY
+  FIXTURES_REQUIRED ion_sound_mode_constants)
+
 add_test(
   NAME "ion_sound_ringdown_synthetic"
   COMMAND ${CMAKE_COMMAND} -E env
@@ -96,6 +116,20 @@ add_test(
 )
 set_property(TEST "ion_sound_ringdown_synthetic"
   PROPERTY LABELS "drift_kinetic;ringdown;synthetic")
+
+add_test(
+  NAME "ion_sound_constants_synthetic"
+  COMMAND ${CMAKE_COMMAND} -E env
+    PYTHONDONTWRITEBYTECODE=1
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/test_ion_sound_constants.py
+      ${CMAKE_CURRENT_SOURCE_DIR}/drift_kinetic_eigen_sound_ex10.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/drift_kinetic_eigen_sound_ex15.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/drift_kinetic_ringdown_ex10.cpp
+)
+set_property(TEST "ion_sound_constants_synthetic" PROPERTY
+  LABELS "drift_kinetic;ion_sound;synthetic")
+set_property(TEST "ion_sound_constants_synthetic" PROPERTY
+  FIXTURES_SETUP ion_sound_mode_constants)
 
 add_test(
   NAME "free_streaming_synthetic"

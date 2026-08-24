@@ -107,13 +107,17 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
 
     Vector3R amplitude = parse_vector(setter, "amplitude");
     Vector3R wave_number = parse_vector(setter, "wave_number");
+    Vector3R phase = setter.contains("phase")
+      ? parse_vector(setter, "phase") : Vector3R{};
 
     LOG("    Cosine amplitude: {} {} {}", REP3_A(amplitude));
     LOG("    Cosine wave_number: {} {} {}", REP3_A(wave_number));
+    LOG("    Cosine phase: {} {} {}", REP3_A(phase));
     LOG("    Cosine region min: {} {} {}", REP3_A(box.min));
     LOG("    Cosine region max: {} {} {}", REP3_A(box.max));
 
-    setup = SetCosineField(std::move(box), amplitude, wave_number);
+    setup = SetCosineField(
+      std::move(box), amplitude, wave_number, phase);
   }
   else if (name == "SetGeneralCosineField") {
     LOG("  Using SetGeneralCosineField setter");

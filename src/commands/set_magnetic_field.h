@@ -63,12 +63,14 @@ struct SetAzimuthalField {
 
 struct SetCosineField {
   SetCosineField(
-    BoxGeometry box, const Vector3R& amplitude, const Vector3R& wave_number);
+    BoxGeometry box, const Vector3R& amplitude, const Vector3R& wave_number,
+    const Vector3R& phase = Vector3R{});
   PetscErrorCode operator()(Vec vec);
 
   BoxGeometry box;
   Vector3R amplitude;
   Vector3R wave_number;
+  Vector3R phase;
 };
 
 struct SetGeneralCosineField {

@@ -26,17 +26,48 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
     info.at("coordinate").at("name").get<std::string>();
   const bool quiet_coordinate =
     coordinate_name == "CoordinateInBoxQuietSinePaired" ||
-    coordinate_name == "CoordinateInBoxQuietSineExactPaired";
-  auto validate_quiet_pair = [quiet_coordinate](
+    coordinate_name == "CoordinateInBoxQuietSineExactPaired" ||
+    coordinate_name == "CoordinateInBoxQuietSineExactLatticePaired";
+  auto validate_quiet_pair = [this, quiet_coordinate, coordinate_name, &info](
                                const Configuration::json_t& momentum_info) {
     const auto momentum_name = momentum_info.at("name").get<std::string>();
     const bool quiet_momentum =
       momentum_name == "MaxwellShiftedSineQuiet" ||
       momentum_name == "MaxwellianVelocityQuiet" ||
+      momentum_name == "KineticIonSoundMomentsQuiet" ||
       momentum_name == "KineticIonSoundQuiet";
     if (quiet_coordinate != quiet_momentum)
       throw std::runtime_error(
         "paired quiet coordinate and momentum generators must be used together");
+
+    if (momentum_name != "KineticIonSoundMomentsQuiet")
+      return;
+    if (coordinate_name != "CoordinateInBoxQuietSineExactLatticePaired")
+      throw std::runtime_error(
+        "KineticIonSoundMomentsQuiet requires CoordinateInBoxQuietSineExactLatticePaired");
+
+    const auto& coordinate_info = info.at("coordinate");
+    const auto vector_or_zero = [this](const Configuration::json_t& block,
+                                  const char* key) {
+      return block.contains(key) ? parse_vector(block, key) : Vector3R{};
+    };
+    const auto require_same = [](const Vector3R& left,
+                              const Vector3R& right, const char* what) {
+      if ((left - right).abs_max() != 0.0)
+        throw std::runtime_error(std::format(
+          "KineticIonSoundMomentsQuiet {} must match its coordinate loader",
+          what));
+    };
+    require_same(parse_vector(momentum_info, "min"),
+      parse_vector(coordinate_info, "min"), "box minimum");
+    require_same(parse_vector(momentum_info, "max"),
+      parse_vector(coordinate_info, "max"), "box maximum");
+    require_same(parse_vector(momentum_info, "wave_number"),
+      parse_vector(coordinate_info, "wave_number"), "wave number");
+    require_same(parse_vector(momentum_info, "density_amplitude"),
+      parse_vector(coordinate_info, "amplitude"), "density amplitude");
+    require_same(vector_or_zero(momentum_info, "density_phase"),
+      vector_or_zero(coordinate_info, "phase"), "density phase");
   };
 
   // Drift-kinetic paired loader: one shared coordinate stream for both sorts.

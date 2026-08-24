@@ -129,10 +129,11 @@ PetscErrorCode SetGradientField::operator()(Vec vec)
 
 SetCosineField::SetCosineField(
   BoxGeometry field_box, const Vector3R& field_amplitude,
-  const Vector3R& field_wave_number)
+  const Vector3R& field_wave_number, const Vector3R& field_phase)
   : box(std::move(field_box)),
     amplitude(field_amplitude),
-    wave_number(field_wave_number)
+    wave_number(field_wave_number),
+    phase(field_phase)
 {
 }
 
@@ -173,24 +174,24 @@ PetscErrorCode SetCosineField::operator()(Vec vec)
 
     if (box.min[X] <= sx && sx < box.max[X]) {
       arr[z][y][x][X] +=
-        amplitude[X] * std::cos(kx * (sx - box.min[X]));
+        amplitude[X] * std::cos(kx * (sx - box.min[X]) + phase[X]);
     }
 
     if (box.min[Y] <= sy && sy < box.max[Y]) {
       arr[z][y][x][Y] +=
-        amplitude[Y] * std::cos(ky * (sy - box.min[Y]));
+        amplitude[Y] * std::cos(ky * (sy - box.min[Y]) + phase[Y]);
     }
 
     if (box.min[Z] <= sz && sz < box.max[Z]) {
       arr[z][y][x][Z] +=
-        amplitude[Z] * std::cos(kz * (sz - box.min[Z]));
+        amplitude[Z] * std::cos(kz * (sz - box.min[Z]) + phase[Z]);
     }
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
 
-  LOG("  Cosine field perturbation is set, amplitude ({} {} {}), wave_number ({} {} {})",
-    REP3_A(amplitude), REP3_A(wave_number));
+  LOG("  Cosine field perturbation is set, amplitude ({} {} {}), wave_number ({} {} {}), phase ({} {} {})",
+    REP3_A(amplitude), REP3_A(wave_number), REP3_A(phase));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

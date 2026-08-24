@@ -78,7 +78,8 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     gen = CoordinateInBoxQuietSinePaired{
       std::move(box), amplitude, wave_number, phase};
   }
-  else if (name == "CoordinateInBoxQuietSineExactPaired") {
+  else if (name == "CoordinateInBoxQuietSineExactPaired" ||
+           name == "CoordinateInBoxQuietSineExactLatticePaired") {
     BoxGeometry box;
     load_geometry(info, box);
 
@@ -91,8 +92,11 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     if (number_of_particles % 2 != 0)
       throw std::runtime_error(
         "CoordinateInBoxQuietSineExactPaired requires an even number of particles");
-    gen = CoordinateInBoxQuietSineExactPaired(
-      std::move(box), amplitude, wave_number, phase);
+    const std::size_t active_axis_lattice_pairs =
+      name == "CoordinateInBoxQuietSineExactLatticePaired"
+      ? static_cast<std::size_t>(number_of_particles / 2) : 0;
+    gen = CoordinateInBoxQuietSineExactPaired(std::move(box), amplitude,
+      wave_number, phase, active_axis_lattice_pairs);
   }
   else if (name == "CoordinateInBoxQuiet") {
     BoxGeometry box;
@@ -178,6 +182,26 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
   }
   else if (name == "MaxwellianVelocityQuiet") {
     gen = MaxwellianVelocityQuiet(particles.parameters);
+  }
+  else if (name == "KineticIonSoundMomentsQuiet") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    const Vector3R wave_number = parse_vector(info, "wave_number");
+    const Vector3R field_phase = info.contains("field_phase")
+      ? parse_vector(info, "field_phase") : Vector3R{0.0, 0.0, 0.0};
+    const Vector3R density_amplitude =
+      parse_vector(info, "density_amplitude");
+    const Vector3R density_phase = info.contains("density_phase")
+      ? parse_vector(info, "density_phase") : Vector3R{0.0, 0.0, 0.0};
+    const PetscReal force_electric_amplitude =
+      info.at("force_electric_amplitude").get<PetscReal>();
+    const PetscReal omega_real = info.at("omega_real").get<PetscReal>();
+    const PetscReal gamma = info.at("gamma").get<PetscReal>();
+
+    gen = KineticIonSoundMomentsQuiet(particles.parameters, std::move(box),
+      force_electric_amplitude, omega_real, gamma, wave_number, field_phase,
+      density_amplitude, density_phase);
   }
   else if (name == "KineticIonSoundQuiet") {
     BoxGeometry box;

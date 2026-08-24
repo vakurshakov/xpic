@@ -150,6 +150,10 @@ def parse_args():
                         help="Symmetric +-limit on the energy y axis "
                              "(for --drift energy_dK/energy_dW/"
                              "energy_charge/energy_charge_loss)")
+    parser.add_argument("--inset", action="store_true",
+                        help="Show the settled-tail inset in the energy "
+                             "panel of --drift energy_charge/"
+                             "energy_charge_loss")
     parser.add_argument("--out", default=None,
                         help="Output image path "
                              "(default: <dir>/traces_<plane>.png)")
@@ -439,7 +443,7 @@ def plot_energy_charge(args, include_damping_loss=False):
     # Zoom the settled tail inside the energy panel.  Scaling both axes to
     # the last 30% of the trace makes its small residual range visible after
     # a much larger initial transient.
-    if t.size >= 2:
+    if args.inset and t.size >= 2:
         tail_start = t[0] + 0.7 * (t[-1] - t[0])
         tail_mask = t >= tail_start
         tail_t = t[tail_mask]

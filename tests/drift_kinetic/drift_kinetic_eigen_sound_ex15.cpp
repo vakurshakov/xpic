@@ -17,7 +17,7 @@ namespace eigen {
 // constexpr values so changing a physical/grid parameter makes the fast
 // theory-consistency CTest request regenerated mode constants.
 constexpr double theory_mec2_kev = 511.0;
-constexpr double theory_Te_kev = 20.0;
+constexpr double theory_Te_kev = 10.0;
 constexpr double theory_Ti_kev = 0.1;
 constexpr double theory_ne = 1.0;
 constexpr double theory_ni = 1.0;
@@ -25,27 +25,27 @@ constexpr double theory_qe = -1.0;
 constexpr double theory_qi = 1.0;
 constexpr double theory_me = 1.0;
 constexpr double theory_mi = 100.0;
-constexpr double theory_Lz = 200.0;
-constexpr double theory_dz = 10.0;
+constexpr double theory_Lz = 75.0;
+constexpr double theory_dz = 2.5;
 constexpr double theory_mode = 1.0;
 constexpr double theory_dn_i = 0.03;
 
 // The full-Z dispersion relation includes the discrete electrostatic coupling
 // S_E*S_rho*k/k_h = sinc(k*dz/2)^4.  E_force is the harmonic after S1
 // interpolation to particles; E_grid=E_force/sinc^2 is stored on Yee faces.
-constexpr double E_force = 3.6678438440940783e-05;
-constexpr double E_grid = 3.6981601028325305e-05;
-constexpr double omega_real = 6.2322182890254662e-04;
-constexpr double gamma = 3.8690499431800553e-05;
+constexpr double E_force = 4.8901683564625230e-05;
+constexpr double E_grid = 4.9080831959185819e-05;
+constexpr double omega_real = 1.1840593675280411e-03;
+constexpr double gamma = 7.2904009887983382e-05;
 
-constexpr double a_n_e = 2.9998837859139024e-02;
-constexpr double phi_n_e = -3.0156794697524187;
-constexpr double a_n_i = 3.0000000000000000e-02;
-constexpr double phi_n_i = -3.0156843733207972;
+constexpr double a_n_e = 2.9995906312399831e-02;
+constexpr double phi_n_e = -3.0147264125957078;
+constexpr double a_n_i = 3.0000000000000002e-02;
+constexpr double phi_n_i = -3.0147438177476489;
 // SetCosineField stores E_z at z-index g while the Yee E_z location is
 // (g+1/2) dz.  Advancing the stored harmonic by k dz/2 makes the field seen by
 // particles a zero-phase cosine, matching field_phase below.
-constexpr double field_grid_phase = 1.5707963267948966e-01;
+constexpr double field_grid_phase = 1.0471975511965977e-01;
 
 constexpr double vpar_max_e = 0.95;
 constexpr double vpar_max_i = 1.1191274207850656e-02;
@@ -84,8 +84,10 @@ void overwrite_config()
   geom_nz = static_cast<PetscInt>(eigen::theory_Lz / dx);
   geom_z = geom_nz * dx;
 
-  dt = 10;
-  geom_nt = 20000;
+  dt = 5;
+  // ceil(5 * (2*pi/omega_real) / dt): retain five periods for a stable
+  // damping fit without evolving the mode deep into the marker-noise floor.
+  geom_nt = 5307;
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
@@ -112,7 +114,7 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", "electrons"},
-        {"Np", 2500},
+        {"Np", 2048},
         {"n", eigen::theory_ne},
         {"q", eigen::theory_qe},
         {"m", eigen::theory_me},
@@ -121,7 +123,7 @@ void overwrite_config()
       },
       {
         {"sort_name", "ions"},
-        {"Np", 2500},
+        {"Np", 2048},
         {"n", eigen::theory_ni},
         {"q", eigen::theory_qi},
         {"m", eigen::theory_mi},

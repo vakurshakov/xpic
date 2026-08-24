@@ -261,9 +261,9 @@ Vector3R CoordinateInBoxQuietSinePaired::operator()()
 
 CoordinateInBoxQuietSineExactPaired::CoordinateInBoxQuietSineExactPaired(
   BoxGeometry box, const Vector3R& amplitude, const Vector3R& wave_number,
-  const Vector3R& phase)
+  const Vector3R& phase, std::size_t active_axis_lattice_pairs)
   : box(std::move(box)), amplitude(amplitude), wave_number(wave_number),
-    phase(phase)
+    phase(phase), active_axis_lattice_pairs(active_axis_lattice_pairs)
 {
   PetscInt active = 0;
   for (Axis a : {X, Y, Z}) {
@@ -297,11 +297,22 @@ Vector3R CoordinateInBoxQuietSineExactPaired::operator()()
 
   const std::size_t index = pair_counter + 1;
   for (Axis a : {X, Y, Z}) {
-    PetscReal u = van_der_corput(
-      index, quiet_coordinate_bases[static_cast<std::size_t>(a)]);
-    if (a == axis)
+    PetscReal u;
+    if (a == axis && active_axis_lattice_pairs != 0) {
+      if (pair_counter >= active_axis_lattice_pairs)
+        throw std::runtime_error(
+          "CoordinateInBoxQuietSineExactPaired exhausted its active-axis lattice");
+      u = (static_cast<PetscReal>(pair_counter) + 0.5) /
+        static_cast<PetscReal>(active_axis_lattice_pairs);
+    }
+    else {
+      u = van_der_corput(
+        index, quiet_coordinate_bases[static_cast<std::size_t>(a)]);
+    }
+    if (a == axis) {
       u = sine_density_inv_cdf(
         u, amplitude[a], wave_number[a], phase[a]);
+    }
     paired_coordinate[a] =
       box.min[a] + u * (box.max[a] - box.min[a]);
   }
@@ -635,6 +646,174 @@ Vector3R MaxwellianVelocityQuiet::operator()(
 
   throw std::runtime_error(
     "MaxwellianVelocityQuiet could not sample a subluminal velocity");
+}
+
+KineticIonSoundMomentsQuiet::KineticIonSoundMomentsQuiet(
+  const SortParameters& params, BoxGeometry box,
+  PetscReal force_electric_amplitude, PetscReal omega_real, PetscReal gamma,
+  const Vector3R& wave_number, const Vector3R& field_phase,
+  const Vector3R& density_amplitude, const Vector3R& density_phase)
+  : params(params), box(std::move(box)),
+    force_electric_amplitude(force_electric_amplitude),
+    omega_real(omega_real),
+    gamma(gamma), wave_number(wave_number), field_phase(field_phase),
+    density_amplitude(density_amplitude), density_phase(density_phase)
+{
+  if (!(params.n > 0.0) || !(params.m > 0.0) ||
+      !std::isfinite(params.n) || !std::isfinite(params.q) ||
+      !std::isfinite(params.m) ||
+      !std::isfinite(force_electric_amplitude) ||
+      !std::isfinite(omega_real) || !(gamma > 0.0) ||
+      !std::isfinite(gamma))
+    throw std::runtime_error(
+      "KineticIonSoundMomentsQuiet requires finite plasma parameters, n > 0, m > 0, and gamma > 0");
+
+  const PetscReal temperatures[3] = {params.Tx, params.Ty, params.Tz};
+  PetscInt active = 0;
+  for (const Axis a : {X, Y, Z}) {
+    if (temperatures[a] < 0.0 || !std::isfinite(temperatures[a]) ||
+        !std::isfinite(wave_number[a]) ||
+        !std::isfinite(field_phase[a]) ||
+        !std::isfinite(density_amplitude[a]) ||
+        !std::isfinite(density_phase[a]))
+      throw std::runtime_error(
+        "KineticIonSoundMomentsQuiet requires finite mode parameters and non-negative temperatures");
+    if (wave_number[a] != 0.0) {
+      axis = a;
+      ++active;
+    }
+    else if (density_amplitude[a] != 0.0) {
+      throw std::runtime_error(
+        "KineticIonSoundMomentsQuiet density perturbation must use the active wave axis");
+    }
+  }
+  if (active != 1)
+    throw std::runtime_error(
+      "KineticIonSoundMomentsQuiet requires exactly one non-zero wave_number");
+
+  const PetscReal length = this->box.max[axis] - this->box.min[axis];
+  if (!(length > 0.0) || !std::isfinite(length))
+    throw std::runtime_error(
+      "KineticIonSoundMomentsQuiet requires a finite non-empty box");
+  if (!(std::abs(density_amplitude[axis]) < 1.0))
+    throw std::runtime_error(
+      "KineticIonSoundMomentsQuiet requires |density_amplitude| < 1");
+
+  equilibrium_variance =
+    temperatures[axis] / (params.m * mec2);
+  if (!(equilibrium_variance > 0.0) ||
+      !std::isfinite(equilibrium_variance))
+    throw std::runtime_error(
+      "KineticIonSoundMomentsQuiet requires positive parallel temperature");
+
+  k_parallel = 2.0 * M_PI * wave_number[axis] / length;
+  const std::complex<PetscReal> imaginary{0.0, 1.0};
+  const std::complex<PetscReal> omega{omega_real, -gamma};
+  const std::complex<PetscReal> density_phase_factor =
+    std::exp(imaginary * density_phase[axis]);
+  const std::complex<PetscReal> field_harmonic =
+    force_electric_amplitude * std::exp(imaginary * field_phase[axis]);
+
+  // A configured sine a*sin(kz+phi) has complex harmonic
+  // -i*a*exp(i*phi) under the Re[hat{a} exp(ikz)] convention.
+  density_harmonic = -imaginary * params.n *
+    density_amplitude[axis] * density_phase_factor;
+  flux_harmonic = omega * density_harmonic / k_parallel;
+  second_moment_harmonic =
+    (omega * flux_harmonic -
+      imaginary * (params.q / params.m) * params.n * field_harmonic) /
+    k_parallel;
+
+  // Strict all-phase sufficient bounds.  They are deliberately conservative:
+  // n >= n_min, P >= P_min, |Gamma| <= flux_max imply
+  // n*P-Gamma^2 > 0 and |Gamma/n| < 1 at every coordinate.
+  const PetscReal density_min =
+    params.n - std::abs(density_harmonic);
+  const PetscReal second_moment_min =
+    params.n * equilibrium_variance - std::abs(second_moment_harmonic);
+  const PetscReal flux_max = std::abs(flux_harmonic);
+  const PetscReal determinant_margin =
+    density_min * second_moment_min - flux_max * flux_max;
+  const PetscReal subluminal_margin = density_min - flux_max;
+  if (!(density_min > 0.0) || !(second_moment_min > 0.0) ||
+      !(determinant_margin > 0.0) || !(subluminal_margin > 0.0))
+    throw std::runtime_error(std::format(
+      "KineticIonSoundMomentsQuiet positivity check failed for '{}': "
+      "n_min={} (>0), P_min={} (>0), n_min*P_min-|M1|^2={} (>0), "
+      "n_min-|M1|={} (>0), |M1|={}, |M2|={}, k={}. Regenerate the "
+      "mode constants for the configured plasma, box, and grid with "
+      "ion_sound.py --theory --grid-dz.",
+      params.sort_name.empty() ? "<unnamed>" : params.sort_name,
+      density_min, second_moment_min, determinant_margin,
+      subluminal_margin, flux_max, std::abs(second_moment_harmonic),
+      k_parallel));
+}
+
+void KineticIonSoundMomentsQuiet::local_parallel_parameters(
+  const Vector3R& coordinate, PetscReal& bulk_velocity,
+  PetscReal& variance) const
+{
+  const PetscReal theta =
+    k_parallel * (coordinate[axis] - box.min[axis]);
+  const std::complex<PetscReal> phase_factor =
+    std::polar<PetscReal>(1.0, theta);
+  const PetscReal density =
+    params.n + std::real(density_harmonic * phase_factor);
+  const PetscReal flux = std::real(flux_harmonic * phase_factor);
+  const PetscReal second_moment = params.n * equilibrium_variance +
+    std::real(second_moment_harmonic * phase_factor);
+  bulk_velocity = flux / density;
+  variance = second_moment / density - bulk_velocity * bulk_velocity;
+
+  if (!(density > 0.0) || !(variance > 0.0) ||
+      !(std::abs(bulk_velocity) < 1.0) || !std::isfinite(variance))
+    throw std::runtime_error(
+      "KineticIonSoundMomentsQuiet encountered invalid local moments");
+}
+
+Vector3R KineticIonSoundMomentsQuiet::operator()(
+  const Vector3R& coordinate)
+{
+  if (return_antithetic) {
+    if ((coordinate - first_coordinate).abs_max() != 0.0)
+      throw std::runtime_error(
+        "KineticIonSoundMomentsQuiet requires consecutive duplicate coordinates");
+    return_antithetic = false;
+    return second_velocity;
+  }
+
+  PetscReal bulk_velocity = 0.0;
+  PetscReal variance = 0.0;
+  local_parallel_parameters(coordinate, bulk_velocity, variance);
+  const PetscReal parallel_scale =
+    std::sqrt(variance / equilibrium_variance);
+
+  constexpr std::size_t max_rejection_attempts = 1'000'000;
+  for (std::size_t attempt = 0; attempt < max_rejection_attempts; ++attempt) {
+    if (candidate_counter == std::numeric_limits<std::size_t>::max())
+      throw std::runtime_error(
+        "KineticIonSoundMomentsQuiet exhausted its quiet sequence");
+
+    Vector3R thermal_velocity = sample_maxwellian_velocity_quiet(
+      params, ++candidate_counter);
+    thermal_velocity[axis] *= parallel_scale;
+
+    Vector3R first_velocity = thermal_velocity;
+    first_velocity[axis] += bulk_velocity;
+    second_velocity = -1.0 * thermal_velocity;
+    second_velocity[axis] += bulk_velocity;
+    if (std::isfinite(first_velocity.squared()) &&
+        first_velocity.squared() < 1.0 &&
+        std::isfinite(second_velocity.squared()) &&
+        second_velocity.squared() < 1.0) {
+      first_coordinate = coordinate;
+      return_antithetic = true;
+      return first_velocity;
+    }
+  }
+
+  throw std::runtime_error(
+    "KineticIonSoundMomentsQuiet could not sample a subluminal pair");
 }
 
 KineticIonSoundQuiet::KineticIonSoundQuiet(const SortParameters& params,

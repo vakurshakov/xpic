@@ -49,9 +49,9 @@ continuity equation  -i omega n_hat + i k n_s u_hat = 0,  u_hat = omega n_hat / 
 Caveats of the model.
   * Linear theory: the printed amplitudes are meaningful only while C_n,s / n_s
     << 1; the script warns above 5 %.
-  * Non-relativistic Maxwellian in v, while the PIC loader draws a Gaussian
-    MOMENTUM and converts v = p / sqrt(m^2 + p^2).  The mismatch is O(v_T^2/c^2)
-    (~4 % of the electron susceptibility at T_e = 20 keV).
+  * KineticIonSoundMomentsQuiet samples this non-relativistic Gaussian directly
+    in velocity space.  Older momentum-space Maxwell loaders instead convert
+    v = p / sqrt(m^2 + p^2), producing an O(v_T^2/c^2) model mismatch.
   * 1D electrostatic: matches the drift-kinetic solver only for k || B with
     uniform B (no mirror force, no perpendicular dynamics).
 
@@ -172,12 +172,18 @@ def epsilon_prime(omega, k, species):
     return total
 
 
-def solve_dispersion(k, species, omega_guess, tol=1e-12, max_iter=200):
-    """Newton iteration for the complex ion-acoustic root."""
+def solve_dispersion(k, species, omega_guess, tol=1e-12, max_iter=200,
+                     coupling=1.0):
+    """Newton iteration for the complex ion-acoustic root.
+
+    ``coupling`` multiplies the susceptibility sum eps-1.  Its default is the
+    continuum Vlasov-Poisson dispersion.  The drift-kinetic S1/S2/Yee spatial
+    discretization uses coupling=sinc(k*dz/2)^4.
+    """
     omega = complex(omega_guess)
     for _ in range(max_iter):
-        f = epsilon(omega, k, species)
-        fp = epsilon_prime(omega, k, species)
+        f = 1.0 + coupling * (epsilon(omega, k, species) - 1.0)
+        fp = coupling * epsilon_prime(omega, k, species)
         if fp == 0:
             break
         step = f / fp
@@ -267,8 +273,8 @@ def plasma_frequency_unit_si(n0_cm3):
 
 def run_theory(args):
     # Temperatures keV -> code units (m_e c^2).
-    Te = args.Te / MEC2_KEV
-    Ti = args.Ti / MEC2_KEV
+    Te = args.Te / args.mec2_kev
+    Ti = args.Ti / args.mec2_kev
 
     electron = Species("electrons", args.ne, args.qe, args.me, Te)
     ion = Species("ions", args.ni, args.qi, args.mi, Ti)
@@ -277,11 +283,31 @@ def run_theory(args):
     k = args.k if args.k is not None else 2.0 * math.pi * args.mode / args.Lz
     if k <= 0.0:
         raise ValueError("k must be positive.")
+    if args.grid_dz is not None and args.T is not None:
+        raise ValueError(
+            "--grid-dz cannot be combined with --T: the optional IVP plot "
+            "uses the continuum Vlasov-Poisson operator, not the "
+            "semi-discrete DK operator")
+
+    shape_s1 = 1.0
+    coupling = 1.0
+    field_grid_phase = 0.0
+    if args.grid_dz is not None:
+        if args.grid_dz <= 0.0:
+            raise ValueError("--grid-dz must be positive")
+        half_cell_phase = 0.5 * k * args.grid_dz
+        sinc = math.sin(half_cell_phase) / half_cell_phase \
+            if half_cell_phase != 0.0 else 1.0
+        shape_s1 = sinc**2
+        coupling = shape_s1**2
+        field_grid_phase = half_cell_phase
 
     # ---- Step 1: dispersion relation ------------------------------------- #
     omega_s_guess, gamma_guess = acoustic_initial_guess(k, electron, ion)
-    omega = solve_dispersion(k, species, omega_s_guess - 1j * gamma_guess)
-    resid = epsilon(omega, k, species)
+    omega = solve_dispersion(k, species,
+                             omega_s_guess - 1j * gamma_guess,
+                             coupling=coupling)
+    resid = 1.0 + coupling * (epsilon(omega, k, species) - 1.0)
     omega_r = omega.real
     Gamma = -omega.imag
 
@@ -294,6 +320,7 @@ def run_theory(args):
         E0 = field_from_density(target_species, omega, k, args.dn)
     else:
         E0 = args.E0 if args.E0 is not None else 1.0e-3
+    E_grid = E0 / shape_s1
 
     # ---- Step 2: density amplitudes -------------------------------------- #
     dens = {}
@@ -329,11 +356,16 @@ def run_theory(args):
     else:
         print(f"  L_z = {args.Lz:.6g} c/omega_p ,  mode = {args.mode}  ->  "
               f"k = 2*pi*mode/L_z = {k:.6e} (code)")
+    if args.grid_dz is not None:
+        print(f"  DK GRID: dz = {args.grid_dz:.6g}, S1 = {shape_s1:.12g}, "
+              f"coupling S1^2 = {coupling:.12g}")
     if inverse:
         print(f"  MODE: inverse  (given C_n[{args.dn_species}] = {args.dn:.6e} n0"
-              f"  ->  solved E0 = {E0:.6e} code)")
+              f"  ->  solved E_force = {E0:.6e} code)")
     else:
-        print(f"  MODE: forward  (given E0 = {E0:.6e} code)")
+        print(f"  MODE: forward  (given E_force = {E0:.6e} code)")
+    if args.grid_dz is not None:
+        print(f"  Yee grid amplitude E_grid = E_force/S1 = {E_grid:.6e}")
     print()
 
     print("=" * 70)
@@ -353,7 +385,8 @@ def run_theory(args):
     print("  -- code units --")
     print(f"    omega_s = {omega_r:.6e}")
     print(f"    Gamma_s = {Gamma:.6e}")
-    print(f"    |eps_L(omega)| residual = {abs(resid):.3e}")
+    residual_name = "eps_h" if args.grid_dz is not None else "eps_L"
+    print(f"    |{residual_name}(omega)| residual = {abs(resid):.3e}")
     print("  -- physical units --")
     print(f"    omega_s = {omega_r*omega_unit:.6e} rad/s")
     print(f"    Gamma_s = {Gamma*omega_unit:.6e} rad/s")
@@ -408,6 +441,20 @@ def run_theory(args):
     print(f"  velocity unit c     = {vel_unit:.6e} m/s")
     print()
 
+    print("=" * 70)
+    print("COPY-READY CODE CONSTANTS")
+    print("=" * 70)
+    print(f"  omega_real = {omega_r:.16e}")
+    print(f"  gamma      = {Gamma:.16e}")
+    print(f"  E_force    = {E0:.16e}")
+    if args.grid_dz is not None:
+        print(f"  E_grid     = {E_grid:.16e}")
+        print(f"  grid phase = {field_grid_phase:.16e}  # +k*dz/2 for SetCosineField")
+    for s in species:
+        C_n, phi_n = density_sine(*dens[s.name])
+        print(f"  {s.name:9s}: a_n = {C_n:.16e}, phi_n = {phi_n:.16e}")
+    print()
+
     # ---- Optional: theory-only |dn(t)| over --T periods ------------------ #
     if getattr(args, "T", None):
         # Loaded fluid IC = eigenmode moments: cn_hat = (A - iB)/n_s (relative),
@@ -454,7 +501,9 @@ def loaded_perturbation(config, name):
     """Return (a_n, phi_n, C_u, phi_u) of the loaded z-perturbation for a sort.
 
     a_n, phi_n from the coordinate loader (amplitude_z / phase_z), C_u, phi_u
-    from the momentum loader (velocity_z / phase_z). Handles two layouts:
+    from the momentum loader (velocity_z / phase_z).  For
+    KineticIonSoundMomentsQuiet, the flux harmonic is derived directly from
+    M1=omega*M0/k. Handles two layouts:
       * a standalone SetParticles preset (particles == name);
       * a paired loader, where this sort is the `paired_with` target of another
         preset -- it then shares that preset's `coordinate` and takes its
@@ -463,23 +512,48 @@ def loaded_perturbation(config, name):
         vec = block.get(key)
         return float(vec[2]) if vec is not None and len(vec) >= 3 else 0.0
 
+    def unpack(coord, mom):
+        a_n = z_of(coord, "amplitude")
+        phi_n = z_of(coord, "phase")
+        if mom.get("name") != "KineticIonSoundMomentsQuiet":
+            return (a_n, phi_n,
+                    z_of(mom, "velocity"), z_of(mom, "phase"))
+
+        mode = z_of(mom, "wave_number")
+        Lz = float(config.get("Geometry", {}).get("z", 0.0))
+        if mode == 0.0 or Lz <= 0.0:
+            raise ValueError(
+                "KineticIonSoundMomentsQuiet requires non-zero z mode and Lz")
+        k = 2.0 * math.pi * mode / Lz
+        omega = complex(float(mom["omega_real"]), -float(mom["gamma"]))
+        density_hat = -1j * a_n * np.exp(1j * phi_n)
+        velocity_hat = omega * density_hat / k
+        return (a_n, phi_n, abs(velocity_hat),
+                float(np.angle(1j * velocity_hat)))
+
     preset = preset_for_species(config, name)
     if preset is not None:
         coord, mom = preset.get("coordinate", {}), preset.get("momentum", {})
-        return (z_of(coord, "amplitude"), z_of(coord, "phase"),
-                z_of(mom, "velocity"), z_of(mom, "phase"))
+        return unpack(coord, mom)
 
     for pr in config.get("Presets", []):
         if pr.get("command") == "SetParticles" and pr.get("paired_with") == name:
             coord = pr.get("coordinate", {})            # shared coordinate
             mom = pr.get("momentum_paired", {})         # paired momentum
-            return (z_of(coord, "amplitude"), z_of(coord, "phase"),
-                    z_of(mom, "velocity"), z_of(mom, "phase"))
+            return unpack(coord, mom)
     return 0.0, 0.0, 0.0, 0.0
 
 
 def field_amplitude_from_config(config):
-    """E0 from the SetElectricField -> SetCosineField amplitude_z (or None)."""
+    """Physical E harmonic used by a kinetic loader, or its grid fallback."""
+    for preset in config.get("Presets", []):
+        if preset.get("command") != "SetParticles":
+            continue
+        momentum = preset.get("momentum", {})
+        if momentum.get("name") == "KineticIonSoundMomentsQuiet" and \
+                "force_electric_amplitude" in momentum:
+            return float(momentum["force_electric_amplitude"])
+
     for preset in config.get("Presets", []):
         if preset.get("command") != "SetElectricField":
             continue
@@ -501,12 +575,13 @@ def wave_number_from_config(config):
 
 
 def kinetic_loader_for_species(config, name):
-    """Return a KineticIonSoundQuiet momentum block, or None."""
+    """Return a supported kinetic ion-sound momentum block, or None."""
     preset = preset_for_species(config, name)
     if preset is None:
         return None
     momentum = preset.get("momentum", {})
-    if momentum.get("name") != "KineticIonSoundQuiet":
+    if momentum.get("name") not in {
+            "KineticIonSoundQuiet", "KineticIonSoundMomentsQuiet"}:
         return None
     return momentum
 
@@ -682,12 +757,14 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
         f_s(v,0) = cn_hat_s F0s(v) - u_hat_s dF0s/dv,
 
     matching only the loaded density (cn_hat_s) and bulk-velocity (u_hat_s)
-    moments. With `exact_ic=True` the true kinetic eigenmode is loaded instead,
+    moments. With `exact_ic=True` a formal pole-shaped response is loaded,
 
-        f_s(v,0) = -i (q_s E0 / m_s) dF0s/dv / (omega0 - k v),
+        f_s(v,0) = -i (q_s E0 / m_s) dF0s/dv / (omega0* - k v).
 
-    (omega0 = omega_s - i Gamma_s), which starts as a pure eigenmode -> |dn(t)|
-    decays as e^{-Gamma t} with no ballistic transient.
+    This regular real-axis response is useful diagnostically, but is not a
+    true damped Vlasov eigenfunction and does not in general satisfy Gauss'
+    law with E0.  The damped Landau root is a quasimode pole of the analytically
+    continued response, not a discrete eigenvalue of the real-v operator.
 
     With `use_realized_equilibrium=True`, the force term is linearized about
     the z-averaged distribution saved in the same PIC dump as the initial
@@ -744,7 +821,7 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
         # Velocity resolution set so the recurrence time 2*pi/(k dv) > 2 t_max.
         nv = int(np.clip(14.0 * s.vT * k * 2.0 * t_max / (2.0 * math.pi),
                          1500, 8000))
-        # The exact-kinetic IC has a sharp resonant feature of width Gamma/k near
+        # The pole-shaped IC has a sharp resonant feature of width Gamma/k near
         # v = omega_s/k; when it lies inside the grid (electrons) refine dv so a
         # few cells span the width, otherwise the IC (and the mode) is corrupted.
         if exact_ic and omega0 is not None:
@@ -761,11 +838,8 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
         weights[s.name] = quadrature
         dF0[s.name] = -v / s.vT ** 2 * F0
         if exact_ic:
-            # True kinetic eigenmode: -i (q E0 / m) dF0/dv / (omega0* - k v).
-            # The conjugate root omega0* = omega_s + i Gamma is required to match
-            # this solver's time convention (free streaming ~ e^{-i k v t}); it
-            # yields the clean damped eigenmode |dn(t)| = |dn(0)| e^{-Gamma t}.
-            # The denominator never vanishes (Im != 0).
+            # Regular upper-pole response.  It is a finite-time quasimode IC,
+            # not an all-time damped eigenfunction on the real velocity axis.
             f[s.name] = -1j * (s.q * E0 / s.m) * dF0[s.name] \
                 / (np.conj(omega0) - k * v)
         else:
@@ -956,8 +1030,19 @@ def prepare_theory(testname, ic_frame=None):
     wn = wave_number_from_config(config)
     k = 2.0 * math.pi * wn / const.Lz
 
-    omega_s_guess, gamma_guess = acoustic_initial_guess(k, electron, ion)
-    omega0 = solve_dispersion(k, species, omega_s_guess - 1j * gamma_guess)
+    configured_moment_loader = None
+    for s in species:
+        candidate = kinetic_loader_for_species(config, s.name)
+        if (candidate or {}).get("name") == "KineticIonSoundMomentsQuiet":
+            configured_moment_loader = candidate
+            break
+    if configured_moment_loader is not None:
+        omega0 = complex(float(configured_moment_loader["omega_real"]),
+                         -float(configured_moment_loader["gamma"]))
+    else:
+        omega_s_guess, gamma_guess = acoustic_initial_guess(k, electron, ion)
+        omega0 = solve_dispersion(
+            k, species, omega_s_guess - 1j * gamma_guess)
 
     E0 = field_amplitude_from_config(config)
     ic = {s.name: list(loaded_perturbation(config, s.name)) for s in species}
@@ -1011,6 +1096,149 @@ def prepare_theory(testname, ic_frame=None):
                 T_wave=2.0 * math.pi / omega0.real)
 
 
+def plot_model_noise(times, series_amp, series_noise, series_harm, series_rest,
+                     style, t_grid, T_wave, dn_theory_i, dn_exponential_i,
+                     t_max, out_path, dpi, labelsize, ticksize, bbox):
+    """Separate figure: signal vs noise (left) and mode coupling (right).
+
+    The left-over signal is what the diagnostic profile keeps after the first
+    z-harmonic reconstructed from `dn_1` is removed,
+
+        delta n_noise(z, t) = delta n(z, t) - Re[dn_1(t) e^{i k z}],
+
+    and it is measured with the same normalisation as a harmonic amplitude,
+    i.e. sqrt(2 <delta n_noise^2>_z), so that a pure cos(k' z) mode of amplitude
+    A shows up as A.
+
+    LEFT panel: everything on a linear 0-100 % scale, each curve as a percentage
+    of its own initial amplitude - the simulated harmonic and the noise of a
+    sort are referred to |dn_1(t_0)| of that sort, the two theory curves to the
+    theoretical |dn_{i,1}(t_0)|.  Both sorts therefore start at 100 %, and a
+    noise curve reads directly "how many percent of the initial signal".
+
+    RIGHT panel: the same residual split into the harmonics m*k that mode
+    coupling would fill and the incoherent leftover, now as a percentage of the
+    INSTANTANEOUS |dn_1(t)|.  This is the linearity test: quadratic coupling
+    gives |dn_2|/|dn_1| ~ O(1) |dn_1|/n, so while that ratio stays under the
+    ~10 % guide line the harmonics do not feed back on the studied mode and the
+    run may be treated as linear.  Discrete-particle noise, in contrast, sits in
+    the "rest" curve, is flat in absolute value and therefore only grows here
+    because |dn_1(t)| decays - a large "rest" limits measurability, not
+    linearity.
+    """
+    import matplotlib.pyplot as plt
+
+    def percent(values, reference):
+        arr = np.asarray(values, dtype=float)
+        ref = np.asarray(reference, dtype=float)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            out = 100.0 * arr / ref
+        return np.where(np.isfinite(out) & (ref > 0.0), out, np.nan)
+
+    theory_ref = float(dn_theory_i[0]) if len(dn_theory_i) else float("nan")
+
+    fig, (ax_abs, ax_rel) = plt.subplots(1, 2, figsize=(17.0, 7.5))
+
+    # ---- Left: first harmonic and the whole residual, vs the initial value -- #
+    ax_abs.plot(t_grid / T_wave, percent(dn_theory_i, theory_ref), color="black",
+                linewidth=2.0, linestyle="-", alpha=0.9,
+                label=r"$|\delta n_{i,1}|$")
+    ax_abs.plot(t_grid / T_wave, percent(dn_exponential_i, theory_ref),
+                color="black", linewidth=1.8, linestyle="--", alpha=0.75,
+                label=r"$|\delta n_{i,1}(0)|e^{-\Gamma t}$")
+
+    # Per-sort reference: the first simulated first-harmonic amplitude.
+    refs = {}
+    for name, amp in series_amp.items():
+        finite = [a for a in amp if np.isfinite(a) and a > 0.0]
+        refs[name] = float(finite[0]) if finite else float("nan")
+
+    for name, amp in series_amp.items():
+        st = dict(style.get(name, {"marker": "o", "linestyle": "-"}))
+        st.pop("label", None)
+        count = min(len(times), len(amp))
+        ax_abs.plot(times[:count], percent(amp[:count], refs[name]),
+                    label=rf"$|\delta n_{{{name[0]},1}}|$", **st)
+
+    for name, noise in series_noise.items():
+        st = dict(style.get(name, {"marker": "o", "linestyle": "-"}))
+        st.pop("label", None)
+        st["linestyle"] = ":"
+        st["alpha"] = 0.8
+        st["linewidth"] = 1.5
+        st["markersize"] = 3.0
+        count = min(len(times), len(noise))
+        ax_abs.plot(times[:count],
+                    percent(noise[:count], refs.get(name, float("nan"))),
+                    label=rf"$|\delta n_{{{name[0]}}} - \delta n_{{{name[0]},1}}|$",
+                    **st)
+
+    ax_abs.set_xlim(0.0, t_max / T_wave)
+    ax_abs.set_ylim(0.0, 100.0)
+    ax_abs.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax_abs.set_ylabel(r"% от начальной амплитуды $|\delta n_1(t_0)|$",
+                      fontsize=labelsize)
+    ax_abs.tick_params(labelsize=ticksize)
+    ax_abs.grid(True, alpha=0.3)
+    ax_abs.set_title(r"Первая гармоника и амплитуда шума", fontsize=labelsize,
+                     bbox=bbox)
+    ax_abs.set_box_aspect(1)
+    ax_abs.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
+                  ncol=2, fontsize=ticksize)
+
+    # ---- Right: coupled harmonics vs incoherent rest, vs |dn_1(t)| ---------- #
+    linestyle_of = {2: "-", 3: "--"}
+    for name, harmonics in series_harm.items():
+        amp = np.asarray(series_amp.get(name, []), dtype=float)
+        base = dict(style.get(name, {"marker": "o", "linestyle": "-"}))
+        base.pop("label", None)
+        base.pop("linestyle", None)
+        for m in sorted(harmonics):
+            st = dict(base)
+            st["linestyle"] = linestyle_of.get(m, "-.")
+            st["linewidth"] = 2.0
+            st["markersize"] = 3.5
+            st["alpha"] = 1.0 if m == 2 else 0.7
+            count = min(len(times), len(harmonics[m]), amp.size)
+            ax_rel.plot(times[:count],
+                        percent(harmonics[m][:count], amp[:count]),
+                        label=rf"$|\delta n_{{{name[0]},{m}}}|/"
+                              rf"|\delta n_{{{name[0]},1}}|$", **st)
+
+        rest = series_rest.get(name, [])
+        st = dict(base)
+        st["linestyle"] = ":"
+        st["linewidth"] = 1.5
+        st["markersize"] = 3.0
+        st["alpha"] = 0.8
+        count = min(len(times), len(rest), amp.size)
+        ax_rel.plot(times[:count], percent(rest[:count], amp[:count]),
+                    label=rf"шум$_{{{name[0]}}}/|\delta n_{{{name[0]},1}}|$", **st)
+
+    ax_rel.axhline(10.0, color="tab:gray", linewidth=1.2, linestyle="--",
+                   alpha=0.9)
+    ax_rel.text(0.01 * t_max / T_wave, 11.0, "10 % — граница линейного режима",
+                color="tab:gray", fontsize=ticksize, ha="left", va="bottom")
+
+    ax_rel.set_xlim(0.0, t_max / T_wave)
+    ax_rel.set_ylim(0.0, 100.0)
+    ax_rel.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax_rel.set_ylabel(r"% от текущей амплитуды $|\delta n_1(t)|$",
+                      fontsize=labelsize)
+    ax_rel.tick_params(labelsize=ticksize)
+    ax_rel.grid(True, alpha=0.3)
+    ax_rel.set_title(r"Связь гармоник и шум относительно моды",
+                     fontsize=labelsize, bbox=bbox)
+    ax_rel.set_box_aspect(1)
+    ax_rel.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
+                  ncol=2, fontsize=ticksize)
+
+    fig.tight_layout(pad=0.6)
+    fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Noise figure written to {out_path}")
+
+
 def run_model(args):
     ctx = prepare_theory(args.model, ic_frame=args.ic_from_dump)
     const, config = ctx["const"], ctx["config"]
@@ -1060,6 +1288,8 @@ def run_model(args):
     n0 = 1.0
     z = (np.arange(const.Nz) + 0.5) * const.dz
     first_harmonic_kernel = np.exp(-1j * k * z)
+    # Kernels of the harmonics that quadratic/cubic mode coupling would fill.
+    harmonic_kernels = {m: np.exp(-1j * m * k * z) for m in (2, 3)}
     times = np.array([idx * const.dts for idx in common], dtype=float)
     t_max = float(times[-1]) if times.size else T_wave
 
@@ -1162,11 +1392,17 @@ def run_model(args):
     # plus the exact kinetic theory and its pure exponential Landau envelope.
     lines_amp = {}
     series_amp = {}
+    series_noise = {}
+    series_harm = {}
+    series_rest = {}
     for row in rows:
         st = dict(style.get(row["species"], {"marker": "o", "linestyle": "-"}))
         st["label"] = rf"$|\delta n_{{{row['species'][0]},1}}|$ (model)"
         lines_amp[row["species"]] = ax_amp.plot([], [], **st)[0]
         series_amp[row["species"]] = []
+        series_noise[row["species"]] = []
+        series_harm[row["species"]] = {m: [] for m in harmonic_kernels}
+        series_rest[row["species"]] = []
 
     dn_theory_i = theory[ion.name]
     dn_exponential_i = abs(cn_hat[ion.name]) * np.exp(-Gamma * (t_grid - t0))
@@ -1216,6 +1452,21 @@ def run_model(args):
             dev = profile / n0 - 1.0
             dn1 = 2.0 * np.mean(dev * first_harmonic_kernel)
             series_amp[row["species"]].append(float(abs(dn1)))
+            # Everything the profile keeps once the first harmonic is removed;
+            # normalised as sqrt(2)*rms so a pure mode of amplitude A reads A.
+            residual = dev - np.real(dn1 * np.conj(first_harmonic_kernel))
+            series_noise[row["species"]].append(
+                float(np.sqrt(2.0 * np.mean(residual ** 2))))
+            # Split that residual into the coupled harmonics m*k, which grow as
+            # |dn_1|^m, and the leftover incoherent part (discrete-particle
+            # noise), which does not follow the wave at all.
+            rest = residual
+            for m, kernel in harmonic_kernels.items():
+                dnm = 2.0 * np.mean(dev * kernel)
+                series_harm[row["species"]][m].append(float(abs(dnm)))
+                rest = rest - np.real(dnm * np.conj(kernel))
+            series_rest[row["species"]].append(
+                float(np.sqrt(2.0 * np.mean(rest ** 2))))
             lines_amp[row["species"]].set_data(times_acc, series_amp[row["species"]])
         suptitle.set_text(rf"$t = {t_phys / T_wave:.3f}\,T$")
         return [*lines_z.values(), *lines_amp.values(), suptitle]
@@ -1233,6 +1484,12 @@ def run_model(args):
     fig.savefig(png_path, dpi=args.dpi)
     plt.close(fig)
     print(f"Final figure written to {png_path}")
+
+    plot_model_noise(times_acc, series_amp, series_noise, series_harm,
+                     series_rest, style, t_grid, T_wave,
+                     dn_theory_i, dn_exponential_i, t_max,
+                     os.path.join(out_dir, "ion_sound_model_noise.png"),
+                     args.dpi, labelsize, ticksize, bbox)
 
 
 def compare_label(testname):
@@ -1338,7 +1595,7 @@ def electric_harmonic_series(ctx, first_frame=0, model_tmax=None):
     if ncells <= 0 or ncells % const.Nz != 0:
         raise SystemExit(f"unexpected FieldView size: {first_path}")
     transverse_cells = ncells // const.Nz
-    z_faces = np.arange(const.Nz) * const.dz
+    z_faces = (np.arange(const.Nz) + 0.5) * const.dz
     projector = np.exp(-1j * k * z_faces)
 
     times, harmonic = [], []
@@ -2006,6 +2263,76 @@ def run_compare_temp(args):
     print(f"Temperature comparison figure written to {png_path}")
 
 
+def plot_electric_mode_amplitudes(times, profiles, z, Lz, T_wave, out_path, dpi,
+                                  modes=(1, 2, 3, 4, 5), theory=None):
+    """Separate figure: |E_z,m(t)| of the first `modes` z harmonics on one axis.
+
+    Every harmonic uses the same convention as the main comparison,
+    |E_z,m| = |2/Lz int <E_z>_{x,y} e^{-i k_m z} dz|,  k_m = 2 pi m / Lz,
+    so the m-th curve is directly comparable with the theory of that mode.
+    Higher harmonics are normally orders of magnitude below the driven one
+    (they only grow through nonlinearity and particle noise), hence the log
+    ordinate.  `theory` is an optional (t, |E_1|, mode) triple, drawn dashed.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from lib.plot import bbox, labelsize, ticksize
+    plt.rc("text", usetex=False)  # the Cyrillic title is incompatible with usetex
+
+    colors = ["purple", "tab:red", "tab:green", "tab:orange", "tab:blue",
+              "tab:brown", "tab:pink"]
+
+    fig, ax = plt.subplots(figsize=(11.0, 7.5))
+    amplitudes = {}
+    floor = np.inf
+    ceiling = 0.0
+    for i, m in enumerate(modes):
+        kernel = np.exp(-1j * (2.0 * math.pi * m / Lz) * z)
+        amp = np.array([abs(2.0 * np.mean(pz * kernel)) for pz in profiles])
+        amplitudes[m] = amp
+        positive = amp[amp > 0.0]
+        if positive.size:
+            floor = min(floor, float(positive.min()))
+            ceiling = max(ceiling, float(positive.max()))
+        ax.plot(times / T_wave, np.where(amp > 0.0, amp, np.nan),
+                color=colors[i % len(colors)], linewidth=2.0,
+                label=rf"$|E_{{z,{m}}}|$ (model)")
+
+    if theory is not None:
+        t_theory, dE_theory, theory_mode = theory
+        ax.plot(t_theory / T_wave, dE_theory, color="black", linestyle="--",
+                linewidth=2.0,
+                label=rf"$|E_{{z,{theory_mode:g}}}|$ (theory)")
+        positive = dE_theory[dE_theory > 0.0]
+        if positive.size:
+            floor = min(floor, float(positive.min()))
+            ceiling = max(ceiling, float(positive.max()))
+
+    if np.isfinite(floor) and ceiling > 0.0:
+        ax.set_yscale("log")
+        # Deep noise floors of the high harmonics would squash the driven mode;
+        # keep at most six decades below its peak.
+        ax.set_ylim(max(floor, ceiling * 1e-6) * 0.5, ceiling * 2.0)
+    ax.set_xlim(float(times[0]) / T_wave, float(times[-1]) / T_wave)
+    ax.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax.set_ylabel(
+        r"$|E_{z,m}(t)| = \left|\frac{2}{L_z}\int"
+        r"\langle E_z\rangle_{x,y}e^{-ik_m z}\,dz\right|$",
+        fontsize=labelsize)
+    ax.tick_params(labelsize=ticksize)
+    ax.grid(True, which="both", alpha=0.3)
+    ax.set_title(r"Амплитуды мод $m = 1\ldots%d$" % max(modes),
+                 fontsize=labelsize, bbox=bbox)
+    # Six overlapping curves leave no free corner; keep the legend off the axes.
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
+              ncol=3, fontsize=0.8 * ticksize)
+    fig.tight_layout(pad=0.6)
+    fig.savefig(out_path, dpi=dpi)
+    plt.close(fig)
+    return amplitudes
+
+
 def run_model_electric(args):
     # Frame 0000 contains the field prescribed by SetElectricField, before the
     # first self-consistent particle/field step.  For the electric comparison
@@ -2073,7 +2400,7 @@ def run_model_electric(args):
     # at cell centres.  Their Fourier amplitudes must use their own staggered
     # coordinates; the modulus is unchanged, but the complex phase supplied to
     # the Vlasov--Ampere IVP is not.
-    z = np.arange(const.Nz) * const.dz
+    z = (np.arange(const.Nz) + 0.5) * const.dz
     first_harmonic_kernel = np.exp(-1j * k * z)
     profiles = [Ez_profile(n) for n in names]
     E_sim = np.array([2.0 * np.mean(pz * first_harmonic_kernel)
@@ -2190,6 +2517,21 @@ def run_model_electric(args):
     plt.close(fig)
     print(f"Final figure written to {png_path}")
 
+    # ---- Separate figure: harmonics m = 1..5 of E_z on one axis ------------ #
+    modes = (1, 2, 3, 4, 5)
+    theory_curve = (t_grid, dE_theory, ctx["wn"]) \
+        if float(ctx["wn"]).is_integer() and ctx["wn"] in modes else None
+    modes_path = os.path.join(out_dir, "ion_sound_model_E_modes.png")
+    amplitudes = plot_electric_mode_amplitudes(
+        times, profiles, z, const.Lz, T_wave, modes_path, args.dpi,
+        modes=modes, theory=theory_curve)
+    print("  z-harmonics of E_z  (first frame -> last frame):")
+    for m in modes:
+        amp = amplitudes[m]
+        print(f"    m = {m}: {amp[0]:.6e} -> {amp[-1]:.6e} , "
+              f"max = {amp.max():.6e}")
+    print(f"Mode-amplitude figure written to {modes_path}")
+
 
 # --------------------------------------------------------------------------- #
 # Phase-space mode: f(z, v_parallel) from the 5-D DK histogram                 #
@@ -2253,6 +2595,55 @@ def regularized_kinetic_parallel(species, z, v, loader, density_amplitude,
     return f_parallel, n_target, F0
 
 
+def moment_matched_kinetic_parallel(species, z, v, loader,
+                                    density_amplitude, density_phase, Lz):
+    """Velocity-bin-averaged positive M0/M1/M2 ion-sound quasimode.
+
+    This mirrors KineticIonSoundMomentsQuiet.  Its local Gaussian has density,
+    particle flux, and parallel second moment fixed by the Landau frequency
+    and the linear Vlasov moment hierarchy.  The exponentially tiny change
+    caused by the C++ loader's |v|<c rejection is intentionally omitted.
+    """
+    mode = float(loader.get("wave_number", [0.0, 0.0, 1.0])[2])
+    field_phase = float(loader.get(
+        "field_phase", [0.0, 0.0, 0.0])[2])
+    z_min = float(loader.get("min", [0.0, 0.0, 0.0])[2])
+    k = 2.0 * math.pi * mode / Lz
+    omega = complex(float(loader["omega_real"]), -float(loader["gamma"]))
+    E_hat = float(loader["force_electric_amplitude"]) * \
+        np.exp(1j * field_phase)
+    density_hat = (-1j * species.n * density_amplitude *
+                   np.exp(1j * density_phase))
+    flux_hat = omega * density_hat / k
+    second_hat = (omega * flux_hat -
+                  1j * (species.q / species.m) * species.n * E_hat) / k
+
+    spatial_phase = np.exp(1j * k * (z - z_min))
+    n_target = species.n + np.real(density_hat * spatial_phase)
+    flux = np.real(flux_hat * spatial_phase)
+    second = species.n * species.vT**2 + np.real(
+        second_hat * spatial_phase)
+    bulk = flux / n_target
+    variance = second / n_target - bulk**2
+    if np.any(n_target <= 0.0) or np.any(variance <= 0.0):
+        raise SystemExit(
+            "moment-matched kinetic PDF has non-positive density or variance")
+
+    dv = float(v[1] - v[0]) if v.size > 1 else 2.0 * species.vT
+    samples_per_bin = 32
+    offsets = ((np.arange(samples_per_bin) + 0.5) /
+               samples_per_bin - 0.5) * dv
+    velocity_samples = v[:, None] + offsets[None, :]
+    normalized = ((velocity_samples[None, :, :] - bulk[:, None, None]) /
+                  np.sqrt(variance)[:, None, None])
+    conditional = np.exp(-0.5 * normalized**2) / (
+        math.sqrt(2.0 * math.pi) * np.sqrt(variance)[:, None, None])
+    f_parallel = n_target[:, None] * conditional.mean(axis=2)
+    F0 = (np.exp(-velocity_samples**2 / (2.0 * species.vT**2)) /
+          (math.sqrt(2.0 * math.pi) * species.vT)).mean(axis=1)
+    return f_parallel, n_target, F0
+
+
 def run_phase(args):
     tests_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
@@ -2302,7 +2693,7 @@ def run_phase(args):
                 f"no DkDistributionFunction diagnostic for '{sp.name}'")
         if loader is None or preset is None:
             raise SystemExit(
-                f"no KineticIonSoundQuiet loader for '{sp.name}'")
+                f"no supported kinetic ion-sound loader for '{sp.name}'")
 
         vinfo = diagnostic["v_parallel"]
         muinfo = diagnostic["mu_p"]
@@ -2337,7 +2728,13 @@ def run_phase(args):
         coord = preset.get("coordinate", {})
         amplitude = float(coord.get("amplitude", [0.0, 0.0, 0.0])[2])
         density_phase = float(coord.get("phase", [0.0, 0.0, 0.0])[2])
-        f_theory, n_target, F0 = regularized_kinetic_parallel(
+        moment_matched = \
+            loader.get("name") == "KineticIonSoundMomentsQuiet"
+        theory_label = "moment-matched theory" if moment_matched \
+            else "regularized theory"
+        theory_function = moment_matched_kinetic_parallel if moment_matched \
+            else regularized_kinetic_parallel
+        f_theory, n_target, F0 = theory_function(
             sp, z, v, loader, amplitude, density_phase, const.Lz)
 
         baseline = n_target[:, None] * F0[None, :]
@@ -2361,7 +2758,7 @@ def run_phase(args):
             if np.any(np.isfinite(residual)) else 1.0
 
         panels = [delta_model, delta_theory, residual]
-        titles = ["PIC", "regularized theory", "PIC - theory"]
+        titles = ["PIC", theory_label, "PIC - theory"]
         limits = [color_limit, color_limit, residual_limit]
         for col, (panel, title, limit) in enumerate(zip(panels, titles, limits)):
             ax = axes[row, col]
@@ -2419,7 +2816,11 @@ def run_phase(args):
             "resonance_width": float(loader["gamma"]) / abs(k),
             "harmonic_model": harmonic_model,
             "harmonic_theory": harmonic_theory,
-            "coefficient": sp.q * float(loader["electric_amplitude"]) /
+            "theory_label": theory_label,
+            "moment_matched": moment_matched,
+            "coefficient": sp.q * float(loader.get(
+                "force_electric_amplitude", loader.get(
+                    "electric_amplitude"))) /
                            (sp.m * sp.vT**2),
             "omega": float(loader["omega_real"]),
             "gamma": float(loader["gamma"]),
@@ -2455,7 +2856,7 @@ def run_phase(args):
         ax.semilogy(velocity, pic, drawstyle="steps-mid", linewidth=1.4,
                     label=r"PIC: $\sum_z f/N_z$")
         ax.semilogy(velocity, theory, linewidth=1.8,
-                    label="regularized kinetic theory")
+                    label=item["theory_label"])
         ax.semilogy(velocity, maxwell, "--", linewidth=1.3,
                     label="Maxwellian")
         resonance_vt = item["resonance"] / sp.vT
@@ -2485,27 +2886,29 @@ def run_phase(args):
             lo = max(float(item["v"][0] - 0.5 * dv), resonance - half_window)
             hi = min(float(item["v"][-1] + 0.5 * dv), resonance + half_window)
             selected = (item["v"] >= lo) & (item["v"] <= hi)
-            dense_v = np.linspace(lo, hi, 1200)
-            detuning = item["omega"] - item["k"] * dense_v
-            linear_h = np.abs(item["coefficient"] * dense_v) / np.sqrt(
-                detuning**2 + item["gamma"]**2)
-
-            resonance_ax.plot(dense_v / sp.vT, linear_h, color="0.25",
-                              linewidth=1.3, label="continuous linear theory")
+            if not item["moment_matched"]:
+                dense_v = np.linspace(lo, hi, 1200)
+                detuning = item["omega"] - item["k"] * dense_v
+                linear_h = np.abs(item["coefficient"] * dense_v) / np.sqrt(
+                    detuning**2 + item["gamma"]**2)
+                resonance_ax.plot(
+                    dense_v / sp.vT, linear_h, color="0.25",
+                    linewidth=1.3, label="continuous pole response")
             resonance_ax.plot(
                 item["v"][selected] / sp.vT,
                 np.abs(item["harmonic_theory"][selected]), "o-",
                 linewidth=1.5, markersize=5,
-                label="regularized theory, bin-averaged")
+                label=item["theory_label"] + ", bin-averaged")
             resonance_ax.plot(
                 item["v"][selected] / sp.vT,
                 np.abs(item["harmonic_model"][selected]), "s",
                 markersize=5, label="PIC bins")
-            resonance_ax.axvspan(
-                (resonance - width) / sp.vT,
-                (resonance + width) / sp.vT,
-                color="tab:red", alpha=0.12,
-                label=r"$|v-v_{res}|<\Gamma/k$")
+            if not item["moment_matched"]:
+                resonance_ax.axvspan(
+                    (resonance - width) / sp.vT,
+                    (resonance + width) / sp.vT,
+                    color="tab:red", alpha=0.12,
+                    label=r"$|v-v_{res}|<\Gamma/k$")
             resonance_ax.axvline(resonance / sp.vT, color="tab:red",
                                  linestyle=":", linewidth=1.1)
             resonance_ax.set_xlim(lo / sp.vT, hi / sp.vT)
@@ -2587,11 +2990,13 @@ def build_parser():
                         "theory |E_z|(t) (first harmonic) against the run's E "
                         "FieldView frames. By default the Vlasov--Ampere IVP "
                         "starts from distribution_function/0001 and E/0001; "
-                        "--ic-from-dump selects another starting frame")
+                        "--ic-from-dump selects another starting frame. "
+                        "Additionally writes a separate figure with the "
+                        "z-harmonics m = 1..5 of E_z on one axis")
     p.add_argument("--phase", default=None,
                    help="phase-space mode: test name; read the 5-D "
                         "DkDistributionFunction and compare f(z,v_parallel) "
-                        "with the regularized kinetic loading theory")
+                        "with its configured kinetic loading theory")
     p.add_argument("--phase-frame", type=int, default=0, metavar="FRAME",
                    help="phase-space diagnostic frame to read (default: 0)")
     # --- theory-mode parameters ---
@@ -2618,15 +3023,22 @@ def build_parser():
                    help="species whose density amplitude --dn refers to")
     p.add_argument("--n0-cm3", type=float, default=1.0e13,
                    help="reference density n0 [cm^-3]")
+    p.add_argument("--mec2-kev", type=float, default=MEC2_KEV,
+                   help="electron rest energy used to nondimensionalize Te/Ti "
+                        f"(default: {MEC2_KEV:g} keV; use 511 for xpic code constants)")
+    p.add_argument("--grid-dz", type=float, default=None,
+                   help="apply the drift-kinetic S1/S2/Yee spatial coupling "
+                        "for this grid spacing; prints both particle-force "
+                        "and Yee-grid electric amplitudes")
     p.add_argument("--T", type=float, default=None,
                    help="theory mode: if set, additionally plot the exact kinetic "
                         "|dn(t)| (ballistic + collective) over this many wave "
                         "periods, without any simulation data")
     p.add_argument("--exact-ic", action="store_true",
-                   help="load the exact kinetic eigenmode f~(v) = -i(q E0/m) "
-                        "dF0/dv / (omega0 - k v) as the theory initial condition "
-                        "(pure e^{-Gamma t}, no ballistic transient) instead of "
-                        "the fluid shifted-Maxwellian IC")
+                   help="load the formal upper-pole response as the theory "
+                        "initial condition instead of the fluid moment IC; "
+                        "this is a diagnostic quasimode, not an exact damped "
+                        "real-velocity eigenfunction")
     p.add_argument("--out", default=None,
                    help="theory mode: output PNG path for the --T figure "
                         "(default: ion_sound_theory_dn.png)")

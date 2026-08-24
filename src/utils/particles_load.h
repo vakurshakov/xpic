@@ -1,6 +1,8 @@
 #ifndef SRC_UTILS_PARTICLES_LOAD_H
 #define SRC_UTILS_PARTICLES_LOAD_H
 
+#include <complex>
+
 #include "src/pch.h"
 #include "src/interfaces/sort_parameters.h"
 #include "src/utils/geometries.h"
@@ -98,10 +100,13 @@ struct CoordinateInBoxQuietSinePaired {
 //   p(s) = 1 + amplitude * sin(2*pi*mode*s/L + phase)
 // without an O(amplitude^2) coordinate-map error. Every coordinate is returned
 // twice so a paired momentum loader can cancel perpendicular thermal current.
+// With `active_axis_lattice_pairs > 0`, the perturbed axis uses all midpoint
+// quantiles (j+1/2)/N instead of a van-der-Corput sequence. This produces an
+// especially accurate low-mode charge harmonic; the other axes remain Halton.
 struct CoordinateInBoxQuietSineExactPaired {
   CoordinateInBoxQuietSineExactPaired(BoxGeometry box,
     const Vector3R& amplitude, const Vector3R& wave_number,
-    const Vector3R& phase);
+    const Vector3R& phase, std::size_t active_axis_lattice_pairs = 0);
 
   Vector3R operator()();
 
@@ -110,6 +115,7 @@ struct CoordinateInBoxQuietSineExactPaired {
   Vector3R wave_number;
   Vector3R phase{0.0, 0.0, 0.0};
   Axis axis = Z;
+  std::size_t active_axis_lattice_pairs = 0;
   mutable std::size_t pair_counter = 0;
   mutable bool return_second = false;
   mutable Vector3R paired_coordinate;
@@ -238,6 +244,60 @@ struct MaxwellianVelocityQuiet {
   bool return_antithetic = false;
   Vector3R thermal_velocity;
   std::size_t candidate_counter = 0;
+};
+
+// Positive ion-sound quasimode for a regular real-velocity particle PDF.
+// Given the complex Landau frequency omega = omega_real - i*gamma, the
+// configured density harmonic and particle-interpolated electric-force
+// harmonic determine the first two parallel velocity moments through the
+// linear Vlasov hierarchy,
+//   M1 = omega*M0/k,
+//   M2 = (omega*M1 - i*(q/m)*n0*E)/k.
+// At each position this loader samples the positive local Gaussian whose
+// untruncated density, particle flux, and second parallel moment are M0,M1,M2.
+// Matching all three moments suppresses the early ballistic/plasma transient
+// and leaves the forward Landau pole dominant.  This is a finite-time
+// quasimode: a regular positive all-time damped Vlasov eigenfunction does not
+// exist on the real velocity axis.
+//
+// Consecutive calls must receive the same coordinate.  The parallel thermal
+// velocities and both perpendicular components are antithetic; both particles
+// carry the same local bulk velocity.  Subluminal rejection preserves the
+// pair mean but very slightly truncates the variance; it is negligible for the
+// non-relativistic temperatures for which the construction is intended.
+// The active Cartesian wave axis must be parallel to the background magnetic
+// field, because that component is treated as v_parallel.
+struct KineticIonSoundMomentsQuiet {
+  KineticIonSoundMomentsQuiet(const SortParameters& params, BoxGeometry box,
+    PetscReal force_electric_amplitude, PetscReal omega_real, PetscReal gamma,
+    const Vector3R& wave_number, const Vector3R& field_phase,
+    const Vector3R& density_amplitude, const Vector3R& density_phase);
+
+  Vector3R operator()(const Vector3R& coordinate);
+
+  SortParameters params;
+  BoxGeometry box;
+  PetscReal force_electric_amplitude;
+  PetscReal omega_real;
+  PetscReal gamma;
+  Vector3R wave_number;
+  Vector3R field_phase;
+  Vector3R density_amplitude;
+  Vector3R density_phase;
+  Axis axis = Z;
+  PetscReal k_parallel = 0.0;
+  PetscReal equilibrium_variance = 0.0;
+  std::complex<PetscReal> density_harmonic;
+  std::complex<PetscReal> flux_harmonic;
+  std::complex<PetscReal> second_moment_harmonic;
+  bool return_antithetic = false;
+  Vector3R second_velocity;
+  Vector3R first_coordinate;
+  std::size_t candidate_counter = 0;
+
+private:
+  void local_parallel_parameters(const Vector3R& coordinate,
+    PetscReal& bulk_velocity, PetscReal& variance) const;
 };
 
 // Positive, regularized kinetic ion-sound loading. The coordinate generator
