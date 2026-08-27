@@ -26,6 +26,7 @@ from lib.plot_utils import figure, subplot
 from lib.plot import labelsize, ticksize
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import ConnectionPatch, Rectangle
 
 # Legend labels are Cyrillic; render without LaTeX (mathtext + DejaVu Sans
 # still draws the Cyrillic glyphs and the math). lib.plot enables usetex on
@@ -376,8 +377,7 @@ def plot_charge(args):
 
 
 def plot_energy_charge(args, include_damping_loss=False):
-    """Energy drift (top) and charge residual (bottom) stacked vertically,
-    sharing a single time axis, in the drift_kinetic_exb_ex1.py style.
+    """Energy drift and charge residual in two adjacent square panels.
 
     When ``include_damping_loss`` is true, combine the drift-kinetic dK with
     the field-energy changes and damping loss from energy_conservation.txt.
@@ -426,13 +426,44 @@ def plot_energy_charge(args, include_damping_loss=False):
         mask = t <= args.time
         t, dW, charge = t[mask], dW[mask], charge[mask]
 
-    fig, gs = figure(1, 2, figsize=(14, 10))
-    ax_top = fig.add_subplot(gs[0])
-    ax_bot = fig.add_subplot(gs[1], sharex=ax_top)
+    def scale_exponent(limits):
+        peak = max(abs(float(limits[0])), abs(float(limits[1])))
+        return int(np.floor(np.log10(peak))) if peak > 0.0 else 0
 
-    ax_top.plot(t, dW, color="#2ca02c", linestyle="-", linewidth=2.0, zorder=2)
+    def mark_mean_outside(ax, value, exponent):
+        scaled = value / 10.0**exponent
+        ax.text(1.015, value, rf"${scaled:.1f}$",
+                transform=ax.get_yaxis_transform(), ha="left", va="center",
+                fontsize=EX_LEGENDSIZE + 2, bbox=mean_bbox, clip_on=False)
+
+    mean_bbox = dict(facecolor="white", edgecolor="none", alpha=0.3,
+                     boxstyle="round,pad=0.15")
+
+    if args.inset:
+        # A dedicated square centre column at 80% of either main panel's
+        # linear size.  The main panels retain identical dimensions.
+        fig, gs = figure(3, 1, width_ratios=[1.0, 0.80, 1.0],
+                         figsize=(17.0, 6.3))
+        ax_top = fig.add_subplot(gs[0])
+        ax_middle = fig.add_subplot(gs[1])
+        ax_bot = fig.add_subplot(gs[2], sharex=ax_top)
+    else:
+        # No unused centre column: the two square panels sit directly beside
+        # one another with only the normal axes-label spacing between them.
+        fig, gs = figure(2, 1, figsize=(12.6, 6.3))
+        ax_top = fig.add_subplot(gs[0])
+        ax_middle = None
+        ax_bot = fig.add_subplot(gs[1], sharex=ax_top)
+
+    energy_line, = ax_top.plot(
+        t, dW, color="#ff7f0e", linestyle="-", linewidth=2.0, zorder=2,
+        label="relative change in total energy")
     ax_top.axhline(0.0, color=EX_COLOR_TH, linestyle="--", linewidth=1.0,
                    zorder=3)
+    if not args.inset:
+        energy_mean = float(np.mean(dW))
+        ax_top.axhline(energy_mean, color=EX_COLOR_TH, linestyle="--",
+                       linewidth=1.0, zorder=3)
     if args.energy is not None:
         m = float(args.energy)
     else:
@@ -441,16 +472,16 @@ def plot_energy_charge(args, include_damping_loss=False):
     ax_top.set_ylabel(r"$\delta_W(t)$", fontsize=label_fs)
 
     # Zoom the settled tail inside the energy panel.  Scaling both axes to
-    # the last 30% of the trace makes its small residual range visible after
+    # the last 50% of the trace makes its small residual range visible after
     # a much larger initial transient.
     if args.inset and t.size >= 2:
-        tail_start = t[0] + 0.7 * (t[-1] - t[0])
+        tail_start = t[0] + 0.5 * (t[-1] - t[0])
         tail_mask = t >= tail_start
         tail_t = t[tail_mask]
         tail_dW = dW[tail_mask]
 
-        ax_zoom = ax_top.inset_axes([0.38, 0.08, 0.28, 0.36])
-        ax_zoom.plot(tail_t, tail_dW, color="#2ca02c",
+        ax_zoom = ax_middle
+        ax_zoom.plot(tail_t, tail_dW, color="#ff7f0e",
                      linestyle="-", linewidth=1.5)
         ax_zoom.set_xlim(float(tail_t[0]), float(tail_t[-1]))
 
@@ -459,24 +490,55 @@ def plot_energy_charge(args, include_damping_loss=False):
         tail_span = tail_hi - tail_lo
         tail_pad = (0.12 * tail_span if tail_span else
                     max(0.05 * abs(tail_lo), np.finfo(float).eps))
-        ax_zoom.set_ylim(tail_lo - tail_pad, tail_hi + tail_pad)
-        ax_zoom.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        tail_mean = float(np.mean(tail_dW))
+        tail_half_range = float(np.max(np.abs(tail_dW - tail_mean))) or 1.0
+        tail_half_range *= 1.05
+        ax_zoom.set_ylim(tail_mean - tail_half_range,
+                         tail_mean + tail_half_range)
+        ax_zoom.axhline(tail_mean, color=EX_COLOR_TH, linestyle="--",
+                        linewidth=1.0, zorder=3)
+        tail_exponent = scale_exponent(ax_zoom.get_ylim())
+        ax_zoom.ticklabel_format(axis="y", style="sci",
+                                 scilimits=(tail_exponent, tail_exponent))
+        mark_mean_outside(ax_zoom, tail_mean, tail_exponent)
         ax_zoom.minorticks_on()
         ax_zoom.tick_params(axis="both", which="both", direction="in",
                             top=True, right=True,
                             labelsize=max(tick_fs - 5, 8))
         ax_zoom.yaxis.get_offset_text().set_fontsize(max(tick_fs - 5, 8))
         ax_zoom.grid(True, alpha=0.25)
-        ax_top.indicate_inset_zoom(
-            ax_zoom, edgecolor="0.25", linewidth=0.8, alpha=0.75)
+        ax_zoom.set_box_aspect(1)
+        # Use an independent, vertically enlarged source outline; unlike
+        # indicate_inset_zoom it is not reset to the inset limits on draw.
+        outline_pad = tail_pad + 0.5 * (tail_span if tail_span else tail_pad)
+        outline_lo = float(tail_lo - outline_pad)
+        outline_hi = float(tail_hi + outline_pad)
+        outline = Rectangle(
+            (float(tail_t[0]), outline_lo),
+            float(tail_t[-1] - tail_t[0]), outline_hi - outline_lo,
+            fill=False, edgecolor="black", linewidth=1.2, alpha=0.6,
+            zorder=4)
+        ax_top.add_patch(outline)
+        main_lo, main_hi = ax_top.get_ylim()
+        outline_margin = 0.05 * max(outline_hi - outline_lo,
+                                    np.finfo(float).eps)
+        ax_top.set_ylim(min(main_lo, outline_lo - outline_margin),
+                        max(main_hi, outline_hi + outline_margin))
 
-    ax_bot.plot(t, charge, color="#ff7f0e", linestyle="-", linewidth=2.0,
-                zorder=2)
-    ax_bot.axhline(0.0, color=EX_COLOR_TH, linestyle="--", linewidth=1.0,
-                   zorder=3)
-    hi = float(np.max(charge)) or 1.0
-    ax_bot.set_ylim(0.0, hi * 1.05)
+    charge_line, = ax_bot.plot(
+        t, charge, color="#9467bd", linestyle="-", linewidth=2.0,
+        zorder=2, label="residual of the discrete continuity equation")
+    charge_mean = float(np.mean(charge))
+    ax_bot.axhline(charge_mean, color=EX_COLOR_TH, linestyle="--",
+                   linewidth=1.0, zorder=3)
+    charge_half_range = float(np.max(np.abs(charge - charge_mean))) or 1.0
+    charge_half_range *= 1.05
+    ax_bot.set_ylim(charge_mean - charge_half_range,
+                    charge_mean + charge_half_range)
+    charge_exponent = scale_exponent(ax_bot.get_ylim())
+    mark_mean_outside(ax_bot, charge_mean, charge_exponent)
     ax_bot.set_ylabel(r"$\mathcal{R}_\rho(t)$", fontsize=label_fs)
+    ax_top.set_xlabel(r"$t/\tau$", fontsize=label_fs)
     ax_bot.set_xlabel(r"$t/\tau$", fontsize=label_fs)
 
     x_hi = float(args.time) if args.time is not None else float(t.max())
@@ -487,12 +549,45 @@ def plot_energy_charge(args, include_damping_loss=False):
         _ex_style_axes(ax, panel)
         ax.tick_params(axis="both", which="both", labelsize=tick_fs)
         ax.yaxis.get_offset_text().set_fontsize(tick_fs)
-    # Shared x axis: only the bottom panel keeps the time tick labels.
-    ax_top.tick_params(axis="x", which="both", labelbottom=False)
+        ax.set_box_aspect(1)
 
-    # Keep extra padding around the large math labels; the default tight
-    # layout can clip the left edge of delta_W(t) for some font backends.
-    fig.tight_layout(pad=2.0)
+    ax_bot.ticklabel_format(axis="y", style="sci",
+                            scilimits=(charge_exponent, charge_exponent))
+    if not args.inset:
+        energy_exponent = scale_exponent(ax_top.get_ylim())
+        ax_top.ticklabel_format(axis="y", style="sci",
+                                scilimits=(energy_exponent, energy_exponent))
+        mark_mean_outside(ax_top, energy_mean, energy_exponent)
+
+    # One descriptive legend for both panels, outside their square plotting
+    # areas.
+    fig.legend(handles=[energy_line, charge_line], loc="upper center",
+               bbox_to_anchor=(0.5, 0.98), ncol=1,
+               fontsize=EX_LEGENDSIZE + 2, framealpha=0.9)
+    if args.inset:
+        fig.subplots_adjust(left=0.055, right=0.985, bottom=0.14, top=0.82,
+                            wspace=0.24)
+        main_box = ax_top.get_position()
+        middle_box = ax_middle.get_position()
+        zoom_width = 0.80 * main_box.width
+        zoom_height = 0.80 * main_box.height
+        zoom_cx = 0.5 * (middle_box.x0 + middle_box.x1)
+        zoom_cy = 0.5 * (main_box.y0 + main_box.y1)
+        ax_middle.set_position([
+            zoom_cx - 0.5 * zoom_width,
+            zoom_cy - 0.5 * zoom_height,
+            zoom_width,
+            zoom_height,
+        ])
+        connector = ConnectionPatch(
+            xyA=(0.0, 0.0), coordsA=ax_middle.transAxes,
+            xyB=(float(tail_t[-1]), outline_lo),
+            coordsB=ax_top.transData, color="black", linewidth=1.2,
+            alpha=0.6, clip_on=False)
+        fig.add_artist(connector)
+    else:
+        fig.subplots_adjust(left=0.08, right=0.985, bottom=0.14, top=0.82,
+                            wspace=0.22)
     suffix = "energy_charge_loss" if include_damping_loss else "energy_charge"
     out = args.out or os.path.join(args.dir, f"traces_{suffix}.png")
     fig.savefig(out, dpi=args.dpi, bbox_inches="tight", pad_inches=0.15)
@@ -524,6 +619,7 @@ def _ex_style_axes(ax, panel):
     # Panel tag in the top-right corner, as in the example figures.
     ax.text(0.94, 0.98, panel, transform=ax.transAxes,
         ha="right", va="top", fontsize=EX_PANELSIZE,
+        zorder=20,
         bbox=dict(facecolor="white", edgecolor="none", alpha=0.6,
             boxstyle="round,pad=0.2"))
 

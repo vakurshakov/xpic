@@ -1493,9 +1493,41 @@ def run_model(args):
 
 
 def compare_label(testname):
-    """Short legend label: drift_..._ex12 -> ex12."""
-    match = re.search(r"(?:^|_)ex(\d+)(?:_|$)", os.path.basename(testname))
-    return f"ex{match.group(1)}" if match else os.path.basename(testname)
+    """Legend label: everything after the drift_kinetic_ prefix.
+
+    drift_kinetic_ringdown_ex12 -> ringdown_ex12.  A name without that prefix
+    is used as it is, so runs from other suites stay distinguishable."""
+    name = os.path.basename(str(testname).rstrip("/"))
+    prefix = "drift_kinetic_"
+    return name[len(prefix):] if name.startswith(prefix) and \
+        len(name) > len(prefix) else name
+
+
+def compare_label_with_particles(testname, config):
+    """Particle-count-only legend label for comparison plots."""
+    counts = {
+        str(item.get("sort_name")): item.get("Np")
+        for item in config.get("Particles", [])
+        if isinstance(item, dict) and item.get("sort_name") is not None
+        and item.get("Np") is not None
+    }
+    electron_count = counts.get("electrons")
+    ion_count = counts.get("ions")
+
+    def format_count(value):
+        try:
+            return f"{float(value):g}"
+        except (TypeError, ValueError):
+            return str(value)
+
+    if electron_count is not None and ion_count is not None:
+        if electron_count == ion_count:
+            return f"Np={format_count(electron_count)}"
+        return (f"Np_e={format_count(electron_count)}, "
+                f"Np_i={format_count(ion_count)}")
+    if len(counts) == 1:
+        return f"Np={format_count(next(iter(counts.values())))}"
+    return "Np=?"
 
 
 def harmonic_series(ctx, dz, sort_name, model_tmax=None):
@@ -1559,6 +1591,76 @@ def harmonic_series(ctx, dz, sort_name, model_tmax=None):
     return np.asarray(times), np.asarray(harmonic), np.asarray(noise)
 
 
+def density_comparison_series(ctx, dz, sort_name, model_tmax=None):
+    """Ion-density amplitudes used by multi-run model comparisons.
+
+    All amplitudes use the convention in ``plot_model_noise``: sqrt(2)*rms
+    for a real-space profile, so a pure sinusoid of amplitude A reads A.
+    """
+    const = ctx["const"]
+    species = next(s for s in ctx["species"] if s.name == sort_name)
+    rows = dz.collect_rows([sort_name])
+    if not rows and const.in_dir != ctx["config_dir"]:
+        const.in_dir = ctx["config_dir"]
+        const.out_dir = os.path.join(ctx["config_dir"], "processed")
+        rows = dz.collect_rows([sort_name])
+    if not rows:
+        raise SystemExit(f"No '{sort_name}' density diagnostic found.")
+    steps = rows[0]["timesteps"]
+    if model_tmax is not None:
+        limit = model_tmax * ctx["T_wave"]
+        steps = [(idx, name) for idx, name in steps
+                 if idx * const.dts <= limit + 1.0e-12 * max(1.0, limit)]
+
+    z = (np.arange(const.Nz) + 0.5) * const.dz
+    kernel = np.exp(-1j * ctx["k"] * z)
+    result = {name: [] for name in
+              ("time", "first", "total", "residual")}
+    for idx, name in steps:
+        data = dz.load_frame(rows[0]["dir"], name)
+        if data is None:
+            continue
+        profile = data.mean(axis=(1, 2)) / species.n - 1.0
+        first = complex(2.0 * np.mean(profile * kernel))
+        residual = profile - np.real(first * np.conj(kernel))
+        result["time"].append(idx * const.dts / ctx["T_wave"])
+        result["first"].append(abs(first))
+        result["total"].append(float(np.sqrt(2.0 * np.mean(profile ** 2))))
+        result["residual"].append(
+            float(np.sqrt(2.0 * np.mean(residual ** 2))))
+    if not result["time"]:
+        raise SystemExit(f"Could not read '{sort_name}' density frames.")
+    return {key: np.asarray(value, dtype=float)
+            for key, value in result.items()}
+
+
+def diagnostic_energy_series(ctx, model_tmax=None):
+    """Read wE and per-sort wK columns from temporal/dk_diagnostic.txt."""
+    const, config = ctx["const"], ctx["config"]
+    candidates = [os.path.join(const.in_dir, "temporal", "dk_diagnostic.txt"),
+                  os.path.join(ctx["config_dir"], "temporal",
+                               "dk_diagnostic.txt")]
+    path = next((candidate for candidate in candidates
+                 if os.path.isfile(candidate)), None)
+    if path is None:
+        raise SystemExit(f"dk_diagnostic.txt not found for '{ctx['config_dir']}'.")
+    with open(path, "r", encoding="utf-8") as stream:
+        header = re.split(r"\s{2,}", stream.readline().strip())
+    data = np.loadtxt(path, skiprows=1)
+    if data.ndim == 1:
+        data = data.reshape(1, -1)
+    if data.shape[1] != len(header) or "Time" not in header:
+        raise SystemExit(f"unexpected dk_diagnostic table: {path}")
+    dt = float(config.get("Geometry", {}).get("dt", 1.0))
+    time = data[:, header.index("Time")] * dt / ctx["T_wave"]
+    if model_tmax is not None:
+        keep = time <= model_tmax + 1.0e-12 * max(1.0, model_tmax)
+        time, data = time[keep], data[keep]
+    columns = {name: data[:, header.index(name)] for name in header
+               if name == "wE" or name.startswith("wK_")}
+    return time, columns
+
+
 def electric_harmonic_series(ctx, first_frame=0, model_tmax=None):
     """Complex first harmonic of the saved longitudinal electric field.
 
@@ -1609,6 +1711,205 @@ def electric_harmonic_series(ctx, first_frame=0, model_tmax=None):
         times.append(idx * const.dts)
         harmonic.append(complex(2.0 * np.mean(profile * projector)))
     return np.asarray(times), np.asarray(harmonic), edir_name
+
+
+def electric_harmonic_ratio_series(testname, args, modes=(1, 2)):
+    """Load |E_m|/|E_1| for selected longitudinal Fourier harmonics."""
+    first_frame = 1 if args.ic_from_dump is None else args.ic_from_dump
+    ctx = prepare_theory(testname, ic_frame=first_frame)
+    const, config = ctx["const"], ctx["config"]
+    config_dir = ctx["config_dir"]
+    edir_name = field_view_dir(config, "E")
+    if edir_name is None:
+        raise SystemExit(
+            f"'{testname}': config has no FieldView diagnostic for field 'E'.")
+
+    epath = os.path.join(const.in_dir, edir_name)
+    if not os.path.isdir(epath):
+        epath = os.path.join(config_dir, edir_name)
+    if not os.path.isdir(epath):
+        raise SystemExit(f"'{testname}': E field frames not found in "
+                         f"'{edir_name}'.")
+
+    frames = sorted((int(name), name) for name in os.listdir(epath)
+                    if name.isdigit() and int(name) >= first_frame)
+    if args.model_tmax is not None:
+        t_limit = args.model_tmax * ctx["T_wave"]
+        tolerance = 1.0e-12 * max(1.0, t_limit)
+        frames = [(idx, name) for idx, name in frames
+                  if idx * const.dts <= t_limit + tolerance]
+    if not frames or frames[0][0] != first_frame:
+        raise SystemExit(f"'{testname}': initial E frame "
+                         f"{first_frame:04d} not found in '{epath}'.")
+
+    ncomp = 3
+    first_path = os.path.join(epath, frames[0][1])
+    ncells = os.path.getsize(first_path) // 4 // ncomp
+    if ncells <= 0 or ncells % const.Nz != 0:
+        raise SystemExit(f"unexpected FieldView size: {first_path}")
+    transverse_cells = ncells // const.Nz
+    z = (np.arange(const.Nz) + 0.5) * const.dz
+    kernels = {m: np.exp(-1j * 2.0 * math.pi * m * z / const.Lz)
+               for m in modes}
+    amplitudes = {m: [] for m in modes}
+    mode_energy_ratios = []
+    times = []
+    for idx, name in frames:
+        path = os.path.join(epath, name)
+        raw = np.fromfile(path, dtype=np.float32, count=ncells * ncomp)
+        if raw.size != ncells * ncomp:
+            raise SystemExit(f"unexpected FieldView size: {path}")
+        profile = raw.reshape(const.Nz, transverse_cells, ncomp)[..., 2].mean(
+            axis=1)
+        times.append(idx * const.dts / ctx["T_wave"])
+        for m, kernel in kernels.items():
+            amplitudes[m].append(abs(2.0 * np.mean(profile * kernel)))
+        power = np.abs(np.fft.rfft(profile)) ** 2
+        first_mode_energy = 2.0 * power[1]
+        other_mode_energy = 2.0 * float(np.sum(power[2:]))
+        if const.Nz % 2 == 0 and power.size > 2:
+            # The Nyquist coefficient has no distinct negative-frequency pair.
+            other_mode_energy -= power[-1]
+        energy_threshold = np.finfo(float).eps * max(
+            first_mode_energy, other_mode_energy, 1.0)
+        mode_energy_ratios.append(
+            other_mode_energy / first_mode_energy
+            if first_mode_energy > energy_threshold else math.nan)
+
+    amplitudes = {m: np.asarray(values) for m, values in amplitudes.items()}
+    denominator = amplitudes[1]
+    threshold = np.finfo(float).eps * max(float(np.max(denominator)), 1.0)
+    ratios = {m: np.divide(amplitudes[m], denominator,
+                           out=np.full_like(denominator, np.nan),
+                           where=denominator > threshold)
+              for m in modes if m != 1}
+    energy_time, energies = diagnostic_energy_series(ctx, args.model_tmax)
+    return {"testname": testname,
+            "label": compare_label_with_particles(testname, config),
+            "time": np.asarray(times), "ratios": ratios,
+            "mode_energy_ratio": np.asarray(mode_energy_ratios),
+            "energy_time": energy_time, "energies": energies,
+            "out_dir": const.out_dir}
+
+
+def run_compare_electric(args):
+    """Compare second/first electric harmonics in four stacked run panels."""
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
+    tools_dir = os.path.join(repo_dir, "tools")
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from lib.plot import bbox, labelsize, ticksize
+
+    plt.rc("text", usetex=False)
+    runs = [electric_harmonic_ratio_series(name, args)
+            for name in [args.model_electric, *args.compare]]
+    fig = plt.figure(figsize=(15.0, 9.0))
+    grid = fig.add_gridspec(4, 2, width_ratios=(3.2, 1.0), hspace=0.0,
+                            wspace=0.08)
+    axes = []
+    for row in range(4):
+        axes.append(fig.add_subplot(
+            grid[row, 0], sharex=None if row == 0 else axes[0]))
+    legend_ax = fig.add_subplot(grid[:, 1])
+    legend_ax.axis("off")
+    colors = plt.get_cmap("tab10").colors
+    markers = ("o", "s", "^", "D", "v", "P")
+    handles = []
+    for i, run in enumerate(runs):
+        line, = axes[i].plot(run["time"], run["ratios"][2],
+                            color=colors[i % len(colors)],
+                            marker=markers[i % len(markers)], linewidth=2.2,
+                            markersize=4.5, label=run["label"])
+        handles.append(line)
+
+    for i, ax in enumerate(axes):
+        if i >= len(runs):
+            ax.set_visible(False)
+            continue
+        ax.set_ylim(0.0, 1.5)
+        ax.tick_params(labelsize=ticksize)
+        ax.grid(True, alpha=0.3)
+        ax.set_ylabel(r"$|E_{z,2}|/|E_{z,1}|$", fontsize=labelsize)
+        if i < len(runs) - 1:
+            ax.tick_params(labelbottom=False)
+        else:
+            ax.set_xlabel(r"$t/T$", fontsize=labelsize)
+    axes[0].set_title(r"Вторая гармоника относительно первой",
+                      fontsize=labelsize, bbox=bbox)
+    legend_ax.legend(handles=handles,
+                     labels=[run["label"] for run in runs],
+                     loc="center", fontsize=labelsize, framealpha=0.9)
+    fig.subplots_adjust(left=0.10, right=0.97, bottom=0.09, top=0.94)
+
+    out_dir = os.path.join(runs[0]["out_dir"], args.out_subdir + "_E")
+    os.makedirs(out_dir, exist_ok=True)
+    png_path = os.path.join(out_dir, "ion_sound_compare_E_ratios.png")
+    fig.savefig(png_path, dpi=args.dpi, bbox_inches="tight")
+    plt.close(fig)
+
+    energy_fig, energy_axis = plt.subplots(figsize=(9.5, 7.0))
+    for i, run in enumerate(runs):
+        if "wE" not in run["energies"]:
+            raise SystemExit(
+                f"wE column not found in dk_diagnostic for '{run['testname']}'.")
+        energy_axis.plot(
+            run["energy_time"], run["energies"]["wE"],
+            color=colors[i % len(colors)], marker=markers[i % len(markers)],
+            linewidth=2.2, markersize=4.5, label=run["label"])
+    energy_axis.set_xlabel(r"$t/T$", fontsize=labelsize)
+    energy_axis.set_ylabel(r"$w_E$", fontsize=labelsize)
+    energy_axis.tick_params(labelsize=ticksize)
+    energy_axis.grid(True, alpha=0.3)
+    energy_axis.set_title(r"Энергия электрического поля",
+                          fontsize=labelsize, bbox=bbox)
+    energy_axis.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0),
+                       fontsize=ticksize, framealpha=0.9)
+    energy_fig.tight_layout()
+    energy_path = os.path.join(out_dir, "ion_sound_compare_wE.png")
+    energy_fig.savefig(energy_path, dpi=args.dpi, bbox_inches="tight")
+    plt.close(energy_fig)
+
+    mode_energy_fig, mode_energy_axis = plt.subplots(figsize=(9.5, 7.0))
+    for i, run in enumerate(runs):
+        mode_energy_axis.plot(
+            run["time"], run["mode_energy_ratio"],
+            color=colors[i % len(colors)], marker=markers[i % len(markers)],
+            linewidth=2.2, markersize=4.5, label=run["label"])
+    mode_energy_axis.set_xlabel(r"$t/T$", fontsize=labelsize)
+    mode_energy_axis.set_ylabel(
+        r"$\sum_{m>1}W_{E,m}/W_{E,1}$", fontsize=labelsize)
+    mode_energy_axis.set_ylim(0.0, 1000.0)
+    mode_energy_axis.tick_params(labelsize=ticksize)
+    mode_energy_axis.grid(True, alpha=0.3)
+    mode_energy_axis.set_title(
+        r"Энергия остальных гармоник относительно первой",
+        fontsize=labelsize, bbox=bbox)
+    mode_energy_axis.legend(
+        loc="upper left", bbox_to_anchor=(1.02, 1.0),
+        fontsize=ticksize, framealpha=0.9)
+    mode_energy_fig.tight_layout()
+    mode_energy_path = os.path.join(
+        out_dir, "ion_sound_compare_E1_energy_ratio.png")
+    mode_energy_fig.savefig(
+        mode_energy_path, dpi=args.dpi, bbox_inches="tight")
+    plt.close(mode_energy_fig)
+
+    print("=" * 70)
+    print(f"COMPARE_ELECTRIC: {args.model_electric} + "
+          f"{len(args.compare)} run(s)")
+    print("=" * 70)
+    for run in runs:
+        print(f"  {run['label']:8s} {run['testname']}: "
+              f"{run['time'].size} frames, t/T in "
+              f"[{run['time'][0]:.6g}, {run['time'][-1]:.6g}]")
+    print(f"Electric-harmonic comparison figure written to {png_path}")
+    print(f"Electric-energy comparison figure written to {energy_path}")
+    print(f"Electric mode-energy ratio figure written to {mode_energy_path}")
 
 
 def run_model_pic(args):
@@ -1807,19 +2108,320 @@ def fit_two_branch(t, a, omega_guess, gamma_guess,
 def load_ion_harmonic(testname, args, dz):
     """Load the relative ion-density first harmonic for one finished run."""
     ctx = prepare_theory(testname, ic_frame=args.ic_from_dump)
-    times, harmonic, _ = harmonic_series(ctx, dz, ctx["ion"].name,
-                                         args.model_tmax)
+    density = density_comparison_series(
+        ctx, dz, ctx["ion"].name, args.model_tmax)
+    energy_time, energies = diagnostic_energy_series(ctx, args.model_tmax)
     return {
         "testname": testname,
-        "label": compare_label(testname),
-        "time": times / ctx["T_wave"],
-        "amplitude": np.abs(harmonic),
+        "label": compare_label_with_particles(testname, ctx["config"]),
+        "time": density["time"],
+        "amplitude": density["first"],
+        "total_amplitude": density["total"],
+        "noise_residual": density["residual"],
+        "energy_time": energy_time,
+        "energies": energies,
         "T_wave": ctx["T_wave"],
         "Gamma": -ctx["omega0"].imag,
         "a0": abs(ctx["cn_hat"][ctx["ion"].name]),
         "t0": ctx["t0"],
         "out_dir": ctx["const"].out_dir,
     }
+
+
+def plot_density_harmonics_and_kinetic_energy(runs, out_dir, dpi):
+    """Write the ion-only multi-run noise and kinetic-energy figures."""
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from lib.plot import bbox, labelsize, ticksize
+    plt.rc("text", usetex=False)
+
+    colors = plt.get_cmap("tab10").colors
+    markers = ("o", "s", "^", "D", "v", "P")
+    outputs = {}
+    def percent(values, reference):
+        values = np.asarray(values, dtype=float)
+        reference = np.asarray(reference, dtype=float)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            ratio = 100.0 * values / reference
+        return np.where(np.isfinite(ratio) & (reference > 0.0), ratio, np.nan)
+
+    fig, (ax_abs, ax_rel) = plt.subplots(1, 2, figsize=(17.0, 7.5))
+    for index, run in enumerate(runs):
+        color = colors[index % len(colors)]
+        marker = markers[index % len(markers)]
+        first = run["amplitude"]
+        finite = first[np.isfinite(first) & (first > 0.0)]
+        reference = float(finite[0]) if finite.size else math.nan
+        common = dict(color=color, marker=marker, markersize=3.5)
+        ax_abs.plot(run["time"], percent(first, reference), linewidth=2.0,
+                    linestyle="-", label=run["label"], **common)
+        ax_abs.plot(run["time"], percent(run["noise_residual"], reference),
+                    linewidth=1.5, linestyle=":", alpha=0.8,
+                    label="_nolegend_", **common)
+    ax_abs.set_ylabel(r"% от $|\delta n_{i,1}(t_0)|$", fontsize=labelsize)
+    ax_abs.set_title(r"Первая гармоника и полный остаток ионов",
+                     fontsize=labelsize, bbox=bbox)
+    x_max = max(float(run["time"][-1]) for run in runs)
+    ax_abs.set_xlim(0.0, x_max)
+    ax_abs.set_ylim(0.0, 100.0)
+    ax_abs.set_xlabel(r"$t/T$", fontsize=labelsize)
+    ax_abs.tick_params(labelsize=ticksize)
+    ax_abs.grid(True, alpha=0.3)
+    ax_abs.set_box_aspect(1)
+
+    run_handles = [Line2D([], [], color=colors[i % len(colors)],
+                          marker=markers[i % len(markers)], linewidth=1.8,
+                          label=run["label"])
+                   for i, run in enumerate(runs)]
+    ax_abs.legend(handles=run_handles + [
+        Line2D([], [], color="black", linestyle="-", label=r"$|\delta n_{i,1}|$"),
+        Line2D([], [], color="black", linestyle=":", label="полный остаток")],
+        loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2,
+        fontsize=ticksize)
+    fig.tight_layout(pad=0.6)
+    noise_path = os.path.join(out_dir, "ion_sound_compare_noise.png")
+    fig.savefig(noise_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    outputs["noise"] = noise_path
+
+    fig, axis = plt.subplots(figsize=(9.5, 7.0))
+    for index, run in enumerate(runs):
+        for species_name, linestyle in (("electrons", "-"), ("ions", "--")):
+            key = f"wK_{species_name}"
+            if key in run["energies"]:
+                energy = run["energies"][key]
+                initial_energy = float(energy[0])
+                if initial_energy == 0.0:
+                    raise SystemExit(
+                        f"{key}(0) is zero for '{run['testname']}'; relative "
+                        "kinetic-energy change is undefined.")
+                relative_energy = (energy - initial_energy) / initial_energy
+                axis.plot(run["energy_time"], relative_energy,
+                          color=colors[index % len(colors)],
+                          linestyle=linestyle, linewidth=1.8)
+    axis.set_xlabel(r"$t/T$", fontsize=labelsize)
+    axis.set_ylabel(r"$(w_K(t)-w_K(0))/w_K(0)$", fontsize=labelsize)
+    axis.tick_params(labelsize=ticksize)
+    axis.grid(True, alpha=0.3)
+    axis.set_title("Кинетическая энергия", fontsize=labelsize, bbox=bbox)
+
+    run_handles = [Line2D([], [], color=colors[i % len(colors)],
+                          linewidth=1.8,
+                          label=run["label"])
+                   for i, run in enumerate(runs)]
+    species_handles = [Line2D([], [], color="black", linestyle="-",
+                              label="electrons"),
+                       Line2D([], [], color="black", linestyle="--",
+                              label="ions")]
+    axis.legend(handles=run_handles + species_handles, loc="upper left",
+                bbox_to_anchor=(1.02, 1.0), fontsize=ticksize, framealpha=0.9)
+    fig.tight_layout()
+    energy_path = os.path.join(out_dir, "ion_sound_compare_wK.png")
+    fig.savefig(energy_path, dpi=dpi, bbox_inches="tight")
+    plt.close(fig)
+    outputs["wK"] = energy_path
+    return outputs
+
+
+def run_compare_article(args):
+    """Publication-style three-panel ion-density comparison."""
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
+    for path in (os.path.join(repo_dir, "tools"),
+                 os.path.join(tests_dir, "drift_kinetic_tools")):
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    import drift_kinetic_density_z as dz
+
+    plt.rcParams["text.usetex"] = False
+    plt.rcParams["mathtext.fontset"] = "cm"
+    plt.rcParams["font.family"] = "serif"
+    label_fs, tick_fs, legend_fs, panel_fs = 18, 15, 14, 18
+
+    names = [args.model, *args.compare]
+    article_tmax = (args.article_tmax if args.article_tmax is not None
+                    else args.model_tmax)
+    article_args = argparse.Namespace(**vars(args))
+    article_args.model_tmax = article_tmax
+    runs = [load_ion_harmonic(name, article_args, dz) for name in names]
+    base = runs[0]
+    colors = ("red", "blue", "green", "purple", "orange", "brown")
+
+    def particle_label(run):
+        run_ctx = prepare_theory(run["testname"], ic_frame=args.ic_from_dump)
+        particles = run_ctx["config"].get("Particles", [])
+        ion_info = next((item for item in particles
+                         if item.get("sort_name") == run_ctx["ion"].name), {})
+        count = ion_info.get("Np", "?")
+        try:
+            count = f"{float(count):g}"
+        except (TypeError, ValueError):
+            count = str(count)
+        return rf"$N_{{\mathrm{{ppc}}}}={count}$"
+
+    article_labels = [particle_label(run) for run in runs]
+
+    # Reload the base context last: density_z uses module-level geometry, so
+    # this also restores the correct grid before reading the two profiles.
+    ctx = prepare_theory(args.model, ic_frame=args.ic_from_dump)
+    const, ion = ctx["const"], ctx["ion"]
+    rows = dz.collect_rows([ion.name])
+    if not rows and const.in_dir != ctx["config_dir"]:
+        const.in_dir = ctx["config_dir"]
+        const.out_dir = os.path.join(ctx["config_dir"], "processed")
+        rows = dz.collect_rows([ion.name])
+    if not rows:
+        raise SystemExit("--article: ion density diagnostic not found for "
+                         f"'{args.model}'.")
+
+    targets = (0.0, ctx["T_wave"])
+    available = [(idx * const.dts, idx, name)
+                 for idx, name in rows[0]["timesteps"]]
+    selected = [min(available, key=lambda item: abs(item[0] - target))
+                for target in targets]
+    profiles = []
+    for _, _, frame_name in selected:
+        data = dz.load_frame(rows[0]["dir"], frame_name)
+        if data is None:
+            raise SystemExit(f"--article: cannot read ion frame {frame_name}.")
+        profiles.append(data.mean(axis=(1, 2)) / ion.n)
+    z = (np.arange(const.Nz) + 0.5) * const.dz
+
+    x_max = (float(article_tmax) if article_tmax is not None else
+             max(float(run["time"][-1]) for run in runs))
+    theory_start = ctx["t0"] / ctx["T_wave"]
+    theory_end = max(x_max * ctx["T_wave"] - ctx["t0"],
+                     1.0e-3 * ctx["T_wave"])
+    theory_time, theory_density, _ = solve_vlasov_poisson(
+        ctx["species"], ctx["cn_hat"], ctx["u_hat"], ctx["k"], theory_end,
+        exact_ic=args.exact_ic, omega0=ctx["omega0"], E0=ctx["E0"],
+        initial_distribution=ctx["initial_distribution"])
+    theory_time = (theory_time + ctx["t0"]) / ctx["T_wave"]
+    exact_ion = np.abs(theory_density[ion.name]) / ion.n
+    exponential_time = np.linspace(theory_start, x_max, 500)
+    exponential = base["a0"] * np.exp(
+        -base["Gamma"] *
+        (exponential_time * base["T_wave"] - base["t0"]))
+
+    # Quantify how well the base run reproduces the kinetic dispersion root.
+    # Fit the complex harmonic, not its modulus, and retain both propagation
+    # branches so a weak counter-propagating component cannot masquerade as a
+    # frequency or damping-rate error through beating.
+    fit_times, fit_harmonic, _ = harmonic_series(
+        ctx, dz, ion.name, article_tmax)
+    fit_keep = fit_times >= ctx["t0"] - 1.0e-12 * max(1.0, ctx["t0"])
+    fit_times = fit_times[fit_keep]
+    fit_harmonic = fit_harmonic[fit_keep]
+    if fit_times.size < 4:
+        raise SystemExit("--article needs at least four base-run density "
+                         "frames to measure the period and decrement.")
+    omega_fit, gamma_fit, fit_Ap, fit_Am, fit_residual = fit_two_branch(
+        fit_times - fit_times[0], fit_harmonic, ctx["omega0"].real,
+        -ctx["omega0"].imag)
+    period_fit = 2.0 * math.pi / omega_fit
+    period_error = 100.0 * (period_fit / ctx["T_wave"] - 1.0)
+    gamma_theory = -ctx["omega0"].imag
+    gamma_error = 100.0 * (gamma_fit / gamma_theory - 1.0)
+
+    fig, axes = plt.subplots(1, 3, figsize=(19.2, 6.2))
+    ax_profile, ax_total, ax_noise = axes
+
+    # (a) Base-run ion profiles at the requested two phases.
+    initial_amplitude = float(base["amplitude"][0])
+    ax_profile.plot(z, profiles[0], color="black", linewidth=2.2,
+                    marker="o", markersize=4.0, linestyle="-", label=r"$t=0$")
+    ax_profile.plot(z, profiles[1], color="black", linewidth=2.2,
+                    marker="o", markersize=4.0, linestyle="--",
+                    label=r"$t=T$")
+    ax_profile.axhline(1.0 + initial_amplitude, color="0.5", linewidth=1.2,
+                       linestyle="--")
+    ax_profile.axhline(1.0 - initial_amplitude, color="0.5", linewidth=1.2,
+                       linestyle="--")
+    ax_profile.set_xlim(0.0, const.Lz)
+    ax_profile.set_ylim(0.96, 1.04)
+    ax_profile.set_xlabel(r"$z,\ c/\omega_{pe}$", fontsize=label_fs)
+    ax_profile.set_ylabel(r"$n_i/n_0$", fontsize=label_fs)
+    ax_profile.legend(loc="upper left", fontsize=legend_fs, framealpha=0.9)
+
+    # (b) Full profile amplitude and the base-run Landau exponential.
+    total_lines = []
+    for index, (run, article_label) in enumerate(zip(runs, article_labels)):
+        line, = ax_total.plot(run["time"], run["total_amplitude"],
+                              color=colors[index % len(colors)], linewidth=3.2,
+                              label=article_label)
+        total_lines.append(line)
+    exponential_line, = ax_total.plot(
+        exponential_time, exponential, color="black", linestyle="--",
+        linewidth=2.0, label=r"$|\delta n_i(0)|e^{-\Gamma t}$")
+    ax_total.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_total.set_ylabel(r"$|\delta n_i(t)|/n_0$", fontsize=label_fs)
+    ax_total.legend(handles=[*reversed(total_lines), exponential_line],
+                    loc="upper left", ncol=2, fontsize=legend_fs,
+                    framealpha=0.9)
+
+    # (c) First mode and the full non-first-mode residue, plus exact theory.
+    noise_lines = []
+    for index, (run, article_label) in enumerate(zip(runs, article_labels)):
+        color = colors[index % len(colors)]
+        line, = ax_noise.plot(run["time"], run["amplitude"], color=color,
+                              linewidth=3.2, linestyle="-",
+                              label=article_label)
+        noise_lines.append(line)
+        ax_noise.plot(run["time"], run["noise_residual"], color=color,
+                      linewidth=1.6, linestyle=":", label="_nolegend_")
+    ax_noise.plot(theory_time, exact_ion, color="black", linewidth=2.0,
+                  linestyle="--", label=r"$\mathrm{theory}$")
+    ax_noise.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_noise.set_ylabel(r"$|\delta n_{i,1}(t)|/n_0$", fontsize=label_fs)
+    residual_handle = Line2D([], [], color="black", linestyle=":",
+                             linewidth=1.6, label=r"$\mathrm{residual}$")
+    theory_handle = Line2D([], [], color="black", linestyle="--",
+                           linewidth=2.0, label=r"$\mathrm{theory}$")
+    ax_noise.legend(
+                    handles=[*reversed(noise_lines), theory_handle,
+                             residual_handle], loc="upper left", ncol=2,
+                    fontsize=legend_fs, framealpha=0.9)
+
+    common_ylim = (0.0, 0.04)
+    for axis in (ax_total, ax_noise):
+        axis.set_xlim(0.0, x_max)
+        axis.set_ylim(*common_ylim)
+
+    panel_box = dict(facecolor="white", edgecolor="none", alpha=0.6,
+                     boxstyle="round,pad=0.2")
+    for axis, panel in zip(axes, ("(a)", "(b)", "(c)")):
+        axis.minorticks_on()
+        axis.tick_params(axis="both", which="both", direction="in",
+                         top=True, right=True, labelsize=tick_fs)
+        axis.grid(True, alpha=0.25)
+        axis.set_box_aspect(1)
+        axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                  ha="right", va="top", fontsize=panel_fs, bbox=panel_box)
+
+    fig.tight_layout(w_pad=1.8)
+    out_dir = os.path.join(base["out_dir"], args.out_subdir)
+    os.makedirs(out_dir, exist_ok=True)
+    article_path = os.path.join(out_dir, "ion_sound_compare_article.png")
+    fig.savefig(article_path, dpi=args.dpi, bbox_inches="tight",
+                pad_inches=0.12)
+    plt.close(fig)
+    print("=" * 70)
+    print(f"ARTICLE FIRST-HARMONIC ACCURACY: {args.model}")
+    print("=" * 70)
+    print(f"  fit interval       = [{fit_times[0] / ctx['T_wave']:.6g}, "
+          f"{fit_times[-1] / ctx['T_wave']:.6g}] T")
+    print(f"  period:    fit = {period_fit:.9e}, theory = "
+          f"{ctx['T_wave']:.9e}, error = {period_error:+.4f} %")
+    print(f"  decrement: fit = {gamma_fit:.9e}, theory = "
+          f"{gamma_theory:.9e}, error = {gamma_error:+.4f} %")
+    print(f"  branch ratio       = {abs(fit_Am) / abs(fit_Ap):.6e}")
+    print(f"  relative fit error = {fit_residual:.6e}")
+    print(f"Article comparison figure written to {article_path}")
 
 
 def run_compare(args):
@@ -1834,6 +2436,7 @@ def run_compare(args):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
     from lib.plot import bbox, labelsize, ticksize
     import drift_kinetic_density_z as dz
 
@@ -1881,14 +2484,94 @@ def run_compare(args):
     ax.set_title(r"Амплитуда первой гармоники ионов",
                  fontsize=labelsize, bbox=bbox)
     ax.set_box_aspect(1)
-    ax.legend(loc="upper right", fontsize=ticksize)
+    # Legend outside, to the right: the test names are long and would otherwise
+    # cover the curves.  tight_layout ignores an out-of-axes legend, so the
+    # figure is saved with bbox_inches="tight" to keep it inside the PNG.
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=ticksize,
+              borderaxespad=0.0, framealpha=0.9)
     fig.tight_layout()
 
     out_dir = os.path.join(base["out_dir"], args.out_subdir)
     os.makedirs(out_dir, exist_ok=True)
     png_path = os.path.join(out_dir, "ion_sound_compare.png")
-    fig.savefig(png_path, dpi=args.dpi)
+    fig.savefig(png_path, dpi=args.dpi, bbox_inches="tight")
     plt.close(fig)
+
+    log_fig, log_ax = plt.subplots(figsize=(8.5, 7.0))
+    for i, run in enumerate(runs):
+        log_ax.plot(run["time"], run["amplitude"],
+                    color=colors[i % len(colors)],
+                    marker=markers[i % len(markers)], linestyle="-",
+                    linewidth=2.2, markersize=4.5, label=run["label"])
+    if dn_exponential.size:
+        log_ax.plot(t_theory_T, dn_exponential, color="black",
+                    linestyle="--", linewidth=1.8, alpha=0.8,
+                    label="_nolegend_")
+    log_ax.set_yscale("log")
+    log_ax.set_xlim(0.0, x_max)
+    log_ax.set_xlabel(r"$t/T$", fontsize=labelsize)
+    log_ax.set_ylabel(r"$|\delta n_{i,1}(t)|/n_i$", fontsize=labelsize)
+    log_ax.tick_params(labelsize=ticksize)
+    log_ax.grid(True, which="both", alpha=0.3)
+    log_ax.set_title(r"Амплитуда первой гармоники ионов (логарифмический масштаб)",
+                     fontsize=labelsize, bbox=bbox)
+    log_ax.set_box_aspect(1)
+    log_ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0),
+                  fontsize=ticksize, borderaxespad=0.0, framealpha=0.9)
+    log_fig.tight_layout()
+    log_path = os.path.join(out_dir, "ion_sound_compare_log.png")
+    log_fig.savefig(log_path, dpi=args.dpi, bbox_inches="tight")
+    plt.close(log_fig)
+
+    # Full real-space perturbation amplitude.  Unlike the classical first
+    # harmonic this includes every resolved z mode and the particle floor.
+    total_fig, total_ax = plt.subplots(figsize=(8.5, 7.0))
+    total_maxima = []
+    for i, run in enumerate(runs):
+        color = colors[i % len(colors)]
+        total_ax.plot(run["time"], run["total_amplitude"], color=color,
+                      marker=markers[i % len(markers)], linestyle="-",
+                      linewidth=2.2, markersize=4.5, label=run["label"])
+        theory_start = run["t0"] / run["T_wave"]
+        theory_end = float(run["time"][-1])
+        if theory_end >= theory_start:
+            theory_time_T = np.linspace(theory_start, theory_end, 500)
+            theory_amplitude = run["a0"] * np.exp(
+                -run["Gamma"] *
+                (theory_time_T * run["T_wave"] - run["t0"]))
+            total_ax.plot(theory_time_T, theory_amplitude, color=color,
+                          linestyle="--", linewidth=1.7, alpha=0.8,
+                          label="_nolegend_")
+            total_maxima.append(float(np.nanmax(theory_amplitude)))
+        total_maxima.append(float(np.nanmax(run["total_amplitude"])))
+    total_ax.set_xlim(0.0, x_max)
+    total_ax.set_ylim(0.0, max(0.06, 1.25 * max(total_maxima)))
+    total_ax.set_xlabel(r"$t/T$", fontsize=labelsize)
+    total_ax.set_ylabel(
+        r"$\sqrt{2\langle(n_i/n_{i0}-1)^2\rangle_z}$", fontsize=labelsize)
+    total_ax.tick_params(labelsize=ticksize)
+    total_ax.grid(True, alpha=0.3)
+    total_ax.set_title(r"Полная амплитуда возмущения плотности ионов",
+                       fontsize=labelsize, bbox=bbox)
+    total_ax.set_box_aspect(1)
+    total_handles = [Line2D([], [], color=colors[i % len(colors)],
+                            marker=markers[i % len(markers)], linewidth=2.2,
+                            label=run["label"])
+                     for i, run in enumerate(runs)]
+    total_handles.append(Line2D([], [], color="black", linestyle="--",
+                                linewidth=1.7,
+                                label=r"$|\delta n_i(0)|e^{-\Gamma t}$"))
+    total_ax.legend(handles=total_handles, loc="upper left",
+                    bbox_to_anchor=(1.02, 1.0), fontsize=ticksize,
+                    borderaxespad=0.0, framealpha=0.9)
+    total_fig.tight_layout()
+    total_path = os.path.join(
+        out_dir, "ion_sound_compare_total_amplitude.png")
+    total_fig.savefig(total_path, dpi=args.dpi, bbox_inches="tight")
+    plt.close(total_fig)
+
+    detail_paths = plot_density_harmonics_and_kinetic_energy(
+        runs, out_dir, args.dpi)
 
     print("=" * 70)
     print(f"COMPARE: {args.model} + {len(args.compare)} run(s)")
@@ -1900,6 +2583,10 @@ def run_compare(args):
     print(f"  theory: {base['label']} exponential, "
           f"Gamma = {base['Gamma']:.6e}")
     print(f"Comparison figure written to {png_path}")
+    print(f"Log-scale comparison figure written to {log_path}")
+    print(f"Total-amplitude comparison figure written to {total_path}")
+    for detail_path in detail_paths.values():
+        print(f"Comparison figure written to {detail_path}")
 
 
 def run_model_adv(args):
@@ -2159,7 +2846,7 @@ def load_current_temperature(testname, args):
 
     return {
         "testname": testname,
-        "label": compare_label(testname),
+        "label": compare_label_with_particles(testname, config),
         "series": series,
         "out_dir": const.out_dir,
     }
@@ -2964,12 +3651,24 @@ def build_parser():
                         "the realized DkDistributionFunction and E harmonic "
                         "in one saved frame. "
                         "Defaults to frame 0001; --ic-from-dump selects another")
-    p.add_argument("--compare", nargs="+", action="append", default=None,
+    p.add_argument("-compare", "--compare", nargs="+", action="append",
+                   default=None,
                    metavar="TEST",
                    help="comparison mode: add up to five finished tests to "
-                        "--model (the option may be repeated). Draws one static "
+                        "--model or --model_electric (the option may be repeated). "
+                        "With --model, draws one static "
                         "plot with only the ion first-harmonic amplitudes and "
-                        "the base run's exponentially damped theory")
+                        "the base run's exponentially damped theory. Every run "
+                        "is labelled by whatever follows 'drift_kinetic_' in "
+                        "its test name. With --model_electric, draws two panels "
+                        "with |E_z,2|/|E_z,1| and |E_z,3|/|E_z,1|")
+    p.add_argument("--article", action="store_true",
+                   help="with --model and --compare, write one publication-style "
+                        "three-panel ion-density comparison figure")
+    p.add_argument("-T", dest="article_tmax", type=float, default=None,
+                   metavar="PERIODS",
+                   help="article mode: upper t/T limit of panels (b) and (c); "
+                        "takes precedence over --model-tmax")
     p.add_argument("--compare-temp", nargs="+", action="append", default=None,
                    metavar="TEST",
                    help="temperature-comparison mode: add up to five finished "
@@ -3071,6 +3770,14 @@ def main():
     p = build_parser()
     args = p.parse_args()
 
+    if args.article and (args.model is None or args.compare is None or
+                         args.model_electric is not None):
+        p.error("--article requires density --model together with --compare.")
+    if args.article_tmax is not None and not args.article:
+        p.error("-T is available only together with --article.")
+    if args.article_tmax is not None and args.article_tmax <= 0.0:
+        p.error("-T must be positive.")
+
     if args.model_pic is not None:
         conflicts = (args.model is not None or args.model_electric is not None or
                      args.model_adv is not None or args.phase is not None or
@@ -3121,15 +3828,27 @@ def main():
 
     if args.compare is not None:
         args.compare = [name for group in args.compare for name in group]
-        if args.model is None:
-            p.error("--compare requires --model.")
-        if args.model_electric is not None:
-            p.error("--compare cannot be used with --model_electric.")
+        if args.model is None and args.model_electric is None:
+            p.error("--compare requires --model or --model_electric.")
+        if args.model is not None and args.model_electric is not None:
+            p.error("--compare accepts only one base mode: --model or "
+                    "--model_electric.")
         if len(args.compare) > 5:
             p.error("--compare accepts at most five additional tests.")
         if args.model_tmax is not None and args.model_tmax <= 0.0:
             p.error("--model-tmax must be positive.")
-        run_compare(args)
+        if args.model_electric is not None:
+            if args.article:
+                p.error("--article supports density --model --compare only.")
+            if len(args.compare) > 3:
+                p.error("electric --compare accepts at most three additional "
+                        "tests (four stacked panels including the base test).")
+            run_compare_electric(args)
+        else:
+            if args.article:
+                run_compare_article(args)
+            else:
+                run_compare(args)
         return
 
     if args.model_electric is not None:

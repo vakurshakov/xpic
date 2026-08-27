@@ -31,6 +31,9 @@ set(tests
   drift_kinetic_ringdown_ex7
   drift_kinetic_ringdown_ex8
   drift_kinetic_ringdown_ex10
+  drift_kinetic_ringdown_ex15
+  drift_kinetic_ringdown_ex16
+  drift_kinetic_ringdown_ex17
   #drift_kinetic_sound_ex3
   #drift_kinetic_betta_ex1
   #drift_kinetic_beta_ex3
@@ -107,6 +110,30 @@ set_property(TEST "drift_kinetic_ringdown_ex10" PROPERTY TIMEOUT 115200)
 set_property(TEST "drift_kinetic_ringdown_ex10" PROPERTY
   FIXTURES_REQUIRED ion_sound_mode_constants)
 
+# Full-duration sound_ex19 parameter set, using the ringdown_ex7 loading and
+# push policy.  It advances about 1.8e10 marker-steps, four times ex5.
+set_property(TEST "drift_kinetic_ringdown_ex15" APPEND PROPERTY
+  LABELS ringdown long longwave)
+set_property(TEST "drift_kinetic_ringdown_ex15" PROPERTY TIMEOUT 172800)
+
+# Amplitude twin of ringdown_ex10: identical in every respect except
+# dn/n = 0.03 -> 0.01.  The pair separates the two components of the density
+# noise floor, nu^2 = P^2 + Q/N: the marker part Q/N must be unchanged while a
+# nonlinear P must fall by 9x.  Same marker-step count as ex10, same timeout.
+set_property(TEST "drift_kinetic_ringdown_ex16" APPEND PROPERTY
+  LABELS ringdown ion_sound long)
+set_property(TEST "drift_kinetic_ringdown_ex16" PROPERTY TIMEOUT 115200)
+set_property(TEST "drift_kinetic_ringdown_ex16" PROPERTY
+  FIXTURES_REQUIRED ion_sound_mode_constants)
+
+# Travelling-wave twin of ringdown_ex15, loaded from the full-Z kinetic root
+# with the same field-and-moments approach as ringdown_ex10.
+set_property(TEST "drift_kinetic_ringdown_ex17" APPEND PROPERTY
+  LABELS ringdown ion_sound travelling_wave long longwave)
+set_property(TEST "drift_kinetic_ringdown_ex17" PROPERTY TIMEOUT 172800)
+set_property(TEST "drift_kinetic_ringdown_ex17" PROPERTY
+  FIXTURES_REQUIRED ion_sound_mode_constants)
+
 add_test(
   NAME "ion_sound_ringdown_synthetic"
   COMMAND ${CMAKE_COMMAND} -E env
@@ -125,6 +152,8 @@ add_test(
       ${CMAKE_CURRENT_SOURCE_DIR}/drift_kinetic_eigen_sound_ex10.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/drift_kinetic_eigen_sound_ex15.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/drift_kinetic_ringdown_ex10.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/drift_kinetic_ringdown_ex16.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/drift_kinetic_ringdown_ex17.cpp
 )
 set_property(TEST "ion_sound_constants_synthetic" PROPERTY
   LABELS "drift_kinetic;ion_sound;synthetic")
