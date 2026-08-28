@@ -26,25 +26,23 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
     info.at("coordinate").at("name").get<std::string>();
   const bool quiet_coordinate =
     coordinate_name == "CoordinateInBoxQuietSinePaired" ||
-    coordinate_name == "CoordinateInBoxQuietSineExactPaired" ||
-    coordinate_name == "CoordinateInBoxQuietSineExactLatticePaired";
+    coordinate_name == "CoordinateInBoxQuietSineExactPaired";
   auto validate_quiet_pair = [this, quiet_coordinate, coordinate_name, &info](
                                const Configuration::json_t& momentum_info) {
     const auto momentum_name = momentum_info.at("name").get<std::string>();
     const bool quiet_momentum =
       momentum_name == "MaxwellShiftedSineQuiet" ||
       momentum_name == "MaxwellianVelocityQuiet" ||
-      momentum_name == "KineticIonSoundMomentsQuiet" ||
-      momentum_name == "KineticIonSoundQuiet";
+      momentum_name == "KineticIonSoundMomentsQuiet";
     if (quiet_coordinate != quiet_momentum)
       throw std::runtime_error(
         "paired quiet coordinate and momentum generators must be used together");
 
     if (momentum_name != "KineticIonSoundMomentsQuiet")
       return;
-    if (coordinate_name != "CoordinateInBoxQuietSineExactLatticePaired")
+    if (coordinate_name != "CoordinateInBoxQuietSineExactPaired")
       throw std::runtime_error(
-        "KineticIonSoundMomentsQuiet requires CoordinateInBoxQuietSineExactLatticePaired");
+        "KineticIonSoundMomentsQuiet requires CoordinateInBoxQuietSineExactPaired");
 
     const auto& coordinate_info = info.at("coordinate");
     const auto vector_or_zero = [this](const Configuration::json_t& block,

@@ -580,8 +580,7 @@ def kinetic_loader_for_species(config, name):
     if preset is None:
         return None
     momentum = preset.get("momentum", {})
-    if momentum.get("name") not in {
-            "KineticIonSoundQuiet", "KineticIonSoundMomentsQuiet"}:
+    if momentum.get("name") != "KineticIonSoundMomentsQuiet":
         return None
     return momentum
 
@@ -3358,65 +3357,6 @@ def run_model_electric(args):
 # --------------------------------------------------------------------------- #
 # Phase-space mode: f(z, v_parallel) from the 5-D DK histogram                 #
 # --------------------------------------------------------------------------- #
-def regularized_kinetic_parallel(species, z, v, loader, density_amplitude,
-                                 density_phase, Lz):
-    """Velocity-bin-averaged theory used by KineticIonSoundQuiet.
-
-    Returns (f_parallel, n_target, F0), with f_parallel shaped (Nz, Nv) and
-    normalized independently at every z. This is an ordinary positive PDF,
-    unlike the analytically continued Landau eigenfunction when its linear
-    perturbation makes 1+h negative.  Both f_parallel and F0 are averages over
-    the same finite velocity bins as the diagnostic; evaluating the narrow
-    electron resonance only at bin centres substantially biases the comparison.
-    """
-    mode_vec = loader.get("wave_number", [0.0, 0.0, 1.0])
-    phase_vec = loader.get("field_phase", [0.0, 0.0, 0.0])
-    mode = float(mode_vec[2])
-    field_phase = float(phase_vec[2])
-    k = 2.0 * math.pi * mode / Lz
-    E0 = float(loader["electric_amplitude"])
-    omega = float(loader["omega_real"])
-    gamma = float(loader["gamma"])
-
-    coefficient = species.q * E0 / (species.m * species.vT**2)
-    theta = k * z[:, None] + field_phase
-
-    def weighted_pdf(velocity):
-        velocity = np.asarray(velocity)
-        F0_values = np.exp(-velocity**2 / (2.0 * species.vT**2)) / \
-            (math.sqrt(2.0 * math.pi) * species.vT)
-        detuning = omega - k * velocity
-        h = -coefficient * velocity[None, :] * (
-            gamma * np.cos(theta) + detuning[None, :] * np.sin(theta)
-        ) / (detuning[None, :]**2 + gamma**2)
-        return np.maximum(0.0, 1.0 + h) * F0_values[None, :]
-
-    cutoff = min(float(loader.get("velocity_cutoff_vT", 8.0)) * species.vT,
-                 float(loader.get("velocity_abs_max", 0.95)))
-    normalization_v = np.linspace(-cutoff, cutoff, 8193)
-    normalization = _trapz(
-        weighted_pdf(normalization_v), normalization_v, axis=1)
-    if np.any(normalization <= 0.0):
-        raise SystemExit("regularized kinetic PDF has zero normalization")
-
-    dv = float(v[1] - v[0]) if v.size > 1 else 2.0 * cutoff
-    samples_per_bin = 32
-    offsets = ((np.arange(samples_per_bin) + 0.5) /
-               samples_per_bin - 0.5) * dv
-    velocity_samples = (v[:, None] + offsets[None, :]).reshape(-1)
-    weighted = weighted_pdf(velocity_samples).reshape(
-        z.size, v.size, samples_per_bin).mean(axis=2)
-    F0 = (np.exp(-velocity_samples**2 /
-                 (2.0 * species.vT**2)) /
-          (math.sqrt(2.0 * math.pi) * species.vT)).reshape(
-              v.size, samples_per_bin).mean(axis=1)
-
-    n_target = species.n * (
-        1.0 + density_amplitude * np.sin(k * z + density_phase))
-    f_parallel = n_target[:, None] * weighted / normalization[:, None]
-    return f_parallel, n_target, F0
-
-
 def moment_matched_kinetic_parallel(species, z, v, loader,
                                     density_amplitude, density_phase, Lz):
     """Velocity-bin-averaged positive M0/M1/M2 ion-sound quasimode.
@@ -3550,13 +3490,8 @@ def run_phase(args):
         coord = preset.get("coordinate", {})
         amplitude = float(coord.get("amplitude", [0.0, 0.0, 0.0])[2])
         density_phase = float(coord.get("phase", [0.0, 0.0, 0.0])[2])
-        moment_matched = \
-            loader.get("name") == "KineticIonSoundMomentsQuiet"
-        theory_label = "moment-matched theory" if moment_matched \
-            else "regularized theory"
-        theory_function = moment_matched_kinetic_parallel if moment_matched \
-            else regularized_kinetic_parallel
-        f_theory, n_target, F0 = theory_function(
+        theory_label = "moment-matched theory"
+        f_theory, n_target, F0 = moment_matched_kinetic_parallel(
             sp, z, v, loader, amplitude, density_phase, const.Lz)
 
         baseline = n_target[:, None] * F0[None, :]
@@ -3639,14 +3574,6 @@ def run_phase(args):
             "harmonic_model": harmonic_model,
             "harmonic_theory": harmonic_theory,
             "theory_label": theory_label,
-            "moment_matched": moment_matched,
-            "coefficient": sp.q * float(loader.get(
-                "force_electric_amplitude", loader.get(
-                    "electric_amplitude"))) /
-                           (sp.m * sp.vT**2),
-            "omega": float(loader["omega_real"]),
-            "gamma": float(loader["gamma"]),
-            "k": k,
         })
 
     fig.suptitle(
@@ -3708,14 +3635,6 @@ def run_phase(args):
             lo = max(float(item["v"][0] - 0.5 * dv), resonance - half_window)
             hi = min(float(item["v"][-1] + 0.5 * dv), resonance + half_window)
             selected = (item["v"] >= lo) & (item["v"] <= hi)
-            if not item["moment_matched"]:
-                dense_v = np.linspace(lo, hi, 1200)
-                detuning = item["omega"] - item["k"] * dense_v
-                linear_h = np.abs(item["coefficient"] * dense_v) / np.sqrt(
-                    detuning**2 + item["gamma"]**2)
-                resonance_ax.plot(
-                    dense_v / sp.vT, linear_h, color="0.25",
-                    linewidth=1.3, label="continuous pole response")
             resonance_ax.plot(
                 item["v"][selected] / sp.vT,
                 np.abs(item["harmonic_theory"][selected]), "o-",
@@ -3725,12 +3644,6 @@ def run_phase(args):
                 item["v"][selected] / sp.vT,
                 np.abs(item["harmonic_model"][selected]), "s",
                 markersize=5, label="PIC bins")
-            if not item["moment_matched"]:
-                resonance_ax.axvspan(
-                    (resonance - width) / sp.vT,
-                    (resonance + width) / sp.vT,
-                    color="tab:red", alpha=0.12,
-                    label=r"$|v-v_{res}|<\Gamma/k$")
             resonance_ax.axvline(resonance / sp.vT, color="tab:red",
                                  linestyle=":", linewidth=1.1)
             resonance_ax.set_xlim(lo / sp.vT, hi / sp.vT)

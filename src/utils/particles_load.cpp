@@ -34,32 +34,6 @@ Vector3R CoordinateInCylinder::operator()()
   };
 }
 
-Vector3R CoordinateInBoxSineDensity::operator()()
-{
-  static const PetscReal Lx = (box.max[X] - box.min[X]);
-  static const PetscReal Ly = (box.max[Y] - box.min[Y]);
-  static const PetscReal Lz = (box.max[Z] - box.min[Z]);
-
-  const PetscReal max_density = 1.0 +
-    std::abs(amplitude[X]) + std::abs(amplitude[Y]) + std::abs(amplitude[Z]);
-
-  while (true) {
-    Vector3R r{
-      box.min[X] + random_01() * Lx,
-      box.min[Y] + random_01() * Ly,
-      box.min[Z] + random_01() * Lz,
-    };
-
-    PetscReal density = 1.0
-      + amplitude[X] * std::sin(2.0 * M_PI * wave_number[X] * (r[X] - box.min[X]) / Lx)
-      + amplitude[Y] * std::sin(2.0 * M_PI * wave_number[Y] * (r[Y] - box.min[Y]) / Ly)
-      + amplitude[Z] * std::sin(2.0 * M_PI * wave_number[Z] * (r[Z] - box.min[Z]) / Lz);
-
-    if (random_01() * max_density < density)
-      return r;
-  }
-}
-
 namespace {
 // A Halton phase-space load needs a different prime base for every dimension.
 // Reusing a coordinate base for a velocity dimension creates a deterministic
@@ -197,9 +171,9 @@ void factor_three(PetscInt n, PetscInt out[3])
   }
 }
 
-Vector3R quiet_sine_coordinate(const BoxGeometry& box,
+Vector3R quiet_sine_paired_coordinate(const BoxGeometry& box,
   const Vector3R& amplitude, const Vector3R& wave_number,
-  const Vector3R& phase, std::size_t index, bool quiet_all_axes = false)
+  const Vector3R& phase, std::size_t index)
 {
   const PetscReal L[3]{
     box.max[X] - box.min[X],
@@ -207,18 +181,10 @@ Vector3R quiet_sine_coordinate(const BoxGeometry& box,
     box.max[Z] - box.min[Z],
   };
 
-  std::size_t halton_slot = 0;
-
   Vector3R r;
   for (Axis a : {X, Y, Z}) {
-    PetscReal u;
-    if (quiet_all_axes)
-      u = van_der_corput(
-        index, quiet_coordinate_bases[static_cast<std::size_t>(a)]);
-    else if (amplitude[a] != 0.0 && wave_number[a] != 0.0)
-      u = van_der_corput(index, quiet_coordinate_bases[halton_slot++]);
-    else
-      u = random_01();
+    const PetscReal u = van_der_corput(
+      index, quiet_coordinate_bases[static_cast<std::size_t>(a)]);
     r[a] = box.min[a] + u * L[a];
   }
 
@@ -235,15 +201,6 @@ Vector3R quiet_sine_coordinate(const BoxGeometry& box,
 }
 }  // namespace
 
-Vector3R CoordinateInBoxQuietSine::operator()()
-{
-  // Halton index starts at 1 to keep u in (0, 1) on the very first call.
-  Vector3R r = quiet_sine_coordinate(
-    box, amplitude, wave_number, phase, counter + 1);
-  ++counter;
-  return r;
-}
-
 Vector3R CoordinateInBoxQuietSinePaired::operator()()
 {
   if (return_second) {
@@ -252,8 +209,8 @@ Vector3R CoordinateInBoxQuietSinePaired::operator()()
   }
 
   // Halton index starts at 1 to keep u in (0, 1) on the first pair.
-  paired_coordinate = quiet_sine_coordinate(
-    box, amplitude, wave_number, phase, pair_counter + 1, true);
+  paired_coordinate = quiet_sine_paired_coordinate(
+    box, amplitude, wave_number, phase, pair_counter + 1);
   ++pair_counter;
   return_second = true;
   return paired_coordinate;
@@ -320,34 +277,6 @@ Vector3R CoordinateInBoxQuietSineExactPaired::operator()()
   ++pair_counter;
   return_second = true;
   return paired_coordinate;
-}
-
-Vector3R CoordinateInBoxDisplacedSine::operator()()
-{
-  static const PetscReal L[3]{
-    box.max[X] - box.min[X],
-    box.max[Y] - box.min[Y],
-    box.max[Z] - box.min[Z],
-  };
-
-  Vector3R r{
-    box.min[X] + random_01() * L[X],
-    box.min[Y] + random_01() * L[Y],
-    box.min[Z] + random_01() * L[Z],
-  };
-
-  // Per-axis displacement T(r) - r = (A L / 2 pi k) (cos(2 pi k r / L) - 1),
-  // chosen so that uniform `r` mapped by T has density 1 + A sin(2 pi k r / L)
-  // to O(A^2). Axes with amplitude=0 or wave_number=0 are left untouched.
-  for (Axis a : {X, Y, Z}) {
-    if (amplitude[a] == 0.0 || wave_number[a] == 0.0)
-      continue;
-    const PetscReal phase = 2.0 * M_PI * wave_number[a] * (r[a] - box.min[a]) / L[a];
-    const PetscReal scale = amplitude[a] * L[a] / (2.0 * M_PI * wave_number[a]);
-    r[a] += scale * (std::cos(phase) - 1.0);
-  }
-
-  return r;
 }
 
 Vector3R CoordinateInBoxQuiet::operator()()
@@ -814,206 +743,6 @@ Vector3R KineticIonSoundMomentsQuiet::operator()(
 
   throw std::runtime_error(
     "KineticIonSoundMomentsQuiet could not sample a subluminal pair");
-}
-
-KineticIonSoundQuiet::KineticIonSoundQuiet(const SortParameters& params,
-  BoxGeometry box, PetscReal electric_amplitude, PetscReal omega_real,
-  PetscReal gamma, const Vector3R& wave_number,
-  const Vector3R& field_phase, PetscReal velocity_cutoff_vT,
-  PetscReal velocity_abs_max)
-  : params(params), box(std::move(box)),
-    electric_amplitude(electric_amplitude), omega_real(omega_real),
-    gamma(gamma), wave_number(wave_number), field_phase(field_phase),
-    velocity_cutoff_vT(velocity_cutoff_vT),
-    velocity_abs_max(velocity_abs_max)
-{
-  PetscInt active = 0;
-  for (Axis a : {X, Y, Z}) {
-    if (wave_number[a] == 0.0)
-      continue;
-    axis = a;
-    ++active;
-  }
-  if (active != 1)
-    throw std::runtime_error(
-      "KineticIonSoundQuiet requires exactly one non-zero wave_number");
-  if (!(gamma > 0.0) || !(velocity_cutoff_vT > 0.0) ||
-      !(velocity_abs_max > 0.0 && velocity_abs_max < 1.0))
-    throw std::runtime_error(
-      "KineticIonSoundQuiet requires gamma > 0, velocity_cutoff_vT > 0, and 0 < velocity_abs_max < 1");
-
-  const PetscReal temperatures[3] = {params.Tx, params.Ty, params.Tz};
-  vT_parallel =
-    std::sqrt(temperatures[axis] / (params.m * mec2));
-  if (!(vT_parallel > 0.0))
-    throw std::runtime_error(
-      "KineticIonSoundQuiet requires positive parallel temperature");
-
-  const PetscReal length = box.max[axis] - box.min[axis];
-  if (!(length > 0.0))
-    throw std::runtime_error("KineticIonSoundQuiet requires a non-empty box");
-  k_parallel = 2.0 * M_PI * wave_number[axis] / length;
-  v_parallel_max =
-    std::min(velocity_cutoff_vT * vT_parallel, velocity_abs_max);
-
-  build_inverse_cdf();
-}
-
-void KineticIonSoundQuiet::build_inverse_cdf()
-{
-  constexpr PetscInt phase_bins = 512;
-  constexpr PetscInt quantile_bins = 4096;
-  constexpr PetscInt velocity_bins = 8192;
-  inverse_cdf = std::make_shared<std::vector<PetscReal>>(
-    static_cast<std::size_t>(phase_bins) * (quantile_bins + 1));
-
-  const PetscReal coefficient =
-    params.q * electric_amplitude /
-    (params.m * vT_parallel * vT_parallel);
-  const PetscReal dv = 2.0 * v_parallel_max / velocity_bins;
-  std::vector<PetscReal> velocity(velocity_bins + 1);
-  std::vector<PetscReal> pdf(velocity_bins + 1);
-  std::vector<PetscReal> cdf(velocity_bins + 1);
-  for (PetscInt iv = 0; iv <= velocity_bins; ++iv)
-    velocity[iv] = -v_parallel_max + iv * dv;
-
-  for (PetscInt ip = 0; ip < phase_bins; ++ip) {
-    const PetscReal theta =
-      2.0 * M_PI * static_cast<PetscReal>(ip) / phase_bins;
-    for (PetscInt iv = 0; iv <= velocity_bins; ++iv) {
-      const PetscReal v = velocity[iv];
-      const PetscReal detuning = omega_real - k_parallel * v;
-      const PetscReal denominator = detuning * detuning + gamma * gamma;
-      const PetscReal h = -coefficient * v *
-        (gamma * std::cos(theta) + detuning * std::sin(theta)) /
-        denominator;
-      const PetscReal maxwell =
-        std::exp(-0.5 * POW2(v / vT_parallel));
-      pdf[iv] = maxwell * std::max<PetscReal>(0.0, 1.0 + h);
-    }
-
-    cdf[0] = 0.0;
-    for (PetscInt iv = 1; iv <= velocity_bins; ++iv)
-      cdf[iv] = cdf[iv - 1] + 0.5 * dv * (pdf[iv - 1] + pdf[iv]);
-    const PetscReal normalization = cdf.back();
-    if (!(normalization > 0.0))
-      throw std::runtime_error(
-        "KineticIonSoundQuiet has zero conditional-PDF normalization");
-    for (auto& value : cdf)
-      value /= normalization;
-
-    const std::size_t offset =
-      static_cast<std::size_t>(ip) * (quantile_bins + 1);
-    (*inverse_cdf)[offset] = -v_parallel_max;
-    (*inverse_cdf)[offset + quantile_bins] = v_parallel_max;
-    PetscInt iv = 1;
-    for (PetscInt iq = 1; iq < quantile_bins; ++iq) {
-      // Chebyshev--Lobatto quantiles cluster table entries at q=0 and q=1.
-      // A uniform q grid makes the first segment connect the hard velocity
-      // cutoff directly to Q(1/Nq); linear interpolation then turns the tiny
-      // Maxwellian tail into an artificial flat population.  Here
-      // q_1 ~= pi^2/(4 Nq^2), so fewer than one marker of the ex10 load lies
-      // in either unresolved endpoint segment.
-      const PetscReal quantile = 0.5 * (1.0 - std::cos(
-        M_PI * static_cast<PetscReal>(iq) / quantile_bins));
-      while (iv < velocity_bins && cdf[iv] < quantile)
-        ++iv;
-      const PetscReal dcdf = cdf[iv] - cdf[iv - 1];
-      const PetscReal fraction = dcdf > 0.0
-        ? (quantile - cdf[iv - 1]) / dcdf : 0.0;
-      (*inverse_cdf)[offset + iq] =
-        velocity[iv - 1] + fraction * (velocity[iv] - velocity[iv - 1]);
-    }
-  }
-}
-
-PetscReal KineticIonSoundQuiet::sample_parallel(
-  const Vector3R& coordinate, PetscReal quantile) const
-{
-  constexpr PetscInt phase_bins = 512;
-  constexpr PetscInt quantile_bins = 4096;
-  PetscReal theta =
-    k_parallel * (coordinate[axis] - box.min[axis]) + field_phase[axis];
-  theta = std::fmod(theta, 2.0 * M_PI);
-  if (theta < 0.0)
-    theta += 2.0 * M_PI;
-
-  const PetscReal phase_position = theta * phase_bins / (2.0 * M_PI);
-  const PetscInt phase0 =
-    static_cast<PetscInt>(std::floor(phase_position)) % phase_bins;
-  const PetscInt phase1 = (phase0 + 1) % phase_bins;
-  const PetscReal phase_fraction = phase_position - std::floor(phase_position);
-
-  // Invert q(j) = [1-cos(pi*j/Nq)]/2 used by build_inverse_cdf().
-  const PetscReal q = std::clamp(quantile, 0.0, 1.0);
-  const PetscReal q_position = quantile_bins / M_PI *
-    std::acos(std::clamp(1.0 - 2.0 * q, -1.0, 1.0));
-  const PetscInt q0 = std::min<PetscInt>(
-    static_cast<PetscInt>(std::floor(q_position)), quantile_bins - 1);
-  const PetscInt q1 = q0 + 1;
-  const PetscReal q_fraction = q_position - q0;
-  const auto at = [&](PetscInt ip, PetscInt iq) {
-    return (*inverse_cdf)[
-      static_cast<std::size_t>(ip) * (quantile_bins + 1) + iq];
-  };
-  const PetscReal v0 = at(phase0, q0) +
-    q_fraction * (at(phase0, q1) - at(phase0, q0));
-  const PetscReal v1 = at(phase1, q0) +
-    q_fraction * (at(phase1, q1) - at(phase1, q0));
-  return v0 + phase_fraction * (v1 - v0);
-}
-
-Vector3R KineticIonSoundQuiet::sample_perpendicular_pair(
-  PetscReal v_parallel_first, PetscReal v_parallel_second)
-{
-  Axis transverse[2];
-  PetscInt slot = 0;
-  for (Axis a : {X, Y, Z})
-    if (a != axis)
-      transverse[slot++] = a;
-
-  const PetscReal temperatures[3] = {params.Tx, params.Ty, params.Tz};
-  while (true) {
-    const std::size_t index = ++perpendicular_counter;
-    Vector3R result{};
-    for (PetscInt j = 0; j < 2; ++j) {
-      const Axis a = transverse[j];
-      const std::size_t radius_base = j == 0 ? 29 : 37;
-      const std::size_t phase_base = j == 0 ? 31 : 41;
-      const PetscReal sigma =
-        std::sqrt(temperatures[a] / (params.m * mec2));
-      result[a] = sigma *
-        std::sqrt(-2.0 * std::log(van_der_corput(index, radius_base))) *
-        std::cos(2.0 * M_PI * van_der_corput(index, phase_base));
-    }
-    const PetscReal v_perp2 = result.squared();
-    if (v_perp2 + v_parallel_first * v_parallel_first < 1.0 &&
-        v_perp2 + v_parallel_second * v_parallel_second < 1.0)
-      return result;
-  }
-}
-
-Vector3R KineticIonSoundQuiet::operator()(const Vector3R& coordinate)
-{
-  if (return_second) {
-    return_second = false;
-    return second_velocity;
-  }
-
-  const PetscReal quantile = van_der_corput(++pair_counter, 17);
-  const PetscReal v_parallel_first =
-    sample_parallel(coordinate, quantile);
-  const PetscReal v_parallel_second =
-    sample_parallel(coordinate, 1.0 - quantile);
-  const Vector3R v_perp =
-    sample_perpendicular_pair(v_parallel_first, v_parallel_second);
-
-  Vector3R first_velocity = v_perp;
-  first_velocity[axis] = v_parallel_first;
-  second_velocity = -1.0 * v_perp;
-  second_velocity[axis] = v_parallel_second;
-  return_second = true;
-  return first_velocity;
 }
 
 Vector3R AngularMomentum::operator()(const Vector3R& coordinate)

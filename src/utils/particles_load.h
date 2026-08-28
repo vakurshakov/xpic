@@ -28,58 +28,12 @@ struct CoordinateInCylinder {
   CylinderGeometry cyl;
 };
 
-struct CoordinateInBoxSineDensity {
-  Vector3R operator()();
-  BoxGeometry box;
-  Vector3R amplitude;
-  Vector3R wave_number;
-};
-
-// Linear-perturbation loader: places particles by uniform sampling and then
-// applies the small-amplitude displacement that reproduces the target density
-//   n(r) = 1 + sum_alpha amplitude[alpha] * sin(2 pi k[alpha] (r[alpha] - r0) / L[alpha])
-// to leading order in `amplitude`. Beats rejection sampling because the
-// perturbation is encoded by deterministic displacement, not by reweighting
-// the random stream — shot noise stays at the uniform-loading level
-// (~1/sqrt(N_per_cell)), and the perturbation itself is noise-free up to
-// O(amplitude^2). Suitable for linear-mode tests with |amplitude| << 1.
-struct CoordinateInBoxDisplacedSine {
-  Vector3R operator()();
-  BoxGeometry box;
-  Vector3R amplitude;
-  Vector3R wave_number;
-};
-
-// Quiet-start variant of `CoordinateInBoxDisplacedSine`: along every
-// perturbed axis (non-zero amplitude AND non-zero wave_number) the uniform
-// sample is replaced by the Halton low-discrepancy sequence (bases 2, 3, 5
-// in order of perturbed axes). Non-perturbed axes still use the global RNG.
-//
-// Halton sequence has discrepancy O(log N / N), so the per-cell loading
-// noise scales as ~1/N instead of the Monte-Carlo ~1/sqrt(N). For typical
-// PIC loads this drops residual density wobble from O(0.1–1%) into the
-// numerical-zero range, leaving only the O(amplitude^2) systematic error
-// of the displacement formula itself.
-//
-// Stateful: the call counter is shared between species only if the same
-// generator instance is reused (e.g. by `SetPairedParticles`). MPI-safe
-// because the sequence is deterministic — every rank advances through the
-// same indices and keeps the particles that land inside its sub-domain.
-struct CoordinateInBoxQuietSine {
-  Vector3R operator()();
-  BoxGeometry box;
-  Vector3R amplitude;
-  Vector3R wave_number;
-  Vector3R phase{0.0, 0.0, 0.0};
-  mutable std::size_t counter = 0;
-};
-
-// Fully deterministic antithetic-pair variant of
-// `CoordinateInBoxQuietSine`: the undisplaced base coordinate uses the 3-D
-// Halton sequence (bases 2, 3, 5) on every axis, including axes without a
-// density perturbation. Separate generator instances with the same box and
-// call count therefore produce the same electron/ion base coordinates while
-// still applying their species-specific sine displacement afterwards.
+// Fully deterministic sine-density loader. The undisplaced base coordinate
+// uses the 3-D Halton sequence (bases 2, 3, 5) on every axis. Separate
+// generator instances with the same box and call count therefore produce the
+// same electron/ion base coordinates while still applying their
+// species-specific sine displacement afterwards. The displacement reproduces
+// the requested density perturbation with an O(amplitude^2) systematic error.
 //
 // Every displaced coordinate is returned twice. Use together with
 // `MaxwellShiftedSineQuiet`, which assigns opposite thermal velocities to the
@@ -96,7 +50,7 @@ struct CoordinateInBoxQuietSinePaired {
 };
 
 // Exact-CDF quiet loader for a single sinusoidally perturbed axis. Unlike the
-// displacement loaders above, this samples
+// approximate displacement loader above, this samples
 //   p(s) = 1 + amplitude * sin(2*pi*mode*s/L + phase)
 // without an O(amplitude^2) coordinate-map error. Every coordinate is returned
 // twice so a paired momentum loader can cancel perpendicular thermal current.
@@ -121,9 +75,9 @@ struct CoordinateInBoxQuietSineExactPaired {
   mutable Vector3R paired_coordinate;
 };
 
-// Regular (fully deterministic) uniform-box loader, following the "quiet
-// start" idea of `CoordinateInBoxQuietSine` but taken to the limit: instead
-// of scattering particles at random (`CoordinateInBox`) or along a
+// Regular (fully deterministic) uniform-box loader, taking the quiet-start
+// idea to the limit: instead of scattering particles at random
+// (`CoordinateInBox`) or along a
 // low-discrepancy sequence, the particles are placed on a regular lattice so
 // that EVERY grid cell contains exactly `Np` particles at exactly the target
 // uniform density — zero loading noise.
@@ -160,7 +114,7 @@ struct CoordinateInCylinderCosineHump {
 // reshaping, just plain rectangular fill.
 //
 // Quiet start: all three Halton draws use Van der Corput on prime bases
-// (2, 3, 5) instead of `random_01`, matching `CoordinateInBoxQuietSine`.
+// (2, 3, 5) instead of `random_01`, matching the paired sine loader.
 // Base 2 drives the hump axis (inverse CDF), bases 3 and 5 drive the two
 // uniform axes. Stateful via `counter`; MPI-safe because the sequence is
 // deterministic per index.
@@ -298,51 +252,6 @@ struct KineticIonSoundMomentsQuiet {
 private:
   void local_parallel_parameters(const Vector3R& coordinate,
     PetscReal& bulk_velocity, PetscReal& variance) const;
-};
-
-// Positive, regularized kinetic ion-sound loading. The coordinate generator
-// supplies the requested density n(z); this generator samples the conditional
-// parallel distribution
-//   F0(v) max(0, 1 + Re[h_hat(v) exp(i(kz+field_phase))]) / normalization(z),
-// with h_hat obtained from the damped linear Vlasov response. A precomputed
-// inverse-CDF table gives quiet antithetic quantiles without correlating
-// rejection attempts with the quiet coordinate sequence. The perpendicular
-// Maxwellian is left unperturbed and paired gyro-angles are opposite at every
-// duplicated coordinate.
-struct KineticIonSoundQuiet {
-  KineticIonSoundQuiet(const SortParameters& params, BoxGeometry box,
-    PetscReal electric_amplitude, PetscReal omega_real, PetscReal gamma,
-    const Vector3R& wave_number, const Vector3R& field_phase,
-    PetscReal velocity_cutoff_vT = 8.0,
-    PetscReal velocity_abs_max = 0.95);
-
-  Vector3R operator()(const Vector3R& coordinate);
-
-  SortParameters params;
-  BoxGeometry box;
-  PetscReal electric_amplitude;
-  PetscReal omega_real;
-  PetscReal gamma;
-  Vector3R wave_number;
-  Vector3R field_phase;
-  PetscReal velocity_cutoff_vT;
-  PetscReal velocity_abs_max;
-  Axis axis = Z;
-  PetscReal vT_parallel = 0.0;
-  PetscReal k_parallel = 0.0;
-  PetscReal v_parallel_max = 0.0;
-  bool return_second = false;
-  Vector3R second_velocity;
-  std::size_t pair_counter = 0;
-  std::size_t perpendicular_counter = 0;
-  std::shared_ptr<std::vector<PetscReal>> inverse_cdf;
-
-private:
-  void build_inverse_cdf();
-  PetscReal sample_parallel(
-    const Vector3R& coordinate, PetscReal quantile) const;
-  Vector3R sample_perpendicular_pair(
-    PetscReal v_parallel_first, PetscReal v_parallel_second);
 };
 
 struct AngularMomentum {
