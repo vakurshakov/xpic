@@ -2105,6 +2105,66 @@ def fit_two_branch(t, a, omega_guess, gamma_guess,
             residual / scale if scale > 0.0 else math.nan)
 
 
+def fourier_peak_frequency(times, signals, omega_band=None,
+                           zero_padding=32):
+    r"""Return the interpolated peak of the spatially averaged time spectrum.
+
+    The spatially uniform component is removed at every time, a Hann window
+    suppresses leakage, and the powers |FFT|^2 are averaged over all supplied
+    points.  We deliberately do not subtract each point's temporal mean: on a
+    short record that operation distorts the oscillation and shifts its peak.
+    Zero padding samples the peak finely; a three-bin parabolic interpolation
+    of log power removes the remaining FFT-bin quantisation.
+    """
+    times = np.asarray(times, dtype=float)
+    signals = np.asarray(signals, dtype=float)
+    if signals.ndim == 1:
+        signals = signals[:, None]
+    if times.size < 4 or signals.shape[0] != times.size:
+        return (math.nan, math.nan, math.nan, math.nan,
+                np.empty(0), np.empty(0))
+    steps = np.diff(times)
+    time_step = float(np.mean(steps))
+    if time_step <= 0.0 or not np.allclose(
+            steps, time_step, rtol=1.0e-6, atol=1.0e-12 * time_step):
+        return (math.nan, math.nan, math.nan, math.nan,
+                np.empty(0), np.empty(0))
+
+    window = np.hanning(times.size)[:, None]
+    centred = signals - np.mean(signals, axis=1, keepdims=True)
+    minimum_size = max(times.size * int(zero_padding), times.size)
+    fft_size = 1 << (minimum_size - 1).bit_length()
+    transform = np.fft.rfft(centred * window, n=fft_size, axis=0)
+    power = np.mean(np.abs(transform) ** 2, axis=1)
+    omega_grid = 2.0 * math.pi * np.fft.rfftfreq(fft_size, time_step)
+
+    candidates = np.arange(1, omega_grid.size)
+    if omega_band is not None:
+        low, high = omega_band
+        candidates = candidates[(omega_grid[candidates] >= low)
+                                & (omega_grid[candidates] <= high)]
+    if candidates.size == 0:
+        return (math.nan, math.nan, math.nan, math.nan,
+                omega_grid, power)
+    peak_index = int(candidates[np.argmax(power[candidates])])
+
+    offset = 0.0
+    if 0 < peak_index < power.size - 1:
+        floor = np.finfo(float).tiny
+        left, centre, right = np.log(
+            np.maximum(power[peak_index - 1:peak_index + 2], floor))
+        denominator = left - 2.0 * centre + right
+        if denominator != 0.0:
+            offset = float(np.clip(
+                0.5 * (left - right) / denominator, -0.5, 0.5))
+    omega_step = float(omega_grid[1] - omega_grid[0])
+    native_omega_resolution = 2.0 * math.pi / (times.size * time_step)
+    omega = float(omega_grid[peak_index] + offset * omega_step)
+    period = 2.0 * math.pi / omega if omega > 0.0 else math.nan
+    return (omega, period, omega_step, native_omega_resolution,
+            omega_grid, power)
+
+
 def load_ion_harmonic(testname, args, dz):
     """Load the relative ion-density first harmonic for one finished run."""
     ctx = prepare_theory(testname, ic_frame=args.ic_from_dump)
@@ -2292,6 +2352,30 @@ def run_compare_article(args):
         profiles.append(data.mean(axis=(1, 2)) / ion.n)
     z = (np.arange(const.Nz) + 0.5) * const.dz
 
+    # Temporal Fourier spectrum averaged over every longitudinal grid point.
+    point_times, point_signals = [], []
+    point_limit = (article_tmax * ctx["T_wave"]
+                   if article_tmax is not None else None)
+    for frame_time, _, frame_name in available:
+        if point_limit is not None and frame_time > point_limit + \
+                1.0e-12 * max(1.0, point_limit):
+            continue
+        data = dz.load_frame(rows[0]["dir"], frame_name)
+        if data is None:
+            continue
+        profile = data.mean(axis=(1, 2)) / ion.n - 1.0
+        point_times.append(frame_time)
+        point_signals.append(profile)
+    point_times = np.asarray(point_times, dtype=float)
+    point_signals = np.asarray(point_signals, dtype=float)
+    (fft_omega, fft_period, fft_omega_step, fft_native_resolution,
+     fft_omega_grid, fft_power) = fourier_peak_frequency(
+         point_times, point_signals,
+         omega_band=(0.5 * ctx["omega0"].real,
+                     1.5 * ctx["omega0"].real))
+    fft_omega_error = 100.0 * (fft_omega / ctx["omega0"].real - 1.0)
+    fft_period_error = 100.0 * (fft_period / ctx["T_wave"] - 1.0)
+
     x_max = (float(article_tmax) if article_tmax is not None else
              max(float(run["time"][-1]) for run in runs))
     theory_start = ctx["t0"] / ctx["T_wave"]
@@ -2303,30 +2387,23 @@ def run_compare_article(args):
         initial_distribution=ctx["initial_distribution"])
     theory_time = (theory_time + ctx["t0"]) / ctx["T_wave"]
     exact_ion = np.abs(theory_density[ion.name]) / ion.n
+    exact_at_base_frames = np.interp(base["time"], theory_time, exact_ion)
+    first_harmonic_difference = base["amplitude"] - exact_at_base_frames
+    exact_norm = float(np.linalg.norm(exact_at_base_frames))
+    first_harmonic_l2_error = (
+        100.0 * float(np.linalg.norm(first_harmonic_difference)) / exact_norm
+        if exact_norm > 0.0 else math.nan)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        pointwise_error = 100.0 * np.abs(first_harmonic_difference) / \
+            exact_at_base_frames
+    finite_pointwise_error = pointwise_error[np.isfinite(pointwise_error)]
+    first_harmonic_max_error = (
+        float(np.max(finite_pointwise_error))
+        if finite_pointwise_error.size else math.nan)
     exponential_time = np.linspace(theory_start, x_max, 500)
     exponential = base["a0"] * np.exp(
         -base["Gamma"] *
         (exponential_time * base["T_wave"] - base["t0"]))
-
-    # Quantify how well the base run reproduces the kinetic dispersion root.
-    # Fit the complex harmonic, not its modulus, and retain both propagation
-    # branches so a weak counter-propagating component cannot masquerade as a
-    # frequency or damping-rate error through beating.
-    fit_times, fit_harmonic, _ = harmonic_series(
-        ctx, dz, ion.name, article_tmax)
-    fit_keep = fit_times >= ctx["t0"] - 1.0e-12 * max(1.0, ctx["t0"])
-    fit_times = fit_times[fit_keep]
-    fit_harmonic = fit_harmonic[fit_keep]
-    if fit_times.size < 4:
-        raise SystemExit("--article needs at least four base-run density "
-                         "frames to measure the period and decrement.")
-    omega_fit, gamma_fit, fit_Ap, fit_Am, fit_residual = fit_two_branch(
-        fit_times - fit_times[0], fit_harmonic, ctx["omega0"].real,
-        -ctx["omega0"].imag)
-    period_fit = 2.0 * math.pi / omega_fit
-    period_error = 100.0 * (period_fit / ctx["T_wave"] - 1.0)
-    gamma_theory = -ctx["omega0"].imag
-    gamma_error = 100.0 * (gamma_fit / gamma_theory - 1.0)
 
     fig, axes = plt.subplots(1, 3, figsize=(19.2, 6.2))
     ax_profile, ax_total, ax_noise = axes
@@ -2410,18 +2487,76 @@ def run_compare_article(args):
     fig.savefig(article_path, dpi=args.dpi, bbox_inches="tight",
                 pad_inches=0.12)
     plt.close(fig)
+
+    spectrum_path = os.path.join(
+        out_dir, "ion_sound_article_fourier_spectrum.png")
+    if fft_omega_grid.size and np.any(fft_power > 0.0):
+        relative_omega = fft_omega_grid / ctx["omega0"].real
+        displayed = (relative_omega >= 0.25) & (relative_omega <= 1.75)
+        normalization = float(np.max(fft_power[displayed]))
+        normalized_power = fft_power / normalization
+        peak_power = float(np.interp(
+            fft_omega, fft_omega_grid, normalized_power))
+
+        spectrum_fig, spectrum_axis = plt.subplots(figsize=(6.6, 6.2))
+        spectrum_axis.plot(relative_omega[displayed],
+                           normalized_power[displayed], color="red",
+                           linewidth=2.6,
+                           label=r"$\langle|\mathcal{F}_t[\delta n_i]|^2"
+                                 r"\rangle_z$")
+        spectrum_axis.axvline(
+            1.0, color="black", linestyle="--", linewidth=2.0,
+            label=r"$\omega_s$")
+        spectrum_axis.plot(
+            fft_omega / ctx["omega0"].real, peak_power, marker="o",
+            markersize=7.0, markerfacecolor="white",
+            markeredgecolor="black", markeredgewidth=1.8,
+            linestyle="none", label=r"$\omega_{\mathrm{FFT}}$")
+        spectrum_axis.set_xlim(0.25, 1.75)
+        spectrum_axis.set_ylim(0.0, 1.04 * float(
+            np.max(normalized_power[displayed])))
+        spectrum_axis.set_xlabel(r"$\omega/\omega_s$", fontsize=label_fs)
+        spectrum_axis.set_ylabel(r"$P(\omega)/P_{\max}$",
+                                  fontsize=label_fs)
+        spectrum_axis.minorticks_on()
+        spectrum_axis.tick_params(
+            axis="both", which="both", direction="in", top=True,
+            right=True, labelsize=tick_fs)
+        spectrum_axis.grid(True, alpha=0.25)
+        spectrum_axis.legend(loc="upper left", fontsize=legend_fs,
+                             framealpha=0.9)
+        spectrum_axis.set_box_aspect(1)
+        spectrum_fig.tight_layout(pad=0.6)
+        spectrum_fig.savefig(spectrum_path, dpi=args.dpi,
+                             bbox_inches="tight", pad_inches=0.12)
+        plt.close(spectrum_fig)
+    else:
+        spectrum_path = None
+
     print("=" * 70)
-    print(f"ARTICLE FIRST-HARMONIC ACCURACY: {args.model}")
+    print(f"ARTICLE FOURIER AND KINETIC ACCURACY: {args.model}")
     print("=" * 70)
-    print(f"  fit interval       = [{fit_times[0] / ctx['T_wave']:.6g}, "
-          f"{fit_times[-1] / ctx['T_wave']:.6g}] T")
-    print(f"  period:    fit = {period_fit:.9e}, theory = "
-          f"{ctx['T_wave']:.9e}, error = {period_error:+.4f} %")
-    print(f"  decrement: fit = {gamma_fit:.9e}, theory = "
-          f"{gamma_theory:.9e}, error = {gamma_error:+.4f} %")
-    print(f"  branch ratio       = {abs(fit_Am) / abs(fit_Ap):.6e}")
-    print(f"  relative fit error = {fit_residual:.6e}")
+    print("  all-grid temporal Fourier maximum:")
+    print(f"    time samples = {point_times.size}, grid points = {const.Nz}")
+    print("    spectrum = <|FFT_t[dn_i(z,t) - <dn_i>_z]|^2>_z, Hann window")
+    if np.isfinite(fft_omega):
+        print(f"    omega_FFT = {fft_omega:.9e}, theory = "
+              f"{ctx['omega0'].real:.9e}, error = "
+              f"{fft_omega_error:+.4f} %")
+        print(f"    period_FFT = {fft_period:.9e}, theory = "
+              f"{ctx['T_wave']:.9e}, error = {fft_period_error:+.4f} %")
+        print(f"    native angular-frequency resolution = "
+              f"{fft_native_resolution:.9e}")
+        print(f"    zero-padded angular-frequency sampling step = "
+              f"{fft_omega_step:.9e}")
+    else:
+        print("    frequency unavailable: invalid or insufficient time samples")
+    print("  first harmonic vs exact kinetic theory:")
+    print(f"    relative L2 error       = {first_harmonic_l2_error:.6f} %")
+    print(f"    maximum relative error = {first_harmonic_max_error:.6f} %")
     print(f"Article comparison figure written to {article_path}")
+    if spectrum_path is not None:
+        print(f"Fourier spectrum figure written to {spectrum_path}")
 
 
 def run_compare(args):

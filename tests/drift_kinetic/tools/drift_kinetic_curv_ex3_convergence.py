@@ -6,12 +6,14 @@ import sys
 
 import numpy as np
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../tools"))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEST_DIR = os.path.dirname(SCRIPT_DIR)
+
+sys.path.append(os.path.join(TEST_DIR, "../../tools"))
 
 from lib.plot_utils import figure, subplot
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(HERE, "output", "drift_kinetic_curv_ex3")
+OUT = os.path.join(TEST_DIR, "output", "drift_kinetic_curv_ex3")
 DK_DIR = os.path.join(OUT, "drift_kinetic")
 KIN_DIR = os.path.join(OUT, "eccapfim")
 
