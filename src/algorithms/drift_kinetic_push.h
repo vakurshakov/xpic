@@ -7,13 +7,6 @@
 
 /// @file drift_kinetic_push.h
 /// @brief Fully implicit guiding-center pusher for drift-kinetic electrons.
-///
-/// @details Advances the guiding center of a single electron over one timestep
-/// by solving the drift-kinetic equations of motion with a fully implicit
-/// (Crank-Nicolson) scheme. All field quantities are evaluated at the midpoint
-/// of the trajectory @f$t = (n+1/2)\tau@f$, which makes the resulting set of
-/// equations nonlinear. They are solved as a fixed-point problem on the Picard
-/// map @f$G@f$ by the classical Picard iteration.
 
 class DriftKineticPush {
 public:

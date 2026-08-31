@@ -19,11 +19,6 @@ set(CMAKE_CONFIGURATION_TYPES
 
 set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
-# `-mno-wbnoinvd` pins the only target feature that `-march=native` detects
-# inconsistently across P- and E-cores of hybrid Intel CPUs. Without it a
-# parallel build may compile the PCH and the translation units on different
-# core types, and GCC rejects the `.gch` as `[-Werror=invalid-pch]`.
-# The instruction is ring-0 only, so nothing is lost by disabling it.
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -mno-wbnoinvd")
 
 set(PETSC_ARCH_OPT linux-mpi-opt)

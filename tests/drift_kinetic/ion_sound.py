@@ -2379,7 +2379,11 @@ def plot_density_harmonics_and_kinetic_energy(runs, out_dir, dpi):
 
 
 def run_compare_article(args):
-    """Publication-style three-panel ion-density comparison."""
+    """Publication-style three-panel ion-density comparison.
+
+    ``--article_log`` keeps the profile panel linear and uses logarithmic
+    y-axes for the two amplitude panels.
+    """
     tests_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
     for path in (os.path.join(repo_dir, "tools"),
@@ -2561,10 +2565,13 @@ def run_compare_article(args):
                              residual_handle], loc="upper left", ncol=2,
                     fontsize=legend_fs, framealpha=0.9)
 
-    common_ylim = (0.0, 0.04)
     for axis in (ax_total, ax_noise):
         axis.set_xlim(0.0, x_max)
-        axis.set_ylim(*common_ylim)
+        if args.article_log:
+            axis.set_yscale("log")
+            axis.set_ylim(2.0e-3, 6.0e-2)
+        else:
+            axis.set_ylim(0.0, 0.04)
 
     panel_box = dict(facecolor="white", edgecolor="none", alpha=0.6,
                      boxstyle="round,pad=0.2")
@@ -2580,7 +2587,10 @@ def run_compare_article(args):
     fig.tight_layout(w_pad=1.8)
     out_dir = os.path.join(base["out_dir"], args.out_subdir)
     os.makedirs(out_dir, exist_ok=True)
-    article_path = os.path.join(out_dir, "ion_sound_compare_article.png")
+    article_filename = ("ion_sound_compare_article_log.png"
+                        if args.article_log else
+                        "ion_sound_compare_article.png")
+    article_path = os.path.join(out_dir, article_filename)
     fig.savefig(article_path, dpi=args.dpi, bbox_inches="tight",
                 pad_inches=0.12)
     plt.close(fig)
@@ -3811,9 +3821,12 @@ def build_parser():
     p.add_argument("--article", action="store_true",
                    help="with --model and --compare, write one publication-style "
                         "three-panel ion-density comparison figure")
+    p.add_argument("--article_log", "--article-log", action="store_true",
+                   help="same as --article, but use logarithmic y-axes in "
+                        "panels (b) and (c)")
     p.add_argument("-T", dest="article_tmax", type=float, default=None,
                    metavar="PERIODS",
-                   help="article mode: upper t/T limit of panels (b) and (c); "
+                   help="article modes: upper t/T limit of panels (b) and (c); "
                         "takes precedence over --model-tmax")
     p.add_argument("--compare-temp", nargs="+", action="append", default=None,
                    metavar="TEST",
@@ -3916,11 +3929,15 @@ def main():
     p = build_parser()
     args = p.parse_args()
 
-    if args.article and (args.model is None or args.compare is None or
+    if args.article and args.article_log:
+        p.error("--article and --article_log are mutually exclusive.")
+    article_mode = args.article or args.article_log
+    if article_mode and (args.model is None or args.compare is None or
                          args.model_electric is not None):
-        p.error("--article requires density --model together with --compare.")
-    if args.article_tmax is not None and not args.article:
-        p.error("-T is available only together with --article.")
+        p.error("--article/--article_log requires density --model together "
+                "with --compare.")
+    if args.article_tmax is not None and not article_mode:
+        p.error("-T is available only together with --article or --article_log.")
     if args.article_tmax is not None and args.article_tmax <= 0.0:
         p.error("-T must be positive.")
 
@@ -3984,14 +4001,15 @@ def main():
         if args.model_tmax is not None and args.model_tmax <= 0.0:
             p.error("--model-tmax must be positive.")
         if args.model_electric is not None:
-            if args.article:
-                p.error("--article supports density --model --compare only.")
+            if article_mode:
+                p.error("--article/--article_log supports density --model "
+                        "--compare only.")
             if len(args.compare) > 3:
                 p.error("electric --compare accepts at most three additional "
                         "tests (four stacked panels including the base test).")
             run_compare_electric(args)
         else:
-            if args.article:
+            if article_mode:
                 run_compare_article(args)
             else:
                 run_compare(args)
