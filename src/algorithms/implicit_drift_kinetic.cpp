@@ -1,8 +1,6 @@
 #include "implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/segments.h"
 
-#include <algorithm>
-#include <array>
 #include <cmath>
 
 namespace drift_kinetic {

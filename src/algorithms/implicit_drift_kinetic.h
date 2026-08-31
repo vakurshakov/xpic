@@ -18,7 +18,6 @@ struct DriftKineticShapeE
     static constexpr PetscInt shr = 1;
     static constexpr PetscInt shw = 3;
     Vector3I p_g;
-    Vector3R p_s;
 
     void setup(const DriftKineticSegment& segment);
 };
@@ -56,14 +55,6 @@ public:
   };
   PetscErrorCode interpolate_B_endpoints(EndpointB& f, //
                                          const Vector3R& Rn, const Vector3R& R0);
-
-  /// @brief Reference curl for the energy audit: the grid curl `rotB_g`
-  /// (E-staggered, e.g. `rotM * B^{n+1/2}`) point-interpolated with the `S2`
-  /// electric shape at the wrapped track endpoints and averaged. Independent
-  /// of `interpolate_rotB()`, so their mismatch exposes staggering, sign or
-  /// segmentation bugs as O(1) against an O(dx^2) truncation background.
-  PetscErrorCode interpolate_rotB_grid(Vector3R& rotB_p, Vector3R*** rotB_g, //
-                                       const Vector3R& Rn, const Vector3R& R0);
 
   PetscErrorCode decomposition(const Vector3R& Rn, const Vector3R& R0,//
                                const Vector3R& Vp, PetscReal q_p, PetscReal mu_p);

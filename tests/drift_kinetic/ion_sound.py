@@ -1254,7 +1254,12 @@ def run_model(args):
     import matplotlib.pyplot as plt
     from matplotlib.animation import FFMpegWriter, FuncAnimation
     from lib.plot import bbox, labelsize, ticksize
-    import drift_kinetic_density_z as dz
+    dz = _DensityZTools
+
+    # lib.plot enables external LaTeX globally via lib.plot_utils.  The model
+    # figures only need Matplotlib's built-in mathtext, and must also work on
+    # systems where the `latex` executable is not installed.
+    plt.rc("text", usetex=False)
 
     # ---- Load simulation density frames (reuse density_z machinery) -------- #
     rows = dz.collect_rows(args.species)
@@ -1944,7 +1949,7 @@ def run_model_pic(args):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from lib.plot import bbox, labelsize, ticksize
-    import drift_kinetic_density_z as dz
+    dz = _DensityZTools
 
     plt.rc("text", usetex=False)
     density_pic = {}
@@ -2187,6 +2192,97 @@ def load_ion_harmonic(testname, args, dz):
     }
 
 
+class _DensityZTools:
+    """Small self-contained subset of the former density-z plot helper.
+
+    ``ion_sound.py`` only needs diagnostic discovery, binary-frame loading and
+    the default species styles.  Keeping those operations here avoids relying
+    on the removed ``tests/drift_kinetic/drift_kinetic_tools`` directory.
+    """
+
+    SPECIES_STYLE = {
+        "electrons": {
+            "color": "blue", "marker": "o", "linestyle": "-",
+            "linewidth": 3.0, "markersize": 5.0, "label": r"$n_e$",
+        },
+        "ions": {
+            "color": "red", "marker": "o", "linestyle": "-",
+            "linewidth": 3.0, "markersize": 5.0, "label": r"$n_i$",
+        },
+    }
+
+    @staticmethod
+    def _expected_size_bytes(const):
+        return (const.Nx * const.Ny * const.Nz
+                * np.dtype(np.float32).itemsize)
+
+    @staticmethod
+    def collect_rows(species_filter):
+        from lib.constants import const
+
+        available = []
+        seen = set()
+        for diagnostic in const.config.get("Diagnostics", []):
+            if diagnostic.get("diagnostic") != "DistributionMoment" or \
+                    diagnostic.get("moment") != "density":
+                continue
+            species = diagnostic.get("particles")
+            if species is None or species in seen:
+                continue
+            seen.add(species)
+            available.append((species, diagnostic.get("out_dir")))
+
+        if species_filter is not None:
+            wanted = set(species_filter)
+            available_names = {species for species, _ in available}
+            for name in sorted(wanted - available_names):
+                print(f"[skip] no density diagnostic for species '{name}' "
+                      "in config")
+            available = [(species, explicit)
+                         for species, explicit in available
+                         if species in wanted]
+
+        expected_size = _DensityZTools._expected_size_bytes(const)
+        rows = []
+        for species, explicit in available:
+            candidates = ([explicit] if explicit is not None else [
+                os.path.join(species, "density"),
+                f"{species}_density",
+            ])
+            for candidate in candidates:
+                directory = (candidate if os.path.isabs(candidate) else
+                             os.path.join(const.in_dir, candidate))
+                if not os.path.isdir(directory):
+                    continue
+                timesteps = sorted(
+                    (int(name), name) for name in os.listdir(directory)
+                    if name.isdigit()
+                    and os.path.isfile(os.path.join(directory, name))
+                    and os.path.getsize(os.path.join(directory, name))
+                    == expected_size)
+                if timesteps:
+                    rows.append({
+                        "species": species, "dir": directory,
+                        "timesteps": timesteps,
+                    })
+                    break
+            else:
+                print(f"[skip] no density frames for species '{species}'")
+        return rows
+
+    @staticmethod
+    def load_frame(directory, name):
+        from lib.constants import const
+
+        path = os.path.join(directory, name)
+        if not os.path.isfile(path) or os.path.getsize(path) != \
+                _DensityZTools._expected_size_bytes(const):
+            return None
+        raw = np.fromfile(
+            path, dtype=np.float32, count=const.Nx * const.Ny * const.Nz)
+        return raw.reshape(const.Nz, const.Ny, const.Nx)
+
+
 def plot_density_harmonics_and_kinetic_energy(runs, out_dir, dpi):
     """Write the ion-only multi-run noise and kinetic-energy figures."""
     import matplotlib.pyplot as plt
@@ -2295,7 +2391,7 @@ def run_compare_article(args):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
-    import drift_kinetic_density_z as dz
+    dz = _DensityZTools
 
     plt.rcParams["text.usetex"] = False
     plt.rcParams["mathtext.fontset"] = "cm"
@@ -2425,12 +2521,13 @@ def run_compare_article(args):
     ax_profile.legend(loc="upper left", fontsize=legend_fs, framealpha=0.9)
 
     # (b) Full profile amplitude and the base-run Landau exponential.
-    total_lines = []
-    for index, (run, article_label) in enumerate(zip(runs, article_labels)):
+    total_lines = [None] * len(runs)
+    for index in reversed(range(len(runs))):
+        run, article_label = runs[index], article_labels[index]
         line, = ax_total.plot(run["time"], run["total_amplitude"],
                               color=colors[index % len(colors)], linewidth=3.2,
                               label=article_label)
-        total_lines.append(line)
+        total_lines[index] = line
     exponential_line, = ax_total.plot(
         exponential_time, exponential, color="black", linestyle="--",
         linewidth=2.0, label=r"$|\delta n_i(0)|e^{-\Gamma t}$")
@@ -2441,13 +2538,14 @@ def run_compare_article(args):
                     framealpha=0.9)
 
     # (c) First mode and the full non-first-mode residue, plus exact theory.
-    noise_lines = []
-    for index, (run, article_label) in enumerate(zip(runs, article_labels)):
+    noise_lines = [None] * len(runs)
+    for index in reversed(range(len(runs))):
+        run, article_label = runs[index], article_labels[index]
         color = colors[index % len(colors)]
         line, = ax_noise.plot(run["time"], run["amplitude"], color=color,
                               linewidth=3.2, linestyle="-",
                               label=article_label)
-        noise_lines.append(line)
+        noise_lines[index] = line
         ax_noise.plot(run["time"], run["noise_residual"], color=color,
                       linewidth=1.6, linestyle=":", label="_nolegend_")
     ax_noise.plot(theory_time, exact_ion, color="black", linewidth=2.0,
@@ -2572,7 +2670,7 @@ def run_compare(args):
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
     from lib.plot import bbox, labelsize, ticksize
-    import drift_kinetic_density_z as dz
+    dz = _DensityZTools
 
     plt.rc("text", usetex=False)
     runs = [load_ion_harmonic(name, args, dz)
@@ -2758,7 +2856,7 @@ def run_model_adv(args):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from lib.plot import bbox, labelsize, ticksize
-    import drift_kinetic_density_z as dz
+    dz = _DensityZTools
 
     plt.rc("text", usetex=False)  # Cyrillic panel titles are incompatible
 
