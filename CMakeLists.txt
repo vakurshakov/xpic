@@ -19,7 +19,7 @@ set(CMAKE_CONFIGURATION_TYPES
 
 set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -mno-wbnoinvd")
 
 set(PETSC_ARCH_OPT linux-mpi-opt)
 set(PETSC_ARCH_DEBUG linux-mpi-debug)
@@ -41,7 +41,7 @@ set(algorithms
   src/algorithms/crank_nicolson_push.cpp
   src/algorithms/drift_kinetic_push.cpp
   src/algorithms/implicit_esirkepov.cpp
-  src/algorithms/drift_kinetic_implicit.cpp
+  src/algorithms/implicit_drift_kinetic.cpp
 )
 
 set(diagnostics
@@ -102,6 +102,12 @@ set(impls
   src/impls/ecsimcorr/particles.cpp
   src/impls/eccapfim/simulation.cpp
   src/impls/eccapfim/particles.cpp
+  src/impls/drift_kinetic/simulation.cpp
+  src/impls/drift_kinetic/diagnostic.cpp
+  src/impls/drift_kinetic/particles.cpp
+  src/impls/drift_kinetic/segments.cpp
+  src/impls/drift_kinetic/inject_particles.cpp
+  src/impls/drift_kinetic/set_paired_particles.cpp
 )
 
 add_library(

@@ -35,7 +35,7 @@ PetscErrorCode World::initialize()
     Configuration::get_boundaries_type(REP3_A(bounds));
   }
 
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, st, REP3(nullptr), &da));
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da));
   PetscCall(DMSetFromOptions(da));
   PetscCall(DMSetUp(da));
 
@@ -50,9 +50,11 @@ PetscErrorCode World::initialize()
   PetscCall(DMSetApplicationContext(da, this));
   PetscCall(DMSetApplicationContext(da_rho, this));
 
+  PetscCall(DMDAGetInfo(da, NULL, REP3(NULL), REP3_A(&procs), NULL, NULL, REP3(NULL), NULL));
   PetscCall(DMDAGetNeighbors(da, &neighbors));
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
   PetscCall(DMDAGetGhostCorners(da, REP3_A(&gstart), REP3_A(&gsize)));
+  PetscCall(DMDAGetOwnershipRanges(da, REP3_A(&lg)));
 
   end = start + size;
   gend = gstart + gsize;

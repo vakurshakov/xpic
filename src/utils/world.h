@@ -32,7 +32,9 @@ struct World {
   const PetscMPIInt* neighbors;
 
   const PetscInt dof = Vector3R::dim;
-  const PetscInt st = 2 * static_cast<PetscInt>(std::ceil(shape_radius));
+  const PetscInt s = 3;//static_cast<PetscInt>(std::ceil(shape_radius));
+  const DMDAStencilType st = DMDA_STENCIL_BOX;
+  const PetscInt* lg[3];
 
   Vector3I start;
   Vector3I size;

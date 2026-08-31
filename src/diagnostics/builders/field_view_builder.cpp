@@ -1,5 +1,7 @@
 #include "field_view_builder.h"
 
+#include "src/impls/drift_kinetic/diagnostic.h"
+#include "src/impls/drift_kinetic/simulation.h"
 #include "src/utils/configuration.h"
 #include "src/utils/vector_utils.h"
 
@@ -30,15 +32,33 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
   if (info.contains("region"))
     parse_region(info.at("region"), region, field);
 
+  if (info.contains("component")) {
+    if (region.dof != Vector3R::dim)
+      throw std::runtime_error(
+        "FieldView component selection requires a vector field");
+
+    const Axis component =
+      get_component(info.at("component").get<std::string>());
+    region.start[C] = component;
+    region.size[C] = 1;
+  }
+
   if (info.contains("out_dir"))
     info.at("out_dir").get_to(out_dir);
 
   LOG("  field view diagnostic is added for {}, output directory: {}", field, out_dir);
 
-  if (auto&& diagnostic =
-        FieldView::create(CONFIG().out_dir + "/" + out_dir, da, f, region)) {
-    diagnostics_.emplace_back(std::move(diagnostic));
+  std::unique_ptr<FieldView> diagnostic;
+  if (Mat op = parse_operator(field); op != nullptr) {
+    diagnostic = drift_kinetic::MatMultFieldView::create(
+      CONFIG().out_dir + "/" + out_dir, da, f, op, region);
+  } else {
+    diagnostic = FieldView::create(
+      CONFIG().out_dir + "/" + out_dir, da, f, region);
   }
+
+  if (diagnostic)
+    diagnostics_.emplace_back(std::move(diagnostic));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -60,6 +80,18 @@ void FieldViewBuilder::parse_field(const Configuration::json_t& info, DM& da,
     std::string rho_name = sort->parameters.sort_name + "/rho";
     map[J_name] = std::make_pair(da_field, sort->J);
     map[rho_name] = std::make_pair(da_rho, sort->rho[1]);
+
+    if (auto* dk_sort = dynamic_cast<drift_kinetic::Particles*>(sort.get())) {
+      std::string M_name = sort->parameters.sort_name + "/M";
+      std::string rotM_name = sort->parameters.sort_name + "/rotM";
+      map[M_name] = std::make_pair(da_field, dk_sort->M);
+      map[rotM_name] = std::make_pair(da_field, dk_sort->M);
+    }
+  }
+
+  if (auto&& simulation = dynamic_cast<drift_kinetic::Simulation*>(&simulation_)) {
+    map["M"] = std::make_pair(da_field, simulation->M);
+    map["rotM"] = std::make_pair(da_field, simulation->M);
   }
 
   if (!map.contains(name))
@@ -73,6 +105,27 @@ void FieldViewBuilder::parse_field(const Configuration::json_t& info, DM& da,
     region.start[3] = 0;
     region.size[3] = 1;
   }
+}
+
+Mat FieldViewBuilder::parse_operator(const std::string& name) const
+{
+  auto* dk_simulation =
+    dynamic_cast<drift_kinetic::Simulation*>(&simulation_);
+  if (dk_simulation == nullptr)
+    return nullptr;
+
+  std::map<std::string, Mat> op_map{
+    {"rotM", dk_simulation->rotM},
+  };
+
+  for (auto&& sort : simulation_.particles_) {
+    if (auto* dk_sort = dynamic_cast<drift_kinetic::Particles*>(sort.get()))
+      op_map[sort->parameters.sort_name + "/rotM"] = dk_simulation->rotM;
+  }
+
+  if (auto it = op_map.find(name); it != op_map.end())
+    return it->second;
+  return nullptr;
 }
 
 void FieldViewBuilder::parse_region(
