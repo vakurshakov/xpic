@@ -2381,8 +2381,9 @@ def plot_density_harmonics_and_kinetic_energy(runs, out_dir, dpi):
 def run_compare_article(args):
     """Publication-style three-panel ion-density comparison.
 
-    ``--article_log`` keeps the profile panel linear and uses logarithmic
-    y-axes for the two amplitude panels.
+    ``--article_log`` keeps the profile panel linear, uses logarithmic y-axes
+    for the two amplitude panels, and writes compact monochrome and colored
+    (a), (c) figures whose profile also includes the state at t = 2T.
     """
     tests_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
@@ -2426,7 +2427,7 @@ def run_compare_article(args):
     article_labels = [particle_label(run) for run in runs]
 
     # Reload the base context last: density_z uses module-level geometry, so
-    # this also restores the correct grid before reading the two profiles.
+    # this also restores the correct grid before reading the profiles.
     ctx = prepare_theory(args.model, ic_frame=args.ic_from_dump)
     const, ion = ctx["const"], ctx["ion"]
     rows = dz.collect_rows([ion.name])
@@ -2439,6 +2440,8 @@ def run_compare_article(args):
                          f"'{args.model}'.")
 
     targets = (0.0, ctx["T_wave"])
+    if args.article_log:
+        targets += (2.0 * ctx["T_wave"],)
     available = [(idx * const.dts, idx, name)
                  for idx, name in rows[0]["timesteps"]]
     selected = [min(available, key=lambda item: abs(item[0] - target))
@@ -2595,6 +2598,96 @@ def run_compare_article(args):
                 pad_inches=0.12)
     plt.close(fig)
 
+    compact_article_path = None
+    colored_compact_article_path = None
+    if args.article_log:
+        # A compact article variant: retain the profile and first-harmonic
+        # panels, omit the full-profile-amplitude panel, and add the profile
+        # measured after two periods as a dotted curve.
+        compact_fig, (compact_profile, compact_noise) = plt.subplots(
+            1, 2, figsize=(12.8, 6.2))
+
+        profile_t0, = compact_profile.plot(
+            z, profiles[0], color="black", linewidth=2.2,
+            marker="o", markersize=4.0, linestyle="-", label=r"$t=0$")
+        profile_t1, = compact_profile.plot(
+            z, profiles[1], color="black", linewidth=2.2,
+            marker="o", markersize=4.0, linestyle="--", label=r"$t=T$")
+        profile_t2, = compact_profile.plot(
+            z, profiles[2], color="black", linewidth=2.2,
+            marker="o", markersize=4.0, linestyle=":", label=r"$t=2T$")
+        compact_profile.axhline(
+            1.0 + initial_amplitude, color="0.5", linewidth=1.2,
+            linestyle="--")
+        compact_profile.axhline(
+            1.0 - initial_amplitude, color="0.5", linewidth=1.2,
+            linestyle="--")
+        compact_profile.set_xlim(0.0, const.Lz)
+        compact_profile.set_ylim(0.96, 1.04)
+        compact_profile.set_xlabel(
+            r"$z,\ c/\omega_{pe}$", fontsize=label_fs)
+        compact_profile.set_ylabel(r"$n_i/n_0$", fontsize=label_fs)
+        compact_profile.legend(
+            loc="upper left", fontsize=legend_fs, framealpha=0.9)
+
+        compact_noise_lines = [None] * len(runs)
+        for index in reversed(range(len(runs))):
+            run, article_label = runs[index], article_labels[index]
+            color = colors[index % len(colors)]
+            line, = compact_noise.plot(
+                run["time"], run["amplitude"], color=color,
+                linewidth=3.2, linestyle="-", label=article_label)
+            compact_noise_lines[index] = line
+            compact_noise.plot(
+                run["time"], run["noise_residual"], color=color,
+                linewidth=1.6, linestyle=":", label="_nolegend_")
+        compact_noise.plot(
+            theory_time, exact_ion, color="black", linewidth=2.0,
+            linestyle="--", label=r"$\mathrm{theory}$")
+        compact_noise.set_xlim(0.0, x_max)
+        compact_noise.set_yscale("log")
+        compact_noise.set_ylim(2.0e-3, 6.0e-2)
+        compact_noise.set_xlabel(r"$t/T$", fontsize=label_fs)
+        compact_noise.set_ylabel(
+            r"$|\delta n_{i,1}(t)|/n_0$", fontsize=label_fs)
+        compact_noise.legend(
+            handles=[*reversed(compact_noise_lines), theory_handle,
+                     residual_handle], loc="upper left", ncol=2,
+            fontsize=legend_fs, framealpha=0.9)
+
+        for axis, panel in ((compact_profile, "(a)"),
+                            (compact_noise, "(c)")):
+            axis.minorticks_on()
+            axis.tick_params(axis="both", which="both", direction="in",
+                             top=True, right=True, labelsize=tick_fs)
+            axis.grid(True, alpha=0.25)
+            axis.set_box_aspect(1)
+            axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                      ha="right", va="top", fontsize=panel_fs,
+                      bbox=panel_box)
+
+        compact_fig.tight_layout(w_pad=1.8)
+        compact_article_path = os.path.join(
+            out_dir, "ion_sound_compare_article_log_compact.png")
+        compact_fig.savefig(
+            compact_article_path, dpi=args.dpi, bbox_inches="tight",
+            pad_inches=0.12)
+
+        # Match the three-curve palette of the comparison panel in
+        # drift_kinetic_curv_ex3_convergence.py.
+        comparison_colors = ("#9467bd", "#2ca02c", "#ff7f0e")
+        for line, color in zip((profile_t0, profile_t1, profile_t2),
+                               comparison_colors):
+            line.set_color(color)
+        compact_profile.legend(
+            loc="upper left", fontsize=legend_fs, framealpha=0.9)
+        colored_compact_article_path = os.path.join(
+            out_dir, "ion_sound_compare_article_log_compact_colored.png")
+        compact_fig.savefig(
+            colored_compact_article_path, dpi=args.dpi,
+            bbox_inches="tight", pad_inches=0.12)
+        plt.close(compact_fig)
+
     spectrum_path = os.path.join(
         out_dir, "ion_sound_article_fourier_spectrum.png")
     if fft_omega_grid.size and np.any(fft_power > 0.0):
@@ -2662,6 +2755,12 @@ def run_compare_article(args):
     print(f"    relative L2 error       = {first_harmonic_l2_error:.6f} %")
     print(f"    maximum relative error = {first_harmonic_max_error:.6f} %")
     print(f"Article comparison figure written to {article_path}")
+    if compact_article_path is not None:
+        print(f"Compact article comparison figure written to "
+              f"{compact_article_path}")
+    if colored_compact_article_path is not None:
+        print(f"Colored compact article comparison figure written to "
+              f"{colored_compact_article_path}")
     if spectrum_path is not None:
         print(f"Fourier spectrum figure written to {spectrum_path}")
 
@@ -3823,7 +3922,8 @@ def build_parser():
                         "three-panel ion-density comparison figure")
     p.add_argument("--article_log", "--article-log", action="store_true",
                    help="same as --article, but use logarithmic y-axes in "
-                        "panels (b) and (c)")
+                        "panels (b) and (c), and also write monochrome and "
+                        "colored compact (a), (c) figures with the t=2T profile")
     p.add_argument("-T", dest="article_tmax", type=float, default=None,
                    metavar="PERIODS",
                    help="article modes: upper t/T limit of panels (b) and (c); "
