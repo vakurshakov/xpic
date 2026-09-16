@@ -6,82 +6,79 @@
 #include "src/utils/utils.h"
 
 /// @file drift_kinetic_push.h
-/// @brief Fully implicit guiding-center pusher for drift-kinetic electrons.
+/// @brief Implicit drift-kinetic particle pusher.
 
+/// @brief Advances guiding-center position and parallel velocity.
 class DriftKineticPush {
 public:
+  /// @brief Creates a pusher with unset particle parameters.
   DriftKineticPush() = default;
+  /// @brief Sets the charge-to-mass ratio and particle mass.
   DriftKineticPush(PetscReal qm, PetscReal mp);
 
-  /// @brief Sets numerical tolerances controlling the nonlinear iteration.
+  /// @brief Sets iteration tolerances and limit.
   void set_tolerances(PetscReal atol, PetscReal rtol, PetscInt maxit);
 
-  /// @brief Charge-to-mass ratio, assumed constant during the iteration.
+  /// @brief Sets the charge-to-mass ratio.
   void set_qm(PetscReal qm);
-  /// @brief Macroparticle mass, assumed constant during the iteration.
+  /// @brief Sets the particle mass.
   void set_mp(PetscReal mp);
+  /// @brief Returns the particle mass.
   PetscReal get_mp() const;
+  /// @brief Returns the charge-to-mass ratio.
   PetscReal get_qm() const;
 
-  /// @brief Number of nonlinear iterations used by the last `process()` call.
+  /// @brief Returns the last iteration count.
   PetscInt get_iteration_number() const;
 
-  /// @brief Returns true if the last call to `process()` converged within tolerances.
+  /// @brief Reports convergence of the last move.
   bool has_converged() const;
 
-  /// @brief Position-equation residual from the last `process()` call.
+  /// @brief Returns the last position residual.
   PetscReal get_FRk() const;
 
-  /// @brief Parallel-velocity-equation residual from the last `process()` call.
+  /// @brief Returns the last parallel velocity residual.
   PetscReal get_FVhk() const;
 
-  /// @brief Midpoint field values at the last accepted nonlinear iterate.
-  /// Valid right after `process()`; used by the per-particle energy audit.
-  const Vector3R& get_Eh() const { return Eh; }
-  const Vector3R& get_gradBh() const { return gradBh; }
-  const Vector3R& get_rotBh() const { return rotBh; }
-  const Vector3R& get_rotbh() const { return rotbh; }
-
+  /// @brief Callback for interpolating particle fields.
   using SetFields = std::function<void(
     const Vector3R&, const Vector3R&, Vector3R&, PetscReal&, Vector3R&, Vector3R&, Vector3R&)>;
 
-  /// @brief Callback supplying the midpoint field values interpolated to the
-  /// particle: @f$\mathbf{E}@f$, @f$\mathbf{B}@f$, @f$\mathbf{b}@f$,
-  /// @f$\nabla B@f$ and @f$\mathrm{rot}\,\mathbf{B}@f$.
+  /// @brief Sets the field interpolation callback.
   void set_fields_callback(SetFields&& callback);
 
-  /// @brief Nonlinear move of point `pn` by timestep shift `dt`.
-  /// @warning `pn` and `p0` cannot be the same as `pn` will be updated.
+  /// @brief Advances a particle by one timestep.
+  /// @warning `pn` and `p0` must be distinct objects.
   void process(PetscReal dt, PointByField& pn, const PointByField& p0);
 
 private:
-  /// @brief Classical Picard (fixed-point) iteration over the Picard map
-  /// @f$G(x) = (R^n + \tau\,V_p(x),\ v^n + \tau\,a_h(x))@f$ with
-  /// @f$x = (R^{n+1}, v_\parallel^{n+1})@f$.
+  /// @brief Solves the particle move with Picard iteration.
   void process_picard(PetscReal dt, PointByField& pn, const PointByField& p0);
 
-  /// @brief One Picard sweep: refresh midpoint state and update position/momentum.
+  /// @brief Performs one Picard update.
   void step(const PetscReal dt, PointByField& pn, const PointByField& p0);
-  /// @brief Evaluates RHS Vp and ah for the current nonlinear state pn.
+  /// @brief Evaluates drift velocity and acceleration.
   void evaluate_rhs(const PointByField& pn, const PointByField& p0);
 
-  /// @brief Checks nonlinear residuals and determines convergence.
+  /// @brief Checks convergence using both residuals.
   bool check_discrepancy(PetscReal dt, const PointByField& pn, const PointByField& p0);
+  /// @brief Computes the position residual.
   PetscReal get_residue_r(PetscReal dt, const PointByField& pn, const PointByField& p0);
+  /// @brief Computes the parallel velocity residual.
   PetscReal get_residue_v(PetscReal dt, const PointByField& pn, const PointByField& p0);
 
-  /// @brief Evaluates the guiding-center drift velocity `Vp` (drift-velocity equation).
+  /// @brief Updates the guiding-center drift velocity.
   void update_Vp(const PointByField& pn, const PointByField& p0);
-  /// @brief Evaluates the midpoint parallel velocity `Vh`.
+  /// @brief Updates the midpoint parallel velocity.
   void update_Vh(const PointByField& pn, const PointByField& p0);
-  /// @brief Evaluates the parallel acceleration `ah` (parallel-momentum equation).
+  /// @brief Updates the parallel acceleration.
   void update_ah(const PointByField& pn, const PointByField& p0);
-  /// @brief Advances the position from the drift velocity `Vp`.
+  /// @brief Updates the position.
   void update_r(PetscReal dt, PointByField& pn, const PointByField& p0);
-  /// @brief Advances the parallel momentum from the acceleration `ah`.
+  /// @brief Updates the parallel velocity.
   void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0);
 
-  /// @brief Refreshes interpolated fields and derived quantities at the midpoint.
+  /// @brief Updates fields and derived quantities.
   void update_fields(const PointByField& pn, const PointByField& p0);
 
   // -- Particle parameters -------------------------------------------------
@@ -92,29 +89,29 @@ private:
 
   // -- Nonlinear iteration state and residuals -----------------------------
   PetscInt it = 0;
-  PetscInt maxit = 60;
+  PetscInt maxit = 100;
   PetscReal atol = 1e-12;
   PetscReal rtol = 1e-12;
   PetscReal FRk, FVhk;
   bool converged = false;
 
   // -- Fields interpolated to the particle (set by `set_fields`) -----------
-  Vector3R Eh;      ///< Midpoint electric field @f$\mathbf{E}^{n+1/2}@f$.
-  Vector3R bh;      ///< Unit vector along @f$\mathbf{B}^{n+1/2}@f$.
-  Vector3R gradBh;  ///< Gradient of the field magnitude @f$\nabla B@f$.
-  Vector3R rotBh;   ///< Curl of the magnetic field @f$\mathrm{rot}\,\mathbf{B}@f$.
-  PetscReal lenBh;      ///< Magnitude of the magnetic field @f$|\mathbf{B}^{n+1/2}|@f$.
+  Vector3R Eh;      ///< Midpoint electric field.
+  Vector3R bh;      ///< Unit magnetic direction.
+  Vector3R gradBh;  ///< Magnetic magnitude gradient.
+  Vector3R rotBh;   ///< Magnetic field curl.
+  PetscReal lenBh;  ///< Magnetic field magnitude.
 
   // -- Quantities derived from the interpolated fields ---------------------
-  Vector3R rotbh;       ///< Curl of the unit field @f$\mathrm{rot}\,\mathbf{b}@f$.
-  Vector3R Bh_eff;      ///< Effective magnetic field @f$\mathbf{B}^{*}@f$.
-  PetscReal lenBh_eff;  ///< Parallel projection @f$B^{*}_\parallel@f$.
-  Vector3R bh_eff;      ///< Effective field direction @f$\mathbf{B}^{*}/B^{*}_\parallel@f$.
-  Vector3R F_eff;       ///< Effective force @f$q\mathbf{E}-\mu\nabla B@f$.
+  Vector3R rotbh;       ///< Unit magnetic direction curl.
+  Vector3R Bh_eff;      ///< Effective magnetic field.
+  PetscReal lenBh_eff;  ///< Effective field parallel projection.
+  Vector3R bh_eff;      ///< Effective field scaled by its parallel projection.
+  Vector3R F_eff;       ///< Effective force.
 
   // -- Integrated guiding-center motion ------------------------------------
   Vector3R Vp;     ///< Guiding-center drift velocity.
-  PetscReal Vh;    ///< Midpoint parallel velocity @f$v_\parallel^{n+1/2}@f$.
+  PetscReal Vh;    ///< Midpoint parallel velocity.
   PetscReal ah;    ///< Midpoint parallel acceleration.
 };
 

@@ -3,35 +3,10 @@
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/simulation.h"
-#include "src/impls/eccapfim/particles.h" // for `cell_traversal`
 #include "src/utils/geometries.h"
 #include "src/utils/utils.h"
 
 namespace drift_kinetic {
-
-namespace {
-
-// Kahan compensated summation: `add()` folds the rounding error of each
-// addition into `c` and subtracts it back on the next term, so the running
-// sum stays accurate to ~eps regardless of how many terms are added (plain
-// summation drifts to ~eps*N for N particles).
-struct KahanSum {
-  PetscReal sum = 0.0;
-  PetscReal c = 0.0;
-
-  void add(PetscReal value)
-  {
-    const PetscReal y = value - c;
-    const PetscReal t = sum + y;
-    c = (t - sum) - y;
-    sum = t;
-  }
-};
-
-#pragma omp declare reduction(kahan_add:KahanSum : omp_out.add(omp_in.sum)) \
-  initializer(omp_priv = KahanSum{})
-
-}  // namespace
 
 PointByField make_point_at_gc(
   const Point& point, const Vector3R& Bp, PetscReal mp)
@@ -52,62 +27,28 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
     dk_prev_storage(world.size.elements_product()),
     simulation_(simulation)
 {
-  PetscMPIInt size;
-  PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_size(PETSC_COMM_WORLD, &size));
-  update_cells = (size == 1) //
+  PetscMPIInt mpi_size;
+  PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_size(PETSC_COMM_WORLD, &mpi_size));
+  update_cells = (mpi_size == 1) //
     ? std::bind(std::mem_fn(&Particles::update_cells_seq), this)
     : std::bind(std::mem_fn(&Particles::update_cells_mpi), this);
 
-
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &J));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &M));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &J_loc));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &M_loc));
 }
 
 PetscErrorCode Particles::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecDestroy(&J));
   PetscCall(VecDestroy(&M));
-  PetscCall(VecDestroy(&J_loc));
   PetscCall(VecDestroy(&M_loc));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
-PetscErrorCode Particles::initialize_point_by_field(const Arr B_arr)
-{
-  PetscFunctionBeginUser;
-  const PetscReal qm = parameters.q / parameters.m;
-  const PetscReal mp = parameters.m;
-  drift_kinetic::DriftKineticEsirkepov esirkepov(B_arr);
-
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    auto& cell = storage[g];
-    if (cell.empty())
-      continue;
-
-    auto& dk_cell = dk_curr_storage[g];
-    dk_cell.clear();
-
-    PetscInt i = 0;
-    for (const auto& point : cell) {
-      Vector3R B_p{};
-      PetscCall(esirkepov.interpolate_B(B_p, point.r));
-      if (coord_is_gc_)
-        dk_cell.emplace_back(make_point_at_gc(point, B_p, mp));
-      else
-        dk_cell.emplace_back(point, B_p, mp, qm);
-    }
-  }
-
+  PetscCall(interfaces::Particles::finalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscReal Particles::kinetic_energy_local() const
 {
-  KahanSum w;
+  PetscReal energy = 0.0;
   const PetscReal mpw = parameters.n / static_cast<PetscReal>(parameters.Np);
   PetscCallAbort(PETSC_COMM_WORLD,
     DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
@@ -115,18 +56,19 @@ PetscReal Particles::kinetic_energy_local() const
     DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
   drift_kinetic::DriftKineticEsirkepov esirkepov(simulation_.B_arr);
-#pragma omp parallel for reduction(kahan_add : w)
+#pragma omp parallel for reduction(+ : energy)
   for (auto&& cell : dk_curr_storage) {
     for (auto&& point : cell) {
       Vector3R B_p{};
       PetscCallAbort(PETSC_COMM_WORLD, esirkepov.interpolate_B(B_p, point.r));
-      w.add(POW2(point.p_parallel) + 2.0 * point.mu_p * B_p.length() / parameters.m);
+      energy += POW2(point.p_parallel) +
+        2.0 * point.mu_p * B_p.length() / parameters.m;
     }
   }
 
   PetscCallAbort(PETSC_COMM_WORLD,
     DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
-  return 0.5 * parameters.m * mpw * w.sum;
+  return 0.5 * parameters.m * mpw * energy;
 }
 
 PetscReal Particles::get_average_iteration_number() const
@@ -152,21 +94,17 @@ PetscErrorCode Particles::form_iteration()
   max_push_leaf_residue_r_ = 0.0;
   max_push_leaf_residue_v_ = 0.0;
 
-  PetscReal q = parameters.q;
-  PetscReal m = parameters.m;
+  const PetscReal q = parameters.q;
+  const PetscReal m = parameters.m;
+  const PetscReal particle_weight =
+    parameters.n / static_cast<PetscReal>(parameters.Np);
 
   const PetscReal inv_size = size > 0 ? 1.0 / static_cast<PetscReal>(size) : 0.0;
 
   constexpr PetscInt max_substep_depth = 4;
 
-  KahanSum aud_push, aud_gradB, aud_total;
-  PetscReal aud_max_push = 0.0;
-  PetscReal aud_max_gradB = 0.0;
-
 #pragma omp parallel for reduction(+ : avgit, push_retries_, push_leaf_failures_) \
-  reduction(kahan_add : aud_push, aud_gradB, aud_total) \
-  reduction(max : maxit, max_push_leaf_residue_r_, max_push_leaf_residue_v_, \
-    aud_max_push, aud_max_gradB)
+  reduction(max : maxit, max_push_leaf_residue_r_, max_push_leaf_residue_v_)
     for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
       const auto& prev_cell = dk_prev_storage[g];
 
@@ -180,12 +118,6 @@ PetscErrorCode Particles::form_iteration()
         push.set_fields_callback(
           [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
             Vector3R& gradB_p, Vector3R& rotB_p) { util_local.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0); });
-
-        // Per-particle energy defects are accumulated only by accepted leaf
-        // segments. Failed parent attempts that trigger a retry are discarded.
-        PetscReal D_push_p = 0.0;
-        PetscReal D_gradB_p = 0.0;
-        PetscReal D_total_p = 0.0;
 
         AdaptiveSubstepStats stats;
         auto attempt = [&](PetscReal dt_sub, PointByField& pn,
@@ -203,45 +135,11 @@ PetscErrorCode Particles::form_iteration()
         };
         auto accept = [&](PetscReal dt_sub, PointByField& pn,
                         const PointByField& p0) {
-            const PetscReal a0 = qn_Np(pn);
-            const PetscReal b0 = pn.mu_p * n_Np(pn);
+            const PetscReal a0 = q * particle_weight;
+            const PetscReal b0 = pn.mu_p * particle_weight;
             const Vector3R Vp_sub = (pn.r - p0.r) / dt_sub;
 
             util_local.decomposition(pn.r, p0.r, Vp_sub, a0 * (dt_sub / dt), b0 * (dt_sub / dt));
-
-            if (energy_audit_enabled_) {
-              // Per-(sub)segment defects of the discrete energy identities of
-              // the scheme; see `Particles::EnergyAudit` for the three levels.
-              drift_kinetic::DriftKineticEsirkepov::EndpointB f;
-              PetscCallAbort(PETSC_COMM_WORLD,
-                util_local.interpolate_B_endpoints(f, pn.r, p0.r));
-
-              // hatb = b/|b|^2 with b = (b^n + b^{n+1})/2 — the same vector
-              // the gradB rule and the magnetization deposit use.
-              const Vector3R b_mid =
-                0.5 * (f.Bn_0.normalized() + f.Bn1_n.normalized());
-              const Vector3R hatb = b_mid / b_mid.squared();
-
-              const PetscReal dK_par =
-                0.5 * m * (POW2(pn.p_parallel) - POW2(p0.p_parallel));
-              const PetscReal dK_mu =
-                pn.mu_p * (f.Bn1_n.length() - f.Bn_0.length());
-              const PetscReal W_E = q * dt_sub * push.get_Eh().dot(Vp_sub);
-              const PetscReal W_gradB =
-                pn.mu_p * dt_sub * Vp_sub.dot(push.get_gradBh());
-              // Right-hand side of the gradB interpolation rule:
-              // hatb . (B^{n+1/2}(R1) - B^{n+1/2}(R0)).
-              const PetscReal W_hB = pn.mu_p * hatb.dot(f.Bnh_n - f.Bnh_0);
-              // Particle share of M^{n+1/2} . (B^{n+1} - B^n) as deposited:
-              // half of mu*hatb at each endpoint, weighted like the deposit.
-              const PetscReal W_M = 0.5 * pn.mu_p * (dt_sub / dt) *
-                hatb.dot((f.Bn1_0 - f.Bn_0) + (f.Bn1_n - f.Bn_n));
-
-              const PetscReal wt = n_Np(pn);
-              D_push_p += wt * (dK_par + W_gradB - W_E);
-              D_gradB_p += wt * (W_gradB - W_hB);
-              D_total_p += wt * (dK_par + dK_mu - W_E - W_M);
-            }
         };
 
         adaptive_substep(dt, curr, prev, max_substep_depth,
@@ -256,27 +154,11 @@ PetscErrorCode Particles::form_iteration()
         max_push_leaf_residue_v_ =
           std::max(max_push_leaf_residue_v_, stats.max_leaf_residue_v);
 
-        if (energy_audit_enabled_) {
-          aud_push.add(D_push_p);
-          aud_gradB.add(D_gradB_p);
-          aud_total.add(D_total_p);
-          aud_max_push = std::max(aud_max_push, std::abs(D_push_p));
-          aud_max_gradB = std::max(aud_max_gradB, std::abs(D_gradB_p));
-        }
-
         curr.p = (curr.r - prev.r) / dt;
 
         ++i;
       }
     }
-
-  if (energy_audit_enabled_) {
-    audit_.D_push = aud_push.sum;
-    audit_.D_gradB = aud_gradB.sum;
-    audit_.D_total = aud_total.sum;
-    audit_.max_D_push = aud_max_push;
-    audit_.max_D_gradB = aud_max_gradB;
-  }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
@@ -299,18 +181,6 @@ PetscErrorCode Particles::form_iteration()
       max_push_leaf_residue_r_, max_push_leaf_residue_v_);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscReal Particles::n_Np(const PointByField& point) const
-{
-  Point dummy(point.r, Vector3R{});
-  return interfaces::Particles::n_Np(dummy);
-}
-
-PetscReal Particles::qn_Np(const PointByField& point) const
-{
-  Point dummy(point.r, Vector3R{});
-  return interfaces::Particles::qn_Np(dummy);
 }
 
 PetscErrorCode Particles::sync_dk_curr_storage()
@@ -344,35 +214,11 @@ PetscErrorCode Particles::sync_dk_curr_storage()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-/*
-PetscErrorCode Particles::prepare_storage()
-{
-  PetscFunctionBeginUser;
-  size = 0;
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    if (auto& curr = dk_curr_storage[g]; !curr.empty()) {
-      auto& prev = dk_prev_storage[g];
-      prev = std::vector(curr.begin(), curr.end());
-      size += (PetscInt)curr.size();
-    }
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-*/
-
 PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
 
   size = 0;
-
-  PetscCheck(
-    dk_curr_storage.size() == dk_prev_storage.size(),
-    PETSC_COMM_WORLD,
-    PETSC_ERR_ARG_SIZ,
-    "DK current and previous storages have different sizes: %zu != %zu",
-    dk_curr_storage.size(),
-    dk_prev_storage.size());
 
   for (PetscInt g = 0;
        g < static_cast<PetscInt>(dk_curr_storage.size());
@@ -384,43 +230,6 @@ PetscErrorCode Particles::prepare_storage()
 
     size += static_cast<PetscInt>(curr.size());
   }
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Particles::restore_from_prev_storage()
-{
-  PetscFunctionBeginUser;
-
-  PetscCheck(
-    dk_curr_storage.size() == dk_prev_storage.size(),
-    PETSC_COMM_WORLD,
-    PETSC_ERR_ARG_SIZ,
-    "DK current and previous storages have different sizes: %zu != %zu",
-    dk_curr_storage.size(),
-    dk_prev_storage.size());
-
-  PetscInt restored_size = 0;
-
-  for (PetscInt g = 0;
-       g < static_cast<PetscInt>(dk_prev_storage.size());
-       ++g) {
-    auto& curr = dk_curr_storage[g];
-    const auto& prev = dk_prev_storage[g];
-
-    curr.assign(prev.begin(), prev.end());
-
-    restored_size += static_cast<PetscInt>(prev.size());
-  }
-
-  PetscCheck(
-    restored_size == size,
-    PETSC_COMM_WORLD,
-    PETSC_ERR_PLIB,
-    "Restored DK particle number differs from saved number: "
-    "restored=%" PetscInt_FMT ", saved=%" PetscInt_FMT,
-    restored_size,
-    size);
 
   PetscFunctionReturn(PETSC_SUCCESS);
 }

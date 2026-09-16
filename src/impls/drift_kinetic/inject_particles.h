@@ -2,16 +2,14 @@
 #define SRC_IMPLS_DRIFT_KINETIC_INJECT_PARTICLES_H
 
 #include "src/pch.h"
-#include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/particles.h"
 #include "src/interfaces/command.h"
 #include "src/utils/particles_load.h"
 
 namespace drift_kinetic {
 
-/// @brief Drift-kinetic analog of `::InjectParticles`. Keeps the same interface,
-/// but adds the injected points directly into `Particles::dk_curr_storage`,
-/// converting them to `PointByField` with the locally interpolated `B`.
+class DriftKineticEsirkepov;
+
 class InjectParticles : public interfaces::Command {
 public:
   InjectParticles(                                   //
@@ -26,18 +24,12 @@ public:
 
   PetscErrorCode execute(PetscInt t) override;
 
-  std::string get_ionized_name() const;
-  std::string get_ejected_name() const;
-  PetscReal get_ionized_energy() const;
-  PetscReal get_ejected_energy() const;
-
 private:
-  PetscErrorCode log_statistics();
+  PetscErrorCode log_statistics(PetscInt added_particles,
+    PetscReal energy_i, PetscReal energy_e) const;
 
-  /// @brief Adds a single point into `particles.dk_curr_storage`, using
-  /// `esirkepov` to interpolate `B` at the point's position.
   PetscErrorCode add_particle(Particles& particles,
-    DriftKineticEsirkepov& esirkepov, const Point& point, bool* is_added);
+    DriftKineticEsirkepov& esirkepov, const Point& point, bool& is_added);
 
   Particles& ionized_;
   Particles& ejected_;
@@ -51,10 +43,6 @@ private:
   CoordinateGenerator generate_coordinate_;
   MomentumGenerator generate_momentum_i_;
   MomentumGenerator generate_momentum_e_;
-
-  PetscReal energy_i_ = 0.0;
-  PetscReal energy_e_ = 0.0;
-  PetscInt added_particles_ = 0;
 };
 
 }  // namespace drift_kinetic

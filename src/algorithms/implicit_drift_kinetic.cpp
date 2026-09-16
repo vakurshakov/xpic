@@ -65,11 +65,6 @@ void DriftKineticShapeGradB::setup(const DriftKineticSegment& segment){
 }
 
 void DriftKineticShapeE::setup(const DriftKineticSegment& segment){
-  p_s = Vector3R{
-    std::floor(segment.Rsmid[X] + 0.5),
-    std::floor(segment.Rsmid[Y] + 0.5),
-    std::floor(segment.Rsmid[Z] + 0.5),
-  };
 
   p_g = Vector3I{
     (PetscInt)std::floor(segment.Rsmid[X] + 0.5) - shr,
@@ -373,28 +368,6 @@ PetscErrorCode DriftKineticEsirkepov::interpolate( //
 
   b_p = b_p.normalized();
 
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode DriftKineticEsirkepov::interpolate_B_endpoints(
-  EndpointB& f, const Vector3R& Rn, const Vector3R& R0)
-{
-  PetscFunctionBeginHot;
-  f = {};
-
-  DriftKineticSegment track = make_track(R0, Rn);
-  std::vector<DriftKineticSegment> periodic_track =
-    periodic_segments(track, CellSplitMode::cell_centers);
-
-  Vector3R pR0 = make_begin(periodic_track.front());
-  Vector3R pRn = make_end(periodic_track.back());
-
-  PetscCall(interpolate_B(f.Bn_0, Bn_g, pR0));
-  PetscCall(interpolate_B(f.Bn1_0, Bn1_g, pR0));
-  PetscCall(interpolate_B(f.Bnh_0, Bnh_g, pR0));
-  PetscCall(interpolate_B(f.Bn_n, Bn_g, pRn));
-  PetscCall(interpolate_B(f.Bn1_n, Bn1_g, pRn));
-  PetscCall(interpolate_B(f.Bnh_n, Bnh_g, pRn));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

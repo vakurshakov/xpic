@@ -1,10 +1,6 @@
 #include "simulation.h"
 
-#include <random>
-
-#include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/utils/configuration.h"
-#include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
@@ -21,27 +17,16 @@ static constexpr PetscInt maxf = PETSC_UNLIMITED;
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-  PetscCall(DMCreateGlobalVector(da, &E));
-  PetscCall(DMCreateGlobalVector(da, &B));
-  PetscCall(DMCreateGlobalVector(da, &B0));
-  PetscCall(DMCreateGlobalVector(da, &J));
   PetscCall(DMCreateGlobalVector(da, &M));
   PetscCall(DMCreateGlobalVector(da, &E_hk));
   PetscCall(DMCreateGlobalVector(da, &B_hk));
   PetscCall(DMCreateGlobalVector(da, &Bn1));
 
-  PetscCall(DMCreateLocalVector(da, &E_loc));
-  PetscCall(DMCreateLocalVector(da, &B_loc));
   PetscCall(DMCreateLocalVector(da, &Bn_loc));
   PetscCall(DMCreateLocalVector(da, &Bn1_loc));
 
-  PetscCall(DMSetMatrixPreallocateOnly(da, PETSC_FALSE));
-  PetscCall(DMSetMatrixPreallocateSkip(da, PETSC_TRUE));
-
   Rotor rotor(da);
-  PetscCall(rotor.create_positive(&rotE));
   PetscCall(rotor.create_negative(&rotM));
-  PetscCall(rotor.create_negative(&rotB));
   PetscCall(MatScale(rotB, -1)); /// @see `Simulation::form_function()`
 
   PetscInt gn[3];
@@ -109,7 +94,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   if (!particles_.empty()) {
     trace = std::make_unique<PointByFieldTrace>(CONFIG().out_dir, *particles_[0], 1);
-    PetscCall(trace->initialize());
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -123,27 +107,18 @@ PetscErrorCode Simulation::finalize()
 
   if (trace) {
     PetscCall(trace->diagnose(geom_nt));
-    PetscCall(trace->finalize());
   }
 
   PetscCall(interfaces::Simulation::finalize());
 
-  PetscCall(VecDestroy(&E));
-  PetscCall(VecDestroy(&B));
-  PetscCall(VecDestroy(&B0));
-  PetscCall(VecDestroy(&J));
   PetscCall(VecDestroy(&M));
   PetscCall(VecDestroy(&E_hk));
   PetscCall(VecDestroy(&B_hk));
   PetscCall(VecDestroy(&Bn1));
 
-  PetscCall(VecDestroy(&E_loc));
-  PetscCall(VecDestroy(&B_loc));
   PetscCall(VecDestroy(&Bn_loc));
   PetscCall(VecDestroy(&Bn1_loc));
 
-  PetscCall(MatDestroy(&rotE));
-  PetscCall(MatDestroy(&rotB));
   PetscCall(MatDestroy(&rotM));
 
   PetscCall(SNESDestroy(&snes));
@@ -183,14 +158,6 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscCall(SNESGetSolution(snes, &sol));
   PetscCall(from_snes(sol, E_hk, B_hk));
 
-  for (auto& sort : particles_)
-    sort->set_energy_audit(true);
-
-  //PetscCall(form_current());
-
-  for (auto& sort : particles_)
-    sort->set_energy_audit(false);
-
   PetscCall(VecAXPBY(E, 2, -1, E_hk));
   PetscCall(VecAXPBY(B, 2, -1, B_hk));
 
@@ -218,9 +185,6 @@ PetscErrorCode Simulation::form_current()
 
   PetscCall(VecSet(J, 0.0));
   PetscCall(VecSet(M, 0.0));
-
-  //for (auto& sort : particles_)
-  //  PetscCall(sort->restore_from_prev_storage());
 
   for (auto& sort : particles_) {
     PetscCall(VecSet(sort->J, 0.0));
@@ -301,15 +265,9 @@ PetscErrorCode Simulation::form_function(Vec vf)
   PetscCall(MatMultAdd(rotM, M, E_f, E_f));
   PetscCall(MatMultAdd(rotB, B_hk, E_f, E_f));
 
-  PetscCall(VecAXPY(B, -1, B0));
-  PetscCall(VecAXPY(B_hk, -1, B0));
-
   // F(B) = (B^{n+1/2,k} - B^{n}) / (dt / 2) + rot(E^{n+1/2,k})
   PetscCall(VecAXPBYPCZ(B_f, +2 / dt, -2 / dt, 0, B_hk, B));
   PetscCall(MatMultAdd(rotE, E_hk, B_f, B_f));
-
-  PetscCall(VecAXPY(B, +1, B0));
-  PetscCall(VecAXPY(B_hk, +1, B0));
 
   PetscCall(to_snes(E_f, B_f, vf));
   PetscCall(DMRestoreGlobalVector(da, &B_f));

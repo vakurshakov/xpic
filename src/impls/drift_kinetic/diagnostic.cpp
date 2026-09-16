@@ -4,6 +4,7 @@
 
 #include "src/impls/drift_kinetic/simulation.h"
 #include "src/algorithms/simple_interpolation.h"
+#include "src/utils/configuration.h"
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/shape.h"
@@ -530,6 +531,8 @@ PetscErrorCode MatMultFieldView::finalize()
 PetscErrorCode MatMultFieldView::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
+  if (t % diagnose_period_ != 0)
+    PetscFunctionReturn(PETSC_SUCCESS);
   PetscCall(MatMult(op, source, field));
   PetscCall(::FieldView::diagnose(t));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -538,20 +541,6 @@ PetscErrorCode MatMultFieldView::diagnose(PetscInt t)
 PointByFieldTrace::PointByFieldTrace(const std::string& out_dir, const Particles& particles, PetscInt skip)
   : TableDiagnostic(out_dir + "/temporal/particle_trace.txt"), skip(skip), particles(particles)
 {
-}
-
-PetscErrorCode PointByFieldTrace::initialize()
-{
-  PetscFunctionBeginUser;
-  PetscCall(TableDiagnostic::initialize());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode PointByFieldTrace::finalize()
-{
-  PetscFunctionBeginUser;
-  PetscCall(TableDiagnostic::finalize());
-  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode PointByFieldTrace::diagnose(PetscInt t)
@@ -567,25 +556,23 @@ PetscErrorCode PointByFieldTrace::add_columns(PetscInt t)
   PetscFunctionBeginUser;
 
   const auto& storage = particles.get_dk_curr_storage();
-  bool found = false;
-  PointByField point;
+  const PointByField* point = nullptr;
 
   for (const auto& cell_list : storage) {
     if (!cell_list.empty()) {
-      point = cell_list.front();
-      found = true;
+      point = &cell_list.front();
       break;
     }
   }
 
-  if (found) {
-    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
-    add(13, "x_[c/wpe]", "{: .6e}", point.x());
-    add(13, "y_[c/wpe]", "{: .6e}", point.y());
-    add(13, "z_[c/wpe]", "{: .6e}", point.z());
-    add(13, "p_par_[mc]", "{: .6e}", point.p_par());
-    add(13, "p_perp_[mc]", "{: .6e}", point.p_perp());
-    add(13, "mu_p_[mc^2/B]", "{: .6e}", point.mu());
+  if (point != nullptr) {
+    add(24, "t_[1/wpe]", "{: .15e}", t * dt);
+    add(24, "x_[c/wpe]", "{: .15e}", point->x());
+    add(24, "y_[c/wpe]", "{: .15e}", point->y());
+    add(24, "z_[c/wpe]", "{: .15e}", point->z());
+    add(24, "p_par_[mc]", "{: .15e}", point->p_par());
+    add(24, "p_perp_[mc]", "{: .15e}", point->p_perp());
+    add(24, "mu_p_[mc^2/B]", "{: .15e}", point->mu());
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -613,14 +600,10 @@ void EnergyConservation::calculate_kinetic_energies(
 PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (charge_da == nullptr && t != 0) {
-    PetscCall(init_charge_conservation());
-    PetscCall(collect_charge_densities());
-  }
-
+  if (E_prev == nullptr && t != 0)
+    PetscCall(initialize());
 
   if (!initialized) {
-    PetscCall(VecDot(simulation.M, simulation.B, &a_MB));
     calculate_kinetic_energies(K_by_sort, K);
     initialized = true;
   }
@@ -634,15 +617,18 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 PetscErrorCode EnergyConservation::initialize()
 {
   PetscFunctionBeginUser;
+  if (E_prev != nullptr)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
   PetscCall(init_charge_conservation());
-  PetscCall(collect_charge_densities());
+  for (PetscInt i = 0; i < (PetscInt)simulation.particles_.size(); ++i)
+    PetscCall(collect_charge_density(i));
 
   PetscCall(DMCreateGlobalVector(simulation.da, &E_prev));
   PetscCall(DMCreateGlobalVector(simulation.da, &B_prev));
   PetscCall(VecCopy(simulation.E, E_prev));
   PetscCall(VecCopy(simulation.B, B_prev));
 
-  PetscCall(TableDiagnostic::initialize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -656,23 +642,18 @@ PetscErrorCode EnergyConservation::finalize()
 
   charge_locals.clear();
   charge_fields.clear();
-  current_densities.clear();
 
   PetscCall(VecDestroy(&E_prev));
   PetscCall(VecDestroy(&B_prev));
 
   PetscCall(MatDestroy(&divE));
   PetscCall(DMDestroy(&charge_da));
-  PetscCall(TableDiagnostic::finalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode EnergyConservation::init_charge_conservation()
 {
   PetscFunctionBeginUser;
-  if (charge_da != nullptr)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
   PetscInt g_size[3];
   PetscInt procs[3];
   PetscInt s;
@@ -688,11 +669,10 @@ PetscErrorCode EnergyConservation::init_charge_conservation()
     REP3_A(procs), 1, s, REP3_A(ownership), &charge_da));
   PetscCall(DMSetUp(charge_da));
 
-  current_densities.reserve(simulation.particles_.size() + 1);
   charge_locals.reserve(simulation.particles_.size());
   charge_fields.reserve(simulation.particles_.size());
 
-  for (const auto& sort : simulation.particles_) {
+  for (std::size_t i = 0; i < simulation.particles_.size(); ++i) {
     Vec local = nullptr;
     Vec field = nullptr;
 
@@ -701,13 +681,7 @@ PetscErrorCode EnergyConservation::init_charge_conservation()
 
     charge_locals.emplace_back(local);
     charge_fields.emplace_back(field);
-    current_densities.emplace_back(sort->J);
   }
-  current_densities.emplace_back(simulation.J);
-
-  PetscCheckAbort(current_densities.size() == charge_fields.size() + 1, PETSC_COMM_WORLD,
-    PETSC_ERR_USER,
-    "Number of `current_densities` should be one more than charge fields");
 
   Divergence divergence(simulation.da);
   PetscCall(divergence.create_negative(&divE));
@@ -717,15 +691,12 @@ PetscErrorCode EnergyConservation::init_charge_conservation()
 PetscErrorCode EnergyConservation::collect_charge_density(PetscInt sort_id)
 {
   PetscFunctionBeginUser;
-  PetscCheck(sort_id >= 0 &&
-      sort_id < (PetscInt)simulation.particles_.size(), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Invalid drift-kinetic sort index %" PetscInt_FMT, sort_id);
-
   auto& local = charge_locals[sort_id];
   auto& field = charge_fields[sort_id];
   const auto& sort = *simulation.particles_[sort_id];
-  const interfaces::Particles& particles = sort;
   const auto& dk_curr_storage = sort.get_dk_curr_storage();
+  const PetscReal qn_np = sort.parameters.q * sort.parameters.n /
+    static_cast<PetscReal>(sort.parameters.Np);
 
   PetscCall(VecSet(local, 0.0));
   PetscCall(VecSet(field, 0.0));
@@ -740,9 +711,6 @@ PetscErrorCode EnergyConservation::collect_charge_density(PetscInt sort_id)
     for (const auto& point : dk_curr_storage[g]) {
       shape.setup(point.r);
 
-      ::Point equivalent_point(point.r, Vector3R{});
-      const PetscReal qn_np = particles.qn_Np(equivalent_point);
-
       for (PetscInt i = 0; i < shape.shm; ++i) {
         const PetscInt g_x = shape.start[X] + i % shape.shw;
         const PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
@@ -756,14 +724,6 @@ PetscErrorCode EnergyConservation::collect_charge_density(PetscInt sort_id)
 
   PetscCall(DMDAVecRestoreArrayWrite(charge_da, local, &arr));
   PetscCall(DMLocalToGlobal(charge_da, local, ADD_VALUES, field));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode EnergyConservation::collect_charge_densities()
-{
-  PetscFunctionBeginUser;
-  for (PetscInt i = 0; i < (PetscInt)simulation.particles_.size(); ++i)
-    PetscCall(collect_charge_density(i));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -784,9 +744,12 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   }
   add(13, "AvgFieldIt", "{:d}", simulation.last_field_itnum);
 
+  PetscReal w_E = 0.0;
+  PetscReal w_B = 0.0;
+  PetscReal a_EJ = 0.0;
+  PetscReal a_MB = 0.0;
   PetscCall(VecDot(simulation.E, simulation.E, &w_E));
   PetscCall(VecDot(simulation.B, simulation.B, &w_B));
-  PetscCall(VecNorm(simulation.M, NORM_2, &w_M));
   PetscCall(VecDot(simulation.E_hk, simulation.J, &a_EJ));
   PetscCall(VecDot(simulation.M, simulation.B, &a_MB));
   w_E *= 0.5;
@@ -798,6 +761,8 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   PetscCall(DMGetGlobalVector(simulation.da, &fsum));
   PetscCall(DMGetGlobalVector(simulation.da, &fdiff));
 
+  PetscReal dWE = 0.0;
+  PetscReal dWB = 0.0;
   PetscCall(VecWAXPY(fdiff, -1.0, E_prev, simulation.E));
   PetscCall(VecWAXPY(fsum, +1.0, E_prev, simulation.E));
   PetscCall(VecDot(fsum, fdiff, &dWE));
@@ -814,8 +779,6 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   PetscCall(DMRestoreGlobalVector(simulation.da, &fsum));
   PetscCall(DMRestoreGlobalVector(simulation.da, &fdiff));
 
-  dF = dWE + dWB;
-
   add(13, "dK", "{: .6e}", (K - K0));
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;
@@ -823,28 +786,9 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   }
   add(13, "dE", "{: .6e}", dWE);
   add(13, "dB", "{: .6e}", dWB);
-  add(13, "dE+dB+dK", "{: .6e}", dF + (K - K0));
+  add(13, "dE+dB+dK", "{: .6e}", dWE + dWB + (K - K0));
   add(13, "dK-dMB+dt*dEJ", "{: .6e}", (K - K0) + (a_MB - a_MB0) - dt * a_EJ);
 
-  // Three-level particle-side decomposition of the energy defect, filled by
-  // the audited (post-SNES) `form_iteration()` of the previous step — the
-  // same step the `dK-dMB+dt*dEJ` column above covers.
-  // @see drift_kinetic::Particles::EnergyAudit
-  for (const auto& sort : simulation.particles_) {
-    const auto& name = sort->parameters.sort_name;
-    const auto& audit = sort->energy_audit();
-
-    PetscReal sums[3]{audit.D_push, audit.D_gradB, audit.D_total};
-    PetscReal maxs[2]{audit.max_D_push, audit.max_D_gradB};
-    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, sums, 3, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, maxs, 2, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
-
-    add(24, "D_push_" + name, "{: .6e}", sums[0]);
-    add(24, "D_gradB_" + name, "{: .6e}", sums[1]);
-    add(24, "D_total_" + name, "{: .6e}", sums[2]);
-    add(24, "maxD_push_" + name, "{: .6e}", maxs[0]);
-    add(24, "maxD_gradB_" + name, "{: .6e}", maxs[1]);
-  }
   add(13, "wK", "{: .6e}", (K));
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;
@@ -862,8 +806,6 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   PetscCall(DMGetGlobalVector(charge_da, &sum));
   PetscCall(VecSet(sum, 0.0));
 
-  // add_separator();
-
   PetscInt i = 0;
   for (; i < (PetscInt)charge_fields.size(); ++i) {
     PetscCall(VecCopy(charge_fields[i], diff));
@@ -873,7 +815,7 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
 
     PetscCall(VecAXPY(sum, 1.0, diff));
 
-    PetscCall(MatMultAdd(divE, current_densities[i], diff, diff));
+    PetscCall(MatMultAdd(divE, simulation.particles_[i]->J, diff, diff));
     PetscCall(VecNorm(diff, NORM_1_AND_2, norm));
 
     const auto& name = simulation.particles_[i]->parameters.sort_name;
@@ -881,7 +823,7 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
     add(13, "N2dQ_" + name, "{: .6e}", norm[1]);
   }
 
-  PetscCall(MatMultAdd(divE, current_densities[i], sum, sum));
+  PetscCall(MatMultAdd(divE, simulation.J, sum, sum));
   PetscCall(VecNorm(sum, NORM_1_AND_2, norm));
 
   add(13, "N1dQ_tot", "{: .6e}", norm[0]);

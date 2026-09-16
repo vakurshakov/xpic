@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(tests
+  drift_kinetic_segments_ex0
   drift_kinetic_exb_ex1
   drift_kinetic_gradb_ex2
   drift_kinetic_curv_ex3

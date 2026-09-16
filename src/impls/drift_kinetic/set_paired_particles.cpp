@@ -1,5 +1,6 @@
 #include "set_paired_particles.h"
 
+#include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/diagnostics/energy.h"
 #include "src/impls/drift_kinetic/simulation.h"
 #include "src/utils/geometries.h"
@@ -24,7 +25,7 @@ SetPairedParticles::SetPairedParticles(            //
 }
 
 PetscErrorCode SetPairedParticles::add_particle(Particles& particles,
-  DriftKineticEsirkepov& esirkepov, const Point& point, bool* is_added)
+  DriftKineticEsirkepov& esirkepov, const Point& point, bool& is_added)
 {
   PetscFunctionBeginUser;
   Vector3I vg{
@@ -55,8 +56,7 @@ PetscErrorCode SetPairedParticles::add_particle(Particles& particles,
   // bin in DK runs.
   particles.storage[g].emplace_back(point);
 
-  if (is_added)
-    *is_added = true;
+  is_added = true;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -67,9 +67,9 @@ PetscErrorCode SetPairedParticles::execute(PetscInt /* t */)
     PetscFunctionReturn(PETSC_SUCCESS);
   executed_ = true;
 
-  energy_i_ = 0.0;
-  energy_e_ = 0.0;
-  added_particles_ = 0;
+  PetscReal energy_i = 0.0;
+  PetscReal energy_e = 0.0;
+  PetscInt added_particles = 0;
 
   const PetscReal mi = ionized_.parameters.m;
   const PetscReal mpwi = ionized_.parameters.n / ionized_.parameters.Np;
@@ -85,46 +85,46 @@ PetscErrorCode SetPairedParticles::execute(PetscInt /* t */)
   DriftKineticEsirkepov esirkepov(simulation.B_arr);
 
   for (PetscInt p = 0; p < number_of_particles_; ++p) {
-    Vector3R shared_coordinate = generate_coordinate_();
-    Vector3R pi = generate_momentum_i_(shared_coordinate);
-    Vector3R pe = generate_momentum_e_(shared_coordinate);
+    const Vector3R shared_coordinate = generate_coordinate_();
+    const Vector3R pi = generate_momentum_i_(shared_coordinate);
+    const Vector3R pe = generate_momentum_e_(shared_coordinate);
 
     bool is_added = false;
-    PetscCall(add_particle(ionized_, esirkepov, Point(shared_coordinate, pi), &is_added));
-    PetscCall(add_particle(ejected_, esirkepov, Point(shared_coordinate, pe), &is_added));
+    PetscCall(add_particle(ionized_, esirkepov,
+      Point(shared_coordinate, pi), is_added));
+    PetscCall(add_particle(ejected_, esirkepov,
+      Point(shared_coordinate, pe), is_added));
 
     if (is_added) {
-      energy_i_ += Energy::get_kinetic(pi, mi, mpwi);
-      energy_e_ += Energy::get_kinetic(pe, me, mpwe);
-      added_particles_++;
+      energy_i += Energy::get_kinetic(pi, mi, mpwi);
+      energy_e += Energy::get_kinetic(pe, me, mpwe);
+      ++added_particles;
     }
   }
 
   PetscCall(DMDAVecRestoreArrayRead(
     simulation.da, simulation.B_loc, &simulation.B_arr));
 
-  PetscCall(log_statistics());
+  PetscCall(log_statistics(added_particles, energy_i, energy_e));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode SetPairedParticles::log_statistics()
+PetscErrorCode SetPairedParticles::log_statistics(PetscInt added_particles,
+  PetscReal energy_i, PetscReal energy_e) const
 {
   PetscFunctionBeginUser;
   LOG("  Paired particles have been set into \"{}\" + \"{}\"",
     ionized_.parameters.sort_name, ejected_.parameters.sort_name);
 
-  PetscCall(MPIUtils::log_statistics("    ", added_particles_, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &added_particles_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCall(MPIUtils::log_statistics("    ", added_particles, PETSC_COMM_WORLD));
 
-  const std::vector<std::pair<std::string, PetscReal&>> map{
-    {ionized_.parameters.sort_name, energy_i_},
-    {ejected_.parameters.sort_name, energy_e_},
-  };
-
-  for (auto&& [name, energy] : map) {
-    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-    LOG("    energy added into \"{}\": {:6.4e}", name, energy);
-  }
+  PetscReal energy[2]{energy_i, energy_e};
+  PetscCallMPI(MPI_Allreduce(
+    MPI_IN_PLACE, energy, 2, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  LOG("    energy added into \"{}\": {:6.4e}",
+    ionized_.parameters.sort_name, energy[0]);
+  LOG("    energy added into \"{}\": {:6.4e}",
+    ejected_.parameters.sort_name, energy[1]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

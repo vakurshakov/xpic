@@ -12,6 +12,12 @@ TEST_DIR = os.path.dirname(SCRIPT_DIR)
 sys.path.append(os.path.join(TEST_DIR, "../../tools"))
 
 from lib.plot_utils import figure, subplot
+import matplotlib.pyplot as plt
+
+plt.rcParams["text.usetex"] = False
+plt.rcParams["mathtext.fontset"] = "cm"
+plt.rcParams["font.family"] = "cmr10"
+plt.rcParams["axes.formatter.use_mathtext"] = True
 
 OUT = os.path.join(TEST_DIR, "output", "drift_kinetic_curv_ex3")
 DK_DIR = os.path.join(OUT, "drift_kinetic")
@@ -33,12 +39,12 @@ COLOR_KIN = "black"
 COLOR_DK = "red"
 COLOR_TH = "black"
 
-LABELSIZE = 17
-TICKSIZE = 13
-LEGENDSIZE = 12
-PANELSIZE = 17
-TITLESIZE = 16
-OFFSETSIZE = 15
+LABELSIZE = 28
+TICKSIZE = 27
+LEGENDSIZE = 26
+PANELSIZE = 26
+TITLESIZE = 26
+OFFSETSIZE = 27
 
 
 def load_config(path):
@@ -57,18 +63,28 @@ def azimuthal_center(config):
     raise KeyError("SetAzimuthalField preset is not found in the config")
 
 
+def azimuthal_B0(config):
+    """Return the exact prescribed |B| from SetAzimuthalField."""
+    for preset in config["Presets"]:
+        if preset.get("command") != "SetMagneticField":
+            continue
+        setter = preset["setter"]
+        if setter.get("name") == "SetAzimuthalField":
+            return abs(float(setter["value"]))
+    raise KeyError("SetAzimuthalField preset is not found in the config")
+
+
 def load_trace(path, subdir="temporal"):
     return np.loadtxt(os.path.join(path, subdir, "particle_trace.txt"), skiprows=1)
 
 
-def curvature_drift(dk, cx, cy, q, m):
-    # Theoretical curvature drift V = m v_par^2 / (q B R) from the run's initial
-    # invariants (|B| = m p_perp^2 / 2mu so it matches the interpolated field).
-    p_par, p_perp, mu = dk[:, 4], dk[:, 5], dk[:, 6]
-    b_gc = m * p_perp[0] ** 2 / (2.0 * mu[0])
+def curvature_drift(dk, cx, cy, q, m, B0):
+    # Theoretical curvature drift V = m v_par^2 / (q B0 R), using the exact
+    # field magnitude prescribed by SetAzimuthalField.
+    p_par = dk[:, 4]
     R = np.hypot(dk[0, 1] - cx, dk[0, 2] - cy)
     v_par = p_par[0] / m
-    return m * v_par ** 2 / (q * b_gc * R), b_gc
+    return m * v_par ** 2 / (q * B0 * R)
 
 
 def mark_ends(ax, xs, ys, color):
@@ -79,13 +95,17 @@ def mark_ends(ax, xs, ys, color):
 
 def style_axes(ax, panel):
     ax.minorticks_on()
+    ax.set_box_aspect(1)
+    ax.grid(True, which="both", alpha=0.25)
     # Ticks on every side, pointing inward; x labels only on the bottom.
     ax.tick_params(axis="both", which="both", direction="in",
         top=True, bottom=True, left=True, right=True, labelsize=TICKSIZE)
     ax.tick_params(axis="x", which="both", labelbottom=True, labeltop=False)
     ax.tick_params(axis="y", which="both", labelleft=True, labelright=False)
-    ax.text(0.88, 0.98, panel, transform=ax.transAxes,
-        ha="right", va="top", fontsize=PANELSIZE,
+    ax.xaxis.get_offset_text().set_fontsize(OFFSETSIZE)
+    ax.yaxis.get_offset_text().set_fontsize(OFFSETSIZE)
+    ax.text(0.97, 0.97, panel, transform=ax.transAxes,
+        ha="right", va="top", fontsize=PANELSIZE, zorder=20,
         bbox=dict(facecolor="white", edgecolor="none", alpha=0.6,
             boxstyle="round,pad=0.2"))
 
@@ -98,6 +118,7 @@ def main():
 
     center = azimuthal_center(cfg_dk)
     cx, cy = center[0], center[1]
+    B0 = azimuthal_B0(cfg_dk)
 
     # Panels (a), (b): coarse drift-kinetic run (tau = 10) vs the kinetic
     # reference (tau = 0.1), stored in the same case subdir as the drift run.
@@ -113,11 +134,11 @@ def main():
     kin = load_trace(KIN_DIR, kin_subdir)
 
     t_dk, x_dk, y_dk, z_dk = dk[:, 0], dk[:, 1], dk[:, 2], dk[:, 3]
-    p_perp_dk, mu_dk = dk[:, 5], dk[:, 6]
+    p_perp_dk = dk[:, 5]
     t_kin, x_kin, y_kin, z_kin = kin[:, 0], kin[:, 1], kin[:, 2], kin[:, 3]
 
-    v_drift, b_gc = curvature_drift(dk, cx, cy, q, m)
-    rho = p_perp_dk[0] / (abs(q) * b_gc)
+    v_drift = curvature_drift(dk, cx, cy, q, m, B0)
+    rho = p_perp_dk[0] / (abs(q) * B0)
     z_gc = z_dk[0]
 
     # Steps are stored in 1/w_pe; Omega_e = |q| B0 / m = 1 by design, so the
@@ -125,7 +146,7 @@ def main():
     label_kin = rf"kinetic: $\tau = {TAU_KIN:g}/\Omega_e$"
     label_dk = rf"drift-kinetic: $\tau = {AB_RUN[1]:g}/\Omega_e$"
 
-    fig, gs = figure(ncols=3, nrows=1, figsize=(14, 4.5))
+    fig, gs = figure(ncols=3, nrows=1, figsize=(25.0, 8.1))
 
     # (a) Trajectory projected on the (x, y) plane: the guiding center follows
     # the circular field line of radius R; the drift is out of plane (along z).
@@ -158,8 +179,9 @@ def main():
     z_dk_dev = z_dk - v_drift * t_dk
     ax.plot(t_kin, z_kin_dev, color=COLOR_KIN, lw=1.0, label=label_kin)
     ax.plot(t_dk, z_dk_dev, color=COLOR_DK, lw=2.0, label=label_dk)
-    ax.axhline(z_gc + rho, color="gray", ls=":", lw=1.0, label=r"theory $\pm\ \rho_e$")
-    ax.axhline(z_gc - rho, color="gray", ls=":", lw=1.0)
+    ax.axhline(z_gc + rho, color="0.25", ls=":", lw=2.0, zorder=3,
+               label=r"theory $\pm\ \rho_e$")
+    ax.axhline(z_gc - rho, color="0.25", ls=":", lw=2.0, zorder=3)
     mark_ends(ax, t_kin, z_kin_dev, COLOR_KIN)
     mark_ends(ax, t_dk, z_dk_dev, COLOR_DK)
     ax.set_ylim(z_gc - 1.5 * rho, z_gc + 2.5 * rho)
@@ -175,16 +197,20 @@ def main():
     for run_dir, tau, run_dx, color in CONV_RUNS:
         run = load_trace(DK_DIR, run_dir)
         t, z = run[:, 0], run[:, 3]
-        v_run, _ = curvature_drift(run, cx, cy, q, m)
-        v_num = np.gradient(z, t)
+        v_run = curvature_drift(run, cx, cy, q, m, B0)
+        t_mid = 0.5 * (t[:-1] + t[1:])
+        v_num = np.diff(z) / np.diff(t)
         rel_err = np.abs((v_num - v_run) / v_run)
         err_max = max(err_max, float(np.max(rel_err)))
         label = rf"$\tau = {tau:g}/\Omega_e,\ \Delta x = {run_dx:g}\,c/\omega_{{pe}}$"
-        ax.plot(t, rel_err, color=color, lw=2.2, label=label)
+        ax.plot(t_mid, rel_err, color=color, lw=2.2, label=label)
         print(f"{run_dir:>20}: max |rel. error| = {np.max(rel_err):.3e}")
     ax.axhline(0.0, color=COLOR_TH, ls="--", lw=1.0)
     ax.set_xlim(0.0, 300.0)
-    ax.set_ylim(0.0, 2e-3)
+    # Do not clip a convergence curve when its error is slightly larger than
+    # the former fixed 2e-3 article range.  Retain that range as the minimum
+    # and leave enough headroom for the three-row legend above every curve.
+    ax.set_ylim(0.0, max(2e-3, 1.5 * err_max))
     ax.set_xlabel(r"$t,\ \omega_{pe}^{-1}$", fontsize=LABELSIZE)
     ax.set_ylabel(r"$\delta_V(t)$", fontsize=LABELSIZE)
     ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
@@ -192,10 +218,12 @@ def main():
     ax.legend(loc="upper left", fontsize=LEGENDSIZE)
     style_axes(ax, "(c)")
 
-    fig.tight_layout(pad=1.2, w_pad=2.5)
-    image = os.path.join(OUT, "drift_kinetic_curv_ex3_convergence.png")
-    fig.savefig(image, dpi=150)
-    print(f"Saved figure to {image}")
+    fig.tight_layout(w_pad=1.8)
+    for extension in ("png", "pdf"):
+        image = os.path.join(
+            OUT, f"drift_kinetic_curv_ex3_convergence.{extension}")
+        fig.savefig(image, dpi=150, bbox_inches="tight", pad_inches=0.12)
+        print(f"Saved figure to {image}")
 
 
 if __name__ == "__main__":

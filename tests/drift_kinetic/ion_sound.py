@@ -732,7 +732,7 @@ def load_kinetic_distribution_ic(config, const, config_dir, species, k,
 def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
                          exact_ic=False, omega0=None, E0=0.0,
                          initial_distribution=None, initial_field=None,
-                         use_realized_equilibrium=False):
+                         use_realized_equilibrium=False, return_flux=False):
     """Exact linearized Vlasov-Poisson evolution of one Fourier mode e^{ikz}.
 
     Advances the first-harmonic perturbed distribution of every species,
@@ -773,7 +773,8 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
     the ballistic phase-mixing exactly and self-consistently.
 
     Returns (t_rec, nhat, ehat), sampled at `n_record` uniform times in
-    [0, t_max].
+    [0, t_max].  With ``return_flux=True``, additionally returns the complex
+    first harmonic of int(v*f_s)dv for every species.
     """
     use_ampere = initial_field is not None
     wp_tot = math.sqrt(sum(s.wp ** 2 for s in species))
@@ -864,6 +865,10 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
     t_rec = [0.0]
     nhat = {s.name: [complex(np.dot(f[s.name], weights[s.name]))]
             for s in species}
+    flux_hat = {
+        s.name: [complex(np.dot(grids[s.name] * f[s.name],
+                                weights[s.name]))]
+        for s in species}
     ehat = [field]
     for step in range(1, n_steps + 1):
         k1f, k1e = rhs(f, field)
@@ -887,9 +892,16 @@ def solve_vlasov_poisson(species, cn_hat, u_hat, k, t_max, n_record=400,
             for s in species:
                 nhat[s.name].append(complex(
                     np.dot(f[s.name], weights[s.name])))
+                flux_hat[s.name].append(complex(np.dot(
+                    grids[s.name] * f[s.name], weights[s.name])))
             ehat.append(field)
-    return (np.array(t_rec), {n: np.array(v) for n, v in nhat.items()},
-            np.asarray(ehat))
+    result = (np.array(t_rec),
+              {n: np.array(v) for n, v in nhat.items()},
+              np.asarray(ehat))
+    if return_flux:
+        return (*result,
+                {n: np.array(v) for n, v in flux_hat.items()})
+    return result
 
 
 def plot_theory_amplitude(species, cn_hat, u_hat, omega0, k, n_periods,
@@ -899,6 +911,7 @@ def plot_theory_amplitude(species, cn_hat, u_hat, omega0, k, n_periods,
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
 
     T = 2.0 * math.pi / omega0.real
     Gamma = -omega0.imag
@@ -1619,7 +1632,7 @@ def density_comparison_series(ctx, dz, sort_name, model_tmax=None):
     z = (np.arange(const.Nz) + 0.5) * const.dz
     kernel = np.exp(-1j * ctx["k"] * z)
     result = {name: [] for name in
-              ("time", "first", "total", "residual")}
+              ("time", "harmonic", "first", "total", "residual")}
     for idx, name in steps:
         data = dz.load_frame(rows[0]["dir"], name)
         if data is None:
@@ -1628,13 +1641,15 @@ def density_comparison_series(ctx, dz, sort_name, model_tmax=None):
         first = complex(2.0 * np.mean(profile * kernel))
         residual = profile - np.real(first * np.conj(kernel))
         result["time"].append(idx * const.dts / ctx["T_wave"])
+        result["harmonic"].append(first)
         result["first"].append(abs(first))
         result["total"].append(float(np.sqrt(2.0 * np.mean(profile ** 2))))
         result["residual"].append(
             float(np.sqrt(2.0 * np.mean(residual ** 2))))
     if not result["time"]:
         raise SystemExit(f"Could not read '{sort_name}' density frames.")
-    return {key: np.asarray(value, dtype=float)
+    return {key: np.asarray(value, dtype=(complex if key == "harmonic"
+                                         else float))
             for key, value in result.items()}
 
 
@@ -2179,6 +2194,7 @@ def load_ion_harmonic(testname, args, dz):
         "testname": testname,
         "label": compare_label_with_particles(testname, ctx["config"]),
         "time": density["time"],
+        "harmonic": density["harmonic"],
         "amplitude": density["first"],
         "total_amplitude": density["total"],
         "noise_residual": density["residual"],
@@ -2383,7 +2399,10 @@ def run_compare_article(args):
 
     ``--article_log`` keeps the profile panel linear, uses logarithmic y-axes
     for the two amplitude panels, and writes compact monochrome and colored
-    (a), (c) figures whose profile also includes the state at t = 2T.
+    (a), (b) figures whose profile also includes the state at t = 2T.
+    ``--article_delta`` writes two colored-profile comparisons: one with the
+    signed first-harmonic difference from exact kinetic theory and one with
+    the full-amplitude difference from the same exact theory.
     """
     tests_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
@@ -2440,7 +2459,7 @@ def run_compare_article(args):
                          f"'{args.model}'.")
 
     targets = (0.0, ctx["T_wave"])
-    if args.article_log:
+    if args.article_log or args.article_delta:
         targets += (2.0 * ctx["T_wave"],)
     available = [(idx * const.dts, idx, name)
                  for idx, name in rows[0]["timesteps"]]
@@ -2506,6 +2525,164 @@ def run_compare_article(args):
     exponential = base["a0"] * np.exp(
         -base["Gamma"] *
         (exponential_time * base["T_wave"] - base["t0"]))
+
+    if args.article_delta:
+        fig, (ax_profile, ax_delta) = plt.subplots(
+            1, 2, figsize=(12.8, 6.2))
+
+        comparison_colors = ("#9467bd", "#2ca02c", "#ff7f0e")
+        profile_styles = (
+            (profiles[0], r"$t=0$", "-"),
+            (profiles[1], r"$t=T$", "--"),
+            (profiles[2], r"$t=2T$", ":"),
+        )
+        for (profile, label, linestyle), color in zip(
+                profile_styles, comparison_colors):
+            ax_profile.plot(
+                z, profile, color=color, linewidth=2.2,
+                marker="o", markersize=4.0, linestyle=linestyle,
+                label=label)
+        initial_amplitude = float(base["amplitude"][0])
+        ax_profile.axhline(
+            1.0 + initial_amplitude, color="0.5", linewidth=1.2,
+            linestyle="--")
+        ax_profile.axhline(
+            1.0 - initial_amplitude, color="0.5", linewidth=1.2,
+            linestyle="--")
+        ax_profile.set_xlim(0.0, const.Lz)
+        ax_profile.set_ylim(0.96, 1.04)
+        ax_profile.set_xlabel(r"$z,\ c/\omega_{pe}$", fontsize=label_fs)
+        ax_profile.set_ylabel(r"$n_i/n_0$", fontsize=label_fs)
+        ax_profile.legend(
+            loc="upper left", fontsize=legend_fs, framealpha=0.9)
+
+        delta_lines = [None] * len(runs)
+        delta_limit = 0.0
+        for index in reversed(range(len(runs))):
+            run = runs[index]
+            exact_at_run_frames = np.interp(
+                run["time"], theory_time, exact_ion)
+            harmonic_delta = run["amplitude"] - exact_at_run_frames
+            delta_limit = max(
+                delta_limit, float(np.max(np.abs(harmonic_delta))))
+            line, = ax_delta.plot(
+                run["time"], harmonic_delta,
+                color=colors[index % len(colors)], linewidth=2.4,
+                label=article_labels[index])
+            delta_lines[index] = line
+        delta_limit = 1.05 * delta_limit if delta_limit > 0.0 else 1.0
+        ax_delta.axhline(
+            0.0, color="black", linestyle="--", linewidth=1.2,
+            label="_nolegend_")
+        ax_delta.set_xlim(0.0, x_max)
+        ax_delta.set_ylim(-delta_limit, delta_limit)
+        ax_delta.set_xlabel(r"$t/T$", fontsize=label_fs)
+        ax_delta.set_ylabel(
+            r"$\left(|\delta n_{i,1}|-"
+            r"|\delta n_{\mathrm{theory}}|\right)/n_0$",
+            fontsize=label_fs)
+        ax_delta.legend(
+            handles=list(reversed(delta_lines)), loc="upper left",
+            fontsize=legend_fs, framealpha=0.9)
+
+        panel_box = dict(facecolor="white", edgecolor="none", alpha=0.6,
+                         boxstyle="round,pad=0.2")
+        for axis, panel in ((ax_profile, "(a)"), (ax_delta, "(b)")):
+            axis.minorticks_on()
+            axis.tick_params(axis="both", which="both", direction="in",
+                             top=True, right=True, labelsize=tick_fs)
+            axis.grid(True, alpha=0.25)
+            axis.set_box_aspect(1)
+            axis.text(
+                0.97, 0.97, panel, transform=axis.transAxes,
+                ha="right", va="top", fontsize=panel_fs, bbox=panel_box)
+
+        fig.tight_layout(w_pad=1.8)
+        out_dir = os.path.join(base["out_dir"], args.out_subdir)
+        os.makedirs(out_dir, exist_ok=True)
+        article_path = os.path.join(
+            out_dir, "ion_sound_compare_article_delta.png")
+        fig.savefig(article_path, dpi=args.dpi, bbox_inches="tight",
+                    pad_inches=0.12)
+        plt.close(fig)
+
+        total_fig, (total_profile, ax_total_delta) = plt.subplots(
+            1, 2, figsize=(12.8, 6.2))
+        for (profile, label, linestyle), color in zip(
+                profile_styles, comparison_colors):
+            total_profile.plot(
+                z, profile, color=color, linewidth=2.2,
+                marker="o", markersize=4.0, linestyle=linestyle,
+                label=label)
+        total_profile.axhline(
+            1.0 + initial_amplitude, color="0.5", linewidth=1.2,
+            linestyle="--")
+        total_profile.axhline(
+            1.0 - initial_amplitude, color="0.5", linewidth=1.2,
+            linestyle="--")
+        total_profile.set_xlim(0.0, const.Lz)
+        total_profile.set_ylim(0.96, 1.04)
+        total_profile.set_xlabel(
+            r"$z,\ c/\omega_{pe}$", fontsize=label_fs)
+        total_profile.set_ylabel(r"$n_i/n_0$", fontsize=label_fs)
+        total_profile.legend(
+            loc="upper left", fontsize=legend_fs, framealpha=0.9)
+
+        total_delta_lines = [None] * len(runs)
+        total_delta_limit = 0.0
+        for index in reversed(range(len(runs))):
+            run = runs[index]
+            valid = run["time"] >= run["t0"] / run["T_wave"]
+            run_time = run["time"][valid]
+            exact_at_run_frames = np.interp(
+                run_time, theory_time, exact_ion)
+            total_delta = run["total_amplitude"][valid] - \
+                exact_at_run_frames
+            total_delta_limit = max(
+                total_delta_limit, float(np.max(np.abs(total_delta))))
+            line, = ax_total_delta.plot(
+                run_time, total_delta,
+                color=colors[index % len(colors)], linewidth=2.4,
+                label=article_labels[index])
+            total_delta_lines[index] = line
+        total_delta_limit = (1.05 * total_delta_limit
+                             if total_delta_limit > 0.0 else 1.0)
+        ax_total_delta.axhline(
+            0.0, color="black", linestyle="--", linewidth=1.2,
+            label="_nolegend_")
+        ax_total_delta.set_xlim(0.0, x_max)
+        ax_total_delta.set_ylim(-total_delta_limit, total_delta_limit)
+        ax_total_delta.set_xlabel(r"$t/T$", fontsize=label_fs)
+        ax_total_delta.set_ylabel(
+            r"$\left(|\delta n_i|-"
+            r"|\delta n_i^{\mathrm{theory}}|\right)/n_0$",
+            fontsize=label_fs)
+        ax_total_delta.legend(
+            handles=list(reversed(total_delta_lines)), loc="upper left",
+            fontsize=legend_fs, framealpha=0.9)
+
+        for axis, panel in ((total_profile, "(a)"),
+                            (ax_total_delta, "(b)")):
+            axis.minorticks_on()
+            axis.tick_params(axis="both", which="both", direction="in",
+                             top=True, right=True, labelsize=tick_fs)
+            axis.grid(True, alpha=0.25)
+            axis.set_box_aspect(1)
+            axis.text(
+                0.97, 0.97, panel, transform=axis.transAxes,
+                ha="right", va="top", fontsize=panel_fs, bbox=panel_box)
+
+        total_fig.tight_layout(w_pad=1.8)
+        total_article_path = os.path.join(
+            out_dir, "ion_sound_compare_article_delta_total.png")
+        total_fig.savefig(
+            total_article_path, dpi=args.dpi, bbox_inches="tight",
+            pad_inches=0.12)
+        plt.close(total_fig)
+        print(f"Delta article comparison figure written to {article_path}")
+        print(f"Total-amplitude exact-theory delta figure written to "
+              f"{total_article_path}")
+        return
 
     fig, axes = plt.subplots(1, 3, figsize=(19.2, 6.2))
     ax_profile, ax_total, ax_noise = axes
@@ -2598,6 +2775,106 @@ def run_compare_article(args):
                 pad_inches=0.12)
     plt.close(fig)
 
+    complex_density_path = None
+    if args.article:
+        # A companion diagnostic which retains the phase of the ion-density
+        # harmonic.  Build a separate PIC-informed linear theory for every
+        # run from its saved f_s(z,v_parallel), z-averaged equilibrium and E1.
+        realized_runs = []
+        initial_frame = 0 if args.ic_from_dump is None else args.ic_from_dump
+        for run in runs:
+            run_ctx = prepare_theory(
+                run["testname"], ic_frame=args.ic_from_dump)
+            missing_distribution = [
+                s.name for s in run_ctx["species"]
+                if s.name not in run_ctx["initial_distribution"] or
+                "equilibrium" not in
+                run_ctx["initial_distribution"][s.name]
+            ]
+            if missing_distribution:
+                raise SystemExit(
+                    "--article complex-density figure requires "
+                    "DkDistributionFunction in the initial frame for every "
+                    f"species of '{run['testname']}'; missing: "
+                    f"{', '.join(missing_distribution)}")
+            field_time, field_harmonic, _ = electric_harmonic_series(
+                run_ctx, first_frame=initial_frame,
+                model_tmax=article_tmax)
+            duration = max(
+                float(run["time"][-1] * run_ctx["T_wave"] -
+                      run_ctx["t0"]),
+                1.0e-3 * run_ctx["T_wave"])
+            realized_time, realized_density, _ = solve_vlasov_poisson(
+                run_ctx["species"], run_ctx["cn_hat"], run_ctx["u_hat"],
+                run_ctx["k"], duration,
+                initial_distribution=run_ctx["initial_distribution"],
+                initial_field=complex(field_harmonic[0]),
+                use_realized_equilibrium=True)
+            realized_runs.append({
+                "time": (realized_time + run_ctx["t0"]) /
+                        run_ctx["T_wave"],
+                "harmonic": (realized_density[run_ctx["ion"].name] /
+                             run_ctx["ion"].n),
+            })
+
+        complex_fig, complex_axes = plt.subplots(
+            1, 3, figsize=(19.2, 6.2))
+        component_getters = (np.real, np.imag, np.angle)
+        component_labels = (
+            r"$\operatorname{Re}\,\delta n_{i,1}(t)/n_0$",
+            r"$\operatorname{Im}\,\delta n_{i,1}(t)/n_0$",
+            r"$\arg\delta n_{i,1}(t)$ [rad]",
+        )
+        complex_lines = [None] * len(runs)
+        for index in reversed(range(len(runs))):
+            run, prediction = runs[index], realized_runs[index]
+            color = colors[index % len(colors)]
+            for component_index, (axis, getter) in enumerate(zip(
+                    complex_axes, component_getters)):
+                pic_style = ({"linestyle": "none", "marker": ".",
+                              "markersize": 2.2, "alpha": 0.55}
+                             if component_index == 2 else
+                             {"linewidth": 2.0})
+                pic_line, = axis.plot(
+                    run["time"], getter(run["harmonic"]), color=color,
+                    label=article_labels[index], **pic_style)
+                axis.plot(
+                    prediction["time"], getter(prediction["harmonic"]),
+                    color=color, linewidth=1.8, linestyle="--",
+                    label="_nolegend_")
+            complex_lines[index] = pic_line
+
+        realized_style = Line2D(
+            [], [], color="black", linewidth=1.8, linestyle="--",
+            label=r"$\mathrm{theory\ from\ loaded}\ f_s,E_1$")
+        for axis, ylabel, panel in zip(
+                complex_axes, component_labels, ("(a)", "(b)", "(c)")):
+            axis.set_xlim(0.0, x_max)
+            axis.set_xlabel(r"$t/T$", fontsize=label_fs)
+            axis.set_ylabel(ylabel, fontsize=label_fs)
+            axis.minorticks_on()
+            axis.tick_params(axis="both", which="both", direction="in",
+                             top=True, right=True, labelsize=tick_fs)
+            axis.grid(True, which="both", alpha=0.25)
+            axis.set_box_aspect(1)
+            axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                      ha="right", va="top", fontsize=panel_fs,
+                      bbox=panel_box)
+            axis.legend(
+                handles=[*reversed(complex_lines), realized_style],
+                loc="upper right", fontsize=legend_fs, framealpha=0.9)
+        complex_axes[2].set_ylim(-math.pi, math.pi)
+        complex_axes[2].set_yticks(
+            [-math.pi, -0.5 * math.pi, 0.0, 0.5 * math.pi, math.pi],
+            labels=[r"$-\pi$", r"$-\pi/2$", "$0$", r"$\pi/2$", r"$\pi$"])
+        complex_fig.tight_layout(w_pad=1.8)
+        complex_density_path = os.path.join(
+            out_dir, "ion_sound_compare_article_density_complex.png")
+        complex_fig.savefig(
+            complex_density_path, dpi=args.dpi, bbox_inches="tight",
+            pad_inches=0.12)
+        plt.close(complex_fig)
+
     compact_article_path = None
     colored_compact_article_path = None
     if args.article_log:
@@ -2656,7 +2933,7 @@ def run_compare_article(args):
             fontsize=legend_fs, framealpha=0.9)
 
         for axis, panel in ((compact_profile, "(a)"),
-                            (compact_noise, "(c)")):
+                            (compact_noise, "(b)")):
             axis.minorticks_on()
             axis.tick_params(axis="both", which="both", direction="in",
                              top=True, right=True, labelsize=tick_fs)
@@ -2755,6 +3032,9 @@ def run_compare_article(args):
     print(f"    relative L2 error       = {first_harmonic_l2_error:.6f} %")
     print(f"    maximum relative error = {first_harmonic_max_error:.6f} %")
     print(f"Article comparison figure written to {article_path}")
+    if complex_density_path is not None:
+        print(f"Complex density-harmonic figure written to "
+              f"{complex_density_path}")
     if compact_article_path is not None:
         print(f"Compact article comparison figure written to "
               f"{compact_article_path}")
@@ -2763,6 +3043,900 @@ def run_compare_article(args):
               f"{colored_compact_article_path}")
     if spectrum_path is not None:
         print(f"Fourier spectrum figure written to {spectrum_path}")
+
+
+def run_article_electric(args):
+    """Raw, moving-average, decay and complex-E1 comparisons."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    plt.rcParams["text.usetex"] = False
+    plt.rcParams["mathtext.fontset"] = "cm"
+    plt.rcParams["font.family"] = "serif"
+    label_fs, tick_fs, legend_fs, panel_fs = 18, 15, 14, 18
+    colors = ("red", "blue", "green", "purple", "orange", "brown")
+
+    article_tmax = (args.article_tmax if args.article_tmax is not None
+                    else args.model_tmax)
+    first_frame = 0 if args.ic_from_dump is None else args.ic_from_dump
+    names = [args.model, *args.compare]
+    runs = []
+    for name in names:
+        ctx = prepare_theory(name, ic_frame=args.ic_from_dump)
+        field_time, field_harmonic, _ = electric_harmonic_series(
+            ctx, first_frame=first_frame, model_tmax=article_tmax)
+        fit_time = field_time - field_time[0]
+        _, gamma_model, _, _, fit_residual = fit_two_branch(
+            fit_time, field_harmonic, ctx["omega0"].real,
+            -ctx["omega0"].imag)
+        ion_info = next((item for item in ctx["config"].get("Particles", [])
+                         if item.get("sort_name") == ctx["ion"].name), None)
+        if ion_info is None or "Np" not in ion_info:
+            raise SystemExit(f"ion Np is not configured for '{name}'.")
+        nppc = float(ion_info["Np"])
+        runs.append({
+            "testname": name,
+            "label": rf"$N_{{\mathrm{{ppc}}}}={nppc:g}$",
+            "field_time": field_time / ctx["T_wave"],
+            "field_harmonic": field_harmonic,
+            "field_amplitude": np.abs(field_harmonic),
+            "T_wave": ctx["T_wave"],
+            "Gamma_model": gamma_model,
+            "Gamma_theory": -ctx["omega0"].imag,
+            "fit_residual": fit_residual,
+            "out_dir": ctx["const"].out_dir,
+        })
+
+    x_max = max(float(run["field_time"][-1]) for run in runs)
+
+    # Exact continuum theory for the base run only.  Reconstruct the requested
+    # configuration IC explicitly: prepare_theory may also discover a saved
+    # distribution, but --article_electric deliberately does not use it here.
+    base_ctx = prepare_theory(args.model, ic_frame=None)
+    configured_cn = {
+        name: -1j * values[0] * np.exp(1j * values[1])
+        for name, values in base_ctx["ic"].items()
+    }
+    configured_u = {
+        name: -1j * values[2] * np.exp(1j * values[3])
+        for name, values in base_ctx["ic"].items()
+    }
+    theory_duration = max(
+        x_max * base_ctx["T_wave"], 1.0e-3 * base_ctx["T_wave"])
+    theory_time, _, theory_field = solve_vlasov_poisson(
+        base_ctx["species"], configured_cn, configured_u, base_ctx["k"],
+        theory_duration, exact_ic=args.exact_ic,
+        omega0=base_ctx["omega0"], E0=base_ctx["E0"])
+    theory_time /= base_ctx["T_wave"]
+    theory_amplitude = np.abs(theory_field)
+
+    fig, (ax_field, ax_smooth, ax_decay) = plt.subplots(
+        1, 3, figsize=(19.2, 6.2))
+    field_lines = [None] * len(runs)
+    smooth_lines = [None] * len(runs)
+    decay_lines = [None] * len(runs)
+    for index in reversed(range(len(runs))):
+        run = runs[index]
+        color = colors[index % len(colors)]
+        field_line, = ax_field.plot(
+            run["field_time"], run["field_amplitude"], color=color,
+            linewidth=2.4, label=run["label"])
+        ax_smooth.plot(
+            run["field_time"], run["field_amplitude"], color=color,
+            linewidth=0.8, alpha=0.10, zorder=1, label="_nolegend_")
+        sample_count = run["field_time"].size
+        window = max(3, int(np.ceil(sample_count / 40.0)))
+        window = min(window, sample_count if sample_count % 2 else
+                     sample_count - 1)
+        if window >= 3:
+            if window % 2 == 0:
+                window -= 1
+            half_window = window // 2
+            kernel = np.full(window, 1.0 / window)
+            smoothed = np.convolve(
+                run["field_amplitude"], kernel, mode="valid")
+            smooth_time = run["field_time"][half_window:-half_window]
+        else:
+            smoothed = run["field_amplitude"]
+            smooth_time = run["field_time"]
+        smooth_line, = ax_smooth.plot(
+            smooth_time, smoothed, color=color, linewidth=2.4, zorder=2,
+            label=run["label"])
+        decay_time = np.linspace(
+            float(run["field_time"][0]),
+            float(run["field_time"][-1]), 500)
+        elapsed_time = ((decay_time - run["field_time"][0]) *
+                        run["T_wave"])
+        decay_amplitude = run["field_amplitude"][0] * np.exp(
+            -run["Gamma_model"] * elapsed_time)
+        theory_decay_amplitude = run["field_amplitude"][0] * np.exp(
+            -run["Gamma_theory"] * elapsed_time)
+        decay_line, = ax_decay.plot(
+            decay_time, decay_amplitude, color=color, linewidth=2.4,
+            label=run["label"])
+        ax_decay.plot(
+            decay_time, theory_decay_amplitude, color=color,
+            linewidth=2.0, linestyle="--", label="_nolegend_")
+        field_lines[index] = field_line
+        smooth_lines[index] = smooth_line
+        decay_lines[index] = decay_line
+    theory_line, = ax_field.plot(
+        theory_time, theory_amplitude, color="black", linestyle="--",
+        linewidth=2.0, label=r"$\mathrm{theory}$")
+    smooth_theory_line, = ax_smooth.plot(
+        theory_time, theory_amplitude, color="black", linestyle="--",
+        linewidth=2.0, zorder=2, label=r"$\mathrm{theory}$")
+
+    amplitude_limit = 1.05 * max(
+        float(np.max(theory_amplitude)),
+        *(float(np.max(run["field_amplitude"])) for run in runs))
+    ax_field.set_xlim(0.0, x_max)
+    ax_field.set_ylim(0.0, amplitude_limit)
+    ax_field.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_field.set_ylabel(r"$|E_{z,1}(t)|$", fontsize=label_fs)
+    ax_field.legend(
+        handles=[*reversed(field_lines), theory_line], loc="upper right",
+        fontsize=legend_fs, framealpha=0.9)
+
+    ax_smooth.set_xlim(0.0, x_max)
+    ax_smooth.set_ylim(0.0, amplitude_limit)
+    ax_smooth.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_smooth.set_ylabel(r"$|E_{z,1}(t)|$", fontsize=label_fs)
+    ax_smooth.legend(
+        handles=[*reversed(smooth_lines), smooth_theory_line],
+        loc="upper right", fontsize=legend_fs, framealpha=0.9)
+
+    ax_decay.set_xlim(0.0, x_max)
+    ax_decay.set_ylim(bottom=0.0)
+    ax_decay.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_decay.set_ylabel(r"$A_0 e^{-\Gamma t}$", fontsize=label_fs)
+    fit_style = Line2D(
+        [], [], color="black", linewidth=2.4, linestyle="-",
+        label=r"$\Gamma_{\mathrm{model}}$")
+    theory_style = Line2D(
+        [], [], color="black", linewidth=2.0, linestyle="--",
+        label=r"$\Gamma_{\mathrm{theory}}$")
+    ax_decay.legend(
+        handles=[*reversed(decay_lines), fit_style, theory_style],
+        loc="upper right",
+        fontsize=legend_fs, framealpha=0.9)
+
+    panel_box = dict(facecolor="white", edgecolor="none", alpha=0.6,
+                     boxstyle="round,pad=0.2")
+    for axis, panel in ((ax_field, "(a)"), (ax_smooth, "(b)"),
+                        (ax_decay, "(c)")):
+        axis.minorticks_on()
+        axis.tick_params(axis="both", which="both", direction="in",
+                         top=True, right=True, labelsize=tick_fs)
+        axis.grid(True, alpha=0.25)
+        axis.set_box_aspect(1)
+        axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                  ha="right", va="top", fontsize=panel_fs, bbox=panel_box)
+
+    fig.tight_layout(w_pad=1.8)
+    out_dir = os.path.join(runs[0]["out_dir"], args.out_subdir)
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(
+        out_dir, "ion_sound_compare_article_electric.png")
+    fig.savefig(out_path, dpi=args.dpi, bbox_inches="tight", pad_inches=0.12)
+    plt.close(fig)
+
+    # Separate diagnostic figure retaining the complex harmonic.  Plotting
+    # Re E1 and Im E1 exposes counter-propagating branches directly.  Keep the
+    # phase on its principal branch: unwrapping a noise-dominated E1 near zero
+    # would accumulate meaningless multiples of 2*pi.
+    complex_fig, (ax_real, ax_imag, ax_phase) = plt.subplots(
+        1, 3, figsize=(19.2, 6.2))
+    complex_axes = (ax_real, ax_imag, ax_phase)
+    component_getters = (
+        np.real,
+        np.imag,
+        np.angle,
+    )
+    component_labels = (
+        r"$\operatorname{Re} E_{z,1}(t)$",
+        r"$\operatorname{Im} E_{z,1}(t)$",
+        r"$\arg E_{z,1}(t)$ [rad]",
+    )
+    complex_lines = [None] * len(runs)
+    for index in reversed(range(len(runs))):
+        run = runs[index]
+        color = colors[index % len(colors)]
+        for component_index, (axis, getter) in enumerate(zip(
+                complex_axes, component_getters)):
+            pic_style = ({"linestyle": "none", "marker": ".",
+                          "markersize": 2.2, "alpha": 0.55}
+                         if component_index == 2 else
+                         {"linewidth": 2.0})
+            pic_line, = axis.plot(
+                run["field_time"], getter(run["field_harmonic"]),
+                color=color, label=run["label"], **pic_style)
+        complex_lines[index] = pic_line
+
+    for axis, getter in zip(complex_axes, component_getters):
+        axis.plot(
+            theory_time, getter(theory_field), color="black",
+            linewidth=1.8, linestyle="--", label="_nolegend_", zorder=3)
+    theory_complex_style = Line2D(
+        [], [], color="black", linewidth=1.8, linestyle="--",
+        label=r"$\mathrm{theory}$")
+    for axis, ylabel, panel in zip(
+            complex_axes, component_labels, ("(a)", "(b)", "(c)")):
+        axis.set_xlim(0.0, x_max)
+        axis.set_xlabel(r"$t/T$", fontsize=label_fs)
+        axis.set_ylabel(ylabel, fontsize=label_fs)
+        axis.minorticks_on()
+        axis.tick_params(axis="both", which="both", direction="in",
+                         top=True, right=True, labelsize=tick_fs)
+        axis.grid(True, which="both", alpha=0.25)
+        axis.set_box_aspect(1)
+        axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                  ha="right", va="top", fontsize=panel_fs, bbox=panel_box)
+        axis.legend(
+            handles=[*reversed(complex_lines), theory_complex_style],
+            loc="upper right", fontsize=legend_fs, framealpha=0.9)
+    ax_phase.set_ylim(-math.pi, math.pi)
+    ax_phase.set_yticks(
+        [-math.pi, -0.5 * math.pi, 0.0, 0.5 * math.pi, math.pi],
+        labels=[r"$-\pi$", r"$-\pi/2$", "$0$", r"$\pi/2$", r"$\pi$"])
+
+    complex_fig.tight_layout(w_pad=1.8)
+    complex_path = os.path.join(
+        out_dir, "ion_sound_compare_article_electric_complex.png")
+    complex_fig.savefig(
+        complex_path, dpi=args.dpi, bbox_inches="tight", pad_inches=0.12)
+    plt.close(complex_fig)
+
+    # Two residual figures: raw complex-component error and the same error
+    # after a centred moving average.  Interpolate the real and imaginary
+    # theory components separately so no amplitude/phase information is lost.
+    residual_runs = []
+    for run in runs:
+        theory_at_frames = (
+            np.interp(run["field_time"], theory_time, np.real(theory_field)) +
+            1j * np.interp(
+                run["field_time"], theory_time, np.imag(theory_field)))
+        residual = run["field_harmonic"] - theory_at_frames
+        sample_count = residual.size
+        window = max(3, int(np.ceil(sample_count / 40.0)))
+        window = min(window, sample_count if sample_count % 2 else
+                     sample_count - 1)
+        if window >= 3:
+            if window % 2 == 0:
+                window -= 1
+            half_window = window // 2
+            smooth_residual = np.convolve(
+                residual, np.full(window, 1.0 / window), mode="valid")
+            smooth_time = run["field_time"][half_window:-half_window]
+        else:
+            smooth_residual = residual
+            smooth_time = run["field_time"]
+        residual_runs.append({
+            "time": run["field_time"],
+            "residual": residual,
+            "smooth_time": smooth_time,
+            "smooth_residual": smooth_residual,
+        })
+
+    def save_residual_figure(smoothed, filename):
+        residual_fig, residual_axes = plt.subplots(
+            1, 2, figsize=(12.8, 6.2))
+        residual_lines = [None] * len(runs)
+        component_rows = ((np.real, "(a)"), (np.imag, "(b)"))
+        component_labels = (
+            r"$\operatorname{Re}(E_{z,1}-E_{z,1}^{\mathrm{theory}})$",
+            r"$\operatorname{Im}(E_{z,1}-E_{z,1}^{\mathrm{theory}})$",
+        )
+        limits = [0.0, 0.0]
+        for index in reversed(range(len(runs))):
+            values = (residual_runs[index]["smooth_residual"] if smoothed
+                      else residual_runs[index]["residual"])
+            times = (residual_runs[index]["smooth_time"] if smoothed
+                     else residual_runs[index]["time"])
+            color = colors[index % len(colors)]
+            for component_index, (axis, (getter, _)) in enumerate(zip(
+                    residual_axes, component_rows)):
+                component = getter(values)
+                line, = axis.plot(
+                    times, component, color=color, linewidth=2.2,
+                    label=runs[index]["label"])
+                limits[component_index] = max(
+                    limits[component_index],
+                    float(np.max(np.abs(component))))
+            residual_lines[index] = line
+
+        for component_index, (axis, (_, panel), ylabel) in enumerate(zip(
+                residual_axes, component_rows, component_labels)):
+            limit = (1.05 * limits[component_index]
+                     if limits[component_index] > 0.0 else 1.0)
+            axis.axhline(0.0, color="black", linewidth=1.1,
+                         linestyle="--", label="_nolegend_")
+            axis.set_xlim(0.0, x_max)
+            axis.set_ylim(-limit, limit)
+            axis.set_xlabel(r"$t/T$", fontsize=label_fs)
+            axis.set_ylabel(ylabel, fontsize=label_fs)
+            axis.minorticks_on()
+            axis.tick_params(axis="both", which="both", direction="in",
+                             top=True, right=True, labelsize=tick_fs)
+            axis.grid(True, which="both", alpha=0.25)
+            axis.set_box_aspect(1)
+            axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                      ha="right", va="top", fontsize=panel_fs,
+                      bbox=panel_box)
+            axis.legend(
+                handles=list(reversed(residual_lines)), loc="upper right",
+                fontsize=legend_fs, framealpha=0.9)
+        residual_fig.tight_layout(w_pad=1.8)
+        path = os.path.join(out_dir, filename)
+        residual_fig.savefig(
+            path, dpi=args.dpi, bbox_inches="tight", pad_inches=0.12)
+        plt.close(residual_fig)
+        return path
+
+    residual_path = save_residual_figure(
+        False, "ion_sound_compare_article_electric_residual.png")
+    residual_smooth_path = save_residual_figure(
+        True, "ion_sound_compare_article_electric_residual_smooth.png")
+    for run in runs:
+        ratio = (run["Gamma_model"] / run["Gamma_theory"]
+                 if run["Gamma_theory"] != 0.0 else math.nan)
+        print(f"  {run['testname']}: Gamma_model = "
+              f"{run['Gamma_model']:.9e}, Gamma_theory = "
+              f"{run['Gamma_theory']:.9e}, ratio = {ratio:.6f}, "
+              f"fit residual = {run['fit_residual']:.6e}")
+    print(f"Article electric comparison figure written to {out_path}")
+    print(f"Complex electric-harmonic figure written to {complex_path}")
+    print(f"Electric residual figure written to {residual_path}")
+    print(f"Smoothed electric residual figure written to "
+          f"{residual_smooth_path}")
+
+
+def run_article_final(args):
+    """Write the final density and electric-field article figures."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from matplotlib.ticker import MultipleLocator, ScalarFormatter
+
+    plt.rcParams["text.usetex"] = False
+    plt.rcParams["mathtext.fontset"] = "cm"
+    plt.rcParams["font.family"] = "serif"
+    label_fs, tick_fs, legend_fs, panel_fs = 18, 15, 14, 18
+    run_colors = ("red", "blue", "green", "purple", "orange", "brown")
+    profile_colors = ("#9467bd", "#2ca02c", "#ff7f0e")
+    panel_box = dict(facecolor="white", edgecolor="none", alpha=0.6,
+                     boxstyle="round,pad=0.2")
+    dz = _DensityZTools
+
+    article_tmax = (args.article_tmax if args.article_tmax is not None
+                    else args.model_tmax)
+    article_args = argparse.Namespace(**vars(args))
+    article_args.model_tmax = article_tmax
+    names = [args.model, *args.compare]
+    density_runs = [load_ion_harmonic(name, article_args, dz)
+                    for name in names]
+
+    def particle_label(testname):
+        run_ctx = prepare_theory(testname, ic_frame=args.ic_from_dump)
+        info = next((item for item in run_ctx["config"].get("Particles", [])
+                     if item.get("sort_name") == run_ctx["ion"].name), {})
+        count = info.get("Np", "?")
+        try:
+            count = f"{float(count):g}"
+        except (TypeError, ValueError):
+            count = str(count)
+        return rf"$N_{{\mathrm{{ppc}}}}={count}$"
+
+    labels = [particle_label(name) for name in names]
+
+    first_frame = 0 if args.ic_from_dump is None else args.ic_from_dump
+    electric_runs = []
+    for name in names:
+        run_ctx = prepare_theory(name, ic_frame=args.ic_from_dump)
+        field_time, field_harmonic, _ = electric_harmonic_series(
+            run_ctx, first_frame=first_frame, model_tmax=article_tmax)
+        electric_runs.append({
+            "time": field_time / run_ctx["T_wave"],
+            "amplitude": np.abs(field_harmonic),
+        })
+
+    # lib.constants is module-global and the comparison loop leaves the last
+    # run active.  Restore the base run before selecting its 0, T and 2T
+    # profiles, exactly as in --article_log.
+    base_ctx = prepare_theory(args.model, ic_frame=args.ic_from_dump)
+    const, ion = base_ctx["const"], base_ctx["ion"]
+
+    x_max = max(
+        *(float(run["time"][-1]) for run in density_runs),
+        *(float(run["time"][-1]) for run in electric_runs))
+    theory_duration = max(
+        x_max * base_ctx["T_wave"] - base_ctx["t0"],
+        1.0e-3 * base_ctx["T_wave"])
+    theory_time, theory_density, theory_field = solve_vlasov_poisson(
+        base_ctx["species"], base_ctx["cn_hat"], base_ctx["u_hat"],
+        base_ctx["k"],
+        theory_duration, exact_ic=args.exact_ic,
+        omega0=base_ctx["omega0"], E0=base_ctx["E0"],
+        initial_distribution=base_ctx["initial_distribution"])
+    theory_time = ((theory_time + base_ctx["t0"]) /
+                   base_ctx["T_wave"])
+    theory_density_amplitude = np.abs(theory_density[ion.name]) / ion.n
+    theory_field_amplitude = np.abs(theory_field)
+
+    # Density profiles of the base test nearest to 0, T and 2T.
+    rows = dz.collect_rows([ion.name])
+    if not rows and const.in_dir != base_ctx["config_dir"]:
+        const.in_dir = base_ctx["config_dir"]
+        const.out_dir = os.path.join(base_ctx["config_dir"], "processed")
+        rows = dz.collect_rows([ion.name])
+    if not rows:
+        raise SystemExit("--article_final: ion density diagnostic not found.")
+    available = [(idx * const.dts, name)
+                 for idx, name in rows[0]["timesteps"]]
+    profiles = []
+    for target in (0.0, base_ctx["T_wave"], 2.0 * base_ctx["T_wave"]):
+        _, frame_name = min(available, key=lambda item: abs(item[0] - target))
+        data = dz.load_frame(rows[0]["dir"], frame_name)
+        if data is None:
+            raise SystemExit(
+                f"--article_final: cannot read ion frame {frame_name}.")
+        profiles.append(data.mean(axis=(1, 2)) / ion.n)
+    z = (np.arange(const.Nz) + 0.5) * const.dz
+
+    # Figure 1: profile, logarithmic first harmonic, relative error.
+    density_fig, density_axes = plt.subplots(1, 3, figsize=(19.2, 6.2))
+    ax_profile, ax_density, ax_density_error = density_axes
+    for profile, color, linestyle, label in zip(
+            profiles, profile_colors, ("-", "--", ":"),
+            (r"$t=0$", r"$t=T$", r"$t=2T$")):
+        ax_profile.plot(z, profile, color=color, linewidth=2.2,
+                        marker="o", markersize=4.0,
+                        linestyle=linestyle, label=label)
+    ax_profile.set_xlim(0.0, const.Lz)
+    ax_profile.set_ylim(0.96, 1.04)
+    ax_profile.axhline(
+        1.03, color="0.5", linewidth=1.2, linestyle="--",
+        label="_nolegend_")
+    ax_profile.axhline(
+        0.97, color="0.5", linewidth=1.2, linestyle="--",
+        label="_nolegend_")
+    ax_profile.set_xlabel(r"$z,\ c/\omega_{pe}$", fontsize=label_fs)
+    ax_profile.set_ylabel(r"$n_i/n_0$", fontsize=label_fs)
+    ax_profile.legend(loc="upper left", fontsize=legend_fs, framealpha=0.9)
+
+    density_lines = [None] * len(density_runs)
+    density_error_lines = [None] * len(density_runs)
+    for index in reversed(range(len(density_runs))):
+        run = density_runs[index]
+        color = run_colors[index % len(run_colors)]
+        line, = ax_density.plot(
+            run["time"], run["amplitude"], color=color, linewidth=2.5,
+            label=labels[index])
+        density_lines[index] = line
+        exact = np.interp(
+            run["time"], theory_time, theory_density_amplitude)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            relative = (run["amplitude"] - exact) / exact
+        relative = np.where(np.isfinite(relative), relative, np.nan)
+        error_line, = ax_density_error.plot(
+            run["time"], relative, color=color, linewidth=2.2,
+            label=labels[index])
+        density_error_lines[index] = error_line
+    density_theory_line, = ax_density.plot(
+        theory_time, theory_density_amplitude, color="black",
+        linewidth=2.0, linestyle="--", label=r"$\mathrm{theory}$")
+    ax_density.set_xlim(0.0, x_max)
+    ax_density.set_yscale("log")
+    density_ymin, density_ymax = ax_density.get_ylim()
+    ax_density.set_ylim(density_ymin, density_ymax * 2.0)
+    ax_density.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_density.set_ylabel(r"$|\delta n_{i,1}(t)|/n_0$", fontsize=label_fs)
+    density_legend_handles = [*reversed(density_lines),
+                              density_theory_line]
+    ax_density.legend(
+        handles=density_legend_handles, loc="upper left",
+        ncol=int(math.ceil(len(density_legend_handles) / 2.0)),
+        fontsize=legend_fs, framealpha=0.9)
+    ax_density_error.axhline(
+        0.0, color="black", linewidth=1.8, linestyle="--")
+    ax_density_error.set_xlim(0.0, x_max)
+    ax_density_error.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_density_error.set_ylabel(
+        r"$(|\delta n_{i,1}|-|\delta n_{\mathrm{theory}}|)/"
+        r"|\delta n_{\mathrm{theory}}|$", fontsize=label_fs)
+    density_error_limit = max(
+        abs(value) for value in ax_density_error.get_ylim())
+    ax_density_error.set_ylim(-density_error_limit, density_error_limit)
+    ax_density_error.legend(
+        handles=list(reversed(density_error_lines)), loc="upper left", ncol=2,
+        fontsize=legend_fs, framealpha=0.9)
+    for axis, panel in zip(density_axes, ("(a)", "(b)", "(c)")):
+        axis.minorticks_on()
+        axis.tick_params(axis="both", which="both", direction="in",
+                         top=True, right=True, labelsize=tick_fs)
+        axis.grid(True, which="both", alpha=0.25)
+        axis.set_box_aspect(1)
+        axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                  ha="right", va="top", fontsize=panel_fs, bbox=panel_box)
+    density_fig.tight_layout(w_pad=1.8)
+
+    out_dir = os.path.join(density_runs[0]["out_dir"], args.out_subdir)
+    os.makedirs(out_dir, exist_ok=True)
+    density_path = os.path.join(out_dir, "ion_sound_compare_article_final.png")
+    density_fig.savefig(
+        density_path, dpi=args.dpi, bbox_inches="tight", pad_inches=0.12)
+    plt.close(density_fig)
+
+    # Figure 2: faint raw E1, moving average and exact relative error.
+    electric_fig, (ax_electric, ax_electric_error) = plt.subplots(
+        1, 2, figsize=(12.8, 6.2))
+    electric_lines = [None] * len(electric_runs)
+    electric_error_lines = [None] * len(electric_runs)
+    for index in reversed(range(len(electric_runs))):
+        run = electric_runs[index]
+        color = run_colors[index % len(run_colors)]
+        ax_electric.plot(
+            run["time"], run["amplitude"], color=color, linewidth=0.8,
+            alpha=0.20, zorder=1, label="_nolegend_")
+        count = run["amplitude"].size
+        window = max(3, int(np.ceil(count / 40.0)))
+        window = min(window, count if count % 2 else count - 1)
+        if window >= 3:
+            if window % 2 == 0:
+                window -= 1
+            half = window // 2
+            smooth = np.convolve(
+                run["amplitude"], np.full(window, 1.0 / window),
+                mode="valid")
+            smooth_time = run["time"][half:-half]
+        else:
+            smooth, smooth_time = run["amplitude"], run["time"]
+        line, = ax_electric.plot(
+            smooth_time, smooth, color=color, linewidth=2.5, zorder=2,
+            label=labels[index])
+        electric_lines[index] = line
+
+        exact = np.interp(run["time"], theory_time, theory_field_amplitude)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            relative = (run["amplitude"] - exact) / exact
+        relative = np.where(np.isfinite(relative), relative, np.nan)
+        ax_electric_error.plot(
+            run["time"], relative, color=color, linewidth=0.8,
+            alpha=0.20, zorder=1, label="_nolegend_")
+        if window >= 3:
+            smooth_relative = np.convolve(
+                relative, np.full(window, 1.0 / window), mode="valid")
+            relative_time = run["time"][half:-half]
+        else:
+            smooth_relative, relative_time = relative, run["time"]
+        error_line, = ax_electric_error.plot(
+            relative_time, smooth_relative, color=color, linewidth=2.2,
+            zorder=2, label=labels[index])
+        electric_error_lines[index] = error_line
+    electric_theory_line, = ax_electric.plot(
+        theory_time, theory_field_amplitude, color="black", linewidth=2.0,
+        linestyle="--", zorder=3, label=r"$\mathrm{theory}$")
+    ax_electric.set_xlim(0.0, x_max)
+    _, electric_ymax = ax_electric.get_ylim()
+    ax_electric.set_ylim(0.0, electric_ymax * 1.35)
+    ax_electric.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_electric.set_ylabel(r"$|E_{z,1}(t)|$", fontsize=label_fs)
+    electric_legend_handles = [*reversed(electric_lines),
+                               electric_theory_line]
+    ax_electric.legend(
+        handles=electric_legend_handles, loc="upper left",
+        ncol=int(math.ceil(len(electric_legend_handles) / 2.0)),
+        fontsize=legend_fs, framealpha=0.9)
+    ax_electric_error.axhline(
+        0.0, color="black", linewidth=1.8, linestyle="--", zorder=3)
+    ax_electric_error.set_xlim(0.0, x_max)
+    ax_electric_error.set_xlabel(r"$t/T$", fontsize=label_fs)
+    ax_electric_error.set_ylabel(
+        r"$(|E_{z,1}|-|E_{z,1}^{\mathrm{theory}}|)/"
+        r"|E_{z,1}^{\mathrm{theory}}|$", fontsize=label_fs)
+    electric_error_limit = max(
+        abs(value) for value in ax_electric_error.get_ylim())
+    ax_electric_error.set_ylim(-electric_error_limit,
+                               electric_error_limit)
+    ax_electric_error.legend(
+        handles=list(reversed(electric_error_lines)), loc="upper left", ncol=2,
+        fontsize=legend_fs, framealpha=0.9)
+    for axis, panel in ((ax_electric, "(a)"),
+                        (ax_electric_error, "(b)")):
+        axis.minorticks_on()
+        axis.tick_params(axis="both", which="both", direction="in",
+                         top=True, right=True, labelsize=tick_fs)
+        axis.grid(True, which="both", alpha=0.25)
+        axis.set_box_aspect(1)
+        axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                  ha="right", va="top", fontsize=panel_fs, bbox=panel_box)
+    electric_fig.tight_layout(w_pad=1.8)
+    electric_path = os.path.join(
+        out_dir, "ion_sound_compare_article_final_electric.png")
+    electric_fig.savefig(
+        electric_path, dpi=args.dpi, bbox_inches="tight", pad_inches=0.12)
+    plt.close(electric_fig)
+
+    # Figure 3: the three principal diagnostics collected on one canvas.
+    # Use Computer Modern for every textual element (not only formulas), so
+    # the complete figure has the same LaTeX article typography without an
+    # external TeX dependency.
+    plt.rcParams["text.usetex"] = False
+    plt.rcParams["mathtext.fontset"] = "cm"
+    plt.rcParams["font.family"] = "cmr10"
+    plt.rcParams["axes.formatter.use_mathtext"] = True
+    combined_label_fs = 41
+    combined_tick_fs = 40
+    combined_legend_fs = 38
+    combined_panel_fs = 38
+    combined_legend_kw = dict(
+        handlelength=1.5, handletextpad=0.5, columnspacing=1.2,
+        borderpad=0.3, labelspacing=0.35)
+    combined_fig, combined_axes = plt.subplots(
+        1, 3, figsize=(36.0, 11.6))
+    ax_combined_e, ax_combined_n, ax_combined_n_error = combined_axes
+
+    combined_e_lines = [None] * len(electric_runs)
+    for index in reversed(range(len(electric_runs))):
+        run = electric_runs[index]
+        color = run_colors[index % len(run_colors)]
+        ax_combined_e.plot(
+            run["time"], run["amplitude"], color=color, linewidth=0.8,
+            alpha=0.20, zorder=1, label="_nolegend_")
+        count = run["amplitude"].size
+        window = max(3, int(np.ceil(count / 40.0)))
+        window = min(window, count if count % 2 else count - 1)
+        if window >= 3:
+            if window % 2 == 0:
+                window -= 1
+            half = window // 2
+            smooth = np.convolve(
+                run["amplitude"], np.full(window, 1.0 / window),
+                mode="valid")
+            smooth_time = run["time"][half:-half]
+        else:
+            smooth, smooth_time = run["amplitude"], run["time"]
+        line, = ax_combined_e.plot(
+            smooth_time, smooth, color=color, linewidth=2.5, zorder=2,
+            label=labels[index])
+        combined_e_lines[index] = line
+    field_exponential = abs(base_ctx["E0"]) * np.exp(
+        base_ctx["omega0"].imag *
+        (theory_time - theory_time[0]) * base_ctx["T_wave"])
+    combined_e_theory, = ax_combined_e.plot(
+        theory_time, field_exponential, color="black", linewidth=2.0,
+        linestyle="--", zorder=3,
+        label=r"$E_0e^{-\Gamma t}$")
+    _, combined_e_ymax = ax_combined_e.get_ylim()
+    ax_combined_e.set_xlim(0.0, x_max)
+    ax_combined_e.set_ylim(0.0, combined_e_ymax * 1.35)
+    electric_formatter = ScalarFormatter(useMathText=True)
+    electric_formatter.set_powerlimits((-5, -5))
+    ax_combined_e.yaxis.set_major_formatter(electric_formatter)
+    ax_combined_e.yaxis.get_offset_text().set_fontsize(combined_tick_fs)
+    ax_combined_e.set_yticks(np.arange(2.0, 10.1, 2.0) * 1.0e-5)
+    ax_combined_e.set_xlabel(r"$t/T$", fontsize=combined_label_fs)
+    ax_combined_e.set_ylabel(
+        r"$|E_{z,1}(t)|$", fontsize=combined_label_fs)
+    combined_e_blanks = [
+        Line2D([], [], linestyle="none", alpha=0.0, label=" ")
+        for _ in range(max(0, len(combined_e_lines) - 1))]
+    combined_e_handles = [
+        *reversed(combined_e_lines), *combined_e_blanks,
+        combined_e_theory]
+    ax_combined_e.legend(
+        handles=combined_e_handles, loc="upper left",
+        ncol=2,
+        fontsize=combined_legend_fs, framealpha=0.9,
+        **combined_legend_kw)
+
+    combined_n_lines = [None] * len(density_runs)
+    combined_error_lines = [None] * len(density_runs)
+    for index in reversed(range(len(density_runs))):
+        run = density_runs[index]
+        color = run_colors[index % len(run_colors)]
+        line, = ax_combined_n.plot(
+            run["time"], run["amplitude"], color=color, linewidth=2.5,
+            label=labels[index])
+        combined_n_lines[index] = line
+        if index in (0, len(density_runs) - 1):
+            ax_combined_n.plot(
+                run["time"], run["noise_residual"], color=color,
+                linewidth=1.6, linestyle=":", label="_nolegend_")
+        exact = np.interp(
+            run["time"], theory_time, theory_density_amplitude)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            relative = (run["amplitude"] - exact) / exact
+        relative = np.where(np.isfinite(relative), relative, np.nan)
+        error_line, = ax_combined_n_error.plot(
+            run["time"], relative, color=color, linewidth=2.2,
+            label=labels[index])
+        combined_error_lines[index] = error_line
+    combined_n_theory, = ax_combined_n.plot(
+        theory_time, theory_density_amplitude, color="black",
+        linewidth=2.0, linestyle="--",
+        label=r"$\delta n_{\mathrm{theory}}$")
+    combined_n_residual = Line2D(
+        [], [], color="black", linewidth=1.6, linestyle=":",
+        label=r"$\delta n_{\mathrm{res}}$")
+    ax_combined_n.set_xlim(0.0, x_max)
+    ax_combined_n.set_yscale("log")
+    # Match --article_log: do not let the initially near-zero residual expand
+    # the logarithmic range by several irrelevant decades.
+    ax_combined_n.set_ylim(2.0e-3, 1.0e-1)
+    ax_combined_n.set_xlabel(r"$t/T$", fontsize=combined_label_fs)
+    ax_combined_n.set_ylabel(
+        r"$|\delta n_{i,1}(t)|/n_0$", fontsize=combined_label_fs)
+    # Matplotlib fills a two-column legend column-wise.  Pad the second column
+    # dynamically so that, for any number of compared tests, the first column
+    # contains tests only and the second contains theory and residual.
+    blank_legend_entries = [
+        Line2D([], [], linestyle="none", alpha=0.0, label=" ")
+        for _ in range(max(0, len(combined_n_lines) - 2))]
+    combined_n_handles = [
+        *reversed(combined_n_lines), *blank_legend_entries,
+        combined_n_theory, combined_n_residual]
+    ax_combined_n.legend(
+        handles=combined_n_handles, loc="upper left",
+        ncol=2,
+        fontsize=combined_legend_fs, framealpha=0.9,
+        **combined_legend_kw)
+
+    ax_combined_n_error.axhline(
+        0.0, color="black", linewidth=1.8, linestyle="--", zorder=3)
+    ax_combined_n_error.set_xlim(0.0, x_max)
+    combined_error_limit = max(
+        abs(value) for value in ax_combined_n_error.get_ylim())
+    ax_combined_n_error.set_ylim(-combined_error_limit,
+                                combined_error_limit)
+    ax_combined_n_error.set_xlabel(
+        r"$t/T$", fontsize=combined_label_fs)
+    ax_combined_n_error.set_ylabel(
+        r"$(|\delta n_{i,1}|-|\delta n_{\mathrm{theory}}|)/"
+        r"|\delta n_{\mathrm{theory}}|$",
+        fontsize=combined_label_fs)
+    ax_combined_n_error.legend(
+        handles=list(reversed(combined_error_lines)), loc="upper left",
+        ncol=1, fontsize=combined_legend_fs, framealpha=0.9,
+        **combined_legend_kw)
+
+    for axis, panel in zip(combined_axes, ("(a)", "(b)", "(c)")):
+        axis.xaxis.set_major_locator(MultipleLocator(0.5))
+        axis.minorticks_on()
+        axis.tick_params(axis="both", which="both", direction="in",
+                         top=True, right=True, labelsize=combined_tick_fs)
+        axis.grid(True, which="both", alpha=0.25)
+        axis.set_box_aspect(1)
+        axis.text(0.97, 0.97, panel, transform=axis.transAxes,
+                  ha="right", va="top", fontsize=combined_panel_fs,
+                  zorder=20,
+                  bbox=panel_box)
+    combined_fig.tight_layout(w_pad=1.8)
+    combined_path = os.path.join(
+        out_dir, "ion_sound_compare_article_final_combined.png")
+    combined_fig.savefig(
+        combined_path, dpi=args.dpi, bbox_inches="tight", pad_inches=0.12)
+    combined_pdf_path = os.path.join(
+        out_dir, "ion_sound_compare_article_final_combined.pdf")
+    combined_fig.savefig(
+        combined_pdf_path, bbox_inches="tight", pad_inches=0.12)
+    plt.close(combined_fig)
+
+    print(f"Final density article figure written to {density_path}")
+    print(f"Final electric article figure written to {electric_path}")
+    print(f"Final combined article figure written to {combined_path}")
+    print(f"Final combined article PDF written to {combined_pdf_path}")
+
+
+def run_article_energy(args):
+    """Compare electron kinetic-energy changes with exact kinetic theory."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    plt.rcParams["text.usetex"] = False
+    plt.rcParams["mathtext.fontset"] = "cm"
+    plt.rcParams["font.family"] = "serif"
+    label_fs, tick_fs, legend_fs = 18, 15, 14
+    colors = ("red", "blue", "green", "purple", "orange", "brown")
+
+    article_tmax = (args.article_tmax if args.article_tmax is not None
+                    else args.model_tmax)
+    runs = []
+    for name in [args.model, *args.compare]:
+        ctx = prepare_theory(name, ic_frame=args.ic_from_dump)
+        energy_time, energies = diagnostic_energy_series(ctx, article_tmax)
+        energy_column = f"wK_{ctx['electron'].name}"
+        if energy_column not in energies:
+            raise SystemExit(
+                f"{energy_column} column not found in dk_diagnostic for "
+                f"'{name}'.")
+        electron_energy = energies[energy_column]
+        model_delta = electron_energy - electron_energy[0]
+
+        theory_duration = max(
+            energy_time[-1] * ctx["T_wave"] - ctx["t0"],
+            1.0e-3 * ctx["T_wave"])
+        (theory_time, _, theory_field,
+         theory_flux) = solve_vlasov_poisson(
+            ctx["species"], ctx["cn_hat"], ctx["u_hat"], ctx["k"],
+            theory_duration, exact_ic=args.exact_ic,
+            omega0=ctx["omega0"], E0=ctx["E0"],
+            initial_distribution=ctx["initial_distribution"],
+            return_flux=True)
+        electron = ctx["electron"]
+        electron_current = electron.q * theory_flux[electron.name]
+        cell_count = ctx["const"].Nx * ctx["const"].Ny * ctx["const"].Nz
+        electron_power = 0.5 * cell_count * np.real(
+            electron_current * np.conj(theory_field))
+        theory_delta = np.zeros_like(theory_time)
+        theory_delta[1:] = np.cumsum(
+            0.5 * (electron_power[1:] + electron_power[:-1]) *
+            np.diff(theory_time))
+
+        ion_info = next((item for item in ctx["config"].get("Particles", [])
+                         if item.get("sort_name") == ctx["ion"].name), None)
+        nppc = float(ion_info["Np"]) if ion_info and "Np" in ion_info \
+            else math.nan
+        runs.append({
+            "testname": name,
+            "label": rf"$N_{{\mathrm{{ppc}}}}={nppc:g}$",
+            "model_time": energy_time,
+            "model_delta": model_delta,
+            "theory_time": (theory_time + ctx["t0"]) / ctx["T_wave"],
+            "theory_delta": theory_delta,
+            "out_dir": ctx["const"].out_dir,
+        })
+
+    fig, axis = plt.subplots(figsize=(7.0, 6.2))
+    run_handles = []
+    limit = 0.0
+    for index, run in enumerate(runs):
+        color = colors[index % len(colors)]
+        line, = axis.plot(
+            run["model_time"], run["model_delta"], color=color,
+            linewidth=2.4, linestyle="-", label=run["label"])
+        axis.plot(
+            run["theory_time"], run["theory_delta"], color=color,
+            linewidth=2.0, linestyle="--", label="_nolegend_")
+        run_handles.append(line)
+        limit = max(limit,
+                    float(np.max(np.abs(run["model_delta"]))),
+                    float(np.max(np.abs(run["theory_delta"]))))
+
+    limit = 1.05 * limit if limit > 0.0 else 1.0
+    axis.axhline(0.0, color="black", linewidth=1.0, linestyle=":",
+                 label="_nolegend_")
+    axis.set_xlim(0.0, max(float(run["model_time"][-1]) for run in runs))
+    axis.set_ylim(-limit, limit)
+    axis.set_xlabel(r"$t/T$", fontsize=label_fs)
+    axis.set_ylabel(r"$W_{K,e}(t)-W_{K,e}(0)$", fontsize=label_fs)
+    axis.minorticks_on()
+    axis.tick_params(axis="both", which="both", direction="in",
+                     top=True, right=True, labelsize=tick_fs)
+    axis.grid(True, alpha=0.25)
+    axis.set_box_aspect(1)
+    model_style = Line2D(
+        [], [], color="black", linewidth=2.4, linestyle="-",
+        label=r"$\mathrm{model}$")
+    theory_style = Line2D(
+        [], [], color="black", linewidth=2.0, linestyle="--",
+        label=r"$\mathrm{theory}$")
+    axis.legend(handles=[*run_handles, model_style, theory_style],
+                loc="best", fontsize=legend_fs, framealpha=0.9)
+
+    fig.tight_layout()
+    out_dir = os.path.join(runs[0]["out_dir"], args.out_subdir)
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(
+        out_dir, "ion_sound_compare_article_energy.png")
+    fig.savefig(out_path, dpi=args.dpi, bbox_inches="tight", pad_inches=0.12)
+    plt.close(fig)
+    print(f"Article electron-energy comparison figure written to {out_path}")
 
 
 def run_compare(args):
@@ -3923,10 +5097,33 @@ def build_parser():
     p.add_argument("--article_log", "--article-log", action="store_true",
                    help="same as --article, but use logarithmic y-axes in "
                         "panels (b) and (c), and also write monochrome and "
-                        "colored compact (a), (c) figures with the t=2T profile")
+                        "colored compact (a), (b) figures with the t=2T profile")
+    p.add_argument("--article_delta", "--article-delta", action="store_true",
+                   help="with --model and --compare, write two two-panel "
+                        "article figures with colored t=0,T,2T density "
+                        "profiles: first harmonic minus exact theory and "
+                        "full amplitude minus exact theory")
+    p.add_argument("--article_electric", "--article-electric",
+                   action="store_true",
+                   help="with --model and --compare, write a three-panel article "
+                        "figure comparing the first electric-field harmonic "
+                        "with exact theory, raw in panel (a) and with 10%%-"
+                        "opacity samples plus moving averages in panel (b); "
+                        "panel (c) compares fitted and theoretical decrements. "
+                        "Also write a separate Re(E1), Im(E1), arg(E1) figure "
+                        "with the base run's exact continuum theory")
+    p.add_argument("--article_energy", "--article-energy",
+                   action="store_true",
+                   help="with --model and --compare, compare the simulated "
+                        "electron kinetic-energy change with exact kinetic "
+                        "theory obtained by integrating electron J.E work")
+    p.add_argument("--article_final", "--article-final",
+                   action="store_true",
+                   help="with --model and --compare, write the final density "
+                        "and electric-field article figures")
     p.add_argument("-T", dest="article_tmax", type=float, default=None,
                    metavar="PERIODS",
-                   help="article modes: upper t/T limit of panels (b) and (c); "
+                   help="article modes: upper t/T limit of temporal panels; "
                         "takes precedence over --model-tmax")
     p.add_argument("--compare-temp", nargs="+", action="append", default=None,
                    metavar="TEST",
@@ -4029,15 +5226,24 @@ def main():
     p = build_parser()
     args = p.parse_args()
 
-    if args.article and args.article_log:
-        p.error("--article and --article_log are mutually exclusive.")
-    article_mode = args.article or args.article_log
+    selected_article_modes = sum((args.article, args.article_log,
+                                  args.article_delta,
+                                  args.article_electric,
+                                  args.article_energy,
+                                  args.article_final))
+    if selected_article_modes > 1:
+        p.error("--article, --article_log, --article_delta, "
+                "--article_electric, --article_energy and --article_final "
+                "are mutually "
+                "exclusive.")
+    article_mode = (args.article or args.article_log or args.article_delta or
+                    args.article_electric or args.article_energy or
+                    args.article_final)
     if article_mode and (args.model is None or args.compare is None or
                          args.model_electric is not None):
-        p.error("--article/--article_log requires density --model together "
-                "with --compare.")
+        p.error("article modes require --model together with --compare.")
     if args.article_tmax is not None and not article_mode:
-        p.error("-T is available only together with --article or --article_log.")
+        p.error("-T is available only with an article mode.")
     if args.article_tmax is not None and args.article_tmax <= 0.0:
         p.error("-T must be positive.")
 
@@ -4102,15 +5308,21 @@ def main():
             p.error("--model-tmax must be positive.")
         if args.model_electric is not None:
             if article_mode:
-                p.error("--article/--article_log supports density --model "
-                        "--compare only.")
+                p.error("article modes support density --model --compare only.")
             if len(args.compare) > 3:
                 p.error("electric --compare accepts at most three additional "
                         "tests (four stacked panels including the base test).")
             run_compare_electric(args)
         else:
             if article_mode:
-                run_compare_article(args)
+                if args.article_electric:
+                    run_article_electric(args)
+                elif args.article_energy:
+                    run_article_energy(args)
+                elif args.article_final:
+                    run_article_final(args)
+                else:
+                    run_compare_article(args)
             else:
                 run_compare(args)
         return
