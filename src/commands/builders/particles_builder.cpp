@@ -32,22 +32,7 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
     gen = CoordinateInCylinder(std::move(cyl));
   }
-  else if (name == "CoordinateInBoxQuietSinePaired") {
-    BoxGeometry box;
-    load_geometry(info, box);
-
-    Vector3R amplitude = parse_vector(info, "amplitude");
-    Vector3R wave_number = parse_vector(info, "wave_number");
-    Vector3R phase = info.contains("phase") ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
-
-    number_of_particles = (box.max - box.min).elements_product() * frac;
-    if (number_of_particles % 2 != 0)
-      throw std::runtime_error(
-        "CoordinateInBoxQuietSinePaired requires an even number of particles");
-    gen = CoordinateInBoxQuietSinePaired{
-      std::move(box), amplitude, wave_number, phase};
-  }
-  else if (name == "CoordinateInBoxQuietSineExactPaired") {
+  else if (name == "CoordinateIonSoundPaired") {
     BoxGeometry box;
     load_geometry(info, box);
 
@@ -59,24 +44,11 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = (box.max - box.min).elements_product() * frac;
     if (number_of_particles % 2 != 0)
       throw std::runtime_error(
-        "CoordinateInBoxQuietSineExactPaired requires an even number of particles");
+        "CoordinateIonSoundPaired requires an even number of particles");
     const std::size_t active_axis_lattice_pairs =
       static_cast<std::size_t>(number_of_particles / 2);
-    gen = CoordinateInBoxQuietSineExactPaired(std::move(box), amplitude,
+    gen = CoordinateIonSoundPaired(std::move(box), amplitude,
       wave_number, phase, active_axis_lattice_pairs);
-  }
-  else if (name == "CoordinateInBoxQuiet") {
-    BoxGeometry box;
-    load_geometry(info, box);
-
-    number_of_particles = (box.max - box.min).elements_product() * frac;
-    gen = CoordinateInBoxQuiet{std::move(box), Np, 0};
-  }
-  else if (name == "CoordinateInCylinderCosineHump") {
-    CylinderGeometry cyl;
-    load_geometry(info, cyl);
-    number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
-    gen = CoordinateInCylinderCosineHump(std::move(cyl));
   }
   else if (name == "CoordinateInBoxCosineHump") {
     BoxGeometry box;
@@ -93,7 +65,7 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     else throw std::runtime_error("Unknown axis for CoordinateInBoxCosineHump: " + axis_name);
 
     number_of_particles = (box.max - box.min).elements_product() * frac;
-    gen = CoordinateInBoxCosineHump{std::move(box), axis, 0};
+    gen = CoordinateInBoxCosineHump{std::move(box), axis};
   }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);
@@ -136,21 +108,7 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
 
     gen = MaxwellShiftedSine(particles.parameters, box, velocity, wave_number, phase);
   }
-  else if (name == "MaxwellShiftedSineQuiet") {
-    BoxGeometry box;
-    load_geometry(info, box);
-
-    Vector3R velocity = parse_vector(info, "velocity");
-    Vector3R wave_number = parse_vector(info, "wave_number");
-    Vector3R phase = info.contains("phase") ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
-
-    gen = MaxwellShiftedSineQuiet(
-      particles.parameters, box, velocity, wave_number, phase);
-  }
-  else if (name == "MaxwellianVelocityQuiet") {
-    gen = MaxwellianVelocityQuiet(particles.parameters);
-  }
-  else if (name == "KineticIonSoundMomentsQuiet") {
+  else if (name == "KineticIonSoundMoments") {
     BoxGeometry box;
     load_geometry(info, box);
 
@@ -166,7 +124,7 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
     const PetscReal omega_real = info.at("omega_real").get<PetscReal>();
     const PetscReal gamma = info.at("gamma").get<PetscReal>();
 
-    gen = KineticIonSoundMomentsQuiet(particles.parameters, std::move(box),
+    gen = KineticIonSoundMoments(particles.parameters, std::move(box),
       force_electric_amplitude, omega_real, gamma, wave_number, field_phase,
       density_amplitude, density_phase);
   }

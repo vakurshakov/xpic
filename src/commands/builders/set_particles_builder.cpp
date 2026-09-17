@@ -24,25 +24,20 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
 
   const auto coordinate_name =
     info.at("coordinate").at("name").get<std::string>();
-  const bool quiet_coordinate =
-    coordinate_name == "CoordinateInBoxQuietSinePaired" ||
-    coordinate_name == "CoordinateInBoxQuietSineExactPaired";
-  auto validate_quiet_pair = [this, quiet_coordinate, coordinate_name, &info](
+  const bool paired_coordinate = coordinate_name == "CoordinateIonSoundPaired";
+  auto validate_paired_loaders = [this, paired_coordinate, coordinate_name, &info](
                                const Configuration::json_t& momentum_info) {
     const auto momentum_name = momentum_info.at("name").get<std::string>();
-    const bool quiet_momentum =
-      momentum_name == "MaxwellShiftedSineQuiet" ||
-      momentum_name == "MaxwellianVelocityQuiet" ||
-      momentum_name == "KineticIonSoundMomentsQuiet";
-    if (quiet_coordinate != quiet_momentum)
+    const bool paired_momentum = momentum_name == "KineticIonSoundMoments";
+    if (paired_coordinate != paired_momentum)
       throw std::runtime_error(
-        "paired quiet coordinate and momentum generators must be used together");
+        "paired coordinate and momentum generators must be used together");
 
-    if (momentum_name != "KineticIonSoundMomentsQuiet")
+    if (momentum_name != "KineticIonSoundMoments")
       return;
-    if (coordinate_name != "CoordinateInBoxQuietSineExactPaired")
+    if (coordinate_name != "CoordinateIonSoundPaired")
       throw std::runtime_error(
-        "KineticIonSoundMomentsQuiet requires CoordinateInBoxQuietSineExactPaired");
+        "KineticIonSoundMoments requires CoordinateIonSoundPaired");
 
     const auto& coordinate_info = info.at("coordinate");
     const auto vector_or_zero = [this](const Configuration::json_t& block,
@@ -53,7 +48,7 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
                               const Vector3R& right, const char* what) {
       if ((left - right).abs_max() != 0.0)
         throw std::runtime_error(std::format(
-          "KineticIonSoundMomentsQuiet {} must match its coordinate loader",
+          "KineticIonSoundMoments {} must match its coordinate loader",
           what));
     };
     require_same(parse_vector(momentum_info, "min"),
@@ -82,8 +77,8 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
     auto* dk_b = dynamic_cast<drift_kinetic::Particles*>(&other);
 
     if (dk_a && dk_b) {
-      validate_quiet_pair(info.at("momentum"));
-      validate_quiet_pair(info.at("momentum_paired"));
+      validate_paired_loaders(info.at("momentum"));
+      validate_paired_loaders(info.at("momentum_paired"));
 
       MomentumGenerator generate_momentum_a;
       load_momentum(info.at("momentum"), particles, generate_momentum_a);
@@ -106,7 +101,7 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
       "SetParticles \"paired_with\" requires both sorts to be drift_kinetic");
   }
 
-  validate_quiet_pair(info.at("momentum"));
+  validate_paired_loaders(info.at("momentum"));
   MomentumGenerator generate_momentum;
   load_momentum(info.at("momentum"), particles, generate_momentum);
 

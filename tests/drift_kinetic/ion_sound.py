@@ -49,7 +49,7 @@ continuity equation  -i omega n_hat + i k n_s u_hat = 0,  u_hat = omega n_hat / 
 Caveats of the model.
   * Linear theory: the printed amplitudes are meaningful only while C_n,s / n_s
     << 1; the script warns above 5 %.
-  * KineticIonSoundMomentsQuiet samples this non-relativistic Gaussian directly
+  * KineticIonSoundMoments samples this non-relativistic Gaussian directly
     in velocity space.  Older momentum-space Maxwell loaders instead convert
     v = p / sqrt(m^2 + p^2), producing an O(v_T^2/c^2) model mismatch.
   * 1D electrostatic: matches the drift-kinetic solver only for k || B with
@@ -502,7 +502,7 @@ def loaded_perturbation(config, name):
 
     a_n, phi_n from the coordinate loader (amplitude_z / phase_z), C_u, phi_u
     from the momentum loader (velocity_z / phase_z).  For
-    KineticIonSoundMomentsQuiet, the flux harmonic is derived directly from
+    KineticIonSoundMoments, the flux harmonic is derived directly from
     M1=omega*M0/k. Handles two layouts:
       * a standalone SetParticles preset (particles == name);
       * a paired loader, where this sort is the `paired_with` target of another
@@ -515,7 +515,7 @@ def loaded_perturbation(config, name):
     def unpack(coord, mom):
         a_n = z_of(coord, "amplitude")
         phi_n = z_of(coord, "phase")
-        if mom.get("name") != "KineticIonSoundMomentsQuiet":
+        if mom.get("name") != "KineticIonSoundMoments":
             return (a_n, phi_n,
                     z_of(mom, "velocity"), z_of(mom, "phase"))
 
@@ -523,7 +523,7 @@ def loaded_perturbation(config, name):
         Lz = float(config.get("Geometry", {}).get("z", 0.0))
         if mode == 0.0 or Lz <= 0.0:
             raise ValueError(
-                "KineticIonSoundMomentsQuiet requires non-zero z mode and Lz")
+                "KineticIonSoundMoments requires non-zero z mode and Lz")
         k = 2.0 * math.pi * mode / Lz
         omega = complex(float(mom["omega_real"]), -float(mom["gamma"]))
         density_hat = -1j * a_n * np.exp(1j * phi_n)
@@ -550,7 +550,7 @@ def field_amplitude_from_config(config):
         if preset.get("command") != "SetParticles":
             continue
         momentum = preset.get("momentum", {})
-        if momentum.get("name") == "KineticIonSoundMomentsQuiet" and \
+        if momentum.get("name") == "KineticIonSoundMoments" and \
                 "force_electric_amplitude" in momentum:
             return float(momentum["force_electric_amplitude"])
 
@@ -580,7 +580,7 @@ def kinetic_loader_for_species(config, name):
     if preset is None:
         return None
     momentum = preset.get("momentum", {})
-    if momentum.get("name") != "KineticIonSoundMomentsQuiet":
+    if momentum.get("name") != "KineticIonSoundMoments":
         return None
     return momentum
 
@@ -1045,7 +1045,7 @@ def prepare_theory(testname, ic_frame=None):
     configured_moment_loader = None
     for s in species:
         candidate = kinetic_loader_for_species(config, s.name)
-        if (candidate or {}).get("name") == "KineticIonSoundMomentsQuiet":
+        if (candidate or {}).get("name") == "KineticIonSoundMoments":
             configured_moment_loader = candidate
             break
     if configured_moment_loader is not None:
@@ -4742,7 +4742,7 @@ def moment_matched_kinetic_parallel(species, z, v, loader,
                                     density_amplitude, density_phase, Lz):
     """Velocity-bin-averaged positive M0/M1/M2 ion-sound quasimode.
 
-    This mirrors KineticIonSoundMomentsQuiet.  Its local Gaussian has density,
+    This mirrors KineticIonSoundMoments.  Its local Gaussian has density,
     particle flux, and parallel second moment fixed by the Landau frequency
     and the linear Vlasov moment hierarchy.  The exponentially tiny change
     caused by the C++ loader's |v|<c rejection is intentionally omitted.

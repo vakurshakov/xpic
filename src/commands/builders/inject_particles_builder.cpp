@@ -20,9 +20,9 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
 
   for (const char* key : {"momentum_i", "momentum_e"}) {
     if (info.at(key).at("name").get<std::string>() ==
-        "KineticIonSoundMomentsQuiet")
+        "KineticIonSoundMoments")
       throw std::runtime_error(
-        "KineticIonSoundMomentsQuiet is valid only for a paired SetParticles command");
+        "KineticIonSoundMoments is valid only for a paired SetParticles command");
   }
 
   /// @note Since we can use this as a quasi-neutral

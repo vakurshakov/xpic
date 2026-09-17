@@ -21,12 +21,12 @@ static constexpr char help[] =
   "     naive exponential fit overestimates Gamma by ~8 % in theory alone.   \n"
   "                                                                          \n"
   "  2. Eigenmode loading, as in eigen_sound_ex15: SetCosineField for E plus \n"
-  "     KineticIonSoundMomentsQuiet, which matches M0, M1 and M2 of the      \n"
+  "     KineticIonSoundMoments, which matches M0, M1 and M2 of the      \n"
   "     kinetic root.  ringdown_ex1 loads a density perturbation at zero     \n"
   "     bulk velocity, which excites both branches in equal parts            \n"
   "     (|A-|/|A+| ~ 1) and adds a ballistic transient; fitting that mixture \n"
   "     over half a period inflates Gamma by ~40 % even in exact theory.     \n"
-  "     CoordinateInBoxQuietSineExactPaired removes the loading noise \n"
+  "     CoordinateIonSoundPaired removes the loading noise             \n"
   "     of the initial state (~5e-8 instead of ~9e-5 in the m = 2..9 rms).   \n"
   "                                                                          \n"
   "  3. Np = 1024 -> 8192 per cell.  The equilibrium marker-noise plateau of \n"
@@ -222,7 +222,7 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "electrons"},
           {"coordinate", {
-            {"name", "CoordinateInBoxQuietSineExactPaired"},
+            {"name", "CoordinateIonSoundPaired"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"amplitude", {0.0, 0.0, ringdown::a_n_e}},
@@ -230,7 +230,7 @@ void overwrite_config()
             {"phase", {0.0, 0.0, ringdown::phi_n_e}},
           }},
           {"momentum", {
-            {"name", "KineticIonSoundMomentsQuiet"},
+            {"name", "KineticIonSoundMoments"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"force_electric_amplitude", ringdown::E_force},
@@ -246,7 +246,7 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "ions"},
           {"coordinate", {
-            {"name", "CoordinateInBoxQuietSineExactPaired"},
+            {"name", "CoordinateIonSoundPaired"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"amplitude", {0.0, 0.0, ringdown::a_n_i}},
@@ -254,7 +254,7 @@ void overwrite_config()
             {"phase", {0.0, 0.0, ringdown::phi_n_i}},
           }},
           {"momentum", {
-            {"name", "KineticIonSoundMomentsQuiet"},
+            {"name", "KineticIonSoundMoments"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"force_electric_amplitude", ringdown::E_force},
