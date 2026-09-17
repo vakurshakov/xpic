@@ -1,14 +1,17 @@
-#ifndef SRC_ALGORITHMS_ADAPTIVE_SUBSTEPPING_H
-#define SRC_ALGORITHMS_ADAPTIVE_SUBSTEPPING_H
+#ifndef SRC_IMPLS_DRIFT_KINETIC_ADAPTIVE_SUBSTEPPING_H
+#define SRC_IMPLS_DRIFT_KINETIC_ADAPTIVE_SUBSTEPPING_H
 
 #include <algorithm>
 #include <cmath>
 
 #include <petscsys.h>
 
+/// @file adaptive_substepping.h
+/// @brief Adaptive drift-kinetic particle substeps.
+
 namespace drift_kinetic {
 
-/// Result of one nonlinear attempt on an adaptive particle substep.
+/// @brief Result of a particle substep attempt.
 struct AdaptiveSubstepAttempt {
   bool converged = false;
   PetscInt iterations = 0;
@@ -16,7 +19,7 @@ struct AdaptiveSubstepAttempt {
   PetscReal residue_v = 0.0;
 };
 
-/// Statistics accumulated over the complete adaptive substep tree.
+/// @brief Iteration and failure statistics for an adaptive step.
 struct AdaptiveSubstepStats {
   PetscInt retries = 0;
   PetscInt leaf_failures = 0;
@@ -26,8 +29,7 @@ struct AdaptiveSubstepStats {
   PetscReal max_leaf_residue_v = 0.0;
 };
 
-namespace detail {
-
+/// @brief Splits failed substeps recursively and accepts only terminal attempts.
 template<class State, class Attempt, class Midpoint, class Accept>
 void adaptive_substep_impl(PetscReal dt, State& end, const State& start,
   PetscInt depth, PetscInt max_depth, Attempt& attempt, Midpoint& midpoint,
@@ -60,25 +62,20 @@ void adaptive_substep_impl(PetscReal dt, State& end, const State& start,
       std::max(stats.max_leaf_residue_v, residue_v);
   }
 
-  // A leaf is the only attempt contributing to the accepted trajectory and
-  // current deposition. Parent attempts that caused a retry are discarded.
   accept(dt, end, start);
 }
 
-}  // namespace detail
-
-/// Runs one adaptive step. Failed parent attempts are split in half until a
-/// converged attempt or `max_depth` is reached.
+/// @brief Advances a step, halving failed attempts up to the depth limit.
 template<class State, class Attempt, class Midpoint, class Accept>
 void adaptive_substep(PetscReal dt, State& end, const State& start,
   PetscInt max_depth, Attempt&& attempt, Midpoint&& midpoint, Accept&& accept,
   AdaptiveSubstepStats& stats)
 {
-  detail::adaptive_substep_impl(dt, end, start, 0, max_depth,
+  adaptive_substep_impl(dt, end, start, 0, max_depth,
     attempt, midpoint, accept, stats);
 }
 
-/// Converts terminal leaf failures into an error only in strict mode.
+/// @brief Reports terminal failures as an error in strict mode.
 inline PetscErrorCode adaptive_substep_status(
   const AdaptiveSubstepStats& stats, bool fail_on_terminal_nonconvergence)
 {
@@ -89,4 +86,4 @@ inline PetscErrorCode adaptive_substep_status(
 
 }  // namespace drift_kinetic
 
-#endif  // SRC_ALGORITHMS_ADAPTIVE_SUBSTEPPING_H
+#endif  // SRC_IMPLS_DRIFT_KINETIC_ADAPTIVE_SUBSTEPPING_H

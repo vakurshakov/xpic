@@ -1,5 +1,5 @@
 #include "particles.h"
-#include "src/algorithms/adaptive_substepping.h"
+#include "src/impls/drift_kinetic/adaptive_substepping.h"
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/simulation.h"
