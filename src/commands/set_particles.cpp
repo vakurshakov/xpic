@@ -39,6 +39,12 @@ PetscErrorCode SetParticles::execute(PetscInt /* t */)
   }
 
   PetscCall(log_statistics());
+
+  if (auto* dk_particles = dynamic_cast<drift_kinetic::Particles*>(&particles_)) {
+    LOG("sync_dk_curr_storage():");
+    PetscCall(dk_particles->sync_dk_curr_storage());
+  }
+
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

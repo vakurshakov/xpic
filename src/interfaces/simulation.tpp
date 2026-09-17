@@ -40,6 +40,13 @@ PetscErrorCode Simulation::init_particles(
       info.at("Tz").get_to(parameters.Tz);
     }
 
+    if (info.contains("px"))
+      info.at("px").get_to(parameters.px);
+    if (info.contains("py"))
+      info.at("py").get_to(parameters.py);
+    if (info.contains("pz"))
+      info.at("pz").get_to(parameters.pz);
+
     auto&& sort = std::make_shared<PartSpec>(that, parameters);
     container.emplace_back(sort);
     particles_.emplace_back(sort);

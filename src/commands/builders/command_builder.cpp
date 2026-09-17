@@ -48,7 +48,7 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
     else if (command == "RemoveParticles") {
       PetscCall(Builder::use_impl<RemoveParticlesBuilder>(info, simulation, result));
     }
-    else if (command == "SetMagneticField") {
+    else if (command == "SetMagneticField" || command == "SetElectricField") {
       PetscCall(Builder::use_impl<SetMagneticFieldBuilder>(info, simulation, result));
     }
     else if (command == "FieldsDamping") {
