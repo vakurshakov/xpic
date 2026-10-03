@@ -1094,7 +1094,7 @@ def prepare_theory(testname, ic_frame=None):
             cn_hat[s.name] = saved["density_hat"] / s.n
             u_hat[s.name] = saved["velocity_hat"]
     elif ic_frame is not None:
-        # Moment-only fallback for older MaxwellShiftedSine tests which have no
+        # Moment-only fallback for older MaxwellShifted(Sine|Cosine) tests which have no
         # DkDistributionFunction initial condition.
         cn_hat, u_hat, t0 = measured_perturbation(const, species, k, ic_frame,
                                                   config_dir)

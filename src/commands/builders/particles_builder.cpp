@@ -89,14 +89,15 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
 
     gen = MaxwellianMomentum(particles.parameters, tov);
   }
-  else if (name == "MaxwellCosinePerturbation") {
+  else if (name == "MaxwellShiftedCosine") {
     BoxGeometry box;
     load_geometry(info, box);
 
-    Vector3R a = parse_vector(info, "amplitude");
-    Vector3R m = parse_vector(info, "wave_number");
+    Vector3R velocity = parse_vector(info, "velocity");
+    Vector3R wave_number = parse_vector(info, "wave_number");
+    Vector3R phase = info.contains("phase") ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
 
-    gen = MaxwellCosinePerturbation(particles.parameters, box, a, m);
+    gen = MaxwellShiftedCosine(particles.parameters, box, velocity, wave_number, phase);
   }
   else if (name == "MaxwellShiftedSine") {
     BoxGeometry box;

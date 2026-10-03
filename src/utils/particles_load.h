@@ -67,12 +67,13 @@ struct MaxwellianMomentum {
   bool tov = false;
 };
 
-struct MaxwellCosinePerturbation {
+struct MaxwellShiftedCosine {
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params;
   BoxGeometry box;
-  Vector3R a;
-  Vector3R m;
+  Vector3R velocity;
+  Vector3R wave_number;
+  Vector3R phase{0.0, 0.0, 0.0};
 };
 
 /// @brief Generates a Maxwellian velocity distribution with a sinusoidal shift.

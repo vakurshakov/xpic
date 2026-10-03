@@ -231,28 +231,10 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
   return momentum;
 }
 
-Vector3R MaxwellCosinePerturbation::operator()(const Vector3R& coordinate)
-{
-  PetscReal v_0[3]{
-    a[X] * sqrt(params.Tx / (params.m * mec2)),
-    a[Y] * sqrt(params.Ty / (params.m * mec2)),
-    a[Z] * sqrt(params.Tz / (params.m * mec2)),
-  };
-
-  PetscReal k[3]{
-    2.0 * M_PI * m[X] / (box.max[X] - box.min[X]),
-    2.0 * M_PI * m[Y] / (box.max[Y] - box.min[Y]),
-    2.0 * M_PI * m[Z] / (box.max[Z] - box.min[Z]),
-  };
-
-  Vector3R v_m = thermal_velocity(params);
-  v_m[X] += v_0[X] * std::cos(k[X] * coordinate[X]);
-  v_m[Y] += v_0[Y] * std::cos(k[Y] * coordinate[Y]);
-  v_m[Z] += v_0[Z] * std::cos(k[Z] * coordinate[Z]);
-  return v_m;
-}
-
-Vector3R MaxwellShiftedSine::operator()(const Vector3R& coordinate)
+Vector3R maxwellian_shifted_perturbation(  //
+  const SortParameters& params, const BoxGeometry& box,
+  const Vector3R& velocity, const Vector3R& wave_number, const Vector3R& phase,
+  const Vector3R& coordinate, PetscReal (*trig_func)(PetscReal))
 {
   PetscReal k[3]{
     2.0 * M_PI * wave_number[X] / (box.max[X] - box.min[X]),
@@ -261,10 +243,22 @@ Vector3R MaxwellShiftedSine::operator()(const Vector3R& coordinate)
   };
 
   Vector3R v_m = thermal_velocity(params);
-  v_m[X] += velocity[X] * std::sin(k[X] * coordinate[X] + phase[X]);
-  v_m[Y] += velocity[Y] * std::sin(k[Y] * coordinate[Y] + phase[Y]);
-  v_m[Z] += velocity[Z] * std::sin(k[Z] * coordinate[Z] + phase[Z]);
+  v_m[X] += velocity[X] * trig_func(k[X] * coordinate[X] + phase[X]);
+  v_m[Y] += velocity[Y] * trig_func(k[Y] * coordinate[Y] + phase[Y]);
+  v_m[Z] += velocity[Z] * trig_func(k[Z] * coordinate[Z] + phase[Z]);
   return v_m;
+}
+
+Vector3R MaxwellShiftedCosine::operator()(const Vector3R& coordinate)
+{
+  return maxwellian_shifted_perturbation(
+    params, box, velocity, wave_number, phase, coordinate, std::cos);
+}
+
+Vector3R MaxwellShiftedSine::operator()(const Vector3R& coordinate)
+{
+  return maxwellian_shifted_perturbation(
+    params, box, velocity, wave_number, phase, coordinate, std::sin);
 }
 
 KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
