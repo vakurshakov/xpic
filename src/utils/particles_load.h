@@ -1,9 +1,6 @@
 #ifndef SRC_UTILS_PARTICLES_LOAD_H
 #define SRC_UTILS_PARTICLES_LOAD_H
 
-#include <complex>
-
-#include "src/pch.h"
 #include "src/interfaces/sort_parameters.h"
 #include "src/utils/geometries.h"
 #include "src/utils/vector3.h"
@@ -30,9 +27,9 @@ struct CoordinateInCylinder {
 
 /// @brief Generates paired coordinates with an exact ion-sound density profile.
 struct CoordinateIonSoundPaired {
-  CoordinateIonSoundPaired(BoxGeometry box,
-    const Vector3R& amplitude, const Vector3R& wave_number,
-    const Vector3R& phase, std::size_t active_axis_lattice_pairs = 0);
+  CoordinateIonSoundPaired(BoxGeometry box, const Vector3R& amplitude,
+    const Vector3R& wave_number, const Vector3R& phase,
+    std::size_t active_axis_lattice_pairs = 0);
 
   Vector3R operator()();
 
@@ -111,9 +108,9 @@ struct KineticIonSoundMoments {
   Axis axis = Z;
   PetscReal k_parallel = 0.0;
   PetscReal equilibrium_variance = 0.0;
-  std::complex<PetscReal> density_harmonic;
-  std::complex<PetscReal> flux_harmonic;
-  std::complex<PetscReal> second_moment_harmonic;
+  PetscComplex density_harmonic;
+  PetscComplex flux_harmonic;
+  PetscComplex second_moment_harmonic;
   bool return_antithetic = false;
   Vector3R second_velocity;
   Vector3R first_coordinate;
