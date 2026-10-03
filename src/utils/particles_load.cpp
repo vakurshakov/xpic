@@ -83,7 +83,7 @@ consteval bool bases_are_disjoint(const auto& lhs, const auto& rhs)
   return true;
 }
 
-static_assert(
+static_assert(  //
   bases_are_disjoint(coordinate_bases, velocity_radius_bases) &&
   bases_are_disjoint(coordinate_bases, velocity_phase_bases) &&
   bases_are_disjoint(velocity_radius_bases, velocity_phase_bases));
@@ -200,42 +200,39 @@ Vector3R PreciseMomentum::operator()(const Vector3R& /* coordinate */)
   return value;
 }
 
-PetscReal temperature_momentum(PetscReal temperature, PetscReal mass)
+PetscReal thermal_momentum(PetscReal temperature, PetscReal mass)
 {
   return std::sqrt(-2.0 * (temperature * mass / mec2) * std::log(random_01()));
 }
 
+Vector3R thermal_momentum(const SortParameters& params)
+{
+  return Vector3R{
+    std::sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Tx, params.m),
+    std::sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Ty, params.m),
+    std::sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Tz, params.m),
+  };
+}
+
+Vector3R thermal_velocity(const SortParameters& params)
+{
+  Vector3R result = thermal_momentum(params);
+  result /= std::sqrt(params.m * params.m + result.squared());
+  return result;
+}
+
 Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
 {
-  Vector3R result{
-    params.px +
-      std::sin(2.0 * M_PI * random_01()) *
-        temperature_momentum(params.Tx, params.m),
-
-    params.py +
-      std::sin(2.0 * M_PI * random_01()) *
-        temperature_momentum(params.Ty, params.m),
-
-    params.pz +
-      std::sin(2.0 * M_PI * random_01()) *
-        temperature_momentum(params.Tz, params.m),
-  };
-
-  if (tov)
-    result /= std::sqrt(params.m * params.m + result.squared());
-  return result;
+  Vector3R momentum = thermal_momentum(params);
+  momentum[X] += params.px;
+  momentum[Y] += params.py;
+  momentum[Z] += params.pz;
+  momentum /= std::sqrt(params.m * params.m + momentum.squared());
+  return momentum;
 }
 
 Vector3R MaxwellCosinePerturbation::operator()(const Vector3R& coordinate)
 {
-  Vector3R v_m{
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tx, params.m),
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Ty, params.m),
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tz, params.m),
-  };
-
-  v_m /= std::sqrt(params.m * params.m + v_m.squared());
-
   PetscReal v_0[3]{
     a[X] * sqrt(params.Tx / (params.m * mec2)),
     a[Y] * sqrt(params.Ty / (params.m * mec2)),
@@ -248,26 +245,14 @@ Vector3R MaxwellCosinePerturbation::operator()(const Vector3R& coordinate)
     2.0 * M_PI * m[Z] / (box.max[Z] - box.min[Z]),
   };
 
+  Vector3R v_m = thermal_velocity(params);
   v_m[X] += v_0[X] * std::cos(k[X] * coordinate[X]);
   v_m[Y] += v_0[Y] * std::cos(k[Y] * coordinate[Y]);
   v_m[Z] += v_0[Z] * std::cos(k[Z] * coordinate[Z]);
-
   return v_m;
 }
 
-Vector3R sample_thermal_velocity(const SortParameters& params)
-{
-  Vector3R result{
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tx, params.m),
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Ty, params.m),
-    std::sin(2.0 * M_PI * random_01()) * temperature_momentum(params.Tz, params.m),
-  };
-  result /= std::sqrt(params.m * params.m + result.squared());
-  return result;
-}
-
-Vector3R sine_velocity_shift(const BoxGeometry& box, const Vector3R& velocity,
-  const Vector3R& wave_number, const Vector3R& phase, const Vector3R& coordinate)
+Vector3R MaxwellShiftedSine::operator()(const Vector3R& coordinate)
 {
   PetscReal k[3]{
     2.0 * M_PI * wave_number[X] / (box.max[X] - box.min[X]),
@@ -275,17 +260,11 @@ Vector3R sine_velocity_shift(const BoxGeometry& box, const Vector3R& velocity,
     2.0 * M_PI * wave_number[Z] / (box.max[Z] - box.min[Z]),
   };
 
-  return Vector3R{
-    velocity[X] * std::sin(k[X] * coordinate[X] + phase[X]),
-    velocity[Y] * std::sin(k[Y] * coordinate[Y] + phase[Y]),
-    velocity[Z] * std::sin(k[Z] * coordinate[Z] + phase[Z]),
-  };
-}
-
-Vector3R MaxwellShiftedSine::operator()(const Vector3R& coordinate)
-{
-  return sample_thermal_velocity(params) +
-    sine_velocity_shift(box, velocity, wave_number, phase, coordinate);
+  Vector3R v_m = thermal_velocity(params);
+  v_m[X] += velocity[X] * std::sin(k[X] * coordinate[X] + phase[X]);
+  v_m[Y] += velocity[Y] * std::sin(k[Y] * coordinate[Y] + phase[Y]);
+  v_m[Z] += velocity[Z] * std::sin(k[Z] * coordinate[Z] + phase[Z]);
+  return v_m;
 }
 
 KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
@@ -465,18 +444,14 @@ Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
   PetscReal y = coordinate.y() - center[Y];
   PetscReal r = std::hypot(x, y);
 
-  Vector3R temperature_moment{
-    temperature_momentum(params.Tx, params.m),
-    temperature_momentum(params.Ty, params.m),
-    temperature_momentum(params.Tz, params.m),
-  };
+  Vector3R momentum = thermal_momentum(params);
 
   if (std::isinf(1.0 / r))
-    return Vector3R{0.0, 0.0, params.pz} + temperature_moment;
+    return Vector3R{0.0, 0.0, params.pz} + momentum;
 
   return Vector3R{
-    -params.px * (y / r) + temperature_moment[X],
-    +params.py * (x / r) + temperature_moment[Y],
-    +params.pz + temperature_moment[Z],
+    -params.px * (y / r) + momentum[X],
+    +params.py * (x / r) + momentum[Y],
+    +params.pz + momentum[Z],
   };
 }
