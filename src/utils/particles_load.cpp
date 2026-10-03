@@ -19,12 +19,12 @@ Vector3R CoordinateInBox::operator()()
 
 Vector3R CoordinateInCylinder::operator()()
 {
-  PetscReal r = cyl.radius * std::sqrt(random_01());
+  PetscReal r = cyl.radius * sqrt(random_01());
   PetscReal phi = 2.0 * M_PI * random_01();
 
   return Vector3R{
-    cyl.center[X] + r * std::cos(phi),
-    cyl.center[Y] + r * std::sin(phi),
+    cyl.center[X] + r * cos(phi),
+    cyl.center[Y] + r * sin(phi),
     cyl.center[Z] + cyl.height * (random_01() - 0.5),
   };
 }
@@ -45,11 +45,11 @@ CoordinateIonSoundPaired::CoordinateIonSoundPaired(BoxGeometry box,
     if (amplitude[a] == 0.0 || wave_number[a] == 0.0)
       throw std::runtime_error(
         "CoordinateIonSoundPaired requires amplitude and wave_number together");
-    if (std::abs(amplitude[a]) >= 1.0)
+    if (abs(amplitude[a]) >= 1.0)
       throw std::runtime_error(
         "CoordinateIonSoundPaired requires |amplitude| < 1");
     PetscReal rounded_mode = std::round(wave_number[a]);
-    if (rounded_mode <= 0.0 || std::abs(wave_number[a] - rounded_mode) > 1.0e-12)
+    if (rounded_mode <= 0.0 || abs(wave_number[a] - rounded_mode) > 1.0e-12)
       throw std::runtime_error(
         "CoordinateIonSoundPaired requires a positive integer wave_number");
     axis = a;
@@ -113,8 +113,8 @@ PetscReal sine_density_inv_cdf(
 
   for (int it = 0; it < 64; ++it) {
     PetscReal arg = 2.0 * M_PI * mode * x + phase;
-    PetscReal cdf = x + amplitude * inv_k * (std::cos(phase) - std::cos(arg));
-    PetscReal pdf = 1.0 + amplitude * std::sin(arg);
+    PetscReal cdf = x + amplitude * inv_k * (cos(phase) - cos(arg));
+    PetscReal pdf = 1.0 + amplitude * sin(arg);
 
     if (cdf < u)
       x_lo = x;
@@ -124,7 +124,7 @@ PetscReal sine_density_inv_cdf(
     PetscReal x_new = x - (cdf - u) / pdf;
     if (x_new <= x_lo || x_new >= x_hi)
       x_new = 0.5 * (x_lo + x_hi);
-    if (std::abs(x_new - x) < 16.0 * std::numeric_limits<PetscReal>::epsilon())
+    if (abs(x_new - x) < 16.0 * std::numeric_limits<PetscReal>::epsilon())
       return x_new;
     x = x_new;
   }
@@ -175,7 +175,7 @@ Vector3R CoordinateInBoxCosineHump::operator()()
       box.min[Z] + random_01() * (box.max[Z] - box.min[Z]),
     };
     PetscReal normalized = (coordinate[axis] - center) / half_length;
-    PetscReal weight = 0.5 * (1.0 + std::cos(M_PI * normalized));
+    PetscReal weight = 0.5 * (1.0 + cos(M_PI * normalized));
     if (random_01() < weight)
       return coordinate;
   }
@@ -183,14 +183,14 @@ Vector3R CoordinateInBoxCosineHump::operator()()
 
 Vector3R CoordinateOnAnnulus::operator()()
 {
-  PetscReal r = std::sqrt(POW2(ann.inner_r) +  //
+  PetscReal r = sqrt(POW2(ann.inner_r) +  //
     (POW2(ann.outer_r) - POW2(ann.inner_r)) * random_01());
 
   PetscReal phi = 2.0 * M_PI * random_01();
 
   return Vector3R{
-    ann.center[X] + r * std::cos(phi),
-    ann.center[Y] + r * std::sin(phi),
+    ann.center[X] + r * cos(phi),
+    ann.center[Y] + r * sin(phi),
     ann.center[Z] + ann.height * (random_01() - 0.5),
   };
 }
@@ -202,22 +202,22 @@ Vector3R PreciseMomentum::operator()(const Vector3R& /* coordinate */)
 
 PetscReal thermal_momentum(PetscReal temperature, PetscReal mass)
 {
-  return std::sqrt(-2.0 * (temperature * mass / mec2) * std::log(random_01()));
+  return sqrt(-2.0 * (temperature * mass / mec2) * log(random_01()));
 }
 
 Vector3R thermal_momentum(const SortParameters& params)
 {
   return Vector3R{
-    std::sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Tx, params.m),
-    std::sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Ty, params.m),
-    std::sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Tz, params.m),
+    sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Tx, params.m),
+    sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Ty, params.m),
+    sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Tz, params.m),
   };
 }
 
 Vector3R thermal_velocity(const SortParameters& params)
 {
   Vector3R result = thermal_momentum(params);
-  result /= std::sqrt(params.m * params.m + result.squared());
+  result /= sqrt(params.m * params.m + result.squared());
   return result;
 }
 
@@ -227,7 +227,7 @@ Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
   momentum[X] += params.px;
   momentum[Y] += params.py;
   momentum[Z] += params.pz;
-  momentum /= std::sqrt(params.m * params.m + momentum.squared());
+  momentum /= sqrt(params.m * params.m + momentum.squared());
   return momentum;
 }
 
@@ -252,13 +252,13 @@ Vector3R maxwellian_shifted_perturbation(  //
 Vector3R MaxwellShiftedCosine::operator()(const Vector3R& coordinate)
 {
   return maxwellian_shifted_perturbation(
-    params, box, velocity, wave_number, phase, coordinate, std::cos);
+    params, box, velocity, wave_number, phase, coordinate, cos);
 }
 
 Vector3R MaxwellShiftedSine::operator()(const Vector3R& coordinate)
 {
   return maxwellian_shifted_perturbation(
-    params, box, velocity, wave_number, phase, coordinate, std::sin);
+    params, box, velocity, wave_number, phase, coordinate, sin);
 }
 
 KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
@@ -275,10 +275,10 @@ KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
     density_amplitude(density_amplitude),
     density_phase(density_phase)
 {
-  if (!(params.n > 0.0) || !(params.m > 0.0) || !std::isfinite(params.n) ||
-    !std::isfinite(params.q) || !std::isfinite(params.m) ||
-    !std::isfinite(force_electric_amplitude) || !std::isfinite(omega_real) ||
-    !(gamma > 0.0) || !std::isfinite(gamma))
+  if (!(params.n > 0.0) || !(params.m > 0.0) || !isfinite(params.n) ||
+    !isfinite(params.q) || !isfinite(params.m) ||
+    !isfinite(force_electric_amplitude) || !isfinite(omega_real) ||
+    !(gamma > 0.0) || !isfinite(gamma))
     throw std::runtime_error(
       "KineticIonSoundMoments requires finite plasma parameters, n > 0, m > 0, "
       "and gamma > 0");
@@ -286,9 +286,9 @@ KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
   PetscReal temperatures[3] = {params.Tx, params.Ty, params.Tz};
   PetscInt active = 0;
   for (Axis a : {X, Y, Z}) {
-    if (temperatures[a] < 0.0 || !std::isfinite(temperatures[a]) ||
-      !std::isfinite(wave_number[a]) || !std::isfinite(field_phase[a]) ||
-      !std::isfinite(density_amplitude[a]) || !std::isfinite(density_phase[a]))
+    if (temperatures[a] < 0.0 || !isfinite(temperatures[a]) ||
+      !isfinite(wave_number[a]) || !isfinite(field_phase[a]) ||
+      !isfinite(density_amplitude[a]) || !isfinite(density_phase[a]))
       throw std::runtime_error(
         "KineticIonSoundMoments requires finite mode parameters and "
         "non-negative temperatures");
@@ -307,24 +307,24 @@ KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
       "KineticIonSoundMoments requires exactly one non-zero wave_number");
 
   PetscReal length = this->box.max[axis] - this->box.min[axis];
-  if (!(length > 0.0) || !std::isfinite(length))
+  if (!(length > 0.0) || !isfinite(length))
     throw std::runtime_error(
       "KineticIonSoundMoments requires a finite non-empty box");
-  if (!(std::abs(density_amplitude[axis]) < 1.0))
+  if (!(abs(density_amplitude[axis]) < 1.0))
     throw std::runtime_error(
       "KineticIonSoundMoments requires |density_amplitude| < 1");
 
   equilibrium_variance = temperatures[axis] / (params.m * mec2);
-  if (!(equilibrium_variance > 0.0) || !std::isfinite(equilibrium_variance))
+  if (!(equilibrium_variance > 0.0) || !isfinite(equilibrium_variance))
     throw std::runtime_error(
       "KineticIonSoundMoments requires positive parallel temperature");
 
   k_parallel = 2.0 * M_PI * wave_number[axis] / length;
   PetscComplex imaginary{0.0, 1.0};
   PetscComplex omega{omega_real, -gamma};
-  PetscComplex density_phase_factor = std::exp(imaginary * density_phase[axis]);
+  PetscComplex density_phase_factor = exp(imaginary * density_phase[axis]);
   PetscComplex field_harmonic =
-    force_electric_amplitude * std::exp(imaginary * field_phase[axis]);
+    force_electric_amplitude * exp(imaginary * field_phase[axis]);
 
   density_harmonic =
     -imaginary * params.n * density_amplitude[axis] * density_phase_factor;
@@ -334,10 +334,10 @@ KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
       imaginary * (params.q / params.m) * params.n * field_harmonic) /
     k_parallel;
 
-  PetscReal density_min = params.n - std::abs(density_harmonic);
+  PetscReal density_min = params.n - abs(density_harmonic);
   PetscReal second_moment_min =
-    params.n * equilibrium_variance - std::abs(second_moment_harmonic);
-  PetscReal flux_max = std::abs(flux_harmonic);
+    params.n * equilibrium_variance - abs(second_moment_harmonic);
+  PetscReal flux_max = abs(flux_harmonic);
   PetscReal determinant_margin =
     density_min * second_moment_min - flux_max * flux_max;
   PetscReal subluminal_margin = density_min - flux_max;
@@ -351,7 +351,7 @@ KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
       "ion_sound.py --theory --grid-dz.",
       params.sort_name.empty() ? "<unnamed>" : params.sort_name, density_min,
       second_moment_min, determinant_margin, subluminal_margin, flux_max,
-      std::abs(second_moment_harmonic), k_parallel));
+      abs(second_moment_harmonic), k_parallel));
 }
 
 void KineticIonSoundMoments::local_parallel_parameters(
@@ -366,8 +366,8 @@ void KineticIonSoundMoments::local_parallel_parameters(
   bulk_velocity = flux / density;
   variance = second_moment / density - bulk_velocity * bulk_velocity;
 
-  if (!(density > 0.0) || !(variance > 0.0) ||
-    !(std::abs(bulk_velocity) < 1.0) || !std::isfinite(variance))
+  if (!(density > 0.0) || !(variance > 0.0) || !(abs(bulk_velocity) < 1.0) ||
+    !isfinite(variance))
     throw std::runtime_error(
       "KineticIonSoundMoments encountered invalid local moments");
 }
@@ -381,10 +381,10 @@ Vector3R sample_maxwellian_velocity_quiet(
 
   for (Axis a : {X, Y, Z}) {
     const auto slot = static_cast<std::size_t>(a);
-    PetscReal sigma = std::sqrt(temperatures[slot] / (params.m * mec2));
-    PetscReal radius = std::sqrt(-2.0 * std::log(van_der_corput(index, velocity_radius_bases[slot])));
+    PetscReal sigma = sqrt(temperatures[slot] / (params.m * mec2));
+    PetscReal radius = sqrt(-2.0 * log(van_der_corput(index, velocity_radius_bases[slot])));
     PetscReal phase = 2.0 * M_PI * van_der_corput(index, velocity_phase_bases[slot]);
-    result[a] = sigma * radius * std::sin(phase);
+    result[a] = sigma * radius * sin(phase);
   }
   // clang-format on
   return result;
@@ -403,7 +403,7 @@ Vector3R KineticIonSoundMoments::operator()(const Vector3R& coordinate)
   PetscReal bulk_velocity = 0.0;
   PetscReal variance = 0.0;
   local_parallel_parameters(coordinate, bulk_velocity, variance);
-  PetscReal parallel_scale = std::sqrt(variance / equilibrium_variance);
+  PetscReal parallel_scale = sqrt(variance / equilibrium_variance);
 
   constexpr std::size_t max_rejection_attempts = 1'000'000;
   for (std::size_t attempt = 0; attempt < max_rejection_attempts; ++attempt) {
@@ -419,9 +419,8 @@ Vector3R KineticIonSoundMoments::operator()(const Vector3R& coordinate)
     first_velocity[axis] += bulk_velocity;
     second_velocity = -1.0 * thermal_velocity;
     second_velocity[axis] += bulk_velocity;
-    if (std::isfinite(first_velocity.squared()) &&
-      first_velocity.squared() < 1.0 && std::isfinite(second_velocity.squared()) &&
-      second_velocity.squared() < 1.0) {
+    if (isfinite(first_velocity.squared()) && first_velocity.squared() < 1.0 &&
+      isfinite(second_velocity.squared()) && second_velocity.squared() < 1.0) {
       first_coordinate = coordinate;
       return_antithetic = true;
       return first_velocity;
@@ -436,11 +435,11 @@ Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
 {
   PetscReal x = coordinate.x() - center[X];
   PetscReal y = coordinate.y() - center[Y];
-  PetscReal r = std::hypot(x, y);
+  PetscReal r = hypot(x, y);
 
   Vector3R momentum = thermal_momentum(params);
 
-  if (std::isinf(1.0 / r))
+  if (isinf(1.0 / r))
     return Vector3R{0.0, 0.0, params.pz} + momentum;
 
   return Vector3R{
