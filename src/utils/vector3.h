@@ -137,14 +137,26 @@ struct Vector3 {
     };
   }
 
+  Vector3 elementwise_division(const Vector3& other) const
+  {
+    return Vector3{
+      data[X] / other[X],
+      data[Y] / other[Y],
+      data[Z] / other[Z],
+    };
+  }
+
   Vector3<PetscReal> operator/(T scalar) const
     requires std::is_floating_point_v<T>
   {
-    return Vector3{
-      static_cast<PetscReal>(data[X]) / scalar,
-      static_cast<PetscReal>(data[Y]) / scalar,
-      static_cast<PetscReal>(data[Z]) / scalar,
-    };
+    if (abs(scalar) > 0)
+      return Vector3{
+        static_cast<PetscReal>(data[X]) / scalar,
+        static_cast<PetscReal>(data[Y]) / scalar,
+        static_cast<PetscReal>(data[Z]) / scalar,
+      };
+    else
+      return {0, 0, 0};
   }
 
   Vector3<PetscReal> normalized() const
@@ -154,7 +166,7 @@ struct Vector3 {
     if (l > 0)
       return operator/(l);
     else
-      return {0,0,0};
+      return {0, 0, 0};
   }
 
   PetscReal length() const

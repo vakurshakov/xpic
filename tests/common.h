@@ -109,13 +109,13 @@ private:
       return PETSC_SUCCESS;
 
     PetscFunctionBeginUser;
-    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
-    add(13, "x_[c/wpe]", "{: .6e}", point.x());
-    add(13, "y_[c/wpe]", "{: .6e}", point.y());
-    add(13, "z_[c/wpe]", "{: .6e}", point.z());
-    add(13, "vx_[c]", "{: .6e}", point.px());
-    add(13, "vy_[c]", "{: .6e}", point.py());
-    add(13, "vz_[c]", "{: .6e}", point.pz());
+    add(20, "t_[1/wpe]", "{: .9e}", t * dt);
+    add(20, "x_[c/wpe]", "{: .9e}", point.x());
+    add(20, "y_[c/wpe]", "{: .9e}", point.y());
+    add(20, "z_[c/wpe]", "{: .9e}", point.z());
+    add(20, "vx_[c]", "{: .9e}", point.px());
+    add(20, "vy_[c]", "{: .9e}", point.py());
+    add(20, "vz_[c]", "{: .9e}", point.pz());
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
@@ -143,13 +143,13 @@ private:
       return PETSC_SUCCESS;
 
     PetscFunctionBeginUser;
-    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
-    add(13, "x_[c/wpe]", "{: .6e}", point.x());
-    add(13, "y_[c/wpe]", "{: .6e}", point.y());
-    add(13, "z_[c/wpe]", "{: .6e}", point.z());
-    add(13, "p_par_[mc]", "{: .6e}", point.p_par());
-    add(13, "p_perp_[mc]", "{: .6e}", point.p_perp_ref());
-    add(13, "mu_p_[mc^2/B]", "{: .6e}", point.mu());
+    add(20, "t_[1/wpe]", "{: .9e}", t * dt);
+    add(20, "x_[c/wpe]", "{: .9e}", point.x());
+    add(20, "y_[c/wpe]", "{: .9e}", point.y());
+    add(20, "z_[c/wpe]", "{: .9e}", point.z());
+    add(20, "p_par_[mc]", "{: .9e}", point.p_par());
+    //add(20, "p_perp_[mc]", "{: .9e}", point.p_perp_ref());
+    add(20, "mu_p_[mc^2/B]", "{: .9e}", point.mu());
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 

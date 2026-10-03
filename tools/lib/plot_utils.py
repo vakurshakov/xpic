@@ -37,3 +37,5 @@ def figure(ncols: int, nrows: int, width_ratios: list[int] = None, height_ratios
 
 def find_exp(number):
     return int(np.floor(np.log10(np.abs(number))))
+
+matplotlib.use('Agg')

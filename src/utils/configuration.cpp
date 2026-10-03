@@ -30,8 +30,22 @@ void Configuration::save(const std::string& out_dir)
       std::filesystem::copy_options::overwrite_existing);
   }
   else if (!config.json.empty()) {
-    std::ofstream os(out_dir + "/config.json");
+    PetscInt rank;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    if (rank != 0)
+      return;
+
+    std::filesystem::create_directories(out_dir);
+    const std::filesystem::path path =
+      std::filesystem::path(out_dir) / "config.json";
+    std::ofstream os(path);
+    if (!os)
+      throw std::runtime_error(
+        "Unable to open configuration output " + path.string());
     os << std::setw(2) << config.json;
+    if (!os)
+      throw std::runtime_error(
+        "Unable to write configuration output " + path.string());
   }
 }
 

@@ -4,6 +4,8 @@
 #include "src/pch.h"
 #include "src/interfaces/command.h"
 #include "src/interfaces/particles.h"
+/// @todo Move the implementation to /interfaces/particles.h
+#include "src/impls/drift_kinetic/particles.h"
 #include "src/utils/particles_load.h"
 
 class SetParticles : public interfaces::Command {
