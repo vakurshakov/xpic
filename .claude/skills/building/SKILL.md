@@ -13,7 +13,7 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) are set in `header.sh
 
 ## Top-level scripts
 
-- `./build.sh` — configures and builds both `build/Debug` and `build/Release` with CMake (pass `Debug` or `Release` to build only one; parallel build with 4 jobs). Prefer `./build.sh Debug` for quick iteration and `./build.sh Release` (or no argument, which builds both) before running tests or benchmarking.
+- `./build.sh [Debug|Release]` — configures and builds with CMake. With no argument, builds both Debug and Release sequentially. When using raw `cmake --build` always specify either `build/Debug` or `build/Release` — running without specifying the build type will fail. Pass `Debug` for quick iteration with symbols, or `Release` for optimized builds used by tests and benchmarking.
 - `./run.sh <config.json> [petsc/mpi options]` — runs `./build/Release/xpic.out` via `mpiexec`, with OpenMP env vars set (`OMP_NUM_THREADS=4`, thread spread/affinity). Must be run from the repo root since output paths in configs are relative to it. Clears PETSc shared memory before each run.
 - `./run-tests.sh [ctest args]` — rebuilds Release, then runs `ctest --test-dir build/Release`. Supports normal ctest filtering, e.g.:
   - `./run-tests.sh -R basic_ex1` — run a specific test by name.
