@@ -433,8 +433,8 @@ Vector3R KineticIonSoundMoments::operator()(const Vector3R& coordinate)
 
 Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
 {
-  PetscReal x = coordinate.x() - center[X];
-  PetscReal y = coordinate.y() - center[Y];
+  PetscReal x = coordinate[X] - center[X];
+  PetscReal y = coordinate[Y] - center[Y];
   PetscReal r = hypot(x, y);
 
   Vector3R momentum = thermal_momentum(params);
