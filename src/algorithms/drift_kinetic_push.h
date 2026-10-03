@@ -16,12 +16,7 @@ public:
   /// @brief Sets the charge-to-mass ratio and particle mass.
   DriftKineticPush(PetscReal qm, PetscReal mp);
 
-  /// @brief Sets iteration tolerances and limit.
-  void set_tolerances(PetscReal atol, PetscReal rtol, PetscInt maxit);
-
-  /// @brief Sets the charge-to-mass ratio.
   void set_qm(PetscReal qm);
-  /// @brief Sets the particle mass.
   void set_mp(PetscReal mp);
   /// @brief Returns the particle mass.
   PetscReal get_mp() const;

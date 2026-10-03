@@ -9,9 +9,6 @@ public:
   CrankNicolsonPush() = default;
   CrankNicolsonPush(PetscReal qm);
 
-  /// @brief Sets numerical tolerances controlling iterative process.
-  void set_tolerances(PetscReal atol, PetscReal rtol, PetscInt maxit);
-
   /// @brief Sets charge to mass ratio, assumed to be constant during the iteration.
   void set_qm(PetscReal qm);
 

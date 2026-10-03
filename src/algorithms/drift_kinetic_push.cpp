@@ -8,14 +8,6 @@ DriftKineticPush::DriftKineticPush(PetscReal qm, PetscReal mp)
 {
 }
 
-void DriftKineticPush::set_tolerances(
-  PetscReal atol, PetscReal rtol, PetscInt maxit)
-{
-  this->atol = atol;
-  this->rtol = rtol;
-  this->maxit = maxit;
-}
-
 void DriftKineticPush::set_qm(PetscReal qm)
 {
   this->qm = qm;
