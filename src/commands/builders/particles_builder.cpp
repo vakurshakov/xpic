@@ -32,7 +32,7 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
     gen = CoordinateInCylinder(std::move(cyl));
   }
-  else if (name == "CoordinateIonSoundPaired") {
+  else if (name == "KineticIonSoundCoordinates") {
     BoxGeometry box;
     load_geometry(info, box);
 
@@ -44,10 +44,10 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = (box.max - box.min).elements_product() * frac;
     if (number_of_particles % 2 != 0)
       throw std::runtime_error(
-        "CoordinateIonSoundPaired requires an even number of particles");
+        "KineticIonSoundCoordinates requires an even number of particles");
     const std::size_t active_axis_lattice_pairs =
       static_cast<std::size_t>(number_of_particles / 2);
-    gen = CoordinateIonSoundPaired(std::move(box), amplitude,
+    gen = KineticIonSoundCoordinates(std::move(box), amplitude,
       wave_number, phase, active_axis_lattice_pairs);
   }
   else if (name == "CoordinateInBoxCosineHump") {

@@ -26,7 +26,7 @@ static constexpr char help[] =
   "     bulk velocity, which excites both branches in equal parts            \n"
   "     (|A-|/|A+| ~ 1) and adds a ballistic transient; fitting that mixture \n"
   "     over half a period inflates Gamma by ~40 % even in exact theory.     \n"
-  "     CoordinateIonSoundPaired removes the loading noise             \n"
+  "     KineticIonSoundCoordinates removes the loading noise                 \n"
   "     of the initial state (~5e-8 instead of ~9e-5 in the m = 2..9 rms).   \n"
   "                                                                          \n"
   "  3. Np = 1024 -> 8192 per cell.  The equilibrium marker-noise plateau of \n"
@@ -222,7 +222,7 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "electrons"},
           {"coordinate", {
-            {"name", "CoordinateIonSoundPaired"},
+            {"name", "KineticIonSoundCoordinates"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"amplitude", {0.0, 0.0, ringdown::a_n_e}},
@@ -246,7 +246,7 @@ void overwrite_config()
           {"command", "SetParticles"},
           {"particles", "ions"},
           {"coordinate", {
-            {"name", "CoordinateIonSoundPaired"},
+            {"name", "KineticIonSoundCoordinates"},
             {"min", {0.0, 0.0, 0.0}},
             {"max", {geom_x, geom_y, geom_z}},
             {"amplitude", {0.0, 0.0, ringdown::a_n_i}},

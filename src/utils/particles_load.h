@@ -26,8 +26,8 @@ struct CoordinateInCylinder {
 };
 
 /// @brief Generates paired coordinates with an exact ion-sound density profile.
-struct CoordinateIonSoundPaired {
-  CoordinateIonSoundPaired(BoxGeometry box, const Vector3R& amplitude,
+struct KineticIonSoundCoordinates {
+  KineticIonSoundCoordinates(BoxGeometry box, const Vector3R& amplitude,
     const Vector3R& wave_number, const Vector3R& phase,
     std::size_t active_axis_lattice_pairs = 0);
 
@@ -37,11 +37,13 @@ struct CoordinateIonSoundPaired {
   Vector3R amplitude;
   Vector3R wave_number;
   Vector3R phase{0.0, 0.0, 0.0};
-  Axis axis = Z;
   std::size_t active_axis_lattice_pairs = 0;
+
+private:
+  Axis axis = Z;
+  Vector3R paired_coordinate;
   std::size_t pair_counter = 0;
   bool return_second = false;
-  Vector3R paired_coordinate;
 };
 
 /// @brief Randomly samples a cosine density profile along one box axis.
@@ -76,7 +78,6 @@ struct MaxwellShiftedCosine {
   Vector3R phase{0.0, 0.0, 0.0};
 };
 
-/// @brief Generates a Maxwellian velocity distribution with a sinusoidal shift.
 struct MaxwellShiftedSine {
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params;

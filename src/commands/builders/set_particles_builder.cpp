@@ -24,7 +24,7 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
 
   const auto coordinate_name =
     info.at("coordinate").at("name").get<std::string>();
-  const bool paired_coordinate = coordinate_name == "CoordinateIonSoundPaired";
+  const bool paired_coordinate = coordinate_name == "KineticIonSoundCoordinates";
   auto validate_paired_loaders = [this, paired_coordinate, coordinate_name, &info](
                                const Configuration::json_t& momentum_info) {
     const auto momentum_name = momentum_info.at("name").get<std::string>();
@@ -35,9 +35,9 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
 
     if (momentum_name != "KineticIonSoundMoments")
       return;
-    if (coordinate_name != "CoordinateIonSoundPaired")
+    if (coordinate_name != "KineticIonSoundCoordinates")
       throw std::runtime_error(
-        "KineticIonSoundMoments requires CoordinateIonSoundPaired");
+        "KineticIonSoundMoments requires KineticIonSoundCoordinates");
 
     const auto& coordinate_info = info.at("coordinate");
     const auto vector_or_zero = [this](const Configuration::json_t& block,

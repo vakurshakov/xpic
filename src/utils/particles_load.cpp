@@ -29,7 +29,7 @@ Vector3R CoordinateInCylinder::operator()()
   };
 }
 
-CoordinateIonSoundPaired::CoordinateIonSoundPaired(BoxGeometry box,
+KineticIonSoundCoordinates::KineticIonSoundCoordinates(BoxGeometry box,
   const Vector3R& amplitude, const Vector3R& wave_number, const Vector3R& phase,
   std::size_t active_axis_lattice_pairs)
   : box(std::move(box)),
@@ -44,20 +44,21 @@ CoordinateIonSoundPaired::CoordinateIonSoundPaired(BoxGeometry box,
       continue;
     if (amplitude[a] == 0.0 || wave_number[a] == 0.0)
       throw std::runtime_error(
-        "CoordinateIonSoundPaired requires amplitude and wave_number together");
+        "KineticIonSoundCoordinates requires amplitude and wave_number "
+        "together");
     if (abs(amplitude[a]) >= 1.0)
       throw std::runtime_error(
-        "CoordinateIonSoundPaired requires |amplitude| < 1");
+        "KineticIonSoundCoordinates requires |amplitude| < 1");
     PetscReal rounded_mode = std::round(wave_number[a]);
     if (rounded_mode <= 0.0 || abs(wave_number[a] - rounded_mode) > 1.0e-12)
       throw std::runtime_error(
-        "CoordinateIonSoundPaired requires a positive integer wave_number");
+        "KineticIonSoundCoordinates requires a positive integer wave_number");
     axis = a;
     ++active;
   }
   if (active != 1)
     throw std::runtime_error(
-      "CoordinateIonSoundPaired requires exactly one active axis");
+      "KineticIonSoundCoordinates requires exactly one active axis");
 }
 
 /**
@@ -132,7 +133,7 @@ PetscReal sine_density_inv_cdf(
 }
 
 
-Vector3R CoordinateIonSoundPaired::operator()()
+Vector3R KineticIonSoundCoordinates::operator()()
 {
   if (return_second) {
     return_second = false;
@@ -145,7 +146,7 @@ Vector3R CoordinateIonSoundPaired::operator()()
     if (a == axis && active_axis_lattice_pairs != 0) {
       if (pair_counter >= active_axis_lattice_pairs)
         throw std::runtime_error(
-          "CoordinateIonSoundPaired exhausted its active-axis lattice");
+          "KineticIonSoundCoordinates exhausted its active-axis lattice");
       u = (static_cast<PetscReal>(pair_counter) + 0.5) /
         static_cast<PetscReal>(active_axis_lattice_pairs);
     }
