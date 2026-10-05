@@ -43,7 +43,6 @@ int main(int argc, char** argv)
   const std::string kin_dir = (base / "eccapfim").string();
 
   overwrite_config("drift_kinetic", dk_dir, dt_drift);
-  std::filesystem::create_directories(dk_dir);
   Configuration::save(dk_dir);
   {
     drift_kinetic::Simulation simulation;
@@ -53,7 +52,6 @@ int main(int argc, char** argv)
   }
 
   overwrite_config("eccapfim", kin_dir, dt_kinetic);
-  std::filesystem::create_directories(kin_dir);
   Configuration::save(kin_dir);
   {
     eccapfim::Simulation simulation;

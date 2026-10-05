@@ -41,7 +41,6 @@ int main(int argc, char** argv)
   const std::string kin_dir = (base / "eccapfim").string();
 
   overwrite_config("drift_kinetic", dk_dir, dt_drift);
-  std::filesystem::create_directories(dk_dir);
   Configuration::save(dk_dir);
   {
     drift_kinetic::Simulation simulation;
@@ -51,7 +50,6 @@ int main(int argc, char** argv)
   }
 
   overwrite_config("eccapfim", kin_dir, dt_kinetic);
-  std::filesystem::create_directories(kin_dir);
   Configuration::save(kin_dir);
   {
     eccapfim::Simulation simulation;
@@ -75,7 +73,7 @@ void overwrite_config(
   geom_z = geom_nz * dz;
 
   dt = step;
-  geom_nt = static_cast<PetscInt>(std::llround(total_time / dt));
+  geom_nt = ROUND_STEP(total_time, dt);
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({

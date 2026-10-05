@@ -17,15 +17,15 @@ static constexpr char help[] =
   "     stays at 5.06 and ion Landau damping remains negligible.  Raising Ti \n"
   "     to 1 keV would reach the same Gamma/omega but drop zeta_i to 2.15,   \n"
   "     where the Landau pole stops dominating: the exact linear response    \n"
-  "     then deviates from a pure exponential by ~29 % (vs ~7 % here) and a  \n"
-  "     naive exponential fit overestimates Gamma by ~8 % in theory alone.   \n"
+  "     then deviates from a pure exponential by ~29 %% (vs ~7 %% here) and a\n"
+  "     naive exponential fit overestimates Gamma by ~8 %% in theory alone.  \n"
   "                                                                          \n"
   "  2. Eigenmode loading, as in eigen_sound_ex15: SetCosineField for E plus \n"
   "     KineticIonSoundMoments, which matches M0, M1 and M2 of the      \n"
   "     kinetic root.  ringdown_ex1 loads a density perturbation at zero     \n"
   "     bulk velocity, which excites both branches in equal parts            \n"
   "     (|A-|/|A+| ~ 1) and adds a ballistic transient; fitting that mixture \n"
-  "     over half a period inflates Gamma by ~40 % even in exact theory.     \n"
+  "     over half a period inflates Gamma by ~40 %% even in exact theory.    \n"
   "     KineticIonSoundCoordinates removes the loading noise                 \n"
   "     of the initial state (~5e-8 instead of ~9e-5 in the m = 2..9 rms).   \n"
   "                                                                          \n"
@@ -109,7 +109,6 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   overwrite_config();
-  std::filesystem::create_directories(get_out_dir(__FILE__));
   Configuration::save(get_out_dir(__FILE__));
 
   drift_kinetic::Simulation simulation;
