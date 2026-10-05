@@ -15,6 +15,7 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 
 - A header includes only what its declarations use. Implementation-only includes (`Shape`, `SimpleInterpolation`, ...) go in the `.cpp`.
 - Include the narrowest header providing the symbol and drop ones already pulled in transitively (e.g. `point.h`, not `particles.h` + `point.h` + `utils.h`). Don't repeat in the `.cpp` what its own header includes.
+- Before adding system inculdes, check the `src/pch.h` file. If the file is present there, _do not_ include it.
 - A `.cpp` starts with its own header, then a blank line. `clang-format` regroups and sorts the rest (system, PETSc, nlohmann, then `pch` / `interfaces` / other `"src/..."`), so don't hand-order.
 - Trimming a header can break transitive users: do a Debug build afterwards.
 

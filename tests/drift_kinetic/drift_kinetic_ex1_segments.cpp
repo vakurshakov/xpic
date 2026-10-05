@@ -1,11 +1,5 @@
 #include "src/impls/drift_kinetic/segments.h"
 
-#include <algorithm>
-#include <cmath>
-#include <format>
-#include <string>
-#include <vector>
-
 namespace {
 
 using drift_kinetic::CellSplitMode;
