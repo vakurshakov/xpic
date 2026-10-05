@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(tests
-  drift_kinetic_segments_ex0
-  drift_kinetic_exb_ex1
-  drift_kinetic_gradb_ex2
-  drift_kinetic_curv_ex3
-  drift_kinetic_ion_sound_ex5
+  drift_kinetic_ex1_segments
+  drift_kinetic_ex2_exb
+  drift_kinetic_ex3_gradb
+  drift_kinetic_ex4_curv
+  drift_kinetic_ex5_ion_sound
 )
 
 foreach(test ${tests})
@@ -18,9 +18,9 @@ foreach(test ${tests})
 endforeach()
 
 set(plot_tests
-  drift_kinetic_exb_ex1
-  drift_kinetic_gradb_ex2
-  drift_kinetic_curv_ex3
+  drift_kinetic_ex2_exb
+  drift_kinetic_ex3_gradb
+  drift_kinetic_ex4_curv
 )
 
 foreach(test ${plot_tests})
