@@ -3,21 +3,19 @@
 #include "src/utils/configuration.h"
 #include "tests/common.h"
 
-/**
- * @brief ExB drift comparison between "drift_kinetic" and "eccapfim".
- *
- * A single electron is seeded at the same coordinate near one edge of a domain
- * elongated along the drift direction (x) and only 3x3 cells across (y, z).
- * Uniform fields E=0.01 (along y) and B=1 (along z) give an ExB drift
- * v=ExB/B^2=0.01 along x. Both runs span the same physical time, but the
- * kinetic step (dt=0.1) resolves the gyration while the drift-kinetic step
- * (dt=10) follows only the guiding center, doing 100x fewer steps. The shared
- * initial coordinate is transferred to the guiding center automatically for
- * the drift-kinetic run. Each run writes a per-step coordinate trace into its
- * own subdirectory: <out>/{drift_kinetic,eccapfim}/temporal/particle_trace.txt.
- */
-
-static constexpr char help[] = "ExB drift comparison: drift_kinetic vs eccapfim.\n";
+static constexpr char help[] =
+  "ExB drift comparison between \"drift_kinetic\" and \"eccapfim\".          \n"
+  "                                                                          \n"
+  "A single electron is seeded at the same coordinate near one edge of a     \n"
+  "domain elongated along the drift direction (x) and only 3x3 cells across  \n"
+  "(y, z). Uniform fields E=0.01 (along y) and B=1 (along z) give an ExB     \n"
+  "drift v=ExB/B^2=0.01 along x. Both runs span the same physical time, but  \n"
+  "the kinetic step (dt=0.1) resolves the gyration while the drift-kinetic   \n"
+  "step (dt=10) follows only the guiding center, doing 100x fewer steps. The \n"
+  "shared initial coordinate is transferred to the guiding center            \n"
+  "automatically for the drift-kinetic run. Each run writes a per-step       \n"
+  "coordinate trace into its own subdirectory:                               \n"
+  "  <out>/{drift_kinetic,eccapfim}/temporal/particle_trace.txt.             \n";
 
 static constexpr PetscReal cell = 0.5;
 static constexpr PetscReal E_value = 0.01;

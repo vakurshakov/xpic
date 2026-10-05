@@ -3,23 +3,21 @@
 #include "src/utils/configuration.h"
 #include "tests/common.h"
 
-/**
- * @brief Grad-B drift comparison between "drift_kinetic" and "eccapfim".
- *
- * Straight field lines with a varying magnitude, B = B0 (1 + (x - x0)/L) z (so
- * |B| = B0 at the particle's x0), E = 0, v_par = 0. Direction b = z is constant
- * so rot b = 0 (no curvature), leaving
- * only the gradient drift V_gradB = (mu/q) (b x grad|B|) / B = mu (B0/L)/(qB) y.
- * The field is linear in x, so the discrete gradient (B_{i+1}-B_i)/dx is exactly
- * B0/L and the drift is reproduced exactly; a non-linear B(x) would converge at
- * 2nd order in dx. A single electron is seeded at the same coordinate for both
- * runs (transferred to the guiding center automatically for drift_kinetic). The
- * domain is elongated along the drift (y); x carries the gradient, z is 3 cells.
- * Each run writes its per-step coordinate trace into its own subdirectory:
- *   <out>/{drift_kinetic,eccapfim}/temporal/particle_trace.txt.
- */
-
-static constexpr char help[] = "Grad-B drift comparison: drift_kinetic vs eccapfim.\n";
+static constexpr char help[] =
+  "Grad-B drift comparison between \"drift_kinetic\" and \"eccapfim\".       \n"
+  "                                                                          \n"
+  "Straight field lines with a varying magnitude, B = B0 (1 + (x - x0)/L) z  \n"
+  "(so |B| = B0 at the particle's x0), E = 0, v_par = 0. Direction b = z is  \n"
+  "constant so rot b = 0 (no curvature), leaving only the gradient drift     \n"
+  "V_gradB = (mu/q) (b x grad|B|) / B = mu (B0/L)/(qB) y. The field is       \n"
+  "linear in x, so the discrete gradient (B_{i+1}-B_i)/dx is exactly B0/L    \n"
+  "and the drift is reproduced exactly; a non-linear B(x) would converge at  \n"
+  "2nd order in dx. A single electron is seeded at the same coordinate for   \n"
+  "both runs (transferred to the guiding center automatically for            \n"
+  "drift_kinetic). The domain is elongated along the drift (y); x carries    \n"
+  "the gradient, z is 3 cells. Each run writes its per-step coordinate trace \n"
+  "into its own subdirectory:                                                \n"
+  "  <out>/{drift_kinetic,eccapfim}/temporal/particle_trace.txt.            \n";
 
 static constexpr PetscReal cell = 0.5;
 static constexpr PetscReal B0_value = 1.0;

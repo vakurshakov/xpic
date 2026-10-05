@@ -3,28 +3,26 @@
 #include "src/utils/configuration.h"
 #include "tests/common.h"
 
-/**
- * @brief Curvature drift comparison between "drift_kinetic" and "eccapfim".
- *
- * A prescribed azimuthal field of constant magnitude, B = B0 e_phi (circular
- * field lines around the z-axis, |B| = B0 everywhere). Then grad|B| = 0 (no
- * gradient drift) while rot b = z / r, so the parallel streaming yields a pure
- * curvature drift along z: V_kappa = (m v_par^2) / (q B0 R) z, where R is the
- * field-line (curvature) radius = distance of the guiding center from the axis.
- * This checks the interpolation of rot B; the field ~ 1/r is non-linear so the
- * discrete rot B is exact only to 2nd order in dx, so a large R/dx is used to
- * suppress the residual. Only a quarter of the field-line circle is covered:
- * the axis sits one margin in from the lower-left transverse corner and the box
- * spans the first quadrant (R + 2*margin) so the whole arc + gyration fit; this
- * keeps the box affordable while allowing a large R. A
- * single electron is seeded at the same coordinate for both runs (transferred
- * to the guiding center automatically for drift_kinetic). The domain is
- * elongated along the drift (z); x and y hold the field-line circle. Each run
- * writes its per-step coordinate trace into its own subdirectory:
- * <out>/{drift_kinetic,eccapfim}/temporal/particle_trace.txt.
- */
-
-static constexpr char help[] = "Curvature drift comparison: drift_kinetic vs eccapfim.\n";
+constexpr char help[] =
+  "Curvature drift comparison between \"drift_kinetic\" and \"eccapfim\".    \n"
+  "                                                                          \n"
+  "A prescribed azimuthal field of constant magnitude, B = B0 e_phi          \n"
+  "(circular field lines around the z-axis, |B| = B0 everywhere). Then       \n"
+  "grad|B| = 0 (no gradient drift) while rot b = z / r, so the parallel      \n"
+  "streaming yields a pure curvature drift along z: V_kappa = (m v_par^2) /  \n"
+  "(q B0 R) z, where R is the field-line (curvature) radius = distance of    \n"
+  "the guiding center from the axis. This checks the interpolation of rot B; \n"
+  "the field ~ 1/r is non-linear so the discrete rot B is exact only to 2nd  \n"
+  "order in dx, so a large R/dx is used to suppress the residual. Only a     \n"
+  "quarter of the field-line circle is covered: the axis sits one margin in  \n"
+  "from the lower-left transverse corner and the box spans the first         \n"
+  "quadrant (R + 2*margin) so the whole arc + gyration fit; this keeps the   \n"
+  "box affordable while allowing a large R. A single electron is seeded at   \n"
+  "the same coordinate for both runs (transferred to the guiding center      \n"
+  "automatically for drift_kinetic). The domain is elongated along the drift \n"
+  "(z); x and y hold the field-line circle. Each run writes its per-step     \n"
+  "coordinate trace into its own subdirectory:                               \n"
+  "  <out>/{drift_kinetic,eccapfim}/temporal/particle_trace.txt.            \n";
 
 static constexpr PetscReal cell = 0.5;
 static constexpr PetscReal B0_value = 1.0;  // constant |B|
