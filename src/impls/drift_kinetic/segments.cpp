@@ -35,8 +35,7 @@ PeriodicBox make_periodic_box(Axis axis, CellSplitMode mode)
 {
   const PetscReal length = static_cast<PetscReal>(Geom_n[axis]);
   PetscCheckAbort(length > split_eps, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
-    "Invalid periodic length on axis %d: Geom_n[%d]=%.16e",
-    axis, axis, length);
+    "Invalid periodic length on axis %d: Geom_n[%d]=%.16e", axis, axis, length);
 
   const PetscReal lower = mode == CellSplitMode::cell_centers ? -0.5 : 0.0;
   // The positive integer length bounds both box coordinates in either mode.
@@ -197,16 +196,12 @@ void clamp_and_check_endpoints(Vector3R& start, Vector3R& end,
     const auto& box = boxes[axis];
     start[axis] = clamp_periodic_coordinate(start[axis], box);
     end[axis] = clamp_periodic_coordinate(end[axis], box);
-    PetscCheckAbort(start[axis] >= box.lower - box.tolerance &&
-      start[axis] <= box.upper + box.tolerance,
-      PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
-      "Periodic segment start is outside bounds on axis %d: %.16e, [%.16e, %.16e]",
-      axis, start[axis], box.lower, box.upper);
-    PetscCheckAbort(end[axis] >= box.lower - box.tolerance &&
-      end[axis] <= box.upper + box.tolerance,
-      PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
-      "Periodic segment end is outside bounds on axis %d: %.16e, [%.16e, %.16e]",
-      axis, end[axis], box.lower, box.upper);
+
+    PetscCheckAbort(start[axis] >= box.lower - box.tolerance && start[axis] <= box.upper + box.tolerance, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
+      "Periodic segment start is outside bounds on axis %d: %.16e, [%.16e, %.16e]", axis, start[axis], box.lower, box.upper);
+
+    PetscCheckAbort(end[axis] >= box.lower - box.tolerance && end[axis] <= box.upper + box.tolerance, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
+      "Periodic segment end is outside bounds on axis %d: %.16e, [%.16e, %.16e]", axis, end[axis], box.lower, box.upper);
   }
 }
 
