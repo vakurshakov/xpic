@@ -42,7 +42,7 @@ static constexpr char help[] =
   "exact linear theory from the realized f and to separate wave energy from  \n"
   "irreversible heating.  Ez itself stays below the noise floor at this      \n"
   "marker count and cannot be de-aliased by dumping more often: omega_pe*dt  \n"
-  "= 5 means the step is already longer than the plasma period.              \n";
+  "= 5 means the step is already longer than the plasma period.             \n";
 
 namespace ringdown {
 
@@ -140,12 +140,7 @@ void overwrite_config()
   Configuration::overwrite({
     {"Simulation", "drift_kinetic"},
     {"OutputDirectory", get_out_dir(__FILE__)},
-    {
-      "DriftKineticPush",
-      {
-        {"fail_on_terminal_nonconvergence", true},
-      },
-    },
+    {"DriftKineticPush", {{"fail_on_terminal_nonconvergence", true}}},
     {
       "Geometry",
       {
@@ -165,28 +160,30 @@ void overwrite_config()
     },
     {
       "Particles",
-      {{
-        {"sort_name", "electrons"},
-        {"Np", ringdown::particles_per_cell},
-        {"n", ringdown::theory_ne},
-        {"q", ringdown::theory_qe},
-        {"m", ringdown::theory_me},
-        {"Tx", 0.0},
-        {"Ty", 0.0},
-        {"Tz", ringdown::theory_Te_kev},
-        {"coord_is_gc", true},
-      },
       {
-        {"sort_name", "ions"},
-        {"Np", ringdown::particles_per_cell},
-        {"n", ringdown::theory_ni},
-        {"q", ringdown::theory_qi},
-        {"m", ringdown::theory_mi},
-        {"Tx", 0.0},
-        {"Ty", 0.0},
-        {"Tz", ringdown::theory_Ti_kev},
-        {"coord_is_gc", true},
-      }},
+        {
+          {"sort_name", "electrons"},
+          {"Np", ringdown::particles_per_cell},
+          {"n", ringdown::theory_ne},
+          {"q", ringdown::theory_qe},
+          {"m", ringdown::theory_me},
+          {"Tx", 0.0},
+          {"Ty", 0.0},
+          {"Tz", ringdown::theory_Te_kev},
+          {"coord_is_gc", true},
+        },
+        {
+          {"sort_name", "ions"},
+          {"Np", ringdown::particles_per_cell},
+          {"n", ringdown::theory_ni},
+          {"q", ringdown::theory_qi},
+          {"m", ringdown::theory_mi},
+          {"Tx", 0.0},
+          {"Ty", 0.0},
+          {"Tz", ringdown::theory_Ti_kev},
+          {"coord_is_gc", true},
+        },
+      },
     },
     {
       "Presets",
@@ -195,19 +192,16 @@ void overwrite_config()
           {"command", "SetMagneticField"},
           {"field", "B0"},
           {"field_axpy", "B"},
-          {
-            "setter",
+          {"setter",
             {
               {"name", "SetUniformField"},
               {"value", {0.0, 0.0, 1.0}},
-            },
-          },
+            }},
         },
         {
           {"command", "SetElectricField"},
           {"field", "E"},
-          {
-            "setter",
+          {"setter",
             {
               {"name", "SetCosineField"},
               {"min", {0.0, 0.0, 0.0}},
@@ -215,93 +209,133 @@ void overwrite_config()
               {"amplitude", {0.0, 0.0, ringdown::E_grid}},
               {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
               {"phase", {0.0, 0.0, ringdown::field_grid_phase}},
-            },
-          },
+            }},
         },
         {
           {"command", "SetParticles"},
           {"particles", "electrons"},
-          {"coordinate", {
-            {"name", "KineticIonSoundCoordinates"},
-            {"min", {0.0, 0.0, 0.0}},
-            {"max", {geom_x, geom_y, geom_z}},
-            {"amplitude", {0.0, 0.0, ringdown::a_n_e}},
-            {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
-            {"phase", {0.0, 0.0, ringdown::phi_n_e}},
-          }},
-          {"momentum", {
-            {"name", "KineticIonSoundMoments"},
-            {"min", {0.0, 0.0, 0.0}},
-            {"max", {geom_x, geom_y, geom_z}},
-            {"force_electric_amplitude", ringdown::E_force},
-            {"omega_real", ringdown::omega_real},
-            {"gamma", ringdown::gamma},
-            {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
-            {"field_phase", {0.0, 0.0, 0.0}},
-            {"density_amplitude", {0.0, 0.0, ringdown::a_n_e}},
-            {"density_phase", {0.0, 0.0, ringdown::phi_n_e}},
-          }},
+          {"coordinate",
+            {
+              {"name", "KineticIonSoundCoordinates"},
+              {"min", {0.0, 0.0, 0.0}},
+              {"max", {geom_x, geom_y, geom_z}},
+              {"amplitude", {0.0, 0.0, ringdown::a_n_e}},
+              {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
+              {"phase", {0.0, 0.0, ringdown::phi_n_e}},
+            }},
+          {"momentum",
+            {
+              {"name", "KineticIonSoundMoments"},
+              {"min", {0.0, 0.0, 0.0}},
+              {"max", {geom_x, geom_y, geom_z}},
+              {"force_electric_amplitude", ringdown::E_force},
+              {"omega_real", ringdown::omega_real},
+              {"gamma", ringdown::gamma},
+              {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
+              {"field_phase", {0.0, 0.0, 0.0}},
+              {"density_amplitude", {0.0, 0.0, ringdown::a_n_e}},
+              {"density_phase", {0.0, 0.0, ringdown::phi_n_e}},
+            }},
         },
         {
           {"command", "SetParticles"},
           {"particles", "ions"},
-          {"coordinate", {
-            {"name", "KineticIonSoundCoordinates"},
-            {"min", {0.0, 0.0, 0.0}},
-            {"max", {geom_x, geom_y, geom_z}},
-            {"amplitude", {0.0, 0.0, ringdown::a_n_i}},
-            {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
-            {"phase", {0.0, 0.0, ringdown::phi_n_i}},
-          }},
-          {"momentum", {
-            {"name", "KineticIonSoundMoments"},
-            {"min", {0.0, 0.0, 0.0}},
-            {"max", {geom_x, geom_y, geom_z}},
-            {"force_electric_amplitude", ringdown::E_force},
-            {"omega_real", ringdown::omega_real},
-            {"gamma", ringdown::gamma},
-            {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
-            {"field_phase", {0.0, 0.0, 0.0}},
-            {"density_amplitude", {0.0, 0.0, ringdown::a_n_i}},
-            {"density_phase", {0.0, 0.0, ringdown::phi_n_i}},
-          }},
+          {"coordinate",
+            {
+              {"name", "KineticIonSoundCoordinates"},
+              {"min", {0.0, 0.0, 0.0}},
+              {"max", {geom_x, geom_y, geom_z}},
+              {"amplitude", {0.0, 0.0, ringdown::a_n_i}},
+              {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
+              {"phase", {0.0, 0.0, ringdown::phi_n_i}},
+            }},
+          {"momentum",
+            {
+              {"name", "KineticIonSoundMoments"},
+              {"min", {0.0, 0.0, 0.0}},
+              {"max", {geom_x, geom_y, geom_z}},
+              {"force_electric_amplitude", ringdown::E_force},
+              {"omega_real", ringdown::omega_real},
+              {"gamma", ringdown::gamma},
+              {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
+              {"field_phase", {0.0, 0.0, 0.0}},
+              {"density_amplitude", {0.0, 0.0, ringdown::a_n_i}},
+              {"density_phase", {0.0, 0.0, ringdown::phi_n_i}},
+            }},
         },
       },
     },
     {
       "Diagnostics",
       {
-        // Full three-component E, unlike the {"component", "z"} dumps of the
-        // older ringdown cases: ion_sound.electric_harmonic_series() expects
-        // the vector layout.
-        {{"diagnostic", "FieldView"}, {"field", "E"}, {"out_dir", "E"}},
-        {{"diagnostic", "FieldView"}, {"field", "B"}, {"out_dir", "B"}},
-        {{"diagnostic", "FieldView"}, {"field", "electrons/J"},
-          {"out_dir", "electrons/J"}},
-        {{"diagnostic", "FieldView"}, {"field", "ions/J"},
-          {"out_dir", "ions/J"}},
-        {{"diagnostic", "DistributionMoment"}, {"particles", "electrons"},
-          {"moment", "density"}, {"out_dir", "electrons/density"}},
-        {{"diagnostic", "DistributionMoment"}, {"particles", "electrons"},
+        // Full three-component E, unlike the {"component", "z"} dumps of
+        // the older ringdown cases: ion_sound.electric_harmonic_series()
+        // expects the vector layout.
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "E"},
+          {"out_dir", "E"},
+        },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "B"},
+          {"out_dir", "B"},
+        },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "electrons/J"},
+          {"out_dir", "electrons/J"},
+        },
+        {
+          {"diagnostic", "FieldView"},
+          {"field", "ions/J"},
+          {"out_dir", "ions/J"},
+        },
+        {
+          {"diagnostic", "DistributionMoment"},
+          {"particles", "electrons"},
+          {"moment", "density"},
+          {"out_dir", "electrons/density"},
+        },
+        {
+          {"diagnostic", "DistributionMoment"},
+          {"particles", "electrons"},
           {"moment", "temperature_parallel"},
-          {"out_dir", "electrons/temperature_parallel"}},
-        {{"diagnostic", "DistributionMoment"}, {"particles", "ions"},
-          {"moment", "density"}, {"out_dir", "ions/density"}},
-        {{"diagnostic", "DistributionMoment"}, {"particles", "ions"},
+          {"out_dir", "electrons/temperature_parallel"},
+        },
+        {
+          {"diagnostic", "DistributionMoment"},
+          {"particles", "ions"},
+          {"moment", "density"},
+          {"out_dir", "ions/density"},
+        },
+        {
+          {"diagnostic", "DistributionMoment"},
+          {"particles", "ions"},
           {"moment", "temperature_parallel"},
-          {"out_dir", "ions/temperature_parallel"}},
-        // Five early 5-D frames: enough for ion_sound.py --model to start the
-        // exact linear evolution from the realized distribution instead of the
-        // configured moments.  One mu bin, see mu_max_* above.
+          {"out_dir", "ions/temperature_parallel"},
+        },
+
+        // Five early 5-D frames: enough for ion_sound.py --model to
+        // start the exact linear evolution from the realized
+        // distribution instead of the configured moments.  One mu bin,
+        // see mu_max_* above.
         {
           {"diagnostic", "DkDistributionFunction"},
           {"particles", "electrons"},
           {"out_dir", "electrons/distribution_function"},
-          {"v_parallel", {
-            {"min", -ringdown::vpar_max_e}, {"max", ringdown::vpar_max_e},
-            {"bins", 3000}}},
-          {"mu_p", {
-            {"min", 0.0}, {"max", ringdown::mu_max_e}, {"bins", 1}}},
+          {"v_parallel",
+            {
+              {"min", -ringdown::vpar_max_e},
+              {"max", ringdown::vpar_max_e},
+              {"bins", 3000},
+            }},
+          {"mu_p",
+            {
+              {"min", 0.0},
+              {"max", ringdown::mu_max_e},
+              {"bins", 1},
+            }},
           {"diagnose_period", ringdown::diagnostic_period},
           {"max_frames", 5},
         },
@@ -309,11 +343,18 @@ void overwrite_config()
           {"diagnostic", "DkDistributionFunction"},
           {"particles", "ions"},
           {"out_dir", "ions/distribution_function"},
-          {"v_parallel", {
-            {"min", -ringdown::vpar_max_i}, {"max", ringdown::vpar_max_i},
-            {"bins", 192}}},
-          {"mu_p", {
-            {"min", 0.0}, {"max", ringdown::mu_max_i}, {"bins", 1}}},
+          {"v_parallel",
+            {
+              {"min", -ringdown::vpar_max_i},
+              {"max", ringdown::vpar_max_i},
+              {"bins", 192},
+            }},
+          {"mu_p",
+            {
+              {"min", 0.0},
+              {"max", ringdown::mu_max_i},
+              {"bins", 1},
+            }},
           {"diagnose_period", ringdown::diagnostic_period},
           {"max_frames", 5},
         },

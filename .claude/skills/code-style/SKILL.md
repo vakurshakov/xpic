@@ -40,3 +40,16 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 - 80 columns, 2-space indent, `PointerAlignment: Left`, function-definition brace on its own line, class/struct brace on the same line.
 - Header guards use `SRC_<PATH>_H` (no `#pragma once`). PETSc error handling follows `PetscFunctionBeginUser` / `PetscCall(...)` / `PetscFunctionReturn(PETSC_SUCCESS)`.
 - The build must stay clean under `-Wall -Wextra -Wpedantic -Werror`.
+
+### JSON configuration formatting
+
+In `Configuration::overwrite({...})` calls, trailing commas fine-tune layout after `clang-format`:
+
+- Top-level keys (`"Geometry"`, `"Particles"`, `"Presets"`, `"Diagnostics"`) have trailing commas.
+- Items in arrays (particle specs, preset commands, diagnostic entries) have trailing commas.
+- Nested objects like `"setter"`, `"coordinate"`, `"momentum"` use **inline format** when the key-value pair fits: `{"setter", {...}}`, not broken across lines.
+- When a preset or diagnostic item cannot fit on one line within `ColumnLimit`, break it into multi-line format with trailing commas on sub-keys, but keep nested object assignments inline.
+- Last item in nested objects typically has no trailing comma, unless it improves vertical alignment.
+- **Check existing test files** in the same directory for formatting patterns before applying changes.
+
+This keeps multi-line JSON compact and prevents `clang-format` from collapsing structure.

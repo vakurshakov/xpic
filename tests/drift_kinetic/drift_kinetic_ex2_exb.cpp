@@ -15,7 +15,7 @@ static constexpr char help[] =
   "shared initial coordinate is transferred to the guiding center            \n"
   "automatically for the drift-kinetic run. Each run writes a per-step       \n"
   "coordinate trace into its own subdirectory:                               \n"
-  "  <out>/{drift_kinetic,eccapfim}/temporal/particle_trace.txt.             \n";
+  "  <out>/{drift_kinetic,eccapfim}/temporal/particle_trace.txt.            \n";
 
 static constexpr PetscReal cell = 0.5;
 static constexpr PetscReal E_value = 0.01;
@@ -100,14 +100,16 @@ void overwrite_config(
     },
     {
       "Particles",
-      {{
-        {"sort_name", "electrons"},
-        {"Np", 1},
-        {"n", +1.0},
-        {"q", -1.0},
-        {"m", +1.0},
-        {"T", +0.1},
-      }},
+      {
+        {
+          {"sort_name", "electrons"},
+          {"Np", 1},
+          {"n", +1.0},
+          {"q", -1.0},
+          {"m", +1.0},
+          {"T", +0.1},
+        },
+      },
     },
     {
       "Presets",
@@ -116,17 +118,33 @@ void overwrite_config(
           {"command", "SetMagneticField"},
           {"field", "B0"},
           {"field_axpy", "B"},
-          {"setter", {{"name", "SetUniformField"}, {"value", {0.0, 0.0, B_value}}}},
+          {"setter",
+            {
+              {"name", "SetUniformField"},
+              {"value", {0.0, 0.0, B_value}},
+            }},
         },
         {
           {"command", "SetElectricField"},
-          {"setter", {{"name", "SetUniformField"}, {"value", {0.0, E_value, 0.0}}}},
+          {"setter",
+            {
+              {"name", "SetUniformField"},
+              {"value", {0.0, E_value, 0.0}},
+            }},
         },
         {
           {"command", "SetParticles"},
           {"particles", "electrons"},
-          {"coordinate", {{"name", "PreciseCoordinate"}, {"value", {r0[X], r0[Y], r0[Z]}}}},
-          {"momentum", {{"name", "PreciseMomentum"}, {"value", {p0[X], p0[Y], p0[Z]}}}},
+          {"coordinate",
+            {
+              {"name", "PreciseCoordinate"},
+              {"value", {r0[X], r0[Y], r0[Z]}},
+            }},
+          {"momentum",
+            {
+              {"name", "PreciseMomentum"},
+              {"value", {p0[X], p0[Y], p0[Z]}},
+            }},
         },
       },
     },

@@ -23,8 +23,9 @@ int main(int argc, char** argv)
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
-  //PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
-  //PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));
+  /// @todo ? Test should be fixed
+  // PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
+  // PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -78,22 +79,15 @@ void overwrite_config()
           {"command", "SetMagneticField"},
           {"field", "B0"},
           {"field_axpy", "B"},
-          {
-            "setter",
-            {
-              {"name", "SetUniformField"},
-              {"value", {0.0, 0.0, 1.}},
-            },
-          },
+          {"setter", {{"name", "SetUniformField"}, {"value", {0.0, 0.0, 1.}}}},
         },
-      {
-        {"command", "SetParticles"},
-        {"particles", "electrons"},
-        {"coordinate", {{"name", "CoordinateInBox"}}},
-        {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
-        //{"momentum", {{"name", "PreciseMomentum"}, {"value", {0.1,0.1,0.1}}}},
-        //{"coordinate", {{"name", "PreciseCoordinate"}, {"value", {0.5,0.5,0.5}}}},
-      }},
+        {
+          {"command", "SetParticles"},
+          {"particles", "electrons"},
+          {"coordinate", {{"name", "CoordinateInBox"}}},
+          {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+        },
+      },
     },
     {
       "Diagnostics",

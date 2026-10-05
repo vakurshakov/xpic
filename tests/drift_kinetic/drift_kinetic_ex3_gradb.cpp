@@ -103,14 +103,16 @@ void overwrite_config(
     },
     {
       "Particles",
-      {{
-        {"sort_name", "electrons"},
-        {"Np", 1},
-        {"n", +1.0},
-        {"q", -1.0},
-        {"m", +1.0},
-        {"T", +0.1},
-      }},
+      {
+        {
+          {"sort_name", "electrons"},
+          {"Np", 1},
+          {"n", +1.0},
+          {"q", -1.0},
+          {"m", +1.0},
+          {"T", +0.1},
+        },
+      },
     },
     {
       "Presets",
@@ -119,21 +121,32 @@ void overwrite_config(
           {"command", "SetMagneticField"},
           {"field", "B0"},
           {"field_axpy", "B"},
-          {"setter", {
-            {"name", "SetGradientField"},
-            {"value", {0.0, 0.0, B0_value}},
-            {"axis", "X"},
-            {"length", L_value},
-            // Shift the origin by half a cell to compensate the Yee stagger of
-            // Bz, so the field the particle samples at r0[X] is exactly B0_value.
-            {"origin", r0[X] - 0.5 * cell},
-          }},
+          {"setter",
+            {
+              {"name", "SetGradientField"},
+              {"value", {0.0, 0.0, B0_value}},
+              {"axis", "X"},
+              {"length", L_value},
+
+              // Shift the origin by half a cell to compensate the
+              // Yee stagger of Bz, so the field the particle samples
+              // at r0[X] is exactly B0_value.
+              {"origin", r0[X] - 0.5 * cell},
+            }},
         },
         {
           {"command", "SetParticles"},
           {"particles", "electrons"},
-          {"coordinate", {{"name", "PreciseCoordinate"}, {"value", {r0[X], r0[Y], r0[Z]}}}},
-          {"momentum", {{"name", "PreciseMomentum"}, {"value", {p0[X], p0[Y], p0[Z]}}}},
+          {"coordinate",
+            {
+              {"name", "PreciseCoordinate"},
+              {"value", {r0[X], r0[Y], r0[Z]}},
+            }},
+          {"momentum",
+            {
+              {"name", "PreciseMomentum"},
+              {"value", {p0[X], p0[Y], p0[Z]}},
+            }},
         },
       },
     },

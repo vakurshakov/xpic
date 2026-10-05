@@ -119,14 +119,16 @@ void overwrite_config(
     },
     {
       "Particles",
-      {{
-        {"sort_name", "electrons"},
-        {"Np", 1},
-        {"n", +1.0},
-        {"q", -1.0},
-        {"m", +1.0},
-        {"T", +0.1},
-      }},
+      {
+        {
+          {"sort_name", "electrons"},
+          {"Np", 1},
+          {"n", +1.0},
+          {"q", -1.0},
+          {"m", +1.0},
+          {"T", +0.1},
+        },
+      },
     },
     {
       "Presets",
@@ -135,17 +137,26 @@ void overwrite_config(
           {"command", "SetMagneticField"},
           {"field", "B0"},
           {"field_axpy", "B"},
-          {"setter", {
-            {"name", "SetAzimuthalField"},
-            {"value", B0_value},
-            {"center", {center[X], center[Y], 0.0}},
-          }},
+          {"setter",
+            {
+              {"name", "SetAzimuthalField"},
+              {"value", B0_value},
+              {"center", {center[X], center[Y], 0.0}},
+            }},
         },
         {
           {"command", "SetParticles"},
           {"particles", "electrons"},
-          {"coordinate", {{"name", "PreciseCoordinate"}, {"value", {r0[X], r0[Y], r0[Z]}}}},
-          {"momentum", {{"name", "PreciseMomentum"}, {"value", {p0[X], p0[Y], p0[Z]}}}},
+          {"coordinate",
+            {
+              {"name", "PreciseCoordinate"},
+              {"value", {r0[X], r0[Y], r0[Z]}},
+            }},
+          {"momentum",
+            {
+              {"name", "PreciseMomentum"},
+              {"value", {p0[X], p0[Y], p0[Z]}},
+            }},
         },
       },
     },
