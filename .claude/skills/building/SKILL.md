@@ -15,10 +15,11 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) are set in `header.sh
 
 - `./build.sh [Debug|Release]` — configures and builds with CMake. With no argument, builds both Debug and Release sequentially. When using raw `cmake --build` always specify either `build/Debug` or `build/Release` — running without specifying the build type will fail. Pass `Debug` for quick iteration with symbols, or `Release` for optimized builds used by tests and benchmarking.
 - `./run.sh <config.json> [petsc/mpi options]` — runs `./build/Release/xpic.out` via `mpiexec`, with OpenMP env vars set (`OMP_NUM_THREADS=4`, thread spread/affinity). Must be run from the repo root since output paths in configs are relative to it. Clears PETSc shared memory before each run.
-- `./run-tests.sh [ctest args]` — rebuilds Release, then runs `ctest --test-dir build/Release`. Supports normal ctest filtering, e.g.:
+- `./run-tests.sh [ctest args]` — rebuilds Release, then runs `ctest --test-dir build/Release [ctest args]`. When using raw `ctest` always specify the `--test-dir` with `build/Release` or `build/Debug`, this flag is required; omitting it will fail. Use this when the code is already built and you want to iterate on test runs without triggering a rebuild. These commands support normal ctest agrument list, e.g.:
   - `./run-tests.sh -R basic_ex1` — run a specific test by name.
   - `./run-tests.sh -L "impls ecsim"` — run tests by label (labels combine an area label like `impls`/`diagnostics`/`boris`/`crank_nicolson`/`drift_kinetic` with an implementation label like `basic`/`ecsim`/`ecsimcorr`/`eccapfim`, and MPI variants add the `mpi` label).
   - `./run-tests.sh --help` — shows ctest's own help.
+
 - `./run-clang-format.sh` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`).
 
 ## Test layout
