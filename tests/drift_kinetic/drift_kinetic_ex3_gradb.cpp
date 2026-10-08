@@ -70,7 +70,7 @@ void overwrite_config(
   dx = dy = dz = cell;
   geom_nx = 10;
   geom_ny = 14;
-  geom_nz = 3;
+  geom_nz = 4;
   geom_x = geom_nx * dx;
   geom_y = geom_ny * dy;
   geom_z = geom_nz * dz;

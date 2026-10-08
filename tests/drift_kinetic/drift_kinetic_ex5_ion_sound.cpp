@@ -122,8 +122,8 @@ int main(int argc, char** argv)
 
 void overwrite_config()
 {
-  geom_nx = 3;
-  geom_ny = 3;
+  geom_nx = 4;
+  geom_ny = 4;
   geom_nz = ringdown::cells_z;
   dx = ringdown::theory_dz;
   dy = ringdown::theory_dz;
