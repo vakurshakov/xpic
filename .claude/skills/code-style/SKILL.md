@@ -10,6 +10,23 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 ## General
 
 - Descriptive names. Minimal code: no speculative abstractions, no backwards-compatibility shims, no commented-out code.
+- Short physics notation (`n_pa`, `n_pp`, `k_par`, `v2_0`) is fine if it improves the readability and each member has a trailing `//` comment at its declaration.
+- Zero and integer-valued constants have no `.0` (`PetscReal q = 0;`, `{0, 0, pz}`, `== 0`, `1e-12`). Keep `.0` where it reads better in physical expressions (`2.0 * M_PI`).
+- Use `x++` for integer counters (`active++`, `it++`); iterators keep `++it`.
+- Index `Vector3R` and arrays directly by `Axis` (`bases[a]`, `T[a]`), without `static_cast<std::size_t>(a)`.
+- Prefer a loop over axes to three copy-pasted lines. Inline single-use helpers.
+- A ternary lvalue is acceptable for a symmetric branch: `((cdf < u) ? x_lo : x_hi) = x;`.
+- Constructors: no `std::move` in the init list for cheap-to-copy types (`box(box)`); no default arguments for parameters the caller must set (an implicit default is implementation-specific); no redundant member initializers (`Vector3R phase;`, not `phase{0.0, 0.0, 0.0}`).
+
+## Errors and validation
+
+- Validate with `PetscCheckAbort(cond, PETSC_COMM_WORLD, PETSC_ERR_*, "msg")`, not `throw std::runtime_error(...)` (with or without `std::format`).
+- Pick the code by meaning: `ARG_WRONG` (bad value), `ARG_WRONGSTATE` (bad count/state), `ARG_OUTOFRANGE`, `ARG_CORRUPT` (invalid computed values), `NOT_CONVERGED` (sampling failed).
+- State the condition positively (`PetscCheckAbort(n > 0 && v2 > 0, ...)`), not `if (!(x > 0.0) || ...) throw`.
+- Drop checks that other code already guarantees. No retry loops that can't help: check once and abort.
+- Messages are printf-formatted (`%s`, `%g`, `.c_str()` for strings). Assume required fields (e.g. `SortParameters::sort_name`) are set: no fallbacks.
+- A `PetscCheckAbort` is a logical block: surround it with blank lines.
+- `PetscCheckAbort`, `PetscCheck`, `LOG`, `PetscCall`, ... are in `WhitespaceSensitiveMacros` (`.clang-format`), so `clang-format` does not rewrap them. Format them by hand, better to keep everything on the same line; checks are formatted with the message on the new line; multi-line messages may be aligned manually.
 
 ## Includes
 
@@ -40,6 +57,8 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 - Run `clang-format -i` on the files you edit, not the repo-wide `./run-clang-format.sh`, to avoid unrelated churn.
 - 80 columns, 2-space indent, `PointerAlignment: Left`, function-definition brace on its own line, class/struct brace on the same line.
 - Header guards use `SRC_<PATH>_H` (no `#pragma once`). PETSc error handling follows `PetscFunctionBeginUser` / `PetscCall(...)` / `PetscFunctionReturn(PETSC_SUCCESS)`.
+- Blank lines separate logical blocks (declarations, checks, update steps).
+- No `// clang-format off/on` wrappers: restate the code so it is format-stable.
 - The build must stay clean under `-Wall -Wextra -Wpedantic -Werror`.
 
 ### JSON configuration formatting

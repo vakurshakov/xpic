@@ -42,9 +42,9 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
       ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
 
     number_of_particles = (box.max - box.min).elements_product() * frac;
-    if (number_of_particles % 2 != 0)
+    if (number_of_particles == 0 || number_of_particles % 2 != 0)
       throw std::runtime_error(
-        "KineticIonSoundCoordinates requires an even number of particles");
+        "KineticIonSoundCoordinates requires positive, even number of particles");
     const std::size_t active_axis_lattice_pairs =
       static_cast<std::size_t>(number_of_particles / 2);
     gen = KineticIonSoundCoordinates(std::move(box), amplitude,

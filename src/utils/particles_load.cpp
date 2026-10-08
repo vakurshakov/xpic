@@ -32,33 +32,34 @@ Vector3R CoordinateInCylinder::operator()()
 KineticIonSoundCoordinates::KineticIonSoundCoordinates(BoxGeometry box,
   const Vector3R& amplitude, const Vector3R& wave_number, const Vector3R& phase,
   std::size_t active_axis_lattice_pairs)
-  : box(std::move(box)),
-    amplitude(amplitude),
-    wave_number(wave_number),
-    phase(phase),
-    active_axis_lattice_pairs(active_axis_lattice_pairs)
+  : box(box),
+    n_pa(amplitude),
+    n_pm(wave_number),
+    n_pp(phase),
+    pairs_total_number(active_axis_lattice_pairs)
 {
   PetscInt active = 0;
+
   for (Axis a : {X, Y, Z}) {
-    if (amplitude[a] == 0.0 && wave_number[a] == 0.0)
+    if (n_pa[a] == 0 && n_pm[a] == 0)
       continue;
-    if (amplitude[a] == 0.0 || wave_number[a] == 0.0)
-      throw std::runtime_error(
-        "KineticIonSoundCoordinates requires amplitude and wave_number "
-        "together");
-    if (abs(amplitude[a]) >= 1.0)
-      throw std::runtime_error(
-        "KineticIonSoundCoordinates requires |amplitude| < 1");
-    PetscReal rounded_mode = std::round(wave_number[a]);
-    if (rounded_mode <= 0.0 || abs(wave_number[a] - rounded_mode) > 1.0e-12)
-      throw std::runtime_error(
-        "KineticIonSoundCoordinates requires a positive integer wave_number");
+
+    PetscCheckAbort(n_pa[a] != 0 && n_pm[a] != 0, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "KineticIonSoundCoordinates requires amplitude and wave_number together");
+
+    PetscCheckAbort(abs(n_pa[a]) < 1, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "KineticIonSoundCoordinates requires |amplitude| < 1");
+
+    PetscReal round_pm = round(n_pm[a]);
+    PetscCheckAbort(round_pm > 0 && abs(n_pm[a] - round_pm) <= 1e-12, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "KineticIonSoundCoordinates requires a positive integer wave_number");
+
     axis = a;
-    ++active;
+    active++;
   }
-  if (active != 1)
-    throw std::runtime_error(
-      "KineticIonSoundCoordinates requires exactly one active axis");
+
+  PetscCheckAbort(active == 1, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+    "KineticIonSoundCoordinates requires exactly one active axis");
 }
 
 /**
@@ -92,7 +93,7 @@ static_assert(  //
 /// Reverts digits of `i` in `base`, @returns the result as fraction in [0,1).
 PetscReal van_der_corput(std::size_t i, std::size_t base)
 {
-  PetscReal q = 0.0;
+  PetscReal q = 0;
   PetscReal bk = 1.0 / static_cast<PetscReal>(base);
   while (i > 0) {
     q += static_cast<PetscReal>(i % base) * bk;
@@ -107,26 +108,28 @@ PetscReal van_der_corput(std::size_t i, std::size_t base)
 PetscReal sine_density_inv_cdf(
   PetscReal u, PetscReal amplitude, PetscReal mode, PetscReal phase)
 {
+  PetscReal x = u;
   PetscReal x_lo = 0.0;
   PetscReal x_hi = 1.0;
-  PetscReal x = u;
-  PetscReal inv_k = 1.0 / (2.0 * M_PI * mode);
 
-  for (int it = 0; it < 64; ++it) {
-    PetscReal arg = 2.0 * M_PI * mode * x + phase;
-    PetscReal cdf = x + amplitude * inv_k * (cos(phase) - cos(arg));
+  PetscReal k = (2.0 * M_PI * mode);
+  PetscReal k_inv = 1.0 / k;
+
+  for (int it = 0; it < 64; it++) {
+    PetscReal arg = k * x + phase;
+    PetscReal cdf = x + amplitude * k_inv * (cos(phase) - cos(arg));
     PetscReal pdf = 1.0 + amplitude * sin(arg);
 
-    if (cdf < u)
-      x_lo = x;
-    else
-      x_hi = x;
+    ((cdf < u) ? x_lo : x_hi) = x;
 
     PetscReal x_new = x - (cdf - u) / pdf;
+
     if (x_new <= x_lo || x_new >= x_hi)
       x_new = 0.5 * (x_lo + x_hi);
+
     if (abs(x_new - x) < 16.0 * std::numeric_limits<PetscReal>::epsilon())
       return x_new;
+
     x = x_new;
   }
   return x;
@@ -135,32 +138,31 @@ PetscReal sine_density_inv_cdf(
 
 Vector3R KineticIonSoundCoordinates::operator()()
 {
-  if (return_second) {
-    return_second = false;
+  if (return_second_coordinate) {
+    return_second_coordinate = false;
     return paired_coordinate;
   }
 
-  const std::size_t index = pair_counter + 1;
   for (Axis a : {X, Y, Z}) {
-    PetscReal u;
-    if (a == axis && active_axis_lattice_pairs != 0) {
-      if (pair_counter >= active_axis_lattice_pairs)
-        throw std::runtime_error(
-          "KineticIonSoundCoordinates exhausted its active-axis lattice");
-      u = (static_cast<PetscReal>(pair_counter) + 0.5) /
-        static_cast<PetscReal>(active_axis_lattice_pairs);
+    PetscReal rand_x;
+
+    if (a == axis) {
+      /// @note pairs_total_number (active_axis_lattice_pairs) is always positive (?)
+      PetscCheckAbort(pair_number < pairs_total_number, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
+        "KineticIonSoundCoordinates exhausted its active-axis lattice");
+
+      rand_x = ((PetscReal)pair_number + 0.5) / pairs_total_number;
+      rand_x = sine_density_inv_cdf(rand_x, n_pa[a], n_pm[a], n_pp[a]);
     }
     else {
-      u = van_der_corput(index, coordinate_bases[static_cast<std::size_t>(a)]);
+      rand_x = van_der_corput(pair_number + 1, coordinate_bases[a]);
     }
-    if (a == axis) {
-      u = sine_density_inv_cdf(u, amplitude[a], wave_number[a], phase[a]);
-    }
-    paired_coordinate[a] = box.min[a] + u * (box.max[a] - box.min[a]);
+
+    paired_coordinate[a] = box.min[a] + rand_x * (box.max[a] - box.min[a]);
   }
 
-  ++pair_counter;
-  return_second = true;
+  pair_number++;
+  return_second_coordinate = true;
   return paired_coordinate;
 }
 
@@ -175,8 +177,10 @@ Vector3R CoordinateInBoxCosineHump::operator()()
       box.min[Y] + random_01() * (box.max[Y] - box.min[Y]),
       box.min[Z] + random_01() * (box.max[Z] - box.min[Z]),
     };
+
     PetscReal normalized = (coordinate[axis] - center) / half_length;
     PetscReal weight = 0.5 * (1.0 + cos(M_PI * normalized));
+
     if (random_01() < weight)
       return coordinate;
   }
@@ -201,25 +205,26 @@ Vector3R PreciseMomentum::operator()(const Vector3R& /* coordinate */)
   return value;
 }
 
-PetscReal thermal_momentum(PetscReal temperature, PetscReal mass)
-{
-  return sqrt(-2.0 * (temperature * mass / mec2) * log(random_01()));
-}
-
 Vector3R thermal_momentum(const SortParameters& params)
 {
-  return Vector3R{
-    sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Tx, params.m),
-    sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Ty, params.m),
-    sin(2.0 * M_PI * random_01()) * thermal_momentum(params.Tz, params.m),
-  };
+  Vector3R T = {params.Tx, params.Ty, params.Tz};
+  Vector3R result;
+
+  for (Axis a : {X, Y, Z}) {
+    PetscReal rand_vr = random_01();
+    PetscReal rand_va = random_01();
+
+    PetscReal sigma_p = sqrt(T[a] * params.m / mec2);
+    result[a] = sigma_p * sqrt(-2.0 * log(rand_vr)) * sin(2.0 * M_PI * rand_va);
+  }
+  return result;
 }
 
 Vector3R thermal_velocity(const SortParameters& params)
 {
-  Vector3R result = thermal_momentum(params);
-  result /= sqrt(params.m * params.m + result.squared());
-  return result;
+  Vector3R velocity = thermal_momentum(params);
+  velocity /= sqrt(params.m * params.m + velocity.squared());
+  return velocity;
 }
 
 Vector3R MaxwellianMomentum::operator()(const Vector3R& /* coordinate */)
@@ -267,169 +272,148 @@ KineticIonSoundMoments::KineticIonSoundMoments(const SortParameters& params,
   PetscReal gamma, const Vector3R& wave_number, const Vector3R& field_phase,
   const Vector3R& density_amplitude, const Vector3R& density_phase)
   : params(params),
-    box(std::move(box)),
-    force_electric_amplitude(force_electric_amplitude),
+    box(box),
+    E_pa(force_electric_amplitude),
+    E_pp(field_phase),
+    n_pa(density_amplitude),
+    n_pp(density_phase),
     omega_real(omega_real),
-    gamma(gamma),
-    wave_number(wave_number),
-    field_phase(field_phase),
-    density_amplitude(density_amplitude),
-    density_phase(density_phase)
+    gamma(gamma)
 {
-  if (!(params.n > 0.0) || !(params.m > 0.0) || !isfinite(params.n) ||
-    !isfinite(params.q) || !isfinite(params.m) ||
-    !isfinite(force_electric_amplitude) || !isfinite(omega_real) ||
-    !(gamma > 0.0) || !isfinite(gamma))
-    throw std::runtime_error(
-      "KineticIonSoundMoments requires finite plasma parameters, n > 0, m > 0, "
-      "and gamma > 0");
+  PetscCheckAbort(gamma > 0 && isfinite(gamma) && isfinite(E_pa) && isfinite(omega_real), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+    "KineticIonSoundMoments requires finite plasma parameters: gamma > 0, E_pa, omega_real");
 
-  PetscReal temperatures[3] = {params.Tx, params.Ty, params.Tz};
   PetscInt active = 0;
+
   for (Axis a : {X, Y, Z}) {
-    if (temperatures[a] < 0.0 || !isfinite(temperatures[a]) ||
-      !isfinite(wave_number[a]) || !isfinite(field_phase[a]) ||
-      !isfinite(density_amplitude[a]) || !isfinite(density_phase[a]))
-      throw std::runtime_error(
-        "KineticIonSoundMoments requires finite mode parameters and "
-        "non-negative temperatures");
-    if (wave_number[a] != 0.0) {
+    PetscCheckAbort(isfinite(wave_number[a]) && isfinite(E_pp[a]) && isfinite(n_pa[a]) && isfinite(n_pp[a]), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "KineticIonSoundMoments requires finite mode parameters");
+
+    if (wave_number[a] != 0) {
       axis = a;
-      ++active;
+      active++;
     }
-    else if (density_amplitude[a] != 0.0) {
-      throw std::runtime_error(
-        "KineticIonSoundMoments density perturbation must use the active wave "
-        "axis");
+    else {
+      PetscCheckAbort(n_pa[a] == 0, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+        "KineticIonSoundMoments density perturbation must use the active wave axis");
     }
   }
-  if (active != 1)
-    throw std::runtime_error(
-      "KineticIonSoundMoments requires exactly one non-zero wave_number");
 
-  PetscReal length = this->box.max[axis] - this->box.min[axis];
-  if (!(length > 0.0) || !isfinite(length))
-    throw std::runtime_error(
-      "KineticIonSoundMoments requires a finite non-empty box");
-  if (!(abs(density_amplitude[axis]) < 1.0))
-    throw std::runtime_error(
-      "KineticIonSoundMoments requires |density_amplitude| < 1");
+  PetscCheckAbort(active == 1, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+    "KineticIonSoundMoments requires exactly one non-zero wave_number");
 
-  equilibrium_variance = temperatures[axis] / (params.m * mec2);
-  if (!(equilibrium_variance > 0.0) || !isfinite(equilibrium_variance))
-    throw std::runtime_error(
-      "KineticIonSoundMoments requires positive parallel temperature");
+  PetscReal length = box.max[axis] - box.min[axis];
+  PetscCheckAbort(length > 0 && isfinite(length), PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
+    "KineticIonSoundMoments requires a finite non-empty box");
 
-  k_parallel = 2.0 * M_PI * wave_number[axis] / length;
-  PetscComplex imaginary{0.0, 1.0};
+  PetscCheckAbort(abs(n_pa[axis]) < 1.0, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+    "KineticIonSoundMoments requires |density_amplitude| < 1");
+
+  Vector3R T{params.Tx, params.Ty, params.Tz};
+  PetscReal n0 = params.n;
+  PetscReal q = params.q;
+  PetscReal m = params.m;
+
+  v2_0 = T[axis] / (m * mec2);
+  PetscCheckAbort(v2_0 > 0 && isfinite(v2_0), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+    "KineticIonSoundMoments requires positive parallel temperature");
+
+  PetscComplex imag_unit{0, 1.0};
+  PetscComplex n_exp = 1.0 * exp(imag_unit * n_pp[axis]);
+  PetscComplex E_exp = E_pa * exp(imag_unit * E_pp[axis]);
+
   PetscComplex omega{omega_real, -gamma};
-  PetscComplex density_phase_factor = exp(imaginary * density_phase[axis]);
-  PetscComplex field_harmonic =
-    force_electric_amplitude * exp(imaginary * field_phase[axis]);
 
-  density_harmonic =
-    -imaginary * params.n * density_amplitude[axis] * density_phase_factor;
-  flux_harmonic = omega * density_harmonic / k_parallel;
-  second_moment_harmonic =
-    (omega * flux_harmonic -
-      imaginary * (params.q / params.m) * params.n * field_harmonic) /
-    k_parallel;
+  k_par = 2.0 * M_PI * wave_number[axis] / length;
+  n_p = -imag_unit * n0 * n_pa[axis] * n_exp;
+  v_p = omega * n_p / k_par;
+  nv2_p = (omega * v_p - imag_unit * (q / m) * n0 * E_exp) / k_par;
 
-  PetscReal density_min = params.n - abs(density_harmonic);
-  PetscReal second_moment_min =
-    params.n * equilibrium_variance - abs(second_moment_harmonic);
-  PetscReal flux_max = abs(flux_harmonic);
-  PetscReal determinant_margin =
-    density_min * second_moment_min - flux_max * flux_max;
-  PetscReal subluminal_margin = density_min - flux_max;
-  if (!(density_min > 0.0) || !(second_moment_min > 0.0) ||
-    !(determinant_margin > 0.0) || !(subluminal_margin > 0.0))
-    throw std::runtime_error(std::format(
-      "KineticIonSoundMoments positivity check failed for '{}': "
-      "n_min={} (>0), P_min={} (>0), n_min*P_min-|M1|^2={} (>0), "
-      "n_min-|M1|={} (>0), |M1|={}, |M2|={}, k={}. Regenerate the "
-      "mode constants for the configured plasma, box, and grid with "
-      "ion_sound.py --theory --grid-dz.",
-      params.sort_name.empty() ? "<unnamed>" : params.sort_name, density_min,
-      second_moment_min, determinant_margin, subluminal_margin, flux_max,
-      abs(second_moment_harmonic), k_parallel));
+  PetscReal n_min = n0 - abs(n_p);
+  PetscReal v_max = /*  */ abs(v_p);
+  PetscReal nv2_min = n0 * v2_0 - abs(nv2_p);
+  PetscReal margin_determinant = n_min * nv2_min - v_max * v_max;
+  PetscReal margin_subluminal = n_min - v_max;
+
+  PetscCheckAbort(n_min > 0 && nv2_min > 0 && margin_determinant > 0 && margin_subluminal > 0, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+    "KineticIonSoundMoments positivity check failed for '%s':                                                      \n"
+    "n_min=%g (>0), P_min=%g (>0), n_min*P_min-|M1|^2=%g (>0), n_min-|M1|=%g (>0), |M1|=%g, |M2|=%g, k=%g.         \n"
+    "Regenerate the mode constants for the configured plasma, box, and grid with ion_sound.py --theory --grid-dz.  \n",
+    params.sort_name.c_str(), n_min, nv2_min, margin_determinant, margin_subluminal, v_max, abs(nv2_p), k_par);
 }
 
-void KineticIonSoundMoments::local_parallel_parameters(
-  const Vector3R& coordinate, PetscReal& bulk_velocity, PetscReal& variance) const
+void KineticIonSoundMoments::local_parallel_parameters(const Vector3R& coordinate,
+  PetscReal& bulk_velocity, PetscReal& parallel_scale) const
 {
-  PetscReal theta = k_parallel * (coordinate[axis] - box.min[axis]);
-  PetscComplex phase_factor = std::polar<PetscReal>(1.0, theta);
-  PetscReal density = params.n + std::real(density_harmonic * phase_factor);
-  PetscReal flux = std::real(flux_harmonic * phase_factor);
-  PetscReal second_moment = params.n * equilibrium_variance +
-    std::real(second_moment_harmonic * phase_factor);
-  bulk_velocity = flux / density;
-  variance = second_moment / density - bulk_velocity * bulk_velocity;
+  PetscReal phase = k_par * (coordinate[axis] - box.min[axis]);
+  PetscComplex exp = std::polar(1.0, phase);
 
-  if (!(density > 0.0) || !(variance > 0.0) || !(abs(bulk_velocity) < 1.0) ||
-    !isfinite(variance))
-    throw std::runtime_error(
-      "KineticIonSoundMoments encountered invalid local moments");
+  // local values of perturbed quantities, according to ion-sound profiles
+  PetscReal n0 = params.n;
+  PetscReal n = n0 + std::real(n_p * exp);
+  PetscReal v = /*  */ std::real(v_p * exp);
+  PetscReal nv2 = n0 * v2_0 + std::real(nv2_p * exp);
+
+  bulk_velocity = v / n;
+  PetscReal v2 = nv2 / n - bulk_velocity * bulk_velocity;
+
+  PetscCheckAbort(n > 0 && v2 > 0 && abs(bulk_velocity) < 1.0 && isfinite(v2), PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
+    "KineticIonSoundMoments encountered invalid local moments");
+
+  parallel_scale = sqrt(v2 / v2_0);
 }
 
-Vector3R sample_maxwellian_velocity_quiet(
-  const SortParameters& params, std::size_t index)
+Vector3R thermal_velocity_quiet(const SortParameters& params, std::size_t index)
 {
-  // clang-format off
-  PetscReal temperatures[3] = {params.Tx, params.Ty, params.Tz};
+  Vector3R T = {params.Tx, params.Ty, params.Tz};
   Vector3R result;
 
   for (Axis a : {X, Y, Z}) {
-    const auto slot = static_cast<std::size_t>(a);
-    PetscReal sigma = sqrt(temperatures[slot] / (params.m * mec2));
-    PetscReal radius = sqrt(-2.0 * log(van_der_corput(index, velocity_radius_bases[slot])));
-    PetscReal phase = 2.0 * M_PI * van_der_corput(index, velocity_phase_bases[slot]);
-    result[a] = sigma * radius * sin(phase);
+    PetscReal rand_vr = van_der_corput(index, velocity_radius_bases[a]);
+    PetscReal rand_va = van_der_corput(index, velocity_phase_bases[a]);
+
+    PetscReal sigma_v = sqrt(T[a] / (params.m * mec2));
+    result[a] = sigma_v * sqrt(-2.0 * log(rand_vr)) * sin(2.0 * M_PI * rand_va);
   }
-  // clang-format on
   return result;
 }
 
 Vector3R KineticIonSoundMoments::operator()(const Vector3R& coordinate)
 {
-  if (return_antithetic) {
-    if ((coordinate - first_coordinate).abs_max() != 0.0)
-      throw std::runtime_error(
-        "KineticIonSoundMoments requires consecutive duplicate coordinates");
-    return_antithetic = false;
+  if (return_second_velocity) {
+    PetscCheckAbort((coordinate - first_coordinate).length() == 0, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+      "KineticIonSoundMoments requires consecutive duplicate coordinates");
+
+    return_second_velocity = false;
     return second_velocity;
   }
 
-  PetscReal bulk_velocity = 0.0;
-  PetscReal variance = 0.0;
-  local_parallel_parameters(coordinate, bulk_velocity, variance);
-  PetscReal parallel_scale = sqrt(variance / equilibrium_variance);
+  PetscReal bulk_velocity = 0;
+  PetscReal parallel_scale = 0;
+  local_parallel_parameters(coordinate, bulk_velocity, parallel_scale);
 
-  constexpr std::size_t max_rejection_attempts = 1'000'000;
-  for (std::size_t attempt = 0; attempt < max_rejection_attempts; ++attempt) {
-    if (candidate_counter == std::numeric_limits<std::size_t>::max())
-      throw std::runtime_error(
-        "KineticIonSoundMoments exhausted its quiet sequence");
+  PetscCheckAbort(pair_number < std::numeric_limits<std::size_t>::max(), PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
+    "KineticIonSoundMoments exhausted its quiet sequence");
 
-    Vector3R thermal_velocity =
-      sample_maxwellian_velocity_quiet(params, ++candidate_counter);
-    thermal_velocity[axis] *= parallel_scale;
+  Vector3R thermal_velocity = thermal_velocity_quiet(params, pair_number++);
+  thermal_velocity[axis] *= parallel_scale;
 
-    Vector3R first_velocity = thermal_velocity;
-    first_velocity[axis] += bulk_velocity;
-    second_velocity = -1.0 * thermal_velocity;
-    second_velocity[axis] += bulk_velocity;
-    if (isfinite(first_velocity.squared()) && first_velocity.squared() < 1.0 &&
-      isfinite(second_velocity.squared()) && second_velocity.squared() < 1.0) {
-      first_coordinate = coordinate;
-      return_antithetic = true;
-      return first_velocity;
-    }
-  }
+  Vector3R first_velocity = thermal_velocity;
+  first_velocity[axis] += bulk_velocity;
 
-  throw std::runtime_error(
-    "KineticIonSoundMoments could not sample a subluminal pair");
+  second_velocity = -1.0 * thermal_velocity;
+  second_velocity[axis] += bulk_velocity;
+
+  /// @note If `pair_number` starts with 1, my guess is that it would properly generate velocities
+  PetscCheckAbort(first_velocity.length() < 1.0 && isfinite(first_velocity.abs_max()), PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
+    "KineticIonSoundMoments could not sample first velocity in a subluminal pair");
+
+  PetscCheckAbort(second_velocity.length() < 1.0 && isfinite(second_velocity.abs_max()), PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
+    "KineticIonSoundMoments could not sample second velocity in a subluminal pair");
+
+  first_coordinate = coordinate;
+  return_second_velocity = true;
+  return first_velocity;
 }
 
 Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
@@ -441,7 +425,7 @@ Vector3R AngularMomentum::operator()(const Vector3R& coordinate)
   Vector3R momentum = thermal_momentum(params);
 
   if (isinf(1.0 / r))
-    return Vector3R{0.0, 0.0, params.pz} + momentum;
+    return Vector3R{0, 0, params.pz} + momentum;
 
   return Vector3R{
     -params.px * (y / r) + momentum[X],
