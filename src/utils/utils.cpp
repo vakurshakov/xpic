@@ -18,3 +18,12 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm)
 }
 
 }  // namespace MPIUtils
+
+PetscErrorCode register_log_stage(const char* name, PetscLogStage* stage)
+{
+  PetscFunctionBeginUser;
+  PetscCall(PetscLogStageGetId(name, stage));
+  if (*stage < 0)
+    PetscCall(PetscLogStageRegister(name, stage));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}

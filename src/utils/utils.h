@@ -43,6 +43,10 @@ PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
 
 }  // namespace MPIUtils
 
+/// @brief Re-enterable stage registration: reuses the stage if `name` is
+/// already registered, so several simulations can live in a single process.
+PetscErrorCode register_log_stage(const char* name, PetscLogStage* stage);
+
 
 #define REP2(A) A, A
 #define REP3(A) A, A, A

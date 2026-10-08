@@ -145,8 +145,8 @@ PetscErrorCode Simulation::init_log_stages()
   stagenums[2] = ecsim::Simulation::stagenums[2];  // First push
   stagenums[4] = ecsim::Simulation::stagenums[4];  // Second push
   stagenums[6] = ecsim::Simulation::stagenums[5];  // Final update
-  PetscCall(PetscLogStageRegister("Predict field", &stagenums[3]));
-  PetscCall(PetscLogStageRegister("Correct fields", &stagenums[5]));
+  PetscCall(register_log_stage("Predict field", &stagenums[3]));
+  PetscCall(register_log_stage("Correct fields", &stagenums[5]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

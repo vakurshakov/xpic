@@ -12,6 +12,7 @@
 #include "src/impls/ecsimcorr/simulation.h"
 #include "src/utils/configuration.h"
 #include "src/utils/operators.h"
+#include "src/utils/utils.h"
 
 std::unique_ptr<interfaces::Simulation> build_simulation()
 {
@@ -49,15 +50,8 @@ PetscErrorCode Simulation::initialize()
   PetscCall(world.initialize());
   PetscCall(log_information());
 
-  // Registering is idempotent so that several simulations can be created and
-  // run within a single process (e.g. comparison tests).
-  PetscCall(PetscLogStageGetId("Commands run", &stagenums[0]));
-  if (stagenums[0] < 0)
-    PetscCall(PetscLogStageRegister("Commands run", &stagenums[0]));
-
-  PetscCall(PetscLogStageGetId("Diagnostics run", &stagenums[1]));
-  if (stagenums[1] < 0)
-    PetscCall(PetscLogStageRegister("Diagnostics run", &stagenums[1]));
+  PetscCall(register_log_stage("Commands run", &stagenums[0]));
+  PetscCall(register_log_stage("Diagnostics run", &stagenums[1]));
 
   da = world.da;
   da_rho = world.da_rho;

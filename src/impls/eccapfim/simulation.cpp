@@ -111,10 +111,10 @@ PetscErrorCode Simulation::init_log()
   PetscCall(PetscLogEventRegister("decomp_snes", classid, &events[5]));
   PetscCall(PetscLogEventRegister("mat_mult", classid, &events[6]));
 
-  PetscCall(PetscLogStageRegister("Initialization", &stagenums[0]));
-  PetscCall(PetscLogStageRegister("Init iteration", &stagenums[1]));
-  PetscCall(PetscLogStageRegister("Calc iteration", &stagenums[2]));
-  PetscCall(PetscLogStageRegister("After iteration", &stagenums[3]));
+  PetscCall(register_log_stage("Initialization", &stagenums[0]));
+  PetscCall(register_log_stage("Init iteration", &stagenums[1]));
+  PetscCall(register_log_stage("Calc iteration", &stagenums[2]));
+  PetscCall(register_log_stage("After iteration", &stagenums[3]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
