@@ -14,11 +14,7 @@ struct Vector3 {
   T data[dim];
 
   constexpr Vector3()
-    : data{
-        static_cast<T>(0),
-        static_cast<T>(0),
-        static_cast<T>(0),
-      }
+    : data{(T)(0), (T)(0), (T)(0)}
   {
   }
 
@@ -71,10 +67,10 @@ struct Vector3 {
   bool operator==(const Vector3& other) const
     requires std::is_floating_point_v<T>
   {
-    return                                                     //
-      std::abs(data[X] - other[X]) < PETSC_MACHINE_EPSILON &&  //
-      std::abs(data[Y] - other[Y]) < PETSC_MACHINE_EPSILON &&  //
-      std::abs(data[Z] - other[Z]) < PETSC_MACHINE_EPSILON;    //
+    return                                                //
+      abs(data[X] - other[X]) < PETSC_MACHINE_EPSILON &&  //
+      abs(data[Y] - other[Y]) < PETSC_MACHINE_EPSILON &&  //
+      abs(data[Z] - other[Z]) < PETSC_MACHINE_EPSILON;    //
   }
 
   Vector3& operator+=(const Vector3& other)
@@ -152,9 +148,9 @@ struct Vector3 {
   {
     if (abs(scalar) > 0)
       return Vector3{
-        static_cast<PetscReal>(data[X]) / scalar,
-        static_cast<PetscReal>(data[Y]) / scalar,
-        static_cast<PetscReal>(data[Z]) / scalar,
+        (PetscReal)data[X] / scalar,
+        (PetscReal)data[Y] / scalar,
+        (PetscReal)data[Z] / scalar,
       };
     else
       return {0, 0, 0};
@@ -173,7 +169,7 @@ struct Vector3 {
   PetscReal length() const
     requires std::is_floating_point_v<T>
   {
-    return std::hypot(data[X], data[Y], data[Z]);
+    return hypot(data[X], data[Y], data[Z]);
   }
 
   T elements_product() const
@@ -201,8 +197,7 @@ struct Vector3 {
 
   T abs_max() const
   {
-    return std::max(std::abs(data[X]),  //
-      std::max(std::abs(data[Y]), std::abs(data[Z])));
+    return std::max({abs(data[X]), abs(data[Y]), abs(data[Z])});
   }
 
   Vector3<PetscReal> parallel_to(const Vector3& ref) const
