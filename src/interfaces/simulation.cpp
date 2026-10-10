@@ -89,10 +89,15 @@ PetscErrorCode Simulation::initialize()
   Divergence divergence(da);
   PetscCall(divergence.create_negative(&divE));
 
+  const Configuration::json_t& json = CONFIG().json;
+  if (json.contains("Fields") && json.at("Fields").contains("evolve")) {
+    json.at("Fields").at("evolve").get_to(evolve_fields);
+  }
+
   PetscCall(initialize_implementation());
 
   std::vector<const interfaces::Particles*> particles;
-  for (const auto& sort : particles_) {
+  for (const Particles_sp& sort : particles_) {
     particles.emplace_back(sort.get());
   }
 
@@ -100,20 +105,20 @@ PetscErrorCode Simulation::initialize()
   /// @todo Or else store the `TableDiagnostics` themselves
   bool append_energy_conservation = true;
 
-  for (auto& diagnostic : diagnostics_) {
+  for (const Diagnostic_up& diagnostic : diagnostics_) {
     if (dynamic_cast<Energy*>(diagnostic.get()))
       append_energy_conservation = false;
   }
 
   if (append_energy_conservation) {
-    diagnostics_.emplace_back( //
+    diagnostics_.emplace_back(  //
       std::make_unique<Energy>(*this));
   }
 
-  diagnostics_.emplace_back( //
+  diagnostics_.emplace_back(  //
     std::make_unique<ChargeConservation>(*this));
 
-  diagnostics_.emplace_back( //
+  diagnostics_.emplace_back(  //
     std::make_unique<MomentumConservation>(da, E, particles));
 
   std::vector<Command_up> presets;
@@ -213,7 +218,7 @@ PetscErrorCode Simulation::log_information() const
 
 Particles& Simulation::get_named_particles(std::string_view name)
 {
-  auto it = std::find_if(particles_.begin(), particles_.end(), //
+  auto it = std::find_if(particles_.begin(), particles_.end(),  //
     [&](const Particles_sp& sort) {
       return sort->parameters.sort_name == name;
     });

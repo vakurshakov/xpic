@@ -13,7 +13,7 @@
 namespace eccapfim {
 
 #define SNES_ITERATE_B 0
-#define SNES_PRECONDITIONING 1
+#define SNES_PRECONDITIONING 0
 
 static constexpr PetscReal atol = 1e-7;
 static constexpr PetscReal rtol = 1e-7;
@@ -43,6 +43,7 @@ private:
 
   // Iterative solution procedures
   PetscErrorCode init_iteration();
+  PetscErrorCode push_particles();
   PetscErrorCode calc_iteration();
   PetscErrorCode after_iteration();
 

@@ -142,9 +142,14 @@ PetscErrorCode Simulation::finalize()
 PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
-  PetscCall(init_iteration());
-  PetscCall(calc_iteration());
-  PetscCall(after_iteration());
+  if (evolve_fields) {
+    PetscCall(init_iteration());
+    PetscCall(calc_iteration());
+    PetscCall(after_iteration());
+  }
+  else {
+    PetscCall(push_particles());
+  }
   PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -164,15 +169,30 @@ PetscErrorCode Simulation::init_iteration()
 
 #if !SNES_ITERATE_B
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
-  // Seed E_loc with the current field too. For a self-consistent run it is
-  // overwritten by the solver/NPC; for a fixed-field (test-particle) run, where
-  // `form_function` is disabled and the NPC does not refill E_loc, this is what
-  // lets the particle actually feel E (and thus ExB-drift) instead of only
-  // gyrating around B.
-  PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, E_loc));
 #endif
 
   PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::push_particles()
+{
+  PetscFunctionBeginUser;
+  PetscCall(clock.push(__FUNCTION__));
+
+  for (auto& sort : particles_)
+    PetscCall(sort->prepare_storage());
+
+  PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, E_loc));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
+
+  PetscCall(clear_sources());
+  PetscCall(form_current());
+
+  for (auto& sort : particles_)
+    PetscCall(sort->update_cells());
+
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -309,7 +329,7 @@ PetscErrorCode Simulation::impl_form_iteration(Vec x, Vec f)
   PetscCall(clock.push(__FUNCTION__));
   PetscCall(clear_sources());
   PetscCall(form_current());
-  //PetscCall(form_function(f));
+  PetscCall(form_function(f));
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

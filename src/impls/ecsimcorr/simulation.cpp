@@ -21,12 +21,20 @@ PetscErrorCode Simulation::initialize_implementation()
 PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
-  PetscCall(clear_sources());
-  PetscCall(first_push());
-  PetscCall(advance_fields());
-  PetscCall(second_push());
-  PetscCall(correct_fields());
-  PetscCall(final_update());
+  if (evolve_fields) {
+    PetscCall(clear_sources());
+    PetscCall(first_push());
+    PetscCall(advance_fields());
+    PetscCall(second_push());
+    PetscCall(correct_fields());
+    PetscCall(final_update());
+  }
+  else {
+    PetscCall(clear_sources());
+    PetscCall(first_push());
+    PetscCall(VecCopy(E, Ep));
+    PetscCall(second_push());
+  }
   PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

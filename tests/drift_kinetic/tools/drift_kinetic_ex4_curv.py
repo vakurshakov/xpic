@@ -19,7 +19,7 @@ plt.rcParams["mathtext.fontset"] = "cm"
 plt.rcParams["font.family"] = "cmr10"
 plt.rcParams["axes.formatter.use_mathtext"] = True
 
-OUT = os.path.join(TEST_DIR, "output", "drift_kinetic_curv_ex3")
+OUT = os.path.join(TEST_DIR, "output", "drift_kinetic_ex4_curv")
 DK_DIR = os.path.join(OUT, "drift_kinetic")
 KIN_DIR = os.path.join(OUT, "eccapfim")
 
@@ -194,7 +194,7 @@ def main():
 
     fig.tight_layout(w_pad=1.8)
     for extension in ("png", "pdf"):
-        image = os.path.join(OUT, f"drift_kinetic_curv_ex3.{extension}")
+        image = os.path.join(OUT, f"drift_kinetic_ex4_curv.{extension}")
         fig.savefig(image, dpi=150, bbox_inches="tight", pad_inches=0.12)
         print(f"Saved figure to {image}")
 

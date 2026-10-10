@@ -47,11 +47,18 @@ public:
 
   Mat rotE;
   Mat rotB;
-  Mat matM; // (I + (0.25 * dt * dt) rotB * rotE)
+  Mat matM;  // (I + (0.25 * dt * dt) rotB * rotE)
   Mat divE;
 
   // Utility vectors (e.g. to store rotE * E)
   Vec rE, rB;
+
+  /**
+   * @brief If false, the fields are prescribed by presets and stay constant,
+   * only the particles are advanced (test-particle mode). Configured by
+   * `"Fields": {"evolve": false}`.
+   */
+  bool evolve_fields = true;
 
   /**
    * @brief Container of abstract particles, the down-casted pointers to this

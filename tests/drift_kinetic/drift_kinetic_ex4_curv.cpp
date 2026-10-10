@@ -115,6 +115,7 @@ void overwrite_config(
         {"da_boundary_z", "DM_BOUNDARY_PERIODIC"},
       },
     },
+    {"Fields", {{"evolve", false}}},
     {
       "Particles",
       {

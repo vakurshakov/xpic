@@ -127,7 +127,16 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   for (auto& sort : particles_)
     PetscCall(sort->prepare_storage());
   PetscCall(energy_cons->diagnose(t - 1));
-  if (trace) PetscCall(trace->diagnose(t - 1));
+
+  if (!evolve_fields) {
+    PetscCall(VecCopy(E, E_hk));
+    PetscCall(VecCopy(B, B_hk));
+    PetscCall(form_current());
+
+    for (auto& sort : particles_)
+      PetscCall(sort->update_cells());
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
 
   LOG("to_snes():");
   /// @note Solution is initialized with guess before it is passed into `SNESSolve()`.
