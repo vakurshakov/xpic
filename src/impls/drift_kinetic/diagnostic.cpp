@@ -538,46 +538,6 @@ PetscErrorCode MatMultFieldView::diagnose(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PointByFieldTrace::PointByFieldTrace(const std::string& out_dir, const Particles& particles, PetscInt skip)
-  : TableDiagnostic(out_dir + "/temporal/particle_trace.txt"), skip(skip), particles(particles)
-{
-}
-
-PetscErrorCode PointByFieldTrace::diagnose(PetscInt t)
-{
-  PetscFunctionBeginUser;
-  if (t % skip != 0) PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(TableDiagnostic::diagnose(t));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode PointByFieldTrace::add_columns(PetscInt t)
-{
-  PetscFunctionBeginUser;
-
-  const auto& storage = particles.get_dk_curr_storage();
-  const PointByField* point = nullptr;
-
-  for (const auto& cell_list : storage) {
-    if (!cell_list.empty()) {
-      point = &cell_list.front();
-      break;
-    }
-  }
-
-  if (point != nullptr) {
-    add(24, "t_[1/wpe]", "{: .15e}", t * dt);
-    add(24, "x_[c/wpe]", "{: .15e}", point->x());
-    add(24, "y_[c/wpe]", "{: .15e}", point->y());
-    add(24, "z_[c/wpe]", "{: .15e}", point->z());
-    add(24, "p_par_[mc]", "{: .15e}", point->p_par());
-    add(24, "p_perp_[mc]", "{: .15e}", point->p_perp());
-    add(24, "mu_p_[mc^2/B]", "{: .15e}", point->mu());
-  }
-
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 EnergyConservation::EnergyConservation(const Simulation& simulation)
   : TableDiagnostic(CONFIG().out_dir + "/temporal/dk_diagnostic.txt"),
     simulation(simulation)

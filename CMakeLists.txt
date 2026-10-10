@@ -56,11 +56,13 @@ set(diagnostics
   src/diagnostics/momentum_conservation.cpp
   src/diagnostics/velocity_distribution.cpp
   src/diagnostics/table_diagnostic.cpp
+  src/diagnostics/particle_trace.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/field_view_zavg_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
   src/diagnostics/builders/log_view_builder.cpp
+  src/diagnostics/builders/particle_trace_builder.cpp
   src/diagnostics/builders/simulation_backup_builder.cpp
   src/diagnostics/builders/velocity_distribution_builder.cpp
 )

@@ -1,6 +1,6 @@
 #include "src/pch.h"
 #include "src/interfaces/point.h"
-#include "src/diagnostics/table_diagnostic.h"
+#include "src/diagnostics/particle_trace.h"
 
 /// @todo There would be probably lots of utilities, they should be placed to some static library
 
@@ -91,72 +91,17 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
 
 /// @warning For this to become a proper diagnostic,
 /// dangling references to `point` have to be solved
-class PointTrace : public TableDiagnostic {
+class PointTrace : public ParticleTrace<Point> {
 public:
   PointTrace(std::string_view file, std::string_view id,  //
     const Point& point, PetscInt skip = 1)
-    : TableDiagnostic(get_outputfile(file, id)), skip(skip), point(point)
+    : ParticleTrace(
+        std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id),
+        [&point] {
+          return &point;
+        },
+        skip)
   {
-  }
-
-private:
-  PetscInt skip;
-  const Point& point;
-
-  PetscErrorCode add_columns(PetscInt t) override
-  {
-    if (t % skip != 0)
-      return PETSC_SUCCESS;
-
-    PetscFunctionBeginUser;
-    add(20, "t_[1/wpe]", "{: .9e}", t * dt);
-    add(20, "x_[c/wpe]", "{: .9e}", point.x());
-    add(20, "y_[c/wpe]", "{: .9e}", point.y());
-    add(20, "z_[c/wpe]", "{: .9e}", point.z());
-    add(20, "vx_[c]", "{: .9e}", point.px());
-    add(20, "vy_[c]", "{: .9e}", point.py());
-    add(20, "vz_[c]", "{: .9e}", point.pz());
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-
-  std::filesystem::path get_outputfile(std::string_view file, std::string_view id)
-  {
-    return std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id);
-  }
-};
-
-class PointByFieldTrace : public TableDiagnostic {
-public:
-  PointByFieldTrace(std::string_view file, std::string_view id,
-    const PointByField& point, PetscInt skip = 1)
-    : TableDiagnostic(get_outputfile(file, id)), skip(skip), point(point)
-  {
-  }
-
-private:
-  PetscInt skip;
-  const PointByField& point;
-
-  PetscErrorCode add_columns(PetscInt t) override
-  {
-    if (t % skip != 0)
-      return PETSC_SUCCESS;
-
-    PetscFunctionBeginUser;
-    add(20, "t_[1/wpe]", "{: .9e}", t * dt);
-    add(20, "x_[c/wpe]", "{: .9e}", point.x());
-    add(20, "y_[c/wpe]", "{: .9e}", point.y());
-    add(20, "z_[c/wpe]", "{: .9e}", point.z());
-    add(20, "p_par_[mc]", "{: .9e}", point.p_par());
-    //add(20, "p_perp_[mc]", "{: .9e}", point.p_perp_ref());
-    add(20, "mu_p_[mc^2/B]", "{: .9e}", point.mu());
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-
-  static std::filesystem::path get_outputfile(
-    std::string_view file, std::string_view id)
-  {
-    return std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id);
   }
 };
 

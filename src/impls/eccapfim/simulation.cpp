@@ -21,10 +21,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
 
-  if (!particles_.empty())
-    diagnostics_.emplace_back(
-      std::make_unique<ParticleTrace>(CONFIG().out_dir, *particles_[0]));
-
   PetscCall(PetscLogStagePop());
   PetscCall(init_clock.pop());
   LOG("Initialization took {:6.4e} seconds", init_clock.get(__FUNCTION__));
@@ -601,31 +597,5 @@ PetscErrorCode ConvergenceHistory::add_columns(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
-ParticleTrace::ParticleTrace(
-  const std::string& out_dir, const interfaces::Particles& particles)
-  : TableDiagnostic(out_dir + "/temporal/particle_trace.txt"), particles(particles)
-{
-}
-
-PetscErrorCode ParticleTrace::add_columns(PetscInt t)
-{
-  PetscFunctionBeginUser;
-  for (const auto& cell : particles.storage) {
-    if (cell.empty())
-      continue;
-
-    const Point& point = cell.front();
-    add(24, "t_[1/wpe]", "{: .15e}", t * dt);
-    add(24, "x_[c/wpe]", "{: .15e}", point.x());
-    add(24, "y_[c/wpe]", "{: .15e}", point.y());
-    add(24, "z_[c/wpe]", "{: .15e}", point.z());
-    add(24, "px_[mc]", "{: .15e}", point.px());
-    add(24, "py_[mc]", "{: .15e}", point.py());
-    add(24, "pz_[mc]", "{: .15e}", point.pz());
-    break;
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
 }  // namespace eccapfim

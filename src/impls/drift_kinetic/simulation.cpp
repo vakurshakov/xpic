@@ -92,10 +92,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   energy_cons = std::make_unique<EnergyConservation>(*this);
 
-  if (!particles_.empty()) {
-    trace = std::make_unique<PointByFieldTrace>(CONFIG().out_dir, *particles_[0], 1);
-  }
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -104,10 +100,6 @@ PetscErrorCode Simulation::finalize()
   PetscFunctionBeginUser;
   PetscCall(energy_cons->diagnose(geom_nt));
   PetscCall(energy_cons->finalize());
-
-  if (trace) {
-    PetscCall(trace->diagnose(geom_nt));
-  }
 
   PetscCall(interfaces::Simulation::finalize());
 

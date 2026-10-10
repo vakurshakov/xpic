@@ -82,19 +82,6 @@ protected:
   Mat op = nullptr;
 };
 
-class PointByFieldTrace : public TableDiagnostic {
-public:
-  PointByFieldTrace(const std::string& out_dir, const Particles& particles, PetscInt skip = 1);
-
-  PetscErrorCode diagnose(PetscInt t) override;
-
-private:
-  PetscInt skip;
-  const Particles& particles;
-
-  PetscErrorCode add_columns(PetscInt t) override;
-};
-
 class EnergyConservation : public TableDiagnostic {
 public:
   EnergyConservation(const Simulation& simulation);

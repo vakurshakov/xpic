@@ -4,6 +4,7 @@
 #include "src/diagnostics/builders/field_view_builder.h"
 #include "src/diagnostics/builders/field_view_zavg_builder.h"
 #include "src/diagnostics/builders/log_view_builder.h"
+#include "src/diagnostics/builders/particle_trace_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
 #include "src/diagnostics/builders/velocity_distribution_builder.h"
 #include "src/impls/drift_kinetic/diagnostic.h"
@@ -100,6 +101,9 @@ PetscErrorCode build_diagnostics(
     }
     else if (name == "LogView") {
       PetscCall(Builder::use_impl<LogViewBuilder>(info, simulation, result));
+    }
+    else if (name == "ParticleTrace") {
+      PetscCall(Builder::use_impl<ParticleTraceBuilder>(info, simulation, result));
     }
     else {
       throw std::runtime_error("Unknown diagnostic name " + name);

@@ -146,5 +146,14 @@ void overwrite_config(
         },
       },
     },
+    {
+      "Diagnostics",
+      {
+        {
+          {"diagnostic", "ParticleTrace"},
+          {"particles", "electrons"},
+        },
+      },
+    },
   });
 }

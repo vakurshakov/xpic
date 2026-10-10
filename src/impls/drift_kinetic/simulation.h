@@ -63,7 +63,6 @@ protected:
 
   friend class EnergyConservation;
   std::unique_ptr<EnergyConservation> energy_cons;  ///< Energy diagnostic.
-  std::unique_ptr<PointByFieldTrace> trace;         ///< Particle trace.
 };
 
 }  // namespace drift_kinetic
