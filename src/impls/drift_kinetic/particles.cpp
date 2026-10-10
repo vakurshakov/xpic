@@ -55,7 +55,7 @@ PetscReal Particles::kinetic_energy_local() const
   PetscCallAbort(PETSC_COMM_WORLD,
     DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
-  drift_kinetic::DriftKineticEsirkepov esirkepov(simulation_.B_arr);
+  DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 #pragma omp parallel for reduction(+ : energy)
   for (auto&& cell : dk_curr_storage) {
     for (auto&& point : cell) {
@@ -113,7 +113,7 @@ PetscErrorCode Particles::form_iteration()
         auto prev(prev_cell[i]);
 
         DriftKineticPush push(q / m, m);
-        drift_kinetic::DriftKineticEsirkepov util_local(E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
+        DriftKineticEsirkepov util_local(E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
 
         push.set_fields_callback(
           [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
@@ -192,7 +192,7 @@ PetscErrorCode Particles::sync_dk_curr_storage()
   PetscCall(DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
   PetscCall(DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
-  drift_kinetic::DriftKineticEsirkepov esirkepov(simulation_.B_arr);
+  DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     auto& cell = storage[g];
