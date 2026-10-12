@@ -72,6 +72,8 @@ public:
 
   PetscErrorCode initialize();
   PetscErrorCode calculate();
+
+  /// @brief Finishes diagnostics and releases simulation resources.
   virtual PetscErrorCode finalize();
 
   Particles& get_named_particles(std::string_view name);
@@ -83,7 +85,10 @@ protected:
 
   PetscErrorCode log_information() const;
 
+  /// @brief Creates fields, particle sorts and diagnostics of the concrete model.
   virtual PetscErrorCode initialize_implementation() = 0;
+
+  /// @brief Advances fields and particles by one timestep according to the concrete model.
   virtual PetscErrorCode timestep_implementation(PetscInt timestep) = 0;
 
   std::vector<Command_up> step_presets_;

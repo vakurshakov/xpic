@@ -4,7 +4,6 @@
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
-
 namespace drift_kinetic {
 
 static constexpr PetscReal atol = 1e-10;
@@ -27,7 +26,7 @@ PetscErrorCode Simulation::initialize_implementation()
 
   Rotor rotor(da);
   PetscCall(rotor.create_negative(&rotM));
-  PetscCall(MatScale(rotB, -1)); /// @see `Simulation::form_function()`
+  PetscCall(MatScale(rotB, -1));  /// @see `Simulation::form_function()`
 
   PetscInt gn[3];
   PetscInt procs[3];
@@ -90,7 +89,6 @@ PetscErrorCode Simulation::initialize_implementation()
   }
 
   energy_cons = std::make_unique<EnergyConservation>(*this);
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -119,7 +117,6 @@ PetscErrorCode Simulation::finalize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
 PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 {
   PetscFunctionBeginUser;
@@ -146,7 +143,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   LOG("to_snes() has finished, SNESSolve():");
 
   PetscCall(SNESSolve(snes, NULL, sol));
-  PetscCall(SNESGetIterationNumber(snes, &last_field_itnum));
+  PetscCall(SNESGetIterationNumber(snes, &snes_iteration_number));
 
   LOG("SNESSolve() has finished, SNESConvergedReasonView():");
   PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
@@ -168,8 +165,8 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::form_iteration(
-  SNES /* snes */, Vec vx, Vec vf, void* ctx)
+// SNES callback: advances particles, collects sources, evaluates residuals.
+PetscErrorCode Simulation::form_iteration(SNES, Vec vx, Vec vf, void* ctx)
 {
   PetscFunctionBeginUser;
   auto* simulation = (Simulation*)ctx;
@@ -216,16 +213,17 @@ PetscErrorCode Simulation::form_current()
     PetscCall(sort->form_iteration());
     PetscCall(VecAXPY(J, 1, sort->J));
     PetscCall(VecAXPY(M, 1, sort->M));
-    LOG("Push \"{}\": avg it={}, max it={}, retries={}, leaf failures={}, "
-        "max leaf FRk={: .4e}, max leaf FVhk={: .4e}",
+    LOG("Push \"{}\": avg it={}, max it={}, retries={}, leaf failures={}, max leaf FRk={: .4e}, max leaf FVhk={: .4e}",
       sort->parameters.sort_name,
-      sort->get_average_iteration_number(), sort->get_max_iteration_number(),
-      sort->get_push_retries(), sort->get_push_leaf_failures(),
+      sort->get_average_iteration_number(),
+      sort->get_max_iteration_number(),
+      sort->get_push_retries(),
+      sort->get_push_leaf_failures(),
       sort->get_max_push_leaf_residue_r(),
       sort->get_max_push_leaf_residue_v());
-    if (terminal_failure == nullptr &&
-        sort->fail_on_terminal_nonconvergence() &&
-        sort->get_push_leaf_failures() > 0) {
+    if (terminal_failure == nullptr &&  //
+      sort->get_fail_on_terminal_nonconvergence() &&
+      sort->get_push_leaf_failures() > 0) {
       terminal_failure = sort.get();
     }
   }
@@ -237,16 +235,12 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecRestoreArrayRead(da, Bn_loc, &Bn_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, Bn1_loc, &Bn1_arr));
 
-  PetscCheck(terminal_failure == nullptr, PETSC_COMM_WORLD,
-    PETSC_ERR_NOT_CONVERGED,
-    "DK Push terminal non-convergence for sort %s: leaf_failures=%" PetscInt_FMT
-    ", max FRk=%g, max FVhk=%g",
-    terminal_failure ? terminal_failure->parameters.sort_name.c_str() : "",
-    terminal_failure ? terminal_failure->get_push_leaf_failures() : 0,
-    (double)(terminal_failure
-      ? terminal_failure->get_max_push_leaf_residue_r() : 0.0),
-    (double)(terminal_failure
-      ? terminal_failure->get_max_push_leaf_residue_v() : 0.0));
+  PetscCheck(terminal_failure == nullptr, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
+    "DK Push terminal non-convergence for sort %s: leaf_failures=%d, max FRk=%g, max FVhk=%g",
+    terminal_failure->parameters.sort_name.c_str(),
+    terminal_failure->get_push_leaf_failures(),
+    terminal_failure->get_max_push_leaf_residue_r(),
+    terminal_failure->get_max_push_leaf_residue_v());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

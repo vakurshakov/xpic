@@ -186,6 +186,7 @@
     "ndof",
     "newcomm",
     "nodiscard",
+    "nonconvergence",
     "notinbranch",
     "nrows",
     "numparts",

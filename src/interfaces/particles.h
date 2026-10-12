@@ -35,6 +35,7 @@ public:
   /// @brief Points are stored in a contiguous 3d array of cells.
   std::vector<std::list<Point>> storage;
 
+  /// @brief Releases particle resources, derived sorts release their own first.
   virtual PetscErrorCode finalize();
 
   /**

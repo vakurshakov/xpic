@@ -40,6 +40,8 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 
 - Order definitions in the `.cpp` exactly as declared in the `.h`; the header is the reference. File-local helpers (anonymous constants, free functions) stay at the top of the `.cpp`.
 - Within a class: constructors, accessors, public API, private helpers, then data members.
+- For a major class, order the public API by lifecycle rather than alphabetically or by first-use: (1) constructor(s), (2) `finalize()`, (3) the method that is the class's main logical unit, (4) the remaining utilities, ordered by usage logic (setup/load helpers, then per-step helpers, then plain accessors).
+- `initialize_implementation()` / `finalize()` pairs that come from overriding a base class's public lifecycle hooks (as in `interfaces::Simulation`) keep their natural init-before-finalize order even when a protected section of other overrides sits declared between them in the header; don't force a literal top-to-bottom match across an access-specifier boundary.
 - When reordering, do pure moves only. Verify with `diff <(sort old) <(sort new)` (empty, ignoring blank lines) and don't reformat the file.
 
 
@@ -47,6 +49,7 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 
 - Default to no comment. Keep one only when the WHY is non-obvious: notation of cryptic names (`FRk`, `lenBh_eff`), overload disambiguation, a non-obvious `@warning`, an unreadable type alias.
 - Remove a `@brief` that restates the function name or signature (setters, getters, `update_r`, `process_picard`, `decomposition_J`, ...).
+- An override inherits the base-class doc: document the contract once in `src/interfaces/`, not in each `impls/` header. Explain a non-obvious internal helper in the `.cpp` above its definition, not in the header.
 - Doxygen `///` (`@brief`, `@warning`, `@note`) only for declarations. One `@brief` per class, never a detached or duplicated one. No `@file` tags.
 - Member-variable comments are trailing plain `//`, not `///<`. Group headers are plain `// Group name`, not banner lines (`// -- Group ------`).
 - Consecutive trailing comments start in the same column. `clang-format` does this (`AlignTrailingComments`, 2 spaces before `//`).

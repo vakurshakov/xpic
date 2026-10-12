@@ -48,7 +48,7 @@ PetscErrorCode InjectParticles::add_particle(Particles& particles,
   PetscCall(esirkepov.interpolate_B(B_p, point.r));
 
   PetscInt g = particles.world.s_g(REP3_A(vg));
-  if (particles.coord_is_gc())
+  if (particles.get_coord_is_gc())
     particles.dk_curr_storage[g].emplace_back(make_point_at_gc(point, B_p, mp));
   else
     particles.dk_curr_storage[g].emplace_back(point, B_p, mp, qm);

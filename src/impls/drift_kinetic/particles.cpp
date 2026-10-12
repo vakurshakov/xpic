@@ -1,15 +1,16 @@
 #include "particles.h"
-#include "src/impls/drift_kinetic/adaptive_substepping.h"
+
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/implicit_drift_kinetic.h"
+#include "src/impls/drift_kinetic/adaptive_substepping.h"
 #include "src/impls/drift_kinetic/simulation.h"
 #include "src/utils/geometries.h"
 #include "src/utils/utils.h"
 
 namespace drift_kinetic {
 
-PointByField make_point_at_gc(
-  const Point& point, const Vector3R& Bp, PetscReal mp)
+// The point coordinate is already a guiding center, so no Larmor shift.
+PointByField make_point_at_gc(const Point& point, const Vector3R& Bp, PetscReal mp)
 {
   const Vector3R b = Bp.normalized();
   const PetscReal Bmag = Bp.length();
@@ -29,7 +30,7 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 {
   PetscMPIInt mpi_size;
   PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_size(PETSC_COMM_WORLD, &mpi_size));
-  update_cells = (mpi_size == 1) //
+  update_cells = (mpi_size == 1)  //
     ? std::bind(std::mem_fn(&Particles::update_cells_seq), this)
     : std::bind(std::mem_fn(&Particles::update_cells_mpi), this);
 
@@ -46,38 +47,6 @@ PetscErrorCode Particles::finalize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscReal Particles::kinetic_energy_local() const
-{
-  PetscReal energy = 0.0;
-  const PetscReal mpw = parameters.n / static_cast<PetscReal>(parameters.Np);
-  PetscCallAbort(PETSC_COMM_WORLD, DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
-  PetscCallAbort(PETSC_COMM_WORLD, DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
-
-  DriftKineticEsirkepov esirkepov(simulation_.B_arr);
-#pragma omp parallel for reduction(+ : energy)
-  for (auto&& cell : dk_curr_storage) {
-    for (auto&& point : cell) {
-      Vector3R B_p{};
-      PetscCallAbort(PETSC_COMM_WORLD, esirkepov.interpolate_B(B_p, point.r));
-      energy += POW2(point.p_parallel) +
-        2.0 * point.mu_p * B_p.length() / parameters.m;
-    }
-  }
-
-  PetscCallAbort(PETSC_COMM_WORLD, DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
-  return 0.5 * parameters.m * mpw * energy;
-}
-
-PetscReal Particles::get_average_iteration_number() const
-{
-  return avgit;
-}
-
-PetscInt Particles::get_max_iteration_number() const
-{
-  return maxit;
-}
-
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
@@ -86,10 +55,10 @@ PetscErrorCode Particles::form_iteration()
 
   avgit = 0.0;
   maxit = 0;
-  push_retries_ = 0;
-  push_leaf_failures_ = 0;
-  max_push_leaf_residue_r_ = 0.0;
-  max_push_leaf_residue_v_ = 0.0;
+  push_retries = 0;
+  push_leaf_failures = 0;
+  max_push_leaf_residue_r = 0.0;
+  max_push_leaf_residue_v = 0.0;
 
   const PetscReal q = parameters.q;
   const PetscReal m = parameters.m;
@@ -100,80 +69,85 @@ PetscErrorCode Particles::form_iteration()
 
   constexpr PetscInt max_substep_depth = 4;
 
-#pragma omp parallel for reduction(+ : avgit, push_retries_, push_leaf_failures_) \
-  reduction(max : maxit, max_push_leaf_residue_r_, max_push_leaf_residue_v_)
-    for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
-      const auto& prev_cell = dk_prev_storage[g];
+#pragma omp parallel for reduction(+ : avgit, push_retries, push_leaf_failures) \
+  reduction(max : maxit, max_push_leaf_residue_r, max_push_leaf_residue_v)
+  for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
+    const auto& prev_cell = dk_prev_storage[g];
 
-      PetscInt i = 0;
-      for (auto& curr : dk_curr_storage[g]) {
-        auto prev(prev_cell[i]);
+    PetscInt i = 0;
+    for (auto& curr : dk_curr_storage[g]) {
+      auto prev(prev_cell[i]);
 
-        DriftKineticPush push(q / m, m);
-        DriftKineticEsirkepov util_local(E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
+      DriftKineticPush push(q / m, m);
+      DriftKineticEsirkepov util_local(
+        E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
 
-        push.set_fields_callback(
-          [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
-            Vector3R& gradB_p, Vector3R& rotB_p) { util_local.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0); });
+      push.set_fields_callback([&](const Vector3R& r0, const Vector3R& rn,
+                                 Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
+                                 Vector3R& gradB_p, Vector3R& rotB_p) {
+        util_local.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
+      });
 
-        AdaptiveSubstepStats stats;
-        auto attempt = [&](PetscReal dt_sub, PointByField& pn,
-                         const PointByField& p0) {
-          push.process(dt_sub, pn, p0);
-          return AdaptiveSubstepAttempt{
-            push.has_converged(), push.get_iteration_number(),
-            push.get_FRk(), push.get_FVhk()};
-        };
-        auto midpoint = [](const PointByField& p0, const PointByField& pn) {
-          PointByField mid(p0);
-          mid.r = 0.5 * (p0.r + pn.r);
-          mid.p_parallel = 0.5 * (p0.p_parallel + pn.p_parallel);
-          return mid;
-        };
-        auto accept = [&](PetscReal dt_sub, PointByField& pn,
-                        const PointByField& p0) {
-            const PetscReal a0 = q * particle_weight;
-            const PetscReal b0 = pn.mu_p * particle_weight;
-            const Vector3R Vp_sub = (pn.r - p0.r) / dt_sub;
+      AdaptiveSubstepStats stats;
+      auto attempt = [&](PetscReal dt_sub, PointByField& pn,
+                       const PointByField& p0) {
+        push.process(dt_sub, pn, p0);
+        return AdaptiveSubstepAttempt{push.has_converged(),
+          push.get_iteration_number(), push.get_FRk(), push.get_FVhk()};
+      };
+      auto midpoint = [](const PointByField& p0, const PointByField& pn) {
+        PointByField mid(p0);
+        mid.r = 0.5 * (p0.r + pn.r);
+        mid.p_parallel = 0.5 * (p0.p_parallel + pn.p_parallel);
+        return mid;
+      };
+      auto accept = [&](PetscReal dt_sub, PointByField& pn,
+                      const PointByField& p0) {
+        const PetscReal a0 = q * particle_weight;
+        const PetscReal b0 = pn.mu_p * particle_weight;
+        const Vector3R Vp_sub = (pn.r - p0.r) / dt_sub;
 
-            util_local.decomposition(pn.r, p0.r, Vp_sub, a0 * (dt_sub / dt), b0 * (dt_sub / dt));
-        };
+        util_local.decomposition(
+          pn.r, p0.r, Vp_sub, a0 * (dt_sub / dt), b0 * (dt_sub / dt));
+      };
 
-        adaptive_substep(dt, curr, prev, max_substep_depth,
-          attempt, midpoint, accept, stats);
+      adaptive_substep(
+        dt, curr, prev, max_substep_depth, attempt, midpoint, accept, stats);
 
-        avgit += static_cast<PetscReal>(stats.iteration_sum) * inv_size;
-        maxit = std::max(maxit, stats.max_iterations);
-        push_retries_ += stats.retries;
-        push_leaf_failures_ += stats.leaf_failures;
-        max_push_leaf_residue_r_ =
-          std::max(max_push_leaf_residue_r_, stats.max_leaf_residue_r);
-        max_push_leaf_residue_v_ =
-          std::max(max_push_leaf_residue_v_, stats.max_leaf_residue_v);
+      avgit += static_cast<PetscReal>(stats.iteration_sum) * inv_size;
+      maxit = std::max(maxit, stats.max_iterations);
+      push_retries += stats.retries;
+      push_leaf_failures += stats.leaf_failures;
+      max_push_leaf_residue_r =
+        std::max(max_push_leaf_residue_r, stats.max_leaf_residue_r);
+      max_push_leaf_residue_v =
+        std::max(max_push_leaf_residue_v, stats.max_leaf_residue_v);
 
-        curr.p = (curr.r - prev.r) / dt;
+      curr.p = (curr.r - prev.r) / dt;
 
-        ++i;
-      }
+      ++i;
     }
+  }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
 
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_retries_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_leaf_failures_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_r_, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_v_, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_retries, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_leaf_failures, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_r, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_v, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
 
-  if (push_leaf_failures_ > 0 && !fail_on_terminal_nonconvergence_) {
+  if (push_leaf_failures > 0 && !fail_on_terminal_nonconvergence) {
     LOG("WARNING: DK Push terminal non-convergence for sort={}:", parameters.sort_name);
-    LOG("  leaf_failures={}, max FRk={: .4e}, max FVhk={: .4e}", push_leaf_failures_, max_push_leaf_residue_r_, max_push_leaf_residue_v_);
+    LOG("  leaf_failures={}, max FRk={: .4e}, max FVhk={: .4e}", push_leaf_failures, max_push_leaf_residue_r, max_push_leaf_residue_v);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+
+// Converts newly loaded kinetic particles to guiding-center form.
 PetscErrorCode Particles::sync_dk_curr_storage()
 {
   PetscFunctionBeginUser;
@@ -194,7 +168,7 @@ PetscErrorCode Particles::sync_dk_curr_storage()
     for (const auto& point : cell) {
       Vector3R B_p{};
       PetscCall(esirkepov.interpolate_B(B_p, point.r));
-      if (coord_is_gc_)
+      if (coord_is_gc)
         dk_cell.emplace_back(make_point_at_gc(point, B_p, mp));
       else
         dk_cell.emplace_back(point, B_p, mp, qm);
@@ -205,15 +179,14 @@ PetscErrorCode Particles::sync_dk_curr_storage()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// Saves current states to `dk_prev_storage` before the nonlinear iteration.
 PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
 
   size = 0;
 
-  for (PetscInt g = 0;
-       g < static_cast<PetscInt>(dk_curr_storage.size());
-       ++g) {
+  for (PetscInt g = 0; g < static_cast<PetscInt>(dk_curr_storage.size()); ++g) {
     const auto& curr = dk_curr_storage[g];
     auto& prev = dk_prev_storage[g];
 
@@ -225,16 +198,86 @@ PetscErrorCode Particles::prepare_storage()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Particles::correct_coordinates(PointByField& point)
+PetscReal Particles::kinetic_energy_local() const
 {
-  PetscFunctionBeginUser;
-  if (world.bounds[X] == DM_BOUNDARY_PERIODIC)
-    g_bound_periodic(point, X);
-  if (world.bounds[Y] == DM_BOUNDARY_PERIODIC)
-    g_bound_periodic(point, Y);
-  if (world.bounds[Z] == DM_BOUNDARY_PERIODIC)
-    g_bound_periodic(point, Z);
-  PetscFunctionReturn(PETSC_SUCCESS);
+  PetscReal energy = 0.0;
+  const PetscReal mpw = parameters.n / static_cast<PetscReal>(parameters.Np);
+  PetscCallAbort(PETSC_COMM_WORLD, DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
+  PetscCallAbort(PETSC_COMM_WORLD, DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+
+  DriftKineticEsirkepov esirkepov(simulation_.B_arr);
+#pragma omp parallel for reduction(+ : energy)
+  for (auto&& cell : dk_curr_storage) {
+    for (auto&& point : cell) {
+      Vector3R B_p{};
+      PetscCallAbort(PETSC_COMM_WORLD, esirkepov.interpolate_B(B_p, point.r));
+      energy +=
+        POW2(point.p_parallel) + 2.0 * point.mu_p * B_p.length() / parameters.m;
+    }
+  }
+
+  PetscCallAbort(PETSC_COMM_WORLD, DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+  return 0.5 * parameters.m * mpw * energy;
+}
+
+PetscReal Particles::get_average_iteration_number() const
+{
+  return avgit;
+}
+
+PetscInt Particles::get_max_iteration_number() const
+{
+  return maxit;
+}
+
+PetscInt Particles::get_push_retries() const
+{
+  return push_retries;
+}
+
+PetscInt Particles::get_push_leaf_failures() const
+{
+  return push_leaf_failures;
+}
+
+PetscReal Particles::get_max_push_leaf_residue_r() const
+{
+  return max_push_leaf_residue_r;
+}
+
+PetscReal Particles::get_max_push_leaf_residue_v() const
+{
+  return max_push_leaf_residue_v;
+}
+
+void Particles::set_fail_on_terminal_nonconvergence(bool value)
+{
+  fail_on_terminal_nonconvergence = value;
+}
+
+bool Particles::get_fail_on_terminal_nonconvergence() const
+{
+  return fail_on_terminal_nonconvergence;
+}
+
+const std::vector<std::list<PointByField>>& Particles::get_dk_curr_storage() const
+{
+  return dk_curr_storage;
+}
+
+const Simulation& Particles::simulation() const
+{
+  return simulation_;
+}
+
+void Particles::set_coord_is_gc(bool v)
+{
+  coord_is_gc = v;
+}
+
+bool Particles::get_coord_is_gc() const
+{
+  return coord_is_gc;
 }
 
 PetscErrorCode Particles::update_cells_seq()
@@ -320,16 +363,16 @@ PetscErrorCode Particles::update_cells_mpi()
         continue;
       }
 
-      PetscInt i = indexing::petsc_index( //
-        get_index(ng, X, world),          //
-        get_index(ng, Y, world),          //
-        get_index(ng, Z, world),          //
+      PetscInt i = indexing::petsc_index(  //
+        get_index(ng, X, world),           //
+        get_index(ng, Y, world),           //
+        get_index(ng, Z, world),           //
         0, 3, 3, 3, 1);
 
       if (i == center_index) {
-        PetscInt j = world.s_g(   //
-          ng[X] - world.start[X], //
-          ng[Y] - world.start[Y], //
+        PetscInt j = world.s_g(    //
+          ng[X] - world.start[X],  //
+          ng[Y] - world.start[Y],  //
           ng[Z] - world.start[Z]);
 
         dk_curr_storage[j].emplace_back(std::move(*it));
@@ -383,7 +426,7 @@ PetscErrorCode Particles::update_cells_mpi()
       continue;
 
     for (auto&& point : incoming[i]) {
-      PetscInt g = world.s_g(  //
+      PetscInt g = world.s_g(                        //
         FLOOR_STEP(point.x(), dx) - world.start[X],  //
         FLOOR_STEP(point.y(), dy) - world.start[Y],  //
         FLOOR_STEP(point.z(), dz) - world.start[Z]);
@@ -417,5 +460,17 @@ PetscErrorCode Particles::update_cells_mpi()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// Applies periodic boundary conditions to a guiding center.
+PetscErrorCode Particles::correct_coordinates(PointByField& point)
+{
+  PetscFunctionBeginUser;
+  if (world.bounds[X] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, X);
+  if (world.bounds[Y] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, Y);
+  if (world.bounds[Z] == DM_BOUNDARY_PERIODIC)
+    g_bound_periodic(point, Z);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 }  // namespace drift_kinetic

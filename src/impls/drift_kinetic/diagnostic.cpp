@@ -694,7 +694,7 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
       failures_title, "{:d}",
       sort->get_push_leaf_failures());
   }
-  add(13, "AvgFieldIt", "{:d}", simulation.last_field_itnum);
+  add(13, "AvgFieldIt", "{:d}", simulation.snes_iteration_number);
 
   PetscReal w_E = 0.0;
   PetscReal w_B = 0.0;
