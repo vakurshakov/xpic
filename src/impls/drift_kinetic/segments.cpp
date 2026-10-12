@@ -1,10 +1,5 @@
 #include "segments.h"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <limits>
-
 #include "src/utils/shape.h"
 
 namespace drift_kinetic {
@@ -33,13 +28,13 @@ DriftKineticSegment make_segment(const Vector3R& Rs0, const Vector3R& Rsn)
 
 PeriodicBox make_periodic_box(Axis axis, CellSplitMode mode)
 {
-  const PetscReal length = static_cast<PetscReal>(Geom_n[axis]);
+  PetscReal length = (PetscReal)Geom_n[axis];
   PetscCheckAbort(length > split_eps, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
     "Invalid periodic length on axis %d: Geom_n[%d]=%.16e", axis, axis, length);
 
-  const PetscReal lower = mode == CellSplitMode::cell_centers ? -0.5 : 0.0;
+  PetscReal lower = mode == CellSplitMode::cell_centers ? -0.5 : 0;
   // The positive integer length bounds both box coordinates in either mode.
-  const PetscReal tolerance = 64.0 * std::numeric_limits<PetscReal>::epsilon() * length;
+  PetscReal tolerance = 64.0 * std::numeric_limits<PetscReal>::epsilon() * length;
   return PeriodicBox{lower, lower + length, length, tolerance};
 }
 
@@ -64,9 +59,10 @@ void sort_unique_t_values(std::vector<PetscReal>& t_values)
   t_values.resize(kept);
 }
 
-void canonicalize_to_periodic_box(PetscReal& start, PetscReal& end, const PeriodicBox& box)
+void canonicalize_to_periodic_box(
+  PetscReal& start, PetscReal& end, const PeriodicBox& box)
 {
-  const PetscReal image_shift = std::floor((start - box.lower) / box.length);
+  PetscReal image_shift = std::floor((start - box.lower) / box.length);
   start -= image_shift * box.length;
   end -= image_shift * box.length;
 
@@ -81,7 +77,7 @@ void canonicalize_to_periodic_box(PetscReal& start, PetscReal& end, const Period
 
   start = clamp_periodic_coordinate(start, box);
 
-  const PetscReal dir = end - start;
+  PetscReal dir = end - start;
   if (dir < -split_eps && start == box.lower) {
     start += box.length;
     end += box.length;
@@ -97,36 +93,33 @@ void canonicalize_to_periodic_box(PetscReal& start, PetscReal& end, const Period
 struct PeriodicSplitEvents {
   std::vector<PetscReal> t_values;
   std::array<std::vector<PetscReal>, 3> wrap_t_values;
-  std::array<PetscReal, 3> wrap_delta{0.0, 0.0, 0.0};
+  std::array<PetscReal, 3> wrap_delta{0, 0, 0};
 };
 
-PeriodicSplitEvents collect_periodic_split_params(
-  const Vector3R& start,
-  const Vector3R& end,
-  const std::array<PeriodicBox, 3>& boxes)
+PeriodicSplitEvents collect_periodic_split_params(const Vector3R& start,
+  const Vector3R& end, const std::array<PeriodicBox, 3>& boxes)
 {
   PeriodicSplitEvents events;
 
   for (Axis axis : {X, Y, Z}) {
     const auto& box = boxes[axis];
-    const PetscReal dir = end[axis] - start[axis];
-    const PetscReal start_shifted = start[axis] - box.lower;
-    const PetscReal end_shifted = end[axis] - box.lower;
+    PetscReal dir = end[axis] - start[axis];
+    PetscReal start_shifted = start[axis] - box.lower;
+    PetscReal end_shifted = end[axis] - box.lower;
 
     if (std::abs(dir) <= split_eps)
       continue;
 
-    if (dir > 0.0) {
+    if (dir > 0) {
       events.wrap_delta[axis] = -box.length;
 
-      const PetscInt k_begin =
-        static_cast<PetscInt>(std::floor(start_shifted / box.length)) + 1;
-      const PetscInt k_end =
-        static_cast<PetscInt>(std::floor((end_shifted - split_eps) / box.length));
+      PetscInt k_begin = (PetscInt)std::floor(start_shifted / box.length) + 1;
+      PetscInt k_end =
+        (PetscInt)(std::floor((end_shifted - split_eps) / box.length));
 
-      for (PetscInt k = k_begin; k <= k_end; ++k) {
-        const PetscReal boundary = box.lower + static_cast<PetscReal>(k) * box.length;
-        const PetscReal t = (boundary - start[axis]) / dir;
+      for (PetscInt k = k_begin; k <= k_end; k++) {
+        PetscReal boundary = box.lower + (PetscReal)k * box.length;
+        PetscReal t = (boundary - start[axis]) / dir;
         if (t > split_eps && t < 1.0 - split_eps) {
           events.t_values.push_back(t);
           events.wrap_t_values[axis].push_back(t);
@@ -136,14 +129,13 @@ PeriodicSplitEvents collect_periodic_split_params(
     else {
       events.wrap_delta[axis] = box.length;
 
-      const PetscInt k_begin =
-        static_cast<PetscInt>(std::ceil(start_shifted / box.length)) - 1;
-      const PetscInt k_end =
-        static_cast<PetscInt>(std::ceil((end_shifted + split_eps) / box.length));
+      PetscInt k_begin = (PetscInt)std::ceil(start_shifted / box.length) - 1;
+      PetscInt k_end =
+        (PetscInt)std::ceil((end_shifted + split_eps) / box.length);
 
-      for (PetscInt k = k_begin; k >= k_end; --k) {
-        const PetscReal boundary = box.lower + static_cast<PetscReal>(k) * box.length;
-        const PetscReal t = (boundary - start[axis]) / dir;
+      for (PetscInt k = k_begin; k >= k_end; k--) {
+        PetscReal boundary = box.lower + (PetscReal)k * box.length;
+        PetscReal t = (boundary - start[axis]) / dir;
         if (t > split_eps && t < 1.0 - split_eps) {
           events.t_values.push_back(t);
           events.wrap_t_values[axis].push_back(t);
@@ -159,29 +151,29 @@ void collect_cell_split_params(std::vector<PetscReal>& t_values,
   const DriftKineticSegment& segment, PetscReal offset)
 {
   for (Axis axis : {X, Y, Z}) {
-    const PetscReal start = segment.Rs0[axis] - offset;
-    const PetscReal end = segment.Rsn[axis] - offset;
-    const PetscReal dir = end - start;
+    PetscReal start = segment.Rs0[axis] - offset;
+    PetscReal end = segment.Rsn[axis] - offset;
+    PetscReal dir = end - start;
 
     if (std::abs(dir) <= split_eps)
       continue;
 
-    if (dir > 0.0) {
-      const PetscInt n_begin = static_cast<PetscInt>(std::floor(start)) + 1;
-      const PetscInt n_end = static_cast<PetscInt>(std::floor(end - split_eps));
+    if (dir > 0) {
+      PetscInt n_begin = (PetscInt)(std::floor(start)) + 1;
+      PetscInt n_end = (PetscInt)(std::floor(end - split_eps));
 
-      for (PetscInt n = n_begin; n <= n_end; ++n) {
-        const PetscReal t = (static_cast<PetscReal>(n) - start) / dir;
+      for (PetscInt n = n_begin; n <= n_end; n++) {
+        PetscReal t = ((PetscReal)n - start) / dir;
         if (t > split_eps && t < 1.0 - split_eps)
           t_values.push_back(t);
       }
     }
     else {
-      const PetscInt n_begin = static_cast<PetscInt>(std::ceil(start)) - 1;
-      const PetscInt n_end = static_cast<PetscInt>(std::ceil(end + split_eps));
+      PetscInt n_begin = (PetscInt)std::ceil(start) - 1;
+      PetscInt n_end = (PetscInt)std::ceil(end + split_eps);
 
-      for (PetscInt n = n_begin; n >= n_end; --n) {
-        const PetscReal t = (static_cast<PetscReal>(n) - start) / dir;
+      for (PetscInt n = n_begin; n >= n_end; n--) {
+        PetscReal t = ((PetscReal)n - start) / dir;
         if (t > split_eps && t < 1.0 - split_eps)
           t_values.push_back(t);
       }
@@ -189,19 +181,26 @@ void collect_cell_split_params(std::vector<PetscReal>& t_values,
   }
 }
 
-void clamp_and_check_endpoints(Vector3R& start, Vector3R& end,
-  const std::array<PeriodicBox, 3>& boxes)
+void clamp_and_check_endpoints(
+  Vector3R& start, Vector3R& end, const std::array<PeriodicBox, 3>& boxes)
 {
   for (Axis axis : {X, Y, Z}) {
     const auto& box = boxes[axis];
     start[axis] = clamp_periodic_coordinate(start[axis], box);
     end[axis] = clamp_periodic_coordinate(end[axis], box);
 
-    PetscCheckAbort(start[axis] >= box.lower - box.tolerance && start[axis] <= box.upper + box.tolerance, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
-      "Periodic segment start is outside bounds on axis %d: %.16e, [%.16e, %.16e]", axis, start[axis], box.lower, box.upper);
+    PetscReal lo = box.lower - box.tolerance;
+    PetscReal hi = box.upper + box.tolerance;
 
-    PetscCheckAbort(end[axis] >= box.lower - box.tolerance && end[axis] <= box.upper + box.tolerance, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
-      "Periodic segment end is outside bounds on axis %d: %.16e, [%.16e, %.16e]", axis, end[axis], box.lower, box.upper);
+    PetscCheckAbort(start[axis] >= lo && start[axis] <= hi, PETSC_COMM_WORLD,
+      PETSC_ERR_ARG_OUTOFRANGE,
+      "Periodic segment start is outside bounds on axis %d: %.16e, [%.16e, %.16e]",
+      axis, start[axis], box.lower, box.upper);
+
+    PetscCheckAbort(end[axis] >= lo && end[axis] <= hi, PETSC_COMM_WORLD,
+      PETSC_ERR_ARG_OUTOFRANGE,
+      "Periodic segment end is outside bounds on axis %d: %.16e, [%.16e, %.16e]",
+      axis, end[axis], box.lower, box.upper);
   }
 }
 
@@ -214,28 +213,35 @@ DriftKineticSegment make_track(const Vector3R& R0, const Vector3R& Rn)
 
 Vector3R make_end(const DriftKineticSegment& segment)
 {
-  return {segment.Rsn.x() * dx, segment.Rsn.y() * dy, segment.Rsn.z() * dz};
+  return {
+    segment.Rsn.x() * dx,
+    segment.Rsn.y() * dy,
+    segment.Rsn.z() * dz,
+  };
 }
 
 Vector3R make_begin(const DriftKineticSegment& segment)
 {
-  return {segment.Rs0.x() * dx, segment.Rs0.y() * dy, segment.Rs0.z() * dz};
+  return {
+    segment.Rs0.x() * dx,
+    segment.Rs0.y() * dy,
+    segment.Rs0.z() * dz,
+  };
 }
 
 std::vector<DriftKineticSegment> periodic_segments(
-  const DriftKineticSegment& track,
-  CellSplitMode mode)
+  const DriftKineticSegment& track, CellSplitMode mode)
 {
   Vector3R start = track.Rs0;
   Vector3R end = track.Rsn;
-  const std::array boxes{make_periodic_box(X, mode),
-    make_periodic_box(Y, mode), make_periodic_box(Z, mode)};
+  std::array boxes{make_periodic_box(X, mode), make_periodic_box(Y, mode),
+    make_periodic_box(Z, mode)};
 
   for (Axis axis : {X, Y, Z}) {
     canonicalize_to_periodic_box(start[axis], end[axis], boxes[axis]);
   }
 
-  const DriftKineticSegment canonical_track = make_segment(start, end);
+  DriftKineticSegment canonical_track = make_segment(start, end);
   if (canonical_track.dRs_len <= PETSC_SMALL)
     return {canonical_track};
 
@@ -246,26 +252,26 @@ std::vector<DriftKineticSegment> periodic_segments(
     return {make_segment(start, end)};
   }
 
-  t_values.push_back(0.0);
-  t_values.push_back(1.0);
+  t_values.push_back(0);
+  t_values.push_back(1);
   sort_unique_t_values(t_values);
 
-  const Vector3R dir = canonical_track.dRs;
+  Vector3R dir = canonical_track.dRs;
   std::array<std::size_t, 3> wrap_index{0, 0, 0};
   Vector3R shift{};
   std::vector<DriftKineticSegment> segments;
   segments.reserve(t_values.size() - 1);
 
-  for (PetscInt i = 1; i < static_cast<PetscInt>(t_values.size()); ++i) {
-    const PetscReal t0 = t_values[i - 1];
-    const PetscReal t1 = t_values[i];
+  for (PetscInt i = 1; i < (PetscInt)(t_values.size()); i++) {
+    PetscReal t0 = t_values[i - 1];
+    PetscReal t1 = t_values[i];
 
     Vector3R Rs0 = start + dir * t0 + shift;
     Vector3R Rsn = start + dir * t1 + shift;
 
     clamp_and_check_endpoints(Rs0, Rsn, boxes);
 
-    const DriftKineticSegment segment = make_segment(Rs0, Rsn);
+    DriftKineticSegment segment = make_segment(Rs0, Rsn);
     if (segment.dRs_len > split_eps)
       segments.push_back(segment);
 
@@ -274,7 +280,7 @@ std::vector<DriftKineticSegment> periodic_segments(
       while (wrap_index[axis] < wrap_t_values.size() &&
         std::abs(t1 - wrap_t_values[wrap_index[axis]]) <= split_tie_eps) {
         shift[axis] += split_events.wrap_delta[axis];
-        ++wrap_index[axis];
+        wrap_index[axis]++;
       }
     }
   }
@@ -285,10 +291,9 @@ std::vector<DriftKineticSegment> periodic_segments(
 }
 
 std::vector<DriftKineticSegment> cell_segments(
-  const std::vector<DriftKineticSegment>& segments,
-  CellSplitMode mode)
+  const std::vector<DriftKineticSegment>& segments, CellSplitMode mode)
 {
-  const PetscReal offset = (mode == CellSplitMode::cell_centers) ? 0.5 : 0.0;
+  PetscReal offset = (mode == CellSplitMode::cell_centers) ? 0.5 : 0;
 
   std::vector<DriftKineticSegment> result;
   result.reserve(segments.size());
@@ -305,18 +310,17 @@ std::vector<DriftKineticSegment> cell_segments(
       result.push_back(segment);
       continue;
     }
-    t_values.push_back(0.0);
-    t_values.push_back(1.0);
+    t_values.push_back(0);
+    t_values.push_back(1);
     sort_unique_t_values(t_values);
 
-    const auto previous_size = result.size();
-    for (PetscInt i = 1; i < static_cast<PetscInt>(t_values.size()); ++i) {
-      const PetscReal t0 = t_values[i - 1];
-      const PetscReal t1 = t_values[i];
+    auto previous_size = result.size();
+    for (PetscInt i = 1; i < (PetscInt)(t_values.size()); i++) {
+      PetscReal t0 = t_values[i - 1];
+      PetscReal t1 = t_values[i];
 
-      const DriftKineticSegment subsegment = make_segment(
-        segment.Rs0 + segment.dRs * t0,
-        segment.Rs0 + segment.dRs * t1);
+      DriftKineticSegment subsegment = make_segment(
+        segment.Rs0 + segment.dRs * t0, segment.Rs0 + segment.dRs * t1);
       if (subsegment.dRs_len > split_eps) {
         result.push_back(subsegment);
       }
