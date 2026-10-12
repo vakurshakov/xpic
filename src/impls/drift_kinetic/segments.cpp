@@ -17,13 +17,13 @@ struct PeriodicBox {
 
 DriftKineticSegment make_segment(const Vector3R& Rs0, const Vector3R& Rsn)
 {
-  DriftKineticSegment segment;
-  segment.Rs0 = Rs0;
-  segment.Rsn = Rsn;
-  segment.Rsmid = 0.5 * (Rs0 + Rsn);
-  segment.dRs = Rsn - Rs0;
-  segment.dRs_len = segment.dRs.length();
-  return segment;
+  return DriftKineticSegment{
+    .Rs0 = Rs0,
+    .Rsn = Rsn,
+    .Rsmid = 0.5 * (Rs0 + Rsn),
+    .dRs = Rsn - Rs0,
+    .dRs_len = (Rsn - Rs0).length(),
+  };
 }
 
 PeriodicBox make_periodic_box(Axis axis, CellSplitMode mode)
@@ -32,7 +32,7 @@ PeriodicBox make_periodic_box(Axis axis, CellSplitMode mode)
   PetscCheckAbort(length > split_eps, PETSC_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE,
     "Invalid periodic length on axis %d: Geom_n[%d]=%.16e", axis, axis, length);
 
-  PetscReal lower = mode == CellSplitMode::cell_centers ? -0.5 : 0;
+  PetscReal lower = mode == CellSplitMode::centers ? -0.5 : 0;
   // The positive integer length bounds both box coordinates in either mode.
   PetscReal tolerance = 64.0 * std::numeric_limits<PetscReal>::epsilon() * length;
   return PeriodicBox{lower, lower + length, length, tolerance};
@@ -293,7 +293,7 @@ std::vector<DriftKineticSegment> periodic_segments(
 std::vector<DriftKineticSegment> cell_segments(
   const std::vector<DriftKineticSegment>& segments, CellSplitMode mode)
 {
-  PetscReal offset = (mode == CellSplitMode::cell_centers) ? 0.5 : 0;
+  PetscReal offset = (mode == CellSplitMode::centers) ? 0.5 : 0;
 
   std::vector<DriftKineticSegment> result;
   result.reserve(segments.size());

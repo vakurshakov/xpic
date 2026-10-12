@@ -6,7 +6,6 @@ using namespace drift_kinetic;
 using drift_kinetic::CellSplitMode;
 using drift_kinetic::DriftKineticSegment;
 
-constexpr auto centers = CellSplitMode::cell_centers;
 constexpr PetscReal tolerance = 2e-12;
 
 struct Endpoints {
@@ -105,9 +104,9 @@ PetscErrorCode check_cell_case(const std::string& name,
     PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
     "%s: coordinate conversion failed", name.c_str());
 
-  const auto actual = cell_segments({track}, centers);
+  const auto actual = cell_segments({track}, CellSplitMode::centers);
   PetscCall(check_segments(name, endpoints, actual, expected, false, true));
-  PetscCall(check_segments(name + "/repeat", endpoints, cell_segments(actual, centers), expected, false, true));
+  PetscCall(check_segments(name + "/repeat", endpoints, cell_segments(actual, CellSplitMode::centers), expected, false, true));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -118,11 +117,11 @@ PetscErrorCode check_periodic_case(const std::string& name,
   PetscFunctionBeginUser;
   const auto track =
     make_track(physical(endpoints.begin), physical(endpoints.end));
-  const auto periodic = periodic_segments(track, centers);
+  const auto periodic = periodic_segments(track, CellSplitMode::centers);
   PetscCall(check_segments(name + "/periodic", endpoints, periodic, expected, true, false));
-  const auto cells = cell_segments(periodic, centers);
+  const auto cells = cell_segments(periodic, CellSplitMode::centers);
   PetscCall(check_segments(name + "/cells", endpoints, cells, cell_expected, true, true));
-  PetscCall(check_segments(name + "/repeat", endpoints, cell_segments(cells, centers), cell_expected, true, true));
+  PetscCall(check_segments(name + "/repeat", endpoints, cell_segments(cells, CellSplitMode::centers), cell_expected, true, true));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -330,7 +329,7 @@ PetscErrorCode run_cases(std::size_t& count)
     }
   }
 
-  PetscCheck(cell_segments({}, centers).empty(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+  PetscCheck(cell_segments({}, CellSplitMode::centers).empty(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Empty input must stay empty");
 
   count++;
@@ -362,7 +361,7 @@ PetscErrorCode run_cases(std::size_t& count)
   const auto batch =
     cell_segments({make_track(physical(first.begin), physical(first.end)),
                     make_track(physical(second.begin), physical(second.end))},
-      centers);
+      CellSplitMode::centers);
 
   PetscCheck(batch.size() == 4, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Batch processing lost input segments");
@@ -371,27 +370,28 @@ PetscErrorCode run_cases(std::size_t& count)
   PetscCall(check_segments("batch/second", second, {batch.begin() + 2, batch.end()}, intervals(second, {0.5}, false), false, true));
   count++;
 
-  // Preserve the other supported mode and its default argument.
+  // Preserve the other supported mode.
   const auto edge_track =
     make_track(physical({0.25, 0, 0}), physical({1.25, 0, 0}));
-  const auto edges = cell_segments({edge_track});
+  const auto edges = cell_segments({edge_track}, CellSplitMode::edges);
 
   PetscCheck(
     edges.size() == 2 &&
     close(edges[0].Rsn, {1, 0, 0}) &&
     close(edges[1].Rs0, {1, 0, 0}),
     PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
-    "cell_edges was changed");
+    "edges was changed");
 
   const auto edge_wrap = periodic_segments(
-    make_track(physical({3.75, 0.25, 0.25}), physical({4.25, 0.25, 0.25})));
+    make_track(physical({3.75, 0.25, 0.25}), physical({4.25, 0.25, 0.25})),
+    CellSplitMode::edges);
 
   PetscCheck(
     edge_wrap.size() == 2 &&
     close(edge_wrap[0].Rsn, {4, 0.25, 0.25}) &&
     close(edge_wrap[1].Rs0, {0, 0.25, 0.25}),
     PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
-    "cell_edges periodic box was changed");
+    "edges periodic box was changed");
 
   count += 2;
 

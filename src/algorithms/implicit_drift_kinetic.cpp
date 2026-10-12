@@ -96,8 +96,8 @@ PetscErrorCode DriftKineticEsirkepov::interpolate(                     //
   Vector3R Bn1_p = {};
 
   DriftKineticSegment track = make_track(R0, Rn);
-  std::vector<DriftKineticSegment> periodic_track =  //
-    periodic_segments(track, CellSplitMode::cell_centers);
+  std::vector<DriftKineticSegment> periodic_track =
+    periodic_segments(track, CellSplitMode::centers);
 
   Vector3R pR0 = make_begin(periodic_track.front());
   Vector3R pRn = make_end(periodic_track.back());
@@ -116,7 +116,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate(                     //
   Vector3R hatb_p = b_p / (lenb_p * lenb_p);
 
   std::vector<DriftKineticSegment> segmented_track =  //
-    cell_segments(periodic_track, CellSplitMode::cell_centers);
+    cell_segments(periodic_track, CellSplitMode::centers);
 
   for (const auto& segment : segmented_track) {
     Vector3R gradBs_p = {};
@@ -153,7 +153,7 @@ PetscErrorCode DriftKineticEsirkepov::decomposition(const Vector3R& Rn,
 
   DriftKineticSegment track = make_track(R0, Rn);
   std::vector<DriftKineticSegment> periodic_track =
-    periodic_segments(track, CellSplitMode::cell_centers);
+    periodic_segments(track, CellSplitMode::centers);
 
   Vector3R pR0 = make_begin(periodic_track.front());
   Vector3R pRn = make_end(periodic_track.back());
@@ -172,7 +172,7 @@ PetscErrorCode DriftKineticEsirkepov::decomposition(const Vector3R& Rn,
   PetscCall(decomposition_M(pRn, hatb_p, 0.5 * mu_p));
 
   std::vector<DriftKineticSegment> segmented_track =
-    cell_segments(periodic_track, CellSplitMode::cell_centers);
+    cell_segments(periodic_track, CellSplitMode::centers);
 
   for (const auto& segment : segmented_track) {
     PetscReal dts = track.dRs_len > 0 ? segment.dRs_len / track.dRs_len : 1.0;
