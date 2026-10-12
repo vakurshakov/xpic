@@ -82,8 +82,8 @@ void DriftKineticPush::process_picard(
 void DriftKineticPush::step(
   const PetscReal dt, PointByField& pn, const PointByField& p0)
 {
-  update_Vh(pn, p0);
   update_fields(pn, p0);
+  update_Vh(pn, p0);
   update_Vp(pn, p0);
   update_ah(pn, p0);
   update_r(dt, pn, p0);
@@ -92,8 +92,8 @@ void DriftKineticPush::step(
 
 void DriftKineticPush::evaluate_rhs(const PointByField& pn, const PointByField& p0)
 {
-  update_Vh(pn, p0);
   update_fields(pn, p0);
+  update_Vh(pn, p0);
   update_Vp(pn, p0);
   update_ah(pn, p0);
 }
