@@ -114,7 +114,7 @@ PetscErrorCode InjectParticles::log_statistics(PetscInt added_particles,
   PetscReal energy[2]{energy_i, energy_e};
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, energy, 2, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   LOG("    energy added into \"{}\": {:6.4e}", ionized_.parameters.sort_name, energy[0]);
-  LOG("    energy added into \"{}\": {:6.4e}", ejected_.parameters.sort_name, energy[1]);  LOG("    energy added into \"{}\": {:6.4e}",    ionized_.parameters.sort_name, energy[0]);  LOG("    energy added into \"{}\": {:6.4e}",    ejected_.parameters.sort_name, energy[1]);
+  LOG("    energy added into \"{}\": {:6.4e}", ejected_.parameters.sort_name, energy[1]);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
