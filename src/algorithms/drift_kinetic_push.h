@@ -50,7 +50,7 @@ private:
   void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0);
 
   /// @brief Checks convergence using both residuals.
-  bool check_discrepancy(
+  bool check_convergence(
     PetscReal dt, const PointByField& pn, const PointByField& p0);
   PetscReal get_residue_r(
     PetscReal dt, const PointByField& pn, const PointByField& p0);

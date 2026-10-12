@@ -66,7 +66,7 @@ void DriftKineticPush::process_picard(
   for (it = 0; it < maxit; ++it) {
     evaluate_rhs(pn, p0);
 
-    if (check_discrepancy(dt, pn, p0)) {
+    if (check_convergence(dt, pn, p0)) {
       converged = true;
       return;
     }
@@ -76,7 +76,7 @@ void DriftKineticPush::process_picard(
   }
 
   evaluate_rhs(pn, p0);
-  converged = check_discrepancy(dt, pn, p0);
+  converged = check_convergence(dt, pn, p0);
 }
 
 void DriftKineticPush::step(
@@ -139,7 +139,7 @@ void DriftKineticPush::update_v_parallel(
   pn.p_parallel = p0.p_parallel + dt * ah;
 }
 
-bool DriftKineticPush::check_discrepancy(
+bool DriftKineticPush::check_convergence(
   PetscReal dt, const PointByField& pn, const PointByField& p0)
 {
   FRk = get_residue_r(dt, pn, p0);
