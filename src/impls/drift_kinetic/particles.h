@@ -7,8 +7,6 @@
 namespace drift_kinetic {
 
 class Simulation;
-class InjectParticles;
-class SetPairedParticles;
 
 PointByField make_point_at_gc(
   const Point& point, const Vector3R& Bp, PetscReal mp);
@@ -55,13 +53,13 @@ protected:
   std::vector<std::list<PointByField>> dk_curr_storage;  // Current states by cell.
   std::vector<std::vector<PointByField>> dk_prev_storage;  // Saved states by cell.
 
-  PetscInt size = 0;      // Local particle count.
-  PetscReal avgit = 0.0;  // Average pusher iteration count.
-  PetscInt maxit = 0;     // Largest pusher iteration count.
-  PetscInt push_retries = 0;
-  PetscInt push_leaf_failures = 0;
-  PetscReal max_push_leaf_residue_r = 0.0;
-  PetscReal max_push_leaf_residue_v = 0.0;
+  PetscInt size = 0;    // Local particle count.
+  PetscReal avgit = 0;  // Average pusher iteration count.
+  PetscInt maxit = 0;   // Largest pusher iteration count.
+  PetscInt retries = 0;
+  PetscInt leaf_failures = 0;
+  PetscReal max_leaf_residue_r = 0;
+  PetscReal max_leaf_residue_v = 0;
 
   bool coord_is_gc = false;
   bool fail_on_terminal_nonconvergence = false;

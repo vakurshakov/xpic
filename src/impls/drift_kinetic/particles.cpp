@@ -50,82 +50,79 @@ PetscErrorCode Particles::finalize()
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
+  if (size == 0)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecGetArrayWrite(da, M_loc, &M_arr));
 
-  avgit = 0.0;
+  avgit = 0;
   maxit = 0;
-  push_retries = 0;
-  push_leaf_failures = 0;
-  max_push_leaf_residue_r = 0.0;
-  max_push_leaf_residue_v = 0.0;
+  retries = 0;
+  leaf_failures = 0;
+  max_leaf_residue_r = 0;
+  max_leaf_residue_v = 0;
 
   const PetscReal q = parameters.q;
   const PetscReal m = parameters.m;
-  const PetscReal particle_weight =
-    parameters.n / static_cast<PetscReal>(parameters.Np);
+  const PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
 
-  const PetscReal inv_size = size > 0 ? 1.0 / static_cast<PetscReal>(size) : 0.0;
-
-  constexpr PetscInt max_substep_depth = 4;
-
-#pragma omp parallel for reduction(+ : avgit, push_retries, push_leaf_failures) \
-  reduction(max : maxit, max_push_leaf_residue_r, max_push_leaf_residue_v)
-  for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
-    const auto& prev_cell = dk_prev_storage[g];
-
-    PetscInt i = 0;
-    for (auto& curr : dk_curr_storage[g]) {
-      auto prev(prev_cell[i]);
+#pragma omp parallel for reduction(+ : avgit, retries, leaf_failures) \
+  reduction(max : maxit, max_leaf_residue_r, max_leaf_residue_v)
+  for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); g++) {
+    for (PetscInt i = 0; auto& curr : dk_curr_storage[g]) {
+      auto prev(dk_prev_storage[g][i]);
 
       DriftKineticPush push(q / m, m);
-      DriftKineticEsirkepov util_local(
-        E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
+      DriftKineticEsirkepov util(E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
 
-      push.set_fields_callback([&](const Vector3R& r0, const Vector3R& rn,
-                                 Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
-                                 Vector3R& gradB_p, Vector3R& rotB_p) {
-        util_local.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
-      });
+      push.set_fields_callback(
+        [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
+          PetscReal& lenB_p, Vector3R& b_p, Vector3R& gradB_p, Vector3R& rotB_p)
+        {
+          util.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
+        });
 
-      AdaptiveSubstepStats stats;
-      auto attempt = [&](PetscReal dt_sub, PointByField& pn,
-                       const PointByField& p0) {
-        push.process(dt_sub, pn, p0);
-        return AdaptiveSubstepAttempt{push.has_converged(),
-          push.get_iteration_number(), push.get_FRk(), push.get_FVhk()};
+      auto attempt = [&](PetscReal dtau, PointByField& pn, const PointByField& p0)
+      {
+        push.process(dtau, pn, p0);
+        return AdaptiveSubstepAttempt{
+          push.has_converged(),
+          push.get_iteration_number(),
+          push.get_FRk(),
+          push.get_FVhk(),
+        };
       };
-      auto midpoint = [](const PointByField& p0, const PointByField& pn) {
+
+      auto midpoint = [](const PointByField& p0, const PointByField& pn)
+      {
         PointByField mid(p0);
         mid.r = 0.5 * (p0.r + pn.r);
         mid.p_parallel = 0.5 * (p0.p_parallel + pn.p_parallel);
         return mid;
       };
-      auto accept = [&](PetscReal dt_sub, PointByField& pn,
-                      const PointByField& p0) {
-        const PetscReal a0 = q * particle_weight;
-        const PetscReal b0 = pn.mu_p * particle_weight;
-        const Vector3R Vp_sub = (pn.r - p0.r) / dt_sub;
 
-        util_local.decomposition(
-          pn.r, p0.r, Vp_sub, a0 * (dt_sub / dt), b0 * (dt_sub / dt));
+      auto accept = [&](PetscReal dtau, PointByField& pn, const PointByField& p0)
+      {
+        const PetscReal a0 = q * mpw * (dtau / dt);
+        const PetscReal b0 = pn.mu_p * mpw * (dtau / dt);
+        const Vector3R Vp_sub = (pn.r - p0.r) / dtau;
+        util.decomposition(pn.r, p0.r, Vp_sub, a0, b0);
       };
 
-      adaptive_substep(
-        dt, curr, prev, max_substep_depth, attempt, midpoint, accept, stats);
+      AdaptiveSubstepStats stats;
+      adaptive_substep(dt, curr, prev, attempt, midpoint, accept, stats);
 
-      avgit += static_cast<PetscReal>(stats.iteration_sum) * inv_size;
+      avgit += (PetscReal)stats.iteration_sum / (PetscReal)size;
       maxit = std::max(maxit, stats.max_iterations);
-      push_retries += stats.retries;
-      push_leaf_failures += stats.leaf_failures;
-      max_push_leaf_residue_r =
-        std::max(max_push_leaf_residue_r, stats.max_leaf_residue_r);
-      max_push_leaf_residue_v =
-        std::max(max_push_leaf_residue_v, stats.max_leaf_residue_v);
+      retries += stats.retries;
+      leaf_failures += stats.leaf_failures;
+      max_leaf_residue_r = std::max(max_leaf_residue_r, stats.max_leaf_residue_r);
+      max_leaf_residue_v = std::max(max_leaf_residue_v, stats.max_leaf_residue_v);
 
       curr.p = (curr.r - prev.r) / dt;
 
-      ++i;
+      i++;
     }
   }
 
@@ -134,18 +131,17 @@ PetscErrorCode Particles::form_iteration()
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
 
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_retries, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_leaf_failures, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_r, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_v, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &retries, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &leaf_failures, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_leaf_residue_r, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_leaf_residue_v, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
 
-  if (push_leaf_failures > 0 && !fail_on_terminal_nonconvergence) {
+  if (leaf_failures > 0 && !fail_on_terminal_nonconvergence) {
     LOG("WARNING: DK Push terminal non-convergence for sort={}:", parameters.sort_name);
-    LOG("  leaf_failures={}, max FRk={: .4e}, max FVhk={: .4e}", push_leaf_failures, max_push_leaf_residue_r, max_push_leaf_residue_v);
+    LOG("  leaf_failures={}, max FRk={: .4e}, max FVhk={: .4e}", leaf_failures, max_leaf_residue_r, max_leaf_residue_v);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 // Converts newly loaded kinetic particles to guiding-center form.
 PetscErrorCode Particles::sync_dk_curr_storage()
@@ -159,7 +155,7 @@ PetscErrorCode Particles::sync_dk_curr_storage()
 
   DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < world.size.elements_product(); g++) {
     auto& cell = storage[g];
     if (cell.empty())
       continue;
@@ -186,7 +182,7 @@ PetscErrorCode Particles::prepare_storage()
 
   size = 0;
 
-  for (PetscInt g = 0; g < static_cast<PetscInt>(dk_curr_storage.size()); ++g) {
+  for (PetscInt g = 0; g < static_cast<PetscInt>(dk_curr_storage.size()); g++) {
     const auto& curr = dk_curr_storage[g];
     auto& prev = dk_prev_storage[g];
 
@@ -232,22 +228,22 @@ PetscInt Particles::get_max_iteration_number() const
 
 PetscInt Particles::get_push_retries() const
 {
-  return push_retries;
+  return retries;
 }
 
 PetscInt Particles::get_push_leaf_failures() const
 {
-  return push_leaf_failures;
+  return leaf_failures;
 }
 
 PetscReal Particles::get_max_push_leaf_residue_r() const
 {
-  return max_push_leaf_residue_r;
+  return max_leaf_residue_r;
 }
 
 PetscReal Particles::get_max_push_leaf_residue_v() const
 {
-  return max_push_leaf_residue_v;
+  return max_leaf_residue_v;
 }
 
 void Particles::set_fail_on_terminal_nonconvergence(bool value)
@@ -285,7 +281,7 @@ PetscErrorCode Particles::update_cells_seq()
   PetscFunctionBeginUser;
   PetscLogEventBegin(events[0], 0, 0, 0, 0);
 
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < world.size.elements_product(); g++) {
     auto it = dk_curr_storage[g].begin();
     while (it != dk_curr_storage[g].end()) {
       PetscCall(correct_coordinates(*it));
@@ -325,7 +321,8 @@ PetscErrorCode Particles::update_cells_mpi()
   constexpr PetscInt neighbors_num = POW3(3);
   constexpr PetscInt center_index = indexing::petsc_index(1, 1, 1, 0, 3, 3, 3, 1);
 
-  auto get_index = [](const Vector3I& r, Axis axis, const World& world) {
+  auto get_index = [](const Vector3I& r, Axis axis, const World& world)
+  {
     if (r[axis] < world.start[axis])
       return 0;
     if (r[axis] < world.end[axis])
@@ -333,7 +330,8 @@ PetscErrorCode Particles::update_cells_mpi()
     return 2;
   };
 
-  auto get_neighbor = [](PetscInt i, const World& world) {
+  auto get_neighbor = [](PetscInt i, const World& world)
+  {
     return world.neighbors[i] < 0 ? MPI_PROC_NULL : world.neighbors[i];
   };
 
@@ -343,7 +341,7 @@ PetscErrorCode Particles::update_cells_mpi()
   PetscLogEventBegin(events[0], 0, 0, 0, 0);
 
   LOG("  Starting MPI cells update for \"{}\"", parameters.sort_name);
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < world.size.elements_product(); g++) {
     Vector3I pg{
       world.start[X] + g % world.size[X],
       world.start[Y] + (g / world.size[X]) % world.size[Y],
@@ -389,7 +387,7 @@ PetscErrorCode Particles::update_cells_mpi()
 
   size_t o_num[neighbors_num];
   size_t i_num[neighbors_num];
-  for (PetscInt i = 0; i < neighbors_num; ++i) {
+  for (PetscInt i = 0; i < neighbors_num; i++) {
     o_num[i] = outgoing[i].size();
     i_num[i] = 0;
   }
@@ -399,7 +397,7 @@ PetscErrorCode Particles::update_cells_mpi()
   PetscInt req = 0;
   MPI_Request reqs[2 * (neighbors_num - 1)];
 
-  for (PetscInt s = 0; s < neighbors_num; ++s) {
+  for (PetscInt s = 0; s < neighbors_num; s++) {
     if (s == center_index)
       continue;
 
@@ -410,7 +408,7 @@ PetscErrorCode Particles::update_cells_mpi()
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
   req = 0;
-  for (PetscInt s = 0; s < neighbors_num; ++s) {
+  for (PetscInt s = 0; s < neighbors_num; s++) {
     if (s == center_index)
       continue;
 
@@ -421,7 +419,7 @@ PetscErrorCode Particles::update_cells_mpi()
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 
-  for (PetscInt i = 0; i < neighbors_num; ++i) {
+  for (PetscInt i = 0; i < neighbors_num; i++) {
     if (i == center_index || i_num[i] == 0)
       continue;
 
@@ -445,7 +443,7 @@ PetscErrorCode Particles::update_cells_mpi()
   for (auto&& [op, num] : map) {
     PetscInt sum = 0;
 
-    for (PetscInt i = 0; i < neighbors_num; ++i)
+    for (PetscInt i = 0; i < neighbors_num; i++)
       sum += num[i];
 
     PetscCall(MPIUtils::log_statistics(op, sum, comm));
