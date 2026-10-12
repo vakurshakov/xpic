@@ -66,8 +66,7 @@ PetscErrorCode Simulation::initialize_implementation()
     for (auto& sort : particles_)
       sort->set_fail_on_terminal_nonconvergence(
         fail_on_terminal_nonconvergence);
-    LOG("  drift_kinetic: fail_on_terminal_nonconvergence = {}",
-      fail_on_terminal_nonconvergence);
+    LOG("  drift_kinetic: fail_on_terminal_nonconvergence = {}", fail_on_terminal_nonconvergence);
   }
   {
     const Configuration::json_t& json = CONFIG().json;

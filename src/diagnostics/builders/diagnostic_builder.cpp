@@ -96,8 +96,7 @@ PetscErrorCode build_diagnostics(
       result.emplace_back(
         drift_kinetic::DkDistributionFunction::create(
           out_dir, *particles, v_parallel, mu_p, period, max_frames));
-      LOG("  DkDistributionFunction diagnostic is added for {}, output directory: {}",
-        particles_name, out_dir);
+      LOG("  DkDistributionFunction diagnostic is added for {}, output directory: {}", particles_name, out_dir);
     }
     else if (name == "LogView") {
       PetscCall(Builder::use_impl<LogViewBuilder>(info, simulation, result));

@@ -92,8 +92,7 @@ PetscErrorCode SetParticlesBuilder::build(const Configuration::json_t& info)
 
       commands_.emplace_back(std::move(diag));
 
-      LOG("  SetPairedParticles command is added for \"{}\" + \"{}\"",
-        particles_name, other_name);
+      LOG("  SetPairedParticles command is added for \"{}\" + \"{}\"", particles_name, other_name);
       PetscFunctionReturn(PETSC_SUCCESS);
     }
 

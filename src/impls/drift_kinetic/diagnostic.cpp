@@ -365,8 +365,7 @@ std::unique_ptr<DkDistributionFunction> DkDistributionFunction::create(
       "DkDistributionFunction max_frames must be positive or unlimited (-1)");
 
   MPI_Comm comm = MPI_COMM_NULL;
-  PetscCallAbort(PETSC_COMM_WORLD,
-    MPI_Comm_dup(PETSC_COMM_WORLD, &comm));
+  PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_dup(PETSC_COMM_WORLD, &comm));
   return std::unique_ptr<DkDistributionFunction>(
     new DkDistributionFunction(out_dir, particles, v_parallel, mu_p,
       diagnose_period, max_frames, comm));
@@ -436,13 +435,11 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
   }
 
   PetscInt counts[2]{included_local, omitted_local};
-  PetscCallMPI(MPI_Allreduce(
-    MPI_IN_PLACE, counts, 2, MPIU_INT, MPI_SUM, comm));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, counts, 2, MPIU_INT, MPI_SUM, comm));
   const PetscInt total = counts[0] + counts[1];
   const PetscReal omitted_fraction =
     total > 0 ? static_cast<PetscReal>(counts[1]) / total : 0.0;
-  LOG("  DkDistributionFunction {}: included {}, omitted {} ({:.6e})",
-    particles.parameters.sort_name, counts[0], counts[1], omitted_fraction);
+  LOG("  DkDistributionFunction {}: included {}, omitted {} ({:.6e})", particles.parameters.sort_name, counts[0], counts[1], omitted_fraction);
 
   const PetscInt global_sizes[5]{
     geom_nz, geom_ny, geom_nx, nv, nmu};
@@ -460,8 +457,7 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
   }
 
   MPI_Datatype file_view = MPI_DATATYPE_NULL;
-  PetscCallMPI(MPI_Type_create_subarray(5, global_sizes_mpi,
-    local_sizes_mpi, file_starts_mpi, MPI_ORDER_C, MPI_FLOAT, &file_view));
+  PetscCallMPI(MPI_Type_create_subarray(5, global_sizes_mpi, local_sizes_mpi, file_starts_mpi, MPI_ORDER_C, MPI_FLOAT, &file_view));
   PetscCallMPI(MPI_Type_commit(&file_view));
 
   const std::filesystem::path filename =
@@ -475,14 +471,11 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
   PetscCallMPI(MPI_Barrier(comm));
 
   MPI_File file = MPI_FILE_NULL;
-  PetscCallMPI(MPI_File_open(comm, filename.c_str(),
-    MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file));
-  PetscCallMPI(MPI_File_set_view(
-    file, 0, MPI_FLOAT, file_view, "native", MPI_INFO_NULL));
+  PetscCallMPI(MPI_File_open(comm, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file));
+  PetscCallMPI(MPI_File_set_view(file, 0, MPI_FLOAT, file_view, "native", MPI_INFO_NULL));
   PetscMPIInt write_count = 0;
   PetscCall(PetscMPIIntCast(histogram.size(), &write_count));
-  PetscCallMPI(MPI_File_write_all(
-    file, histogram.data(), write_count, MPI_FLOAT, MPI_STATUS_IGNORE));
+  PetscCallMPI(MPI_File_write_all(file, histogram.data(), write_count, MPI_FLOAT, MPI_STATUS_IGNORE));
   PetscCallMPI(MPI_File_close(&file));
   PetscCallMPI(MPI_Type_free(&file_view));
   ++frames_written;
@@ -495,8 +488,7 @@ std::unique_ptr<MatMultFieldView> MatMultFieldView::create(
 {
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
-  PetscCallAbort(PETSC_COMM_WORLD,
-    World::create_local_comm(da, region, &newcomm));
+  PetscCallAbort(PETSC_COMM_WORLD, World::create_local_comm(da, region, &newcomm));
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 

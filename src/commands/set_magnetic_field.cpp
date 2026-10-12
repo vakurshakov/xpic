@@ -86,8 +86,7 @@ PetscErrorCode SetAzimuthalField::operator()(Vec vec)
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
-  LOG("  Azimuthal field is set, |B| {}, center ({} {}), radius {}",
-    value_, center_x_, center_y_, radius_);
+  LOG("  Azimuthal field is set, |B| {}, center ({} {}), radius {}", value_, center_x_, center_y_, radius_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -121,8 +120,7 @@ PetscErrorCode SetGradientField::operator()(Vec vec)
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
-  LOG("  Gradient field is set, value ({} {} {}), axis {}, length {}, origin {}",
-    REP3_A(value_), axis_, length_, origin_);
+  LOG("  Gradient field is set, value ({} {} {}), axis {}, length {}, origin {}", REP3_A(value_), axis_, length_, origin_);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -190,8 +188,7 @@ PetscErrorCode SetCosineField::operator()(Vec vec)
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
 
-  LOG("  Cosine field perturbation is set, amplitude ({} {} {}), wave_number ({} {} {}), phase ({} {} {})",
-    REP3_A(amplitude), REP3_A(wave_number), REP3_A(phase));
+  LOG("  Cosine field perturbation is set, amplitude ({} {} {}), wave_number ({} {} {}), phase ({} {} {})", REP3_A(amplitude), REP3_A(wave_number), REP3_A(phase));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -257,8 +254,7 @@ PetscErrorCode SetGeneralCosineField::operator()(Vec vec)
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
 
-  LOG("  General cosine field perturbation is set, amplitude ({} {} {}), wave_number ({} {} {})",
-    REP3_A(amplitude), REP3_A(wave_number));
+  LOG("  General cosine field perturbation is set, amplitude ({} {} {}), wave_number ({} {} {})", REP3_A(amplitude), REP3_A(wave_number));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

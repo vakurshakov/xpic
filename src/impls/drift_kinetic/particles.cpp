@@ -50,10 +50,8 @@ PetscReal Particles::kinetic_energy_local() const
 {
   PetscReal energy = 0.0;
   const PetscReal mpw = parameters.n / static_cast<PetscReal>(parameters.Np);
-  PetscCallAbort(PETSC_COMM_WORLD,
-    DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
-  PetscCallAbort(PETSC_COMM_WORLD,
-    DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+  PetscCallAbort(PETSC_COMM_WORLD, DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
+  PetscCallAbort(PETSC_COMM_WORLD, DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
   DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 #pragma omp parallel for reduction(+ : energy)
@@ -66,8 +64,7 @@ PetscReal Particles::kinetic_energy_local() const
     }
   }
 
-  PetscCallAbort(PETSC_COMM_WORLD,
-    DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+  PetscCallAbort(PETSC_COMM_WORLD, DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
   return 0.5 * parameters.m * mpw * energy;
 }
 
@@ -165,20 +162,14 @@ PetscErrorCode Particles::form_iteration()
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
 
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_retries_, 1,
-    MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_leaf_failures_, 1,
-    MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_r_, 1,
-    MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_v_, 1,
-    MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_retries_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &push_leaf_failures_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_r_, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_push_leaf_residue_v_, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
 
   if (push_leaf_failures_ > 0 && !fail_on_terminal_nonconvergence_) {
-    LOG("WARNING: DK Push terminal non-convergence: sort={}, leaf_failures={}, "
-        "max FRk={: .4e}, max FVhk={: .4e}",
-      parameters.sort_name, push_leaf_failures_,
-      max_push_leaf_residue_r_, max_push_leaf_residue_v_);
+    LOG("WARNING: DK Push terminal non-convergence for sort={}:", parameters.sort_name);
+    LOG("  leaf_failures={}, max FRk={: .4e}, max FVhk={: .4e}", push_leaf_failures_, max_push_leaf_residue_r_, max_push_leaf_residue_v_);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -382,10 +373,8 @@ PetscErrorCode Particles::update_cells_mpi()
 
     PetscInt r = (neighbors_num - 1) - s;
     incoming[r].resize(i_num[r]);
-    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(PointByField), MPI_BYTE,
-      get_neighbor(s, world), MPI_TAG_POINTS, comm, &reqs[req++]));
-    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(PointByField), MPI_BYTE,
-      get_neighbor(r, world), MPI_TAG_POINTS, comm, &reqs[req++]));
+    PetscCallMPI(MPI_Isend(outgoing[s].data(), o_num[s] * sizeof(PointByField), MPI_BYTE, get_neighbor(s, world), MPI_TAG_POINTS, comm, &reqs[req++]));
+    PetscCallMPI(MPI_Irecv(incoming[r].data(), i_num[r] * sizeof(PointByField), MPI_BYTE, get_neighbor(r, world), MPI_TAG_POINTS, comm, &reqs[req++]));
   }
   PetscCallMPI(MPI_Waitall(req, reqs, MPI_STATUSES_IGNORE));
 

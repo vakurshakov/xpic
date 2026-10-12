@@ -71,8 +71,7 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
       origin = setter.at("origin").get<PetscReal>();
 
     setup = SetGradientField(value, axis, length, origin);
-    LOG("    Field value: {} {} {}, axis: {}, length: {}, origin: {}",
-      REP3_A(value), axis_name, length, origin);
+    LOG("    Field value: {} {} {}, axis: {}, length: {}, origin: {}", REP3_A(value), axis_name, length, origin);
   }
   else if (name == "SetAzimuthalField") {
     LOG("  Using SetAzimuthalField setter");
