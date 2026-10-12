@@ -283,8 +283,7 @@ PetscErrorCode DkDistributionMoment::collect()
   const auto& sim = dk_particles.simulation();
   if (dk_moment) {
     PetscCall(DMGlobalToLocal(sim.da, sim.B, INSERT_VALUES, sim.B_loc));
-    PetscCall(DMDAVecGetArrayRead(sim.da, sim.B_loc,
-      reinterpret_cast<void***>(&B_arr_local)));
+    PetscCall(DMDAVecGetArrayRead(sim.da, sim.B_loc, &B_arr_local));
   }
 
 #pragma omp parallel for private(shape)
@@ -337,8 +336,7 @@ PetscErrorCode DkDistributionMoment::collect()
   }
 
   if (dk_moment) {
-    PetscCall(DMDAVecRestoreArrayRead(sim.da, sim.B_loc,
-      reinterpret_cast<void***>(&B_arr_local)));
+    PetscCall(DMDAVecRestoreArrayRead(sim.da, sim.B_loc, &B_arr_local));
   }
 
   PetscCall(DMDAVecRestoreArrayDOFWrite(da, field_loc, &arr));
@@ -611,14 +609,12 @@ PetscErrorCode EnergyConservation::init_charge_conservation()
   PetscInt s;
   DMBoundaryType bounds[3];
   DMDAStencilType st;
-  PetscCall(DMDAGetInfo(simulation.da, nullptr, REP3_A(&g_size), REP3_A(&procs), nullptr,
-    &s, REP3_A(&bounds), &st));
+  PetscCall(DMDAGetInfo(simulation.da, nullptr, REP3_A(&g_size), REP3_A(&procs), nullptr, &s, REP3_A(&bounds), &st));
 
   const PetscInt* ownership[3];
   PetscCall(DMDAGetOwnershipRanges(simulation.da, REP3_A(&ownership)));
 
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), st, REP3_A(g_size),
-    REP3_A(procs), 1, s, REP3_A(ownership), &charge_da));
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), st, REP3_A(g_size), REP3_A(procs), 1, s, REP3_A(ownership), &charge_da));
   PetscCall(DMSetUp(charge_da));
 
   charge_locals.reserve(simulation.particles_.size());
