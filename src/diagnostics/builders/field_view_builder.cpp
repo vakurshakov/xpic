@@ -115,12 +115,12 @@ Mat FieldViewBuilder::parse_operator(const std::string& name) const
     return nullptr;
 
   std::map<std::string, Mat> op_map{
-    {"rotM", dk_simulation->rotM},
+    {"rotM", dk_simulation->rotB},
   };
 
   for (auto&& sort : simulation_.particles_) {
     if (auto* dk_sort = dynamic_cast<drift_kinetic::Particles*>(sort.get()))
-      op_map[sort->parameters.sort_name + "/rotM"] = dk_simulation->rotM;
+      op_map[sort->parameters.sort_name + "/rotM"] = dk_simulation->rotB;
   }
 
   if (auto it = op_map.find(name); it != op_map.end())

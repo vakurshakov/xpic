@@ -1,7 +1,6 @@
 #include "simulation.h"
 
 #include "src/utils/configuration.h"
-#include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
 namespace drift_kinetic {
@@ -30,10 +29,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMCreateGlobalVector(da, &Bn1));
   PetscCall(DMCreateLocalVector(da, &Bn_loc));
   PetscCall(DMCreateLocalVector(da, &Bn1_loc));
-
-  Rotor rotor(da);
-  PetscCall(rotor.create_negative(&rotM));
-  PetscCall(MatScale(rotB, -1));  /// @see `Simulation::form_function()`
 
   Region region{
     .dim = 4,
@@ -80,8 +75,6 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&Bn1));
   PetscCall(VecDestroy(&Bn_loc));
   PetscCall(VecDestroy(&Bn1_loc));
-
-  PetscCall(MatDestroy(&rotM));
 
   PetscCall(SNESDestroy(&snes));
   PetscCall(VecDestroy(&sol));
@@ -212,26 +205,25 @@ PetscErrorCode Simulation::form_current()
 PetscErrorCode Simulation::form_function(Vec vf)
 {
   PetscFunctionBeginUser;
-  Vec E_f;
+  Vec E_f, B_f;
   PetscCall(DMGetGlobalVector(da, &E_f));
-
-  Vec B_f;
   PetscCall(DMGetGlobalVector(da, &B_f));
 
-  // F(E) = (E^{n+1/2,k} - E^{n}) / (dt / 2) + J^{n+1/2,k} - rot(B^{n+1/2,k}) + rot(M^{n+1/2,k}})
-  PetscCall(VecAXPBYPCZ(E_f, +2 / dt, -2 / dt, 0, E_hk, E));
-  PetscCall(VecAXPY(E_f, +1, J));
-  PetscCall(MatMultAdd(rotM, M, E_f, E_f));
-  PetscCall(MatMultAdd(rotB, B_hk, E_f, E_f));
+  // F(E) = (E^{n+1/2,k} - E^{n}) + (0.5 * dt) * (J^{n+1/2,k} - rot(B^{n+1/2,k} - M^{n+1/2,k}))
+  PetscCall(VecWAXPY(rB, -1, M, B_hk));
+  PetscCall(MatMult(rotB, rB, rE));
+  PetscCall(VecWAXPY(E_f, -1, E, E_hk));
+  PetscCall(VecAXPY(E_f, +0.5 * dt, J));
+  PetscCall(VecAXPY(E_f, -0.5 * dt, rE));
 
-  // F(B) = (B^{n+1/2,k} - B^{n}) / (dt / 2) + rot(E^{n+1/2,k})
-  PetscCall(VecAXPBYPCZ(B_f, +2 / dt, -2 / dt, 0, B_hk, B));
-  PetscCall(MatMultAdd(rotE, E_hk, B_f, B_f));
+  // F(B) = (B^{n+1/2,k} - B^{n}) + (0.5 * dt) * rot(E^{n+1/2,k})
+  PetscCall(VecWAXPY(B_f, -1, B, B_hk));
+  PetscCall(MatMult(rotE, E_hk, rE));
+  PetscCall(VecAXPY(B_f, +0.5 * dt, rE));
 
   PetscCall(to_snes(E_f, B_f, vf));
-  PetscCall(DMRestoreGlobalVector(da, &B_f));
-
   PetscCall(DMRestoreGlobalVector(da, &E_f));
+  PetscCall(DMRestoreGlobalVector(da, &B_f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -17,8 +17,7 @@ public:
 
   std::vector<std::shared_ptr<drift_kinetic::Particles>> particles_;
 
-  Vec M;     // Total magnetization.
-  Mat rotM;  // Magnetization curl operator.
+  Vec M;  // Total magnetization.
 
 protected:
   PetscErrorCode initialize_implementation() override;
