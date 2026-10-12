@@ -90,8 +90,6 @@ public:
   PetscErrorCode finalize() override;
   PetscErrorCode add_columns(PetscInt t) override;
 
-  PetscReal a_MB0 = 0;
-
 private:
   PetscErrorCode init_charge_conservation();
   PetscErrorCode collect_charge_density(PetscInt sort_id);

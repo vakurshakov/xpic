@@ -65,16 +65,13 @@ PetscErrorCode Simulation::initialize_implementation()
   LOG("    Use gyro-centers to set coordinates (coord_is_gc): {}", is_gc_coord);
   LOG("    Terminate on particles non-convergence (fail_on_terminal_nonconvergence): {}", is_fail_terminal);
 
-  energy_cons = std::make_unique<EnergyConservation>(*this);
+  diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCall(energy_cons->diagnose(geom_nt));
-  PetscCall(energy_cons->finalize());
-
   PetscCall(interfaces::Simulation::finalize());
 
   PetscCall(VecDestroy(&M));
@@ -98,7 +95,6 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   PetscFunctionBeginUser;
   for (auto& sort : particles_)
     PetscCall(sort->prepare_storage());
-  PetscCall(energy_cons->diagnose(t - 1));
 
   if (!evolve_fields) {
     PetscCall(VecCopy(E, E_hk));
@@ -197,7 +193,7 @@ PetscErrorCode Simulation::form_current()
     }
   }
 
-  PetscCall(VecDot(M, B, &energy_cons->a_MB0));
+  PetscCall(VecDot(M, B, &a_MB0));
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));

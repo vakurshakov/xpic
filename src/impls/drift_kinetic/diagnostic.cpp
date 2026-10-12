@@ -735,7 +735,7 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   add(13, "dE", "{: .6e}", dWE);
   add(13, "dB", "{: .6e}", dWB);
   add(13, "dE+dB+dK", "{: .6e}", dWE + dWB + (K - K0));
-  add(13, "dK-dMB+dt*dEJ", "{: .6e}", (K - K0) + (a_MB - a_MB0) - dt * a_EJ);
+  add(13, "dK-dMB+dt*dEJ", "{: .6e}", (K - K0) + (a_MB - simulation.a_MB0) - dt * a_EJ);
 
   add(13, "wK", "{: .6e}", (K));
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {

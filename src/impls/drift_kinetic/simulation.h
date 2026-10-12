@@ -48,8 +48,9 @@ protected:
   SNES snes;                           // Nonlinear field solver.
   PetscInt snes_iteration_number = 0;  // Last field iteration count.
 
+  PetscReal a_MB0 = 0;  // (M * B) at the particle push, for `EnergyConservation`.
+
   friend class EnergyConservation;
-  std::unique_ptr<EnergyConservation> energy_cons;  // Energy diagnostic.
 };
 
 }  // namespace drift_kinetic
