@@ -16,11 +16,18 @@ static constexpr PetscInt maxf = PETSC_UNLIMITED;
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
+  PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
+  PetscCall(SNESSetType(snes, SNESNGMRES));
+  // PetscCall(SNESSetType(snes, SNESANDERSON));
+  PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
+  PetscCall(SNESSetDivergenceTolerance(snes, divtol));
+  PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
+  PetscCall(SNESSetFromOptions(snes));
+
   PetscCall(DMCreateGlobalVector(da, &M));
   PetscCall(DMCreateGlobalVector(da, &E_hk));
   PetscCall(DMCreateGlobalVector(da, &B_hk));
   PetscCall(DMCreateGlobalVector(da, &Bn1));
-
   PetscCall(DMCreateLocalVector(da, &Bn_loc));
   PetscCall(DMCreateLocalVector(da, &Bn1_loc));
 
@@ -28,65 +35,35 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(rotor.create_negative(&rotM));
   PetscCall(MatScale(rotB, -1));  /// @see `Simulation::form_function()`
 
-  PetscInt gn[3];
-  PetscInt procs[3];
-  PetscInt s;
-  DMBoundaryType bounds[3];
-  DMDAStencilType st;
-  PetscCall(DMDAGetInfo(da, NULL, REP3_A(&gn), REP3_A(&procs), NULL, &s, REP3_A(&bounds), &st));
-
-  const PetscInt* lgn[3];
-  PetscCall(DMDAGetOwnershipRanges(da, REP3_A(&lgn)));
-
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), st, REP3_A(gn), REP3_A(procs), 6, st, REP3_A(lgn), &da_EB));
-  PetscCall(DMSetUp(da_EB));
-
+  Region region{
+    .dim = 4,
+    .dof = 6,
+    .start = Vector4I(0, 0, 0, 0),
+    .size = Vector4I(geom_nx, geom_ny, geom_nz, 6),
+  };
+  PetscCall(World::create_local_dm(da, region, PETSC_COMM_WORLD, &da_EB));
   PetscCall(DMCreateGlobalVector(da_EB, &sol));
 
-  PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
-
-  PetscCall(SNESSetType(snes, SNESNGMRES));
-  //PetscCall(SNESSetType(snes, SNESANDERSON));
-
-  PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
-  PetscCall(SNESSetDivergenceTolerance(snes, divtol));
-  PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
-  PetscCall(SNESSetFromOptions(snes));
-
   PetscCall(init_particles(*this, particles_));
-  {
-    const Configuration::json_t& json = CONFIG().json;
-    bool fail_on_terminal_nonconvergence = false;
-    if (auto it = json.find("DriftKineticPush");
-        it != json.end() && it->contains("fail_on_terminal_nonconvergence")) {
-      it->at("fail_on_terminal_nonconvergence")
-        .get_to(fail_on_terminal_nonconvergence);
-    }
-    for (auto& sort : particles_)
-      sort->set_fail_on_terminal_nonconvergence(
-        fail_on_terminal_nonconvergence);
-    LOG("  drift_kinetic: fail_on_terminal_nonconvergence = {}", fail_on_terminal_nonconvergence);
+
+  const Configuration::json_t& json = CONFIG().json;
+
+  bool is_gc_coord = false;
+  bool is_fail_terminal = false;
+
+  if (auto it = json.find("DriftKineticPush"); it != json.end()) {
+    is_gc_coord = it->value("coord_is_gc", false);
+    is_fail_terminal = it->value("fail_on_terminal_nonconvergence", false);
   }
-  {
-    const Configuration::json_t& json = CONFIG().json;
-    auto it = json.find("Particles");
-    if (it != json.end()) {
-      for (auto&& info : *it) {
-        if (!info.contains("sort_name") || !info.contains("coord_is_gc"))
-          continue;
-        bool v = false;
-        info.at("coord_is_gc").get_to(v);
-        auto&& name = info.at("sort_name").get<std::string>();
-        for (auto& sort : particles_) {
-          if (sort->parameters.sort_name == name) {
-            sort->set_coord_is_gc(v);
-            LOG("  drift_kinetic: \"{}\" coord_is_gc = {}", name, v);
-            break;
-          }
-        }
-      }
-    }
+
+  for (auto& sort : particles_) {
+    sort->set_coord_is_gc(is_gc_coord);
+    sort->set_fail_on_terminal_nonconvergence(is_fail_terminal);
   }
+
+  LOG("  Additional settings for drift_kinetic:");
+  LOG("    Use gyro-centers to set coordinates (coord_is_gc): {}", is_gc_coord);
+  LOG("    Terminate on particles non-convergence (fail_on_terminal_nonconvergence): {}", is_fail_terminal);
 
   energy_cons = std::make_unique<EnergyConservation>(*this);
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -104,7 +81,6 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&E_hk));
   PetscCall(VecDestroy(&B_hk));
   PetscCall(VecDestroy(&Bn1));
-
   PetscCall(VecDestroy(&Bn_loc));
   PetscCall(VecDestroy(&Bn1_loc));
 
@@ -134,23 +110,15 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  LOG("to_snes():");
   /// @note Solution is initialized with guess before it is passed into `SNESSolve()`.
   /// The simplest choice is: (E^{n+1/2, k=0}, B^{n+1/2, k=0}) = (E^{n}, B^{n}).
-
   PetscCall(to_snes(E, B, sol));
-
-  LOG("to_snes() has finished, SNESSolve():");
 
   PetscCall(SNESSolve(snes, NULL, sol));
   PetscCall(SNESGetIterationNumber(snes, &snes_iteration_number));
 
   LOG("SNESSolve() has finished, SNESConvergedReasonView():");
   PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
-
-  // SNESConvergedReason reason;
-  // PetscCall(SNESGetConvergedReason(snes, &reason));
-  // PetscCheck(reason >= 0, PetscObjectComm((PetscObject)snes), PETSC_ERR_NOT_CONVERGED, "SNESSolve has not converged");
 
   PetscCall(SNESGetSolution(snes, &sol));
   PetscCall(from_snes(sol, E_hk, B_hk));
@@ -179,7 +147,6 @@ PetscErrorCode Simulation::form_iteration(SNES, Vec vx, Vec vf, void* ctx)
 PetscErrorCode Simulation::form_current()
 {
   PetscFunctionBeginUser;
-
   PetscCall(VecSet(J, 0.0));
   PetscCall(VecSet(M, 0.0));
 
@@ -195,7 +162,6 @@ PetscErrorCode Simulation::form_current()
 
   PetscCall(DMGlobalToLocal(da, E_hk, INSERT_VALUES, E_loc));
   PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
-
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, Bn_loc));
   PetscCall(DMGlobalToLocal(da, Bn1, INSERT_VALUES, Bn1_loc));
 
@@ -204,7 +170,7 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
   PetscCall(DMDAVecGetArrayRead(da, Bn1_loc, &Bn1_arr));
 
-  Particles* terminal_failure = nullptr;
+  Particles* failed_sort = nullptr;
   for (auto& sort : particles_) {
     sort->E_arr = E_arr;
     sort->B_arr = B_arr;
@@ -213,6 +179,7 @@ PetscErrorCode Simulation::form_current()
     PetscCall(sort->form_iteration());
     PetscCall(VecAXPY(J, 1, sort->J));
     PetscCall(VecAXPY(M, 1, sort->M));
+
     LOG("Push \"{}\": avg it={}, max it={}, retries={}, leaf failures={}, max leaf FRk={: .4e}, max leaf FVhk={: .4e}",
       sort->parameters.sort_name,
       sort->get_average_iteration_number(),
@@ -221,10 +188,12 @@ PetscErrorCode Simulation::form_current()
       sort->get_push_leaf_failures(),
       sort->get_max_push_leaf_residue_r(),
       sort->get_max_push_leaf_residue_v());
-    if (terminal_failure == nullptr &&  //
+
+    if (failed_sort == nullptr &&  //
       sort->get_fail_on_terminal_nonconvergence() &&
       sort->get_push_leaf_failures() > 0) {
-      terminal_failure = sort.get();
+      failed_sort = sort.get();
+      break;
     }
   }
 
@@ -235,12 +204,12 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecRestoreArrayRead(da, Bn_loc, &Bn_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, Bn1_loc, &Bn1_arr));
 
-  PetscCheck(terminal_failure == nullptr, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
+  PetscCheck(failed_sort == nullptr, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
     "DK Push terminal non-convergence for sort %s: leaf_failures=%d, max FRk=%g, max FVhk=%g",
-    terminal_failure->parameters.sort_name.c_str(),
-    terminal_failure->get_push_leaf_failures(),
-    terminal_failure->get_max_push_leaf_residue_r(),
-    terminal_failure->get_max_push_leaf_residue_v());
+    failed_sort->parameters.sort_name.c_str(),
+    failed_sort->get_push_leaf_failures(),
+    failed_sort->get_max_push_leaf_residue_r(),
+    failed_sort->get_max_push_leaf_residue_v());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

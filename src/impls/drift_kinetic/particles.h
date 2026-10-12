@@ -63,8 +63,8 @@ protected:
   PetscReal max_push_leaf_residue_r = 0.0;
   PetscReal max_push_leaf_residue_v = 0.0;
 
-  bool fail_on_terminal_nonconvergence = false;
   bool coord_is_gc = false;
+  bool fail_on_terminal_nonconvergence = false;
 
   Simulation& simulation_;
 

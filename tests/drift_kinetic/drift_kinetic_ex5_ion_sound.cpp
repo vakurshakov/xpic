@@ -139,7 +139,11 @@ void overwrite_config()
   Configuration::overwrite({
     {"Simulation", "drift_kinetic"},
     {"OutputDirectory", get_out_dir(__FILE__)},
-    {"DriftKineticPush", {{"fail_on_terminal_nonconvergence", true}}},
+    {"DriftKineticPush",
+      {
+        {"coord_is_gc", true},
+        {"fail_on_terminal_nonconvergence", true},
+      }},
     {
       "Geometry",
       {
@@ -169,7 +173,6 @@ void overwrite_config()
           {"Tx", 0.0},
           {"Ty", 0.0},
           {"Tz", ringdown::theory_Te_kev},
-          {"coord_is_gc", true},
         },
         {
           {"sort_name", "ions"},
@@ -180,7 +183,6 @@ void overwrite_config()
           {"Tx", 0.0},
           {"Ty", 0.0},
           {"Tz", ringdown::theory_Ti_kev},
-          {"coord_is_gc", true},
         },
       },
     },

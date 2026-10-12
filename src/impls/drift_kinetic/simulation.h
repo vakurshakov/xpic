@@ -44,8 +44,8 @@ protected:
 
   DM da_EB;  // Combined electric and magnetic field grid.
 
-  Vec sol;                        // Combined field solution.
-  SNES snes;                      // Nonlinear field solver.
+  Vec sol;                             // Combined field solution.
+  SNES snes;                           // Nonlinear field solver.
   PetscInt snes_iteration_number = 0;  // Last field iteration count.
 
   friend class EnergyConservation;
