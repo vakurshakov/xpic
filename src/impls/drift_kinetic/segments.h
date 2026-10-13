@@ -15,15 +15,16 @@ enum class CellSplitMode {
 struct DriftKineticSegment {
   Vector3R Rs0;       // Start point.
   Vector3R Rsn;       // End point.
-  Vector3R Rsmid;     // Midpoint.
+  Vector3R Rsh;       // Midpoint.
   Vector3R dRs;       // Displacement.
   PetscReal dRs_len;  // Length in grid coordinates.
 };
 
 /// @brief Converts physical endpoints into a consistent grid track.
 DriftKineticSegment make_track(const Vector3R& R0, const Vector3R& Rn);
-Vector3R make_end(const DriftKineticSegment& segment);
+
 Vector3R make_begin(const DriftKineticSegment& segment);
+Vector3R make_end(const DriftKineticSegment& segment);
 
 /// @brief Splits a track at periodic boundaries and wraps its pieces.
 std::vector<DriftKineticSegment> periodic_segments(

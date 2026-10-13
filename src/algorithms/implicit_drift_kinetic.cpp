@@ -49,24 +49,24 @@ PetscReal acrossS1(
 void DriftKineticShapeE::setup(const DriftKineticSegment& segment)
 {
   p_g = Vector3I{
-    (PetscInt)std::floor(segment.Rsmid[X] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsmid[Y] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsmid[Z] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsh[X] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsh[Y] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsh[Z] + 0.5) - shr,
   };
 }
 
 void DriftKineticShapeGradB::setup(const DriftKineticSegment& segment)
 {
   p_s = Vector3R{
-    std::floor(segment.Rsmid[X] + 0.5),
-    std::floor(segment.Rsmid[Y] + 0.5),
-    std::floor(segment.Rsmid[Z] + 0.5),
+    std::floor(segment.Rsh[X] + 0.5),
+    std::floor(segment.Rsh[Y] + 0.5),
+    std::floor(segment.Rsh[Z] + 0.5),
   };
 
   p_g = Vector3I{
-    (PetscInt)std::floor(segment.Rsmid[X] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsmid[Y] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsmid[Z] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsh[X] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsh[Y] + 0.5) - shr,
+    (PetscInt)std::floor(segment.Rsh[Z] + 0.5) - shr,
   };
 }
 
@@ -125,10 +125,10 @@ PetscErrorCode DriftKineticEsirkepov::interpolate(                     //
     PetscCall(interpolate_E(Es_p, segment));
     PetscCall(interpolate_gradB(gradBs_p, hatb_p, segment));
     PetscCall(interpolate_rotB(rotBs_p, segment));
-    PetscReal dts = track.dRs_len > 0 ? segment.dRs_len / track.dRs_len : 1.0;
-    E_p += Es_p * dts;
-    gradB_p += gradBs_p * dts;
-    rotB_p += rotBs_p * dts;
+    PetscReal dtau = track.dRs_len > 0 ? segment.dRs_len / track.dRs_len : 1.0;
+    E_p += Es_p * dtau;
+    gradB_p += gradBs_p * dtau;
+    rotB_p += rotBs_p * dtau;
   }
 
   b_p = b_p.normalized();
@@ -140,7 +140,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_B(
   Vector3R& B_p, const Vector3R& Rp)
 {
   PetscFunctionBeginHot;
-  interpolate_B(B_p, (Bn1_g == nullptr) ? Bn_g : Bn1_g, Rp);
+  PetscCall(interpolate_B(B_p, (Bn1_g == nullptr) ? Bn_g : Bn1_g, Rp));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -175,8 +175,8 @@ PetscErrorCode DriftKineticEsirkepov::decomposition(const Vector3R& Rn,
     cell_segments(periodic_track, CellSplitMode::centers);
 
   for (const auto& segment : segmented_track) {
-    PetscReal dts = track.dRs_len > 0 ? segment.dRs_len / track.dRs_len : 1.0;
-    PetscCall(decomposition_J(segment, Vp, q_p * dts));
+    PetscReal dtau = track.dRs_len > 0 ? segment.dRs_len / track.dRs_len : 1.0;
+    PetscCall(decomposition_J(segment, Vp, q_p * dtau));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -210,13 +210,13 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_E(
 
     auto& E = E_g[g_z][g_y][g_x];
 
-    E_p[X] += E[X] * alongS1(g_x + 0.5 - s.Rsmid[X]) *
+    E_p[X] += E[X] * alongS1(g_x + 0.5 - s.Rsh[X]) *
       acrossS2(g_y - s.Rs0[Y], g_y - s.Rsn[Y], g_z - s.Rs0[Z], g_z - s.Rsn[Z]);
 
-    E_p[Y] += E[Y] * alongS1(g_y + 0.5 - s.Rsmid[Y]) *
+    E_p[Y] += E[Y] * alongS1(g_y + 0.5 - s.Rsh[Y]) *
       acrossS2(g_z - s.Rs0[Z], g_z - s.Rsn[Z], g_x - s.Rs0[X], g_x - s.Rsn[X]);
 
-    E_p[Z] += E[Z] * alongS1(g_z + 0.5 - s.Rsmid[Z]) *
+    E_p[Z] += E[Z] * alongS1(g_z + 0.5 - s.Rsh[Z]) *
       acrossS2(g_x - s.Rs0[X], g_x - s.Rsn[X], g_y - s.Rs0[Y], g_y - s.Rsn[Y]);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -255,7 +255,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_rotB(
         (1. - a) * alongS1(g_x + shift_ij - 0.5 * (s.Rsn[X] + sh.p_s[X]));
     }
     else {
-      alongSx = alongS1(g_x + shift_ij - s.Rsmid[X]);
+      alongSx = alongS1(g_x + shift_ij - s.Rsh[X]);
     }
 
     PetscReal Sxy = alongSx *
@@ -273,7 +273,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_rotB(
         (1. - a) * alongS1(g_y + shift_ij - 0.5 * (s.Rsn[Y] + sh.p_s[Y]));
     }
     else {
-      alongSy = alongS1(g_y + shift_ij - s.Rsmid[Y]);
+      alongSy = alongS1(g_y + shift_ij - s.Rsh[Y]);
     }
 
     PetscReal Syx = alongSy *
@@ -291,7 +291,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_rotB(
         (1. - a) * alongS1(g_z + shift_ij - 0.5 * (s.Rsn[Z] + sh.p_s[Z]));
     }
     else {
-      alongSz = alongS1(g_z + shift_ij - s.Rsmid[Z]);
+      alongSz = alongS1(g_z + shift_ij - s.Rsh[Z]);
     }
 
     PetscReal Szx = alongSz *
@@ -336,7 +336,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
 
     // X - COMPONENT
 
-    alongSx = alongS1(g_x + shift_ii - s.Rsmid[X]);
+    alongSx = alongS1(g_x + shift_ii - s.Rsh[X]);
 
     PetscReal Sxx = alongSx *
       acrossS2(g_y + 0.5 - s.Rs0[Y], g_y + 0.5 - s.Rsn[Y],  //
@@ -348,7 +348,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
         (1. - a) * alongS1(g_x + shift_ij - 0.5 * (s.Rsn[X] + sh.p_s[X]));
     }
     else {
-      alongSx = alongS1(g_x + shift_ij - s.Rsmid[X]);
+      alongSx = alongS1(g_x + shift_ij - s.Rsh[X]);
     }
 
     PetscReal Sxy = alongSx *
@@ -365,7 +365,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
 
     // Y - COMPONENT
 
-    alongSy = alongS1(g_y + shift_ii - s.Rsmid[Y]);
+    alongSy = alongS1(g_y + shift_ii - s.Rsh[Y]);
 
     PetscReal Syy = alongSy *
       acrossS2(g_z + 0.5 - s.Rs0[Z], g_z + 0.5 - s.Rsn[Z], g_x + 0.5 - s.Rs0[X],
@@ -377,7 +377,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
         (1. - a) * alongS1(g_y + shift_ij - 0.5 * (s.Rsn[Y] + sh.p_s[Y]));
     }
     else {
-      alongSy = alongS1(g_y + shift_ij - s.Rsmid[Y]);
+      alongSy = alongS1(g_y + shift_ij - s.Rsh[Y]);
     }
 
     PetscReal Syx = alongSy *
@@ -394,7 +394,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
 
     // Z - COMPONENT
 
-    alongSz = alongS1(g_z + shift_ii - s.Rsmid[Z]);
+    alongSz = alongS1(g_z + shift_ii - s.Rsh[Z]);
 
     PetscReal Szz = alongSz *
       acrossS2(g_x + 0.5 - s.Rs0[X], g_x + 0.5 - s.Rsn[X], g_y + 0.5 - s.Rs0[Y],
@@ -406,7 +406,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
         (1. - a) * alongS1(g_z + shift_ij - 0.5 * (s.Rsn[Z] + sh.p_s[Z]));
     }
     else {
-      alongSz = alongS1(g_z + shift_ij - s.Rsmid[Z]);
+      alongSz = alongS1(g_z + shift_ij - s.Rsh[Z]);
     }
 
     PetscReal Szx = alongSz *
@@ -464,13 +464,13 @@ PetscErrorCode DriftKineticEsirkepov::decomposition_J(
 
     Vector3R J_p;
 
-    J_p[X] = q_p * Vp[X] * alongS1(g_x + 0.5 - s.Rsmid[X]) *
+    J_p[X] = q_p * Vp[X] * alongS1(g_x + 0.5 - s.Rsh[X]) *
       acrossS2(g_y - s.Rs0[Y], g_y - s.Rsn[Y], g_z - s.Rs0[Z], g_z - s.Rsn[Z]);
 
-    J_p[Y] = q_p * Vp[Y] * alongS1(g_y + 0.5 - s.Rsmid[Y]) *
+    J_p[Y] = q_p * Vp[Y] * alongS1(g_y + 0.5 - s.Rsh[Y]) *
       acrossS2(g_z - s.Rs0[Z], g_z - s.Rsn[Z], g_x - s.Rs0[X], g_x - s.Rsn[X]);
 
-    J_p[Z] = q_p * Vp[Z] * alongS1(g_z + 0.5 - s.Rsmid[Z]) *
+    J_p[Z] = q_p * Vp[Z] * alongS1(g_z + 0.5 - s.Rsh[Z]) *
       acrossS2(g_x - s.Rs0[X], g_x - s.Rsn[X], g_y - s.Rs0[Y], g_y - s.Rsn[Y]);
 
 #pragma omp atomic

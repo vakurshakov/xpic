@@ -4,6 +4,7 @@
 #include <mpi.h>
 #include <omp.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>

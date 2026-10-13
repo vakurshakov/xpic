@@ -41,7 +41,7 @@ PetscErrorCode check_segments(const std::string& name, const Endpoints& track,
     PetscCheck(close(s.Rs0, expected[i].begin) && close(s.Rsn, expected[i].end), PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
       "%s: incorrect endpoints of segment %zu", name.c_str(), i);
 
-    PetscCheck(close(s.Rsmid, 0.5 * (s.Rs0 + s.Rsn)) && close(s.dRs, s.Rsn - s.Rs0) && abs(s.dRs_len - s.dRs.length()) <= tolerance, PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
+    PetscCheck(close(s.Rsh, 0.5 * (s.Rs0 + s.Rsn)) && close(s.dRs, s.Rsn - s.Rs0) && abs(s.dRs_len - s.dRs.length()) <= tolerance, PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
       "%s: inconsistent segment %zu", name.c_str(), i);
 
     PetscCheck(actual.size() == 1 || s.dRs_len > 0, PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
@@ -61,7 +61,7 @@ PetscErrorCode check_segments(const std::string& name, const Endpoints& track,
           "%s: segment %zu outside periodic box", name.c_str(), i);
       }
       if (cells) {
-        const PetscReal node = floor(s.Rsmid[axis] + 0.5);
+        const PetscReal node = floor(s.Rsh[axis] + 0.5);
         PetscCheck(
           s.Rs0[axis] >= node - 0.5 - tolerance &&
           s.Rsn[axis] >= node - 0.5 - tolerance &&

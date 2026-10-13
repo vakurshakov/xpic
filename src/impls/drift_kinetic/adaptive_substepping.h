@@ -32,6 +32,7 @@ void adaptive_substep_impl(PetscReal dt, State& end, const State& start,
   AdaptiveSubstepStats& stats)
 {
   const AdaptiveSubstepAttempt result = attempt(dt, end, start);
+
   stats.iteration_sum += result.iterations;
   stats.max_iterations = std::max(stats.max_iterations, result.iterations);
 
