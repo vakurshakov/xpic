@@ -204,8 +204,6 @@ void overwrite_config()
           {"setter",
             {
               {"name", "SetCosineField"},
-              {"min", {0.0, 0.0, 0.0}},
-              {"max", {geom_x, geom_y, geom_z}},
               {"amplitude", {0.0, 0.0, ringdown::E_grid}},
               {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
               {"phase", {0.0, 0.0, ringdown::field_grid_phase}},

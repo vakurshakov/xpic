@@ -5,7 +5,6 @@
 
 #include "src/pch.h"
 #include "src/interfaces/command.h"
-#include "src/utils/geometries.h"
 #include "src/utils/vector3.h"
 
 
@@ -64,7 +63,6 @@ struct SetAzimuthalField {
 struct SetCosineField {
   PetscErrorCode operator()(Vec vec);
 
-  BoxGeometry box;
   Vector3R amplitude;
   Vector3R wave_number;
   Vector3R phase{};
@@ -73,7 +71,6 @@ struct SetCosineField {
 struct SetGeneralCosineField {
   PetscErrorCode operator()(Vec vec);
 
-  BoxGeometry box;
   Vector3R amplitude;
   Vector3R wave_number;
 };

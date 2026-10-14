@@ -103,9 +103,6 @@ PetscErrorCode SetFieldBuilder::build(const Configuration::json_t& info)
   }
   else if (name == "SetCosineField") {
     LOG("  Using SetCosineField setter");
-    BoxGeometry box;
-    load_geometry(setter, box);
-
     Vector3R amplitude = parse_vector(setter, "amplitude");
     Vector3R wave_number = parse_vector(setter, "wave_number");
     Vector3R phase = setter.contains("phase")
@@ -114,26 +111,18 @@ PetscErrorCode SetFieldBuilder::build(const Configuration::json_t& info)
     LOG("    Cosine amplitude: {} {} {}", REP3_A(amplitude));
     LOG("    Cosine wave_number: {} {} {}", REP3_A(wave_number));
     LOG("    Cosine phase: {} {} {}", REP3_A(phase));
-    LOG("    Cosine region min: {} {} {}", REP3_A(box.min));
-    LOG("    Cosine region max: {} {} {}", REP3_A(box.max));
 
-    setup = SetCosineField(
-      std::move(box), amplitude, wave_number, phase);
+    setup = SetCosineField{amplitude, wave_number, phase};
   }
   else if (name == "SetGeneralCosineField") {
     LOG("  Using SetGeneralCosineField setter");
-    BoxGeometry box;
-    load_geometry(setter, box);
-
     Vector3R amplitude = parse_vector(setter, "amplitude");
     Vector3R wave_number = parse_vector(setter, "wave_number");
 
     LOG("    Cosine amplitude: {} {} {}", REP3_A(amplitude));
     LOG("    Cosine wave_number: {} {} {}", REP3_A(wave_number));
-    LOG("    Cosine region min: {} {} {}", REP3_A(box.min));
-    LOG("    Cosine region max: {} {} {}", REP3_A(box.max));
 
-    setup = SetGeneralCosineField(std::move(box), amplitude, wave_number);
+    setup = SetGeneralCosineField{amplitude, wave_number};
   }
 
   commands_.emplace_back(
