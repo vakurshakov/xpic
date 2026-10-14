@@ -125,11 +125,7 @@ void overwrite_config(
               {"value", {0.0, 0.0, B0_value}},
               {"axis", "X"},
               {"length", L_value},
-
-              // Shift the origin by half a cell to compensate the
-              // Yee stagger of Bz, so the field the particle samples
-              // at r0[X] is exactly B0_value.
-              {"origin", r0[X] - 0.5 * cell},
+              {"origin", r0[X]},
             }},
         },
         {

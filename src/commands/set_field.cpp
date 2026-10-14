@@ -4,22 +4,22 @@
 
 #include "src/utils/configuration.h"
 
-SetField::SetField(Vec field, Vec field0, Setter&& setup)
-  : field(field), field0(field0), setup(std::move(setup))
+SetField::SetField(Vec field, Vec field0, const Stagger& stagger, Setter&& setup)
+  : field(field), field0(field0), stagger(stagger), setup(std::move(setup))
 {
 }
 
 PetscErrorCode SetField::execute(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
-  PetscCall(setup(field));
+  PetscCall(setup(field, stagger));
   if (field0)
     PetscCall(VecAXPY(field0, 1.0, field));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 
-PetscErrorCode SetUniformField::operator()(Vec vec)
+PetscErrorCode SetUniformField::operator()(Vec vec, const Stagger& /* stagger */)
 {
   PetscFunctionBeginUser;
   PetscCall(VecStrideSet(vec, X, value[X]));
@@ -30,7 +30,7 @@ PetscErrorCode SetUniformField::operator()(Vec vec)
 }
 
 
-PetscErrorCode SetAzimuthalField::operator()(Vec vec)
+PetscErrorCode SetAzimuthalField::operator()(Vec vec, const Stagger& stagger)
 {
   PetscFunctionBeginUser;
   DM da;
@@ -43,6 +43,7 @@ PetscErrorCode SetAzimuthalField::operator()(Vec vec)
   PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
 
   const bool linear = radius > 0.0;
+  const auto& off = stagger.offset;
 
 #pragma omp parallel for
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
@@ -50,20 +51,19 @@ PetscErrorCode SetAzimuthalField::operator()(Vec vec)
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
 
-    // Yee staggering: Bx lives at (i, j+1/2, k+1/2), By at (i+1/2, j, k+1/2),
-    // so each transverse component is sampled at its own half-shifted node.
-    const PetscReal rx_bx = x * dx - center_x;
-    const PetscReal ry_bx = (y + 0.5) * dy - center_y;
-    const PetscReal rx_by = (x + 0.5) * dx - center_x;
-    const PetscReal ry_by = y * dy - center_y;
-    // Linear: divide by the constant `radius`; normalized: divide by local r.
-    const PetscReal denom_bx = linear ? radius : std::hypot(rx_bx, ry_bx);
-    const PetscReal denom_by = linear ? radius : std::hypot(rx_by, ry_by);
+    const PetscReal rx_x = (x + off[X][X]) * dx - center_x;
+    const PetscReal rx_y = (x + off[Y][X]) * dx - center_x;
+    const PetscReal ry_x = (y + off[X][Y]) * dy - center_y;
+    const PetscReal ry_y = (y + off[Y][Y]) * dy - center_y;
 
-    arr[z][y][x][X] =
-      (!linear && denom_bx < 1e-10) ? 0.0 : -value * ry_bx / denom_bx;
-    arr[z][y][x][Y] =
-      (!linear && denom_by < 1e-10) ? 0.0 : +value * rx_by / denom_by;
+    // Linear: divide by the constant `radius`; normalized: divide by local r.
+    const PetscReal denom_x = linear ? radius : std::hypot(rx_x, ry_x);
+    const PetscReal denom_y = linear ? radius : std::hypot(rx_y, ry_y);
+
+    arr[z][y][x][X] = (!linear && denom_x < 1e-10) ? 0.0
+                                                   : -value * ry_x / denom_x;
+    arr[z][y][x][Y] = (!linear && denom_y < 1e-10) ? 0.0
+                                                   : +value * rx_y / denom_y;
     arr[z][y][x][Z] = 0.0;
   }
 
@@ -72,7 +72,7 @@ PetscErrorCode SetAzimuthalField::operator()(Vec vec)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode SetGradientField::operator()(Vec vec)
+PetscErrorCode SetGradientField::operator()(Vec vec, const Stagger& stagger)
 {
   PetscFunctionBeginUser;
   DM da;
@@ -84,7 +84,6 @@ PetscErrorCode SetGradientField::operator()(Vec vec)
   Arr arr;
   PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
 
-  const PetscReal d[3] = {dx, dy, dz};
 
 #pragma omp parallel for
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
@@ -93,12 +92,11 @@ PetscErrorCode SetGradientField::operator()(Vec vec)
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
 
     const PetscInt idx[3] = {x, y, z};
-    const PetscReal s = idx[axis] * d[axis];
-    const PetscReal scale = 1.0 + (s - origin) / length;
 
-    arr[z][y][x][X] = value[X] * scale;
-    arr[z][y][x][Y] = value[Y] * scale;
-    arr[z][y][x][Z] = value[Z] * scale;
+    for (PetscInt c = 0; c < 3; c++) {
+      const PetscReal s = (idx[axis] + stagger.offset[c][axis]) * Dx[axis];
+      arr[z][y][x][c] = value[c] * (1.0 + (s - origin) / length);
+    }
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
@@ -107,7 +105,7 @@ PetscErrorCode SetGradientField::operator()(Vec vec)
 }
 
 
-PetscErrorCode SetCosineField::operator()(Vec vec)
+PetscErrorCode SetCosineField::operator()(Vec vec, const Stagger& stagger)
 {
   PetscFunctionBeginUser;
   DM da;
@@ -120,9 +118,11 @@ PetscErrorCode SetCosineField::operator()(Vec vec)
   PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
 
   const PetscReal two_pi = 2.0 * M_PI;
-  const PetscReal kx = two_pi * wave_number[X] / geom_x;
-  const PetscReal ky = two_pi * wave_number[Y] / geom_y;
-  const PetscReal kz = two_pi * wave_number[Z] / geom_z;
+  const PetscReal k[3]{
+    two_pi * wave_number[X] / geom_x,
+    two_pi * wave_number[Y] / geom_y,
+    two_pi * wave_number[Z] / geom_z,
+  };
 
 #pragma omp parallel for
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
@@ -130,9 +130,12 @@ PetscErrorCode SetCosineField::operator()(Vec vec)
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
 
-    arr[z][y][x][X] += amplitude[X] * std::cos(kx * x * dx + phase[X]);
-    arr[z][y][x][Y] += amplitude[Y] * std::cos(ky * y * dy + phase[Y]);
-    arr[z][y][x][Z] += amplitude[Z] * std::cos(kz * z * dz + phase[Z]);
+    const PetscInt idx[3] = {x, y, z};
+
+    for (PetscInt c = 0; c < 3; c++) {
+      const PetscReal s = (idx[c] + stagger.offset[c][c]) * Dx[c];
+      arr[z][y][x][c] += amplitude[c] * std::cos(k[c] * s + phase[c]);
+    }
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
@@ -141,7 +144,7 @@ PetscErrorCode SetCosineField::operator()(Vec vec)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode SetGeneralCosineField::operator()(Vec vec)
+PetscErrorCode SetGeneralCosineField::operator()(Vec vec, const Stagger& stagger)
 {
   PetscFunctionBeginUser;
   DM da;
@@ -154,9 +157,11 @@ PetscErrorCode SetGeneralCosineField::operator()(Vec vec)
   PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
 
   const PetscReal two_pi = 2.0 * M_PI;
-  const PetscReal kx = two_pi * wave_number[X] / geom_x;
-  const PetscReal ky = two_pi * wave_number[Y] / geom_y;
-  const PetscReal kz = two_pi * wave_number[Z] / geom_z;
+  const PetscReal k[3]{
+    two_pi * wave_number[X] / geom_x,
+    two_pi * wave_number[Y] / geom_y,
+    two_pi * wave_number[Z] / geom_z,
+  };
 
 #pragma omp parallel for
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
@@ -164,11 +169,15 @@ PetscErrorCode SetGeneralCosineField::operator()(Vec vec)
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
 
-    const PetscReal cos_val = std::cos(kx * x * dx + ky * y * dy + kz * z * dz);
+    const PetscInt idx[3] = {x, y, z};
 
-    arr[z][y][x][X] += amplitude[X] * cos_val;
-    arr[z][y][x][Y] += amplitude[Y] * cos_val;
-    arr[z][y][x][Z] += amplitude[Z] * cos_val;
+    for (PetscInt c = 0; c < 3; c++) {
+      PetscReal phase = 0;
+      for (PetscInt a = 0; a < 3; a++)
+        phase += k[a] * (idx[a] + stagger.offset[c][a]) * Dx[a];
+
+      arr[z][y][x][c] += amplitude[c] * std::cos(phase);
+    }
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
@@ -185,7 +194,7 @@ SetCoilsField::SetCoilsField(std::vector<Coil>&& coils)
     cos[i] = std::cos(i * hp);
 }
 
-PetscErrorCode SetCoilsField::operator()(Vec vec)
+PetscErrorCode SetCoilsField::operator()(Vec vec, const Stagger& stagger)
 {
   PetscFunctionBeginUser;
   DM da;
@@ -199,6 +208,7 @@ PetscErrorCode SetCoilsField::operator()(Vec vec)
 
   PetscReal center_x = 0.5 * geom_x;
   PetscReal center_y = 0.5 * geom_y;
+  const auto& off = stagger.offset;
 
   PetscReal sx, sy, sz, r;
 
@@ -208,22 +218,21 @@ PetscErrorCode SetCoilsField::operator()(Vec vec)
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
 
-    sx = x * dx /*   */ - center_x;
-    sy = (y + 0.5) * dy - center_y;
-    sz = (z + 0.5) * dz;
-    r = std::hypot(sx, sy);
+    auto position = [&](PetscInt c)
+    {
+      sx = (x + off[c][X]) * dx - center_x;
+      sy = (y + off[c][Y]) * dy - center_y;
+      sz = (z + off[c][Z]) * dz;
+      r = std::hypot(sx, sy);
+    };
+
+    position(X);
     arr[z][y][x][X] += get_Br(sz, r) * sx / r;
 
-    sy = y * dy /*   */ - center_y;
-    sx = (x + 0.5) * dx - center_x;
-    sz = (z + 0.5) * dz;
-    r = std::hypot(sx, sy);
+    position(Y);
     arr[z][y][x][Y] += get_Br(sz, r) * sy / r;
 
-    sz = z * dz;
-    sx = (x + 0.5) * dx - center_x;
-    sy = (y + 0.5) * dy - center_y;
-    r = std::hypot(sx, sy);
+    position(Z);
     arr[z][y][x][Z] += get_Bz(sz, r);
   }
 

@@ -291,7 +291,6 @@ def run_theory(args):
 
     shape_s1 = 1.0
     coupling = 1.0
-    field_grid_phase = 0.0
     if args.grid_dz is not None:
         if args.grid_dz <= 0.0:
             raise ValueError("--grid-dz must be positive")
@@ -300,7 +299,6 @@ def run_theory(args):
             if half_cell_phase != 0.0 else 1.0
         shape_s1 = sinc**2
         coupling = shape_s1**2
-        field_grid_phase = half_cell_phase
 
     # ---- Step 1: dispersion relation ------------------------------------- #
     omega_s_guess, gamma_guess = acoustic_initial_guess(k, electron, ion)
@@ -449,7 +447,6 @@ def run_theory(args):
     print(f"  E_force    = {E0:.16e}")
     if args.grid_dz is not None:
         print(f"  E_grid     = {E_grid:.16e}")
-        print(f"  grid phase = {field_grid_phase:.16e}  # +k*dz/2 for SetCosineField")
     for s in species:
         C_n, phi_n = density_sine(*dens[s.name])
         print(f"  {s.name:9s}: a_n = {C_n:.16e}, phi_n = {phi_n:.16e}")

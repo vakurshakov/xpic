@@ -17,6 +17,7 @@ public:
       "{\n"
       "  \"command\": \"SetField\", -- Name of the command.\n"
       "  \"field\": \"E\" | \"B\", -- Target field, B is also added to B0.\n"
+      "                       Setters are sampled at its Yee positions.\n"
       "  \"setter\": { -- Field setter description.\n"
       "    \"name\": \"Name\", -- Setter name, one of the following:\n"
       "                        SetUniformField, SetCoilsField, SetCosineField.\n"

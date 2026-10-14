@@ -8,22 +8,41 @@
 #include "src/utils/vector3.h"
 
 
+/// @brief Component `c` of a Yee-staggered field lives at the point
+/// `(idx[a] + offset[c][a]) * d[a]` along each axis `a`.
+struct Stagger {
+  PetscReal offset[3][3];
+};
+
+constexpr Stagger yee_E{{
+  {0.5, 0.0, 0.0},
+  {0.0, 0.5, 0.0},
+  {0.0, 0.0, 0.5},
+}};
+
+constexpr Stagger yee_B{{
+  {0.0, 0.5, 0.5},
+  {0.5, 0.0, 0.5},
+  {0.5, 0.5, 0.0},
+}};
+
 /// @brief Fills `field` with `setup`; if `field0` is given, adds the result to it.
 /// @todo Simulation should be passed
 class SetField : public interfaces::Command {
 public:
-  using Setter = std::function<PetscErrorCode(Vec)>;
-  SetField(Vec field, Vec field0, Setter&& setup);
+  using Setter = std::function<PetscErrorCode(Vec, const Stagger&)>;
+  SetField(Vec field, Vec field0, const Stagger& stagger, Setter&& setup);
   PetscErrorCode execute(PetscInt t) override;
 
 private:
   Vec field = NULL;
   Vec field0 = NULL;
+  const Stagger& stagger;
   Setter setup;
 };
 
 struct SetUniformField {
-  PetscErrorCode operator()(Vec vec);
+  PetscErrorCode operator()(Vec vec, const Stagger& stagger);
   Vector3R value;
 };
 
@@ -34,7 +53,7 @@ struct SetUniformField {
  * shifts the reference point at which the field equals `value` (default 0).
  */
 struct SetGradientField {
-  PetscErrorCode operator()(Vec vec);
+  PetscErrorCode operator()(Vec vec, const Stagger& stagger);
   Vector3R value;
   PetscInt axis;
   PetscReal length;
@@ -53,7 +72,7 @@ struct SetGradientField {
  *    field.
  */
 struct SetAzimuthalField {
-  PetscErrorCode operator()(Vec vec);
+  PetscErrorCode operator()(Vec vec, const Stagger& stagger);
   PetscReal value;
   PetscReal center_x;
   PetscReal center_y;
@@ -61,7 +80,7 @@ struct SetAzimuthalField {
 };
 
 struct SetCosineField {
-  PetscErrorCode operator()(Vec vec);
+  PetscErrorCode operator()(Vec vec, const Stagger& stagger);
 
   Vector3R amplitude;
   Vector3R wave_number;
@@ -69,7 +88,7 @@ struct SetCosineField {
 };
 
 struct SetGeneralCosineField {
-  PetscErrorCode operator()(Vec vec);
+  PetscErrorCode operator()(Vec vec, const Stagger& stagger);
 
   Vector3R amplitude;
   Vector3R wave_number;
@@ -84,7 +103,7 @@ struct SetCoilsField {
   std::vector<Coil> coils;
 
   SetCoilsField(std::vector<Coil>&& coils);
-  PetscErrorCode operator()(Vec vec);
+  PetscErrorCode operator()(Vec vec, const Stagger& stagger);
 
 private:
   static constexpr PetscReal denominator_tolerance = 1e-10;

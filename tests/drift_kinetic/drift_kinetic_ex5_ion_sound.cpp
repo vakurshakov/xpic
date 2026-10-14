@@ -75,10 +75,6 @@ constexpr double a_n_e = 2.9989220883451378e-02;
 constexpr double phi_n_e = -2.8860882321865966e+00;
 constexpr double a_n_i = 2.9999999999999995e-02;
 constexpr double phi_n_i = -2.8861820860760221e+00;
-// SetCosineField stores E_z at z-index g while the Yee E_z location is
-// (g+1/2) dz.  Advancing the stored harmonic by k dz/2 makes the field seen by
-// particles a zero-phase cosine, matching field_phase below.
-constexpr double field_grid_phase = 9.8174770424681035e-02;
 
 // Velocity-space windows of the 5-D dumps: +-8 vT along the field, capped
 // below the speed of light.  Tx = Ty = 0, so mu_p is identically zero for
@@ -206,7 +202,6 @@ void overwrite_config()
               {"name", "SetCosineField"},
               {"amplitude", {0.0, 0.0, ringdown::E_grid}},
               {"wave_number", {0.0, 0.0, ringdown::theory_mode}},
-              {"phase", {0.0, 0.0, ringdown::field_grid_phase}},
             }},
         },
         {
