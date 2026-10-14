@@ -43,18 +43,14 @@ private:
   void evaluate_rhs(const PointByField& pn, const PointByField& p0);
 
   void update_fields(const PointByField& pn, const PointByField& p0);
-  void update_Vp(const PointByField& pn, const PointByField& p0);
-  void update_Vh(const PointByField& pn, const PointByField& p0);
-  void update_ah(const PointByField& pn, const PointByField& p0);
+  void update_V_dgc(const PointByField& pn, const PointByField& p0);
+  void update_V_par(const PointByField& pn, const PointByField& p0);
+  void update_a_par(const PointByField& pn, const PointByField& p0);
   void update_r(PetscReal dt, PointByField& pn, const PointByField& p0);
   void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0);
 
   /// @brief Checks convergence using both residuals.
   bool check_convergence(
-    PetscReal dt, const PointByField& pn, const PointByField& p0);
-  PetscReal get_residue_r(
-    PetscReal dt, const PointByField& pn, const PointByField& p0);
-  PetscReal get_residue_v(
     PetscReal dt, const PointByField& pn, const PointByField& p0);
 
   // Particle parameters
@@ -71,24 +67,24 @@ private:
   PetscReal FRk, FVk;
   bool converged = false;
 
-  // Fields interpolated to the particle (set by `set_fields`)
-  Vector3R Eh;      // Midpoint electric field.
-  Vector3R bh;      // Unit magnetic direction.
-  Vector3R gradBh;  // Magnetic magnitude gradient.
-  Vector3R rotBh;   // Magnetic field curl.
-  PetscReal lenBh;  // Magnetic field magnitude.
+  // Fields interpolated to the particle (set by `set_fields`), at t=n+1/2
+  Vector3R E;      // Midpoint electric field.
+  Vector3R b;      // Unit magnetic direction.
+  Vector3R gradB;  // Magnetic magnitude gradient.
+  Vector3R rotB;   // Magnetic field curl.
+  PetscReal lenB;  // Magnetic field magnitude.
 
   // Quantities derived from the interpolated fields
-  Vector3R rotbh;       // Unit magnetic direction curl.
-  Vector3R Bh_eff;      // Effective magnetic field.
-  PetscReal lenBh_eff;  // Effective field parallel projection.
-  Vector3R bh_eff;      // Effective field scaled by its parallel projection.
-  Vector3R F_eff;       // Effective force.
+  Vector3R rotb;       // Unit magnetic direction curl.
+  Vector3R B_eff;      // Effective magnetic field.
+  PetscReal lenB_eff;  // Effective field parallel projection.
+  Vector3R b_eff;      // Effective field scaled by its parallel projection.
+  Vector3R F_eff;      // Effective force.
 
   // Integrated guiding-center motion
-  Vector3R Vp;   // Guiding-center drift velocity.
-  PetscReal Vh;  // Midpoint parallel velocity.
-  PetscReal ah;  // Midpoint parallel acceleration.
+  Vector3R V_dgc;   // Guiding-center drift velocity.
+  PetscReal V_par;  // Midpoint parallel velocity.
+  PetscReal a_par;  // Midpoint parallel acceleration.
 };
 
 #endif  // SRC_ALGORITHMS_DRIFT_KINETIC_PUSH_H
