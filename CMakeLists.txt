@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# clangd (see .clangd) reads the database of the last configured build type.
+file(CREATE_LINK ${CMAKE_BINARY_DIR}/compile_commands.json
+  ${CMAKE_SOURCE_DIR}/build/compile_commands.json SYMBOLIC)
+
 set(MPI_DIR $ENV{MPI_DIR})
 set(JSON_DIR $ENV{JSON_DIR})
 set(PETSC_DIR $ENV{PETSC_DIR})
