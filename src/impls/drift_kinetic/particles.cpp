@@ -106,8 +106,8 @@ PetscErrorCode Particles::form_iteration()
       {
         const PetscReal a0 = q * mpw * (dtau / dt);
         const PetscReal b0 = pn.mu_p * mpw * (dtau / dt);
-        const Vector3R Vp_sub = (pn.r - p0.r) / dtau;
-        util.decomposition(pn.r, p0.r, Vp_sub, a0, b0);
+        const Vector3R Vh_sub = (pn.r - p0.r) / dtau;
+        util.decomposition(pn.r, p0.r, Vh_sub, a0, b0);
       };
 
       AdaptiveSubstepStats stats;

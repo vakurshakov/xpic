@@ -39,10 +39,10 @@ public:
   PetscErrorCode interpolate(Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
     Vector3R& gradB_p, Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0);
 
-  PetscErrorCode interpolate_B(Vector3R& B_p, const Vector3R& Rp);
-
   PetscErrorCode decomposition(const Vector3R& Rn, const Vector3R& R0,
-    const Vector3R& Vp, PetscReal q_p, PetscReal mu_p);
+    const Vector3R& Vh, PetscReal q_p, PetscReal mu_p);
+
+  PetscErrorCode interpolate_B(Vector3R& B_p, const Vector3R& Rp);
 
 private:
   PetscErrorCode interpolate_B(  //
@@ -61,7 +61,7 @@ private:
     const Vector3R& Rp, const Vector3R& b_p, PetscReal mu_p);
 
   PetscErrorCode decomposition_J(  //
-    const DriftKineticSegment& s, const Vector3R& Vp, PetscReal q_p);
+    const DriftKineticSegment& s, const Vector3R& Vh, PetscReal q_p);
 
   Vector3R*** E_g = nullptr;  // Midpoint electric field.
 
