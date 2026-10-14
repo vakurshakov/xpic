@@ -42,7 +42,7 @@ public:
   Vec M_loc;  // Local magnetization with ghost cells.
   Arr M_arr;  // Writable local magnetization array.
 
-  Arr Bn_arr;   // Previous magnetic field array.
+  Arr Bn0_arr;  // Previous magnetic field array.
   Arr Bn1_arr;  // Predicted magnetic field array.
 
 protected:

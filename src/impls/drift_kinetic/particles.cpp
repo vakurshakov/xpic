@@ -74,7 +74,7 @@ PetscErrorCode Particles::form_iteration()
       auto prev(dk_prev_storage[g][i]);
 
       DriftKineticPush push(q / m, m);
-      DriftKineticEsirkepov util(E_arr, Bn_arr, B_arr, Bn1_arr, J_arr, M_arr);
+      DriftKineticEsirkepov util(E_arr, Bn0_arr, B_arr, Bn1_arr, J_arr, M_arr);
 
       push.set_fields_callback(
         [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,

@@ -33,7 +33,7 @@ public:
   DriftKineticEsirkepov(Vector3R*** B_g);
 
   /// @brief Binds field layers and deposition arrays.
-  DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn_g, Vector3R*** Bnh_g,
+  DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn0_g, Vector3R*** Bnh_g,
     Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g);
 
   PetscErrorCode interpolate(Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
@@ -65,7 +65,7 @@ private:
 
   Vector3R*** E_g = nullptr;  // Midpoint electric field.
 
-  Vector3R*** Bn_g = nullptr;   // Previous magnetic field.
+  Vector3R*** Bn0_g = nullptr;  // Previous magnetic field.
   Vector3R*** Bnh_g = nullptr;  // Midpoint magnetic field.
   Vector3R*** Bn1_g = nullptr;  // Next magnetic field.
 

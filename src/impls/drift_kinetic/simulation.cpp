@@ -27,7 +27,7 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(DMCreateGlobalVector(da, &E_hk));
   PetscCall(DMCreateGlobalVector(da, &B_hk));
   PetscCall(DMCreateGlobalVector(da, &Bn1));
-  PetscCall(DMCreateLocalVector(da, &Bn_loc));
+  PetscCall(DMCreateLocalVector(da, &Bn0_loc));
   PetscCall(DMCreateLocalVector(da, &Bn1_loc));
 
   Region region{
@@ -73,7 +73,7 @@ PetscErrorCode Simulation::finalize()
   PetscCall(VecDestroy(&E_hk));
   PetscCall(VecDestroy(&B_hk));
   PetscCall(VecDestroy(&Bn1));
-  PetscCall(VecDestroy(&Bn_loc));
+  PetscCall(VecDestroy(&Bn0_loc));
   PetscCall(VecDestroy(&Bn1_loc));
 
   PetscCall(SNESDestroy(&snes));
@@ -136,34 +136,34 @@ PetscErrorCode Simulation::form_iteration(SNES, Vec vx, Vec vf, void* ctx)
 PetscErrorCode Simulation::form_current()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecSet(J, 0.0));
-  PetscCall(VecSet(M, 0.0));
+  PetscCall(VecSet(J, 0));
+  PetscCall(VecSet(M, 0));
 
   for (auto& sort : particles_) {
-    PetscCall(VecSet(sort->J, 0.0));
-    PetscCall(VecSet(sort->M, 0.0));
-    PetscCall(VecSet(sort->J_loc, 0.0));
-    PetscCall(VecSet(sort->M_loc, 0.0));
+    PetscCall(VecSet(sort->J, 0));
+    PetscCall(VecSet(sort->M, 0));
+    PetscCall(VecSet(sort->J_loc, 0));
+    PetscCall(VecSet(sort->M_loc, 0));
   }
 
   PetscCall(VecCopy(B_hk, Bn1));
-  PetscCall(VecAXPBY(Bn1, -1.0, 2.0, B));
+  PetscCall(VecAXPBY(Bn1, -1, 2, B));
 
   PetscCall(DMGlobalToLocal(da, E_hk, INSERT_VALUES, E_loc));
   PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
-  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, Bn_loc));
+  PetscCall(DMGlobalToLocal(da, B,   INSERT_VALUES, Bn0_loc));
   PetscCall(DMGlobalToLocal(da, Bn1, INSERT_VALUES, Bn1_loc));
 
   PetscCall(DMDAVecGetArrayRead(da, E_loc, &E_arr));
-  PetscCall(DMDAVecGetArrayRead(da, Bn_loc, &Bn_arr));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
+  PetscCall(DMDAVecGetArrayRead(da, Bn0_loc, &Bn0_arr));
   PetscCall(DMDAVecGetArrayRead(da, Bn1_loc, &Bn1_arr));
 
   Particles* failed_sort = nullptr;
   for (auto& sort : particles_) {
     sort->E_arr = E_arr;
     sort->B_arr = B_arr;
-    sort->Bn_arr = Bn_arr;
+    sort->Bn0_arr = Bn0_arr;
     sort->Bn1_arr = Bn1_arr;
     PetscCall(sort->form_iteration());
     PetscCall(VecAXPY(J, 1, sort->J));
@@ -190,7 +190,7 @@ PetscErrorCode Simulation::form_current()
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
-  PetscCall(DMDAVecRestoreArrayRead(da, Bn_loc, &Bn_arr));
+  PetscCall(DMDAVecRestoreArrayRead(da, Bn0_loc, &Bn0_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, Bn1_loc, &Bn1_arr));
 
   PetscCheck(failed_sort == nullptr, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,

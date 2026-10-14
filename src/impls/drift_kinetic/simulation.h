@@ -33,12 +33,12 @@ protected:
 
   Vec B_hk;  // Midpoint magnetic field iterate.
   Vec E_hk;  // Midpoint electric field iterate.
-  Vec Bn1;   // Predicted next magnetic field.
 
-  Vec Bn_loc;   // Previous magnetic field with ghost cells.
+  Vec Bn0_loc;  // Previous magnetic field with ghost cells.
+  Arr Bn0_arr;  // Previous magnetic field array.
+
+  Vec Bn1;      // Predicted next magnetic field.
   Vec Bn1_loc;  // Predicted magnetic field with ghost cells.
-
-  Arr Bn_arr;   // Previous magnetic field array.
   Arr Bn1_arr;  // Predicted magnetic field array.
 
   DM da_EB;  // Combined electric and magnetic field grid.
