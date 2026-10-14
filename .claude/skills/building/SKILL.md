@@ -13,7 +13,7 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) are set in `header.sh
 
 ## Top-level scripts
 
-- `./build.sh [Debug|Release]` — configures and builds with CMake. With no argument, builds both Debug and Release sequentially. When using raw `cmake --build` always specify either `build/Debug` or `build/Release` — running without specifying the build type will fail. Pass `Debug` for quick iteration with symbols, or `Release` for optimized builds used by tests and benchmarking.
+- `./build.sh [Debug|Release]` — configures and builds with CMake. With no argument, builds both Debug and Release sequentially. When using raw `cmake --build` always specify either `build/Debug` or `build/Release` — running without specifying the build type will fail. Raw `cmake`/`ctest` calls also fail (e.g. `fatal error: petscerror.h: No such file`) in a fresh shell, because `PETSC_DIR`, `MPI_DIR` and `JSON_DIR` are exported only by `header.sh`: prefer `./build.sh <type>`, or run `source ./header.sh && cmake --build build/<type>` from the repo root (the paths in `header.sh` are relative). Pass `Debug` for quick iteration with symbols, or `Release` for optimized builds used by tests and benchmarking.
 - `./run.sh <config.json> [petsc/mpi options]` — runs `./build/Release/xpic.out` via `mpiexec`, with OpenMP env vars set (`OMP_NUM_THREADS=4`, thread spread/affinity). Must be run from the repo root since output paths in configs are relative to it. Clears PETSc shared memory before each run.
 - `./run-tests.sh [ctest args]` — rebuilds Release, then runs `ctest --test-dir build/Release [ctest args]`. When using raw `ctest` always specify the `--test-dir` with `build/Release` or `build/Debug`, this flag is required; omitting it will fail. Use this when the code is already built and you want to iterate on test runs without triggering a rebuild. These commands support normal ctest agrument list, e.g.:
   - `./run-tests.sh -R basic_ex1` — run a specific test by name.
@@ -35,6 +35,8 @@ Tests are plain executables registered with `add_test` in each `tests/<area>/CMa
 - MPI is required (code is built and tested with `mpiexec`, both `-np 1` and `-np 2`).
 
 ## Static analysis and formatting
+
+- **clangd / LSP**: `.clangd` points at `build/compile_commands.json`, a symlink that CMake updates to the last configured build type (`./build.sh` configures both). Without a configured build clangd can't find the PETSc headers; run `./build.sh Debug` first. Use the LSP tool (`findReferences`, `goToDefinition`, `documentSymbol`) and `getDiagnostics` for navigation and checks, and restart clangd after changing `.clangd`; the build remains the final check.
 
 - **clang-format**: run `./run-clang-format.sh` before committing; config lives in `.clang-format`. Header guards use `SRC_<PATH>_H` (not `#pragma once`).
 - Keep CMake configuration in `CMakeLists.txt` files simple and readable — avoid complex generator expressions, deep custom macros, or conditional compilation for minor variations unless there's a strong reason.
