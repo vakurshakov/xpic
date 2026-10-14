@@ -169,7 +169,7 @@ PetscErrorCode Simulation::form_current()
     PetscCall(VecAXPY(J, 1, sort->J));
     PetscCall(VecAXPY(M, 1, sort->M));
 
-    LOG("Push \"{}\": avg it={}, max it={}, retries={}, leaf failures={}, max leaf FRk={: .4e}, max leaf FVhk={: .4e}",
+    LOG("Push \"{}\": avg it={}, max it={}, retries={}, leaf failures={}, max leaf FRk={: .4e}, max leaf FVk={: .4e}",
       sort->parameters.sort_name,
       sort->get_average_iteration_number(),
       sort->get_max_iteration_number(),
@@ -194,7 +194,7 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecRestoreArrayRead(da, Bn1_loc, &Bn1_arr));
 
   PetscCheck(failed_sort == nullptr, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
-    "DK Push terminal non-convergence for sort %s: leaf_failures=%d, max FRk=%g, max FVhk=%g",
+    "DK Push terminal non-convergence for sort %s: leaf_failures=%d, max FRk=%g, max FVk=%g",
     failed_sort->parameters.sort_name.c_str(),
     failed_sort->get_push_leaf_failures(),
     failed_sort->get_max_push_leaf_residue_r(),

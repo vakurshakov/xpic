@@ -90,7 +90,7 @@ PetscErrorCode Particles::form_iteration()
           push.has_converged(),
           push.get_iteration_number(),
           push.get_FRk(),
-          push.get_FVhk(),
+          push.get_FVk(),
         };
       };
 
@@ -138,7 +138,7 @@ PetscErrorCode Particles::form_iteration()
 
   if (leaf_failures > 0 && !fail_on_terminal_nonconvergence) {
     LOG("WARNING: DK Push terminal non-convergence for sort={}:", parameters.sort_name);
-    LOG("  leaf_failures={}, max FRk={: .4e}, max FVhk={: .4e}", leaf_failures, max_leaf_residue_r, max_leaf_residue_v);
+    LOG("  leaf_failures={}, max FRk={: .4e}, max FVk={: .4e}", leaf_failures, max_leaf_residue_r, max_leaf_residue_v);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

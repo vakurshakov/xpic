@@ -22,7 +22,7 @@ public:
   PetscReal get_FRk() const;
 
   /// @brief Returns the last parallel velocity residual.
-  PetscReal get_FVhk() const;
+  PetscReal get_FVk() const;
 
   /// @brief Callback for interpolating particle fields.
   using SetFields = std::function<void(const Vector3R&, const Vector3R&,
@@ -68,7 +68,7 @@ private:
   PetscInt maxit = 100;
   PetscReal atol = 1e-12;
   PetscReal rtol = 1e-12;
-  PetscReal FRk, FVhk;
+  PetscReal FRk, FVk;
   bool converged = false;
 
   // Fields interpolated to the particle (set by `set_fields`)

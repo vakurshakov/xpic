@@ -40,9 +40,9 @@ PetscReal DriftKineticPush::get_FRk() const
   return FRk;
 }
 
-PetscReal DriftKineticPush::get_FVhk() const
+PetscReal DriftKineticPush::get_FVk() const
 {
-  return FVhk;
+  return FVk;
 }
 
 void DriftKineticPush::set_fields_callback(SetFields&& callback)
@@ -55,7 +55,7 @@ void DriftKineticPush::process(
 {
   converged = false;
   FRk = PETSC_MAX_REAL;
-  FVhk = PETSC_MAX_REAL;
+  FVk = PETSC_MAX_REAL;
 
   process_picard(dt, pn, p0);
 }
@@ -63,7 +63,7 @@ void DriftKineticPush::process(
 void DriftKineticPush::process_picard(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
-  for (it = 0; it < maxit; ++it) {
+  for (it = 0; it < maxit; it++) {
     evaluate_rhs(pn, p0);
 
     if (check_convergence(dt, pn, p0)) {
@@ -143,12 +143,12 @@ bool DriftKineticPush::check_convergence(
   PetscReal dt, const PointByField& pn, const PointByField& p0)
 {
   FRk = get_residue_r(dt, pn, p0);
-  FVhk = get_residue_v(dt, pn, p0);
+  FVk = get_residue_v(dt, pn, p0);
 
   const PetscReal r_scale = atol + rtol * (dt * Vp).length();
   const PetscReal v_scale = atol + rtol * std::abs(dt * ah);
 
-  return (FRk <= r_scale) && (FVhk <= v_scale);
+  return (FRk <= r_scale) && (FVk <= v_scale);
 }
 
 PetscReal DriftKineticPush::get_residue_r(
