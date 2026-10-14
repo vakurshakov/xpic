@@ -555,7 +555,7 @@ def field_amplitude_from_config(config):
             return float(momentum["force_electric_amplitude"])
 
     for preset in config.get("Presets", []):
-        if preset.get("command") != "SetElectricField":
+        if preset.get("command") != "SetField" or preset.get("field") != "E":
             continue
         amp = preset.get("setter", {}).get("amplitude")
         if amp is not None and len(amp) >= 3:
@@ -4536,7 +4536,7 @@ def plot_electric_mode_amplitudes(times, profiles, z, Lz, T_wave, out_path, dpi,
 
 
 def run_model_electric(args):
-    # Frame 0000 contains the field prescribed by SetElectricField, before the
+    # Frame 0000 contains the field prescribed by SetField (field E), before the
     # first self-consistent particle/field step.  For the electric comparison
     # the default IVP therefore starts from the realized frame 0001.
     electric_ic_frame = 1 if args.ic_from_dump is None else args.ic_from_dump

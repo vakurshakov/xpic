@@ -40,11 +40,11 @@ def load_config(path):
         return json.load(f)
 
 
-def preset_value(config, command):
+def preset_value(config, field):
     for preset in config["Presets"]:
-        if preset.get("command") == command:
+        if preset.get("command") == "SetField" and preset.get("field") == field:
             return np.array(preset["setter"]["value"], dtype=float)
-    raise KeyError(f"Preset \"{command}\" is not found in the config")
+    raise KeyError(f"SetField preset for \"{field}\" is not found in the config")
 
 
 def load_trace(path):
@@ -78,8 +78,8 @@ def main():
     cfg_dk = load_config(DK_DIR)
     cfg_kin = load_config(KIN_DIR)
 
-    E = preset_value(cfg_dk, "SetElectricField")
-    B = preset_value(cfg_dk, "SetMagneticField")
+    E = preset_value(cfg_dk, "E")
+    B = preset_value(cfg_dk, "B")
     q = float(cfg_dk["Particles"][0]["q"])
     m = float(cfg_dk["Particles"][0]["m"])
 

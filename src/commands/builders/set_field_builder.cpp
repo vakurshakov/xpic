@@ -1,14 +1,14 @@
-#include "set_magnetic_field_builder.h"
+#include "set_field_builder.h"
 
-#include "src/commands/set_magnetic_field.h"
+#include "src/commands/set_field.h"
 
-SetMagneticFieldBuilder::SetMagneticFieldBuilder(
+SetFieldBuilder::SetFieldBuilder(
   interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : CommandBuilder(simulation, result)
 {
 }
 
-PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
+PetscErrorCode SetFieldBuilder::build(const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
   std::set<std::string_view> available_setters{
@@ -20,19 +20,21 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
     "SetGeneralCosineField",
   };
 
-  std::string command;
-  info.at("command").get_to(command);
+  std::string field;
+  info.at("field").get_to(field);
 
   Vec F = NULL;
   Vec F0 = NULL;
-  std::string field;
 
-  if (command == "SetElectricField") {
+  if (field == "E") {
     F = simulation_.E;
   }
-  else {
+  else if (field == "B") {
     F = simulation_.B;
     F0 = simulation_.B0;
+  }
+  else {
+    throw std::runtime_error("Unknown field name " + field + ", expected E or B");
   }
 
   const Configuration::json_t& setter = info.at("setter");
@@ -43,7 +45,7 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
   if (!available_setters.contains(name))
     throw std::runtime_error("Unknown setter name " + name);
 
-  SetMagneticField::Setter setup;
+  SetField::Setter setup;
 
   if (name == "SetUniformField") {
     LOG("  Using SetUniformField setter");
@@ -83,7 +85,7 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
       radius = setter.at("radius").get<PetscReal>();
 
     setup = SetAzimuthalField(value, center[X], center[Y], radius);
-    LOG("    Field |B|: {}, center: {} {}, radius: {}", value, center[X], center[Y], radius);
+    LOG("    Field value: {}, center: {} {}, radius: {}", value, center[X], center[Y], radius);
   }
   else if (name == "SetCoilsField") {
     LOG("  Using SetCoilsField setter");
@@ -135,8 +137,8 @@ PetscErrorCode SetMagneticFieldBuilder::build(const Configuration::json_t& info)
   }
 
   commands_.emplace_back(
-    std::make_unique<SetMagneticField>(F, F0, std::move(setup)));
+    std::make_unique<SetField>(F, F0, std::move(setup)));
 
-  LOG("  {} command is added for {}", command, field);
+  LOG("  SetField command is added for {}", field);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

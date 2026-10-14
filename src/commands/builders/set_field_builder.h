@@ -1,11 +1,11 @@
-#ifndef SRC_COMMANDS_BUILDERS_SET_MAGNETIC_FIELD_BUILDER_H
-#define SRC_COMMANDS_BUILDERS_SET_MAGNETIC_FIELD_BUILDER_H
+#ifndef SRC_COMMANDS_BUILDERS_SET_FIELD_BUILDER_H
+#define SRC_COMMANDS_BUILDERS_SET_FIELD_BUILDER_H
 
 #include "src/commands/builders/command_builder.h"
 
-class SetMagneticFieldBuilder : public CommandBuilder {
+class SetFieldBuilder : public CommandBuilder {
 public:
-  SetMagneticFieldBuilder(
+  SetFieldBuilder(
     interfaces::Simulation& simulation, std::vector<Command_up>& result);
 
   PetscErrorCode build(const Configuration::json_t& info) override;
@@ -13,9 +13,10 @@ public:
   std::string_view usage_message() const override
   {
     std::string_view help =
-      "\nStructure of the SetMagneticField / SetElectricField command description:\n"
+      "\nStructure of the SetField command description:\n"
       "{\n"
-      "  \"command\": \"SetMagneticField\" | \"SetElectricField\", -- Name of the command.\n"
+      "  \"command\": \"SetField\", -- Name of the command.\n"
+      "  \"field\": \"E\" | \"B\", -- Target field, B is also added to B0.\n"
       "  \"setter\": { -- Field setter description.\n"
       "    \"name\": \"Name\", -- Setter name, one of the following:\n"
       "                        SetUniformField, SetCoilsField, SetCosineField.\n"
@@ -26,4 +27,4 @@ public:
   }
 };
 
-#endif  // SRC_COMMANDS_BUILDERS_SET_MAGNETIC_FIELD_BUILDER_H
+#endif  // SRC_COMMANDS_BUILDERS_SET_FIELD_BUILDER_H

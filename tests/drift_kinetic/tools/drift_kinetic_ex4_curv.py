@@ -43,7 +43,7 @@ def load_config(path):
 def azimuthal_center(config):
     # Returns the axis location of the SetAzimuthalField magnetic preset.
     for preset in config["Presets"]:
-        if preset.get("command") != "SetMagneticField":
+        if preset.get("command") != "SetField" or preset.get("field") != "B":
             continue
         setter = preset["setter"]
         if setter.get("name") == "SetAzimuthalField":
@@ -54,7 +54,7 @@ def azimuthal_center(config):
 def azimuthal_B0(config):
     """Return the exact prescribed |B| from SetAzimuthalField."""
     for preset in config["Presets"]:
-        if preset.get("command") != "SetMagneticField":
+        if preset.get("command") != "SetField" or preset.get("field") != "B":
             continue
         setter = preset["setter"]
         if setter.get("name") == "SetAzimuthalField":

@@ -133,9 +133,8 @@ void overwrite_config(
       "Presets",
       {
         {
-          {"command", "SetMagneticField"},
-          {"field", "B0"},
-          {"field_axpy", "B"},
+          {"command", "SetField"},
+          {"field", "B"},
           {"setter",
             {
               {"name", "SetAzimuthalField"},

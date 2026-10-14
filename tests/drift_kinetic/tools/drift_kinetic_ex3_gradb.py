@@ -43,7 +43,7 @@ def load_config(path):
 def gradient_field(config):
     # Returns (value, length, axis) of the SetGradientField magnetic preset.
     for preset in config["Presets"]:
-        if preset.get("command") != "SetMagneticField":
+        if preset.get("command") != "SetField" or preset.get("field") != "B":
             continue
         setter = preset["setter"]
         if setter.get("name") == "SetGradientField":
