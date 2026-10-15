@@ -1185,11 +1185,11 @@ def plot_model_noise(times, series_amp, series_noise, series_harm, series_rest,
     ax_abs.set_xlim(0.0, t_max / T_wave)
     ax_abs.set_ylim(0.0, 100.0)
     ax_abs.set_xlabel(r"$t/T$", fontsize=labelsize)
-    ax_abs.set_ylabel(r"% от начальной амплитуды $|\delta n_1(t_0)|$",
+    ax_abs.set_ylabel(r"% of initial amplitude $|\delta n_1(t_0)|$",
                       fontsize=labelsize)
     ax_abs.tick_params(labelsize=ticksize)
     ax_abs.grid(True, alpha=0.3)
-    ax_abs.set_title(r"Первая гармоника и амплитуда шума", fontsize=labelsize,
+    ax_abs.set_title(r"First harmonic and noise amplitude", fontsize=labelsize,
                      bbox=bbox)
     ax_abs.set_box_aspect(1)
     ax_abs.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
@@ -1222,21 +1222,21 @@ def plot_model_noise(times, series_amp, series_noise, series_harm, series_rest,
         st["alpha"] = 0.8
         count = min(len(times), len(rest), amp.size)
         ax_rel.plot(times[:count], percent(rest[:count], amp[:count]),
-                    label=rf"шум$_{{{name[0]}}}/|\delta n_{{{name[0]},1}}|$", **st)
+                    label=rf"noise$_{{{name[0]}}}/|\delta n_{{{name[0]},1}}|$", **st)
 
     ax_rel.axhline(10.0, color="tab:gray", linewidth=1.2, linestyle="--",
                    alpha=0.9)
-    ax_rel.text(0.01 * t_max / T_wave, 11.0, "10 % — граница линейного режима",
+    ax_rel.text(0.01 * t_max / T_wave, 11.0, "10 % — linear regime limit",
                 color="tab:gray", fontsize=ticksize, ha="left", va="bottom")
 
     ax_rel.set_xlim(0.0, t_max / T_wave)
     ax_rel.set_ylim(0.0, 100.0)
     ax_rel.set_xlabel(r"$t/T$", fontsize=labelsize)
-    ax_rel.set_ylabel(r"% от текущей амплитуды $|\delta n_1(t)|$",
+    ax_rel.set_ylabel(r"% of current amplitude $|\delta n_1(t)|$",
                       fontsize=labelsize)
     ax_rel.tick_params(labelsize=ticksize)
     ax_rel.grid(True, alpha=0.3)
-    ax_rel.set_title(r"Связь гармоник и шум относительно моды",
+    ax_rel.set_title(r"Harmonic coupling and noise relative to the mode",
                      fontsize=labelsize, bbox=bbox)
     ax_rel.set_box_aspect(1)
     ax_rel.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
@@ -1400,7 +1400,7 @@ def run_model(args):
     draw_amplitude_lines(ax_z, 0.01 * const.Lz)
     ax_z.legend(loc="upper right", fontsize=labelsize)
     ax_z.set_box_aspect(1)
-    ax_z.set_title(r"Профиль плотности", fontsize=labelsize, bbox=bbox)
+    ax_z.set_title(r"Density profile", fontsize=labelsize, bbox=bbox)
 
     # Right panel: the first z-harmonic of simulation dn(t) for every species,
     # plus the exact kinetic theory and its pure exponential Landau envelope.
@@ -1438,7 +1438,7 @@ def run_model(args):
         fontsize=labelsize)
     ax_amp.tick_params(labelsize=ticksize)
     ax_amp.grid(True, alpha=0.3)
-    ax_amp.set_title(r"Амплитуда первой гармоники", fontsize=labelsize, bbox=bbox)
+    ax_amp.set_title(r"First harmonic amplitude", fontsize=labelsize, bbox=bbox)
     ax_amp.set_box_aspect(1)
     ax_amp.legend(loc="upper right", fontsize=ticksize)
 
@@ -1855,7 +1855,7 @@ def run_compare_electric(args):
             ax.tick_params(labelbottom=False)
         else:
             ax.set_xlabel(r"$t/T$", fontsize=labelsize)
-    axes[0].set_title(r"Вторая гармоника относительно первой",
+    axes[0].set_title(r"Second harmonic relative to the first",
                       fontsize=labelsize, bbox=bbox)
     legend_ax.legend(handles=handles,
                      labels=[run["label"] for run in runs],
@@ -1881,7 +1881,7 @@ def run_compare_electric(args):
     energy_axis.set_ylabel(r"$w_E$", fontsize=labelsize)
     energy_axis.tick_params(labelsize=ticksize)
     energy_axis.grid(True, alpha=0.3)
-    energy_axis.set_title(r"Энергия электрического поля",
+    energy_axis.set_title(r"Electric field energy",
                           fontsize=labelsize, bbox=bbox)
     energy_axis.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0),
                        fontsize=ticksize, framealpha=0.9)
@@ -1903,7 +1903,7 @@ def run_compare_electric(args):
     mode_energy_axis.tick_params(labelsize=ticksize)
     mode_energy_axis.grid(True, alpha=0.3)
     mode_energy_axis.set_title(
-        r"Энергия остальных гармоник относительно первой",
+        r"Energy of the remaining harmonics relative to the first",
         fontsize=labelsize, bbox=bbox)
     mode_energy_axis.legend(
         loc="upper left", bbox_to_anchor=(1.02, 1.0),
@@ -2027,11 +2027,11 @@ def run_model_pic(args):
         ax.set_box_aspect(1)
     ax_n.set_xlabel(r"$t/T$", fontsize=labelsize)
     ax_n.set_ylabel(r"$|\delta n_1|/n_0$", fontsize=labelsize)
-    ax_n.set_title(r"Плотность: PIC и линейная realized-$F_0$ теория",
+    ax_n.set_title(r"Density: PIC and linear realized-$F_0$ theory",
                    fontsize=labelsize, bbox=bbox)
     ax_e.set_xlabel(r"$t/T$", fontsize=labelsize)
     ax_e.set_ylabel(r"$|E_{z,1}|$", fontsize=labelsize)
-    ax_e.set_title(r"Поле: линейный Vlasov--Ampère, гармоника 1",
+    ax_e.set_title(r"Field: linear Vlasov--Ampère, harmonic 1",
                    fontsize=labelsize, bbox=bbox)
     fig.tight_layout()
 
@@ -2326,8 +2326,8 @@ def plot_density_harmonics_and_kinetic_energy(runs, out_dir, dpi):
         ax_abs.plot(run["time"], percent(run["noise_residual"], reference),
                     linewidth=1.5, linestyle=":", alpha=0.8,
                     label="_nolegend_", **common)
-    ax_abs.set_ylabel(r"% от $|\delta n_{i,1}(t_0)|$", fontsize=labelsize)
-    ax_abs.set_title(r"Первая гармоника и полный остаток ионов",
+    ax_abs.set_ylabel(r"% of $|\delta n_{i,1}(t_0)|$", fontsize=labelsize)
+    ax_abs.set_title(r"First harmonic and total ion remainder",
                      fontsize=labelsize, bbox=bbox)
     x_max = max(float(run["time"][-1]) for run in runs)
     ax_abs.set_xlim(0.0, x_max)
@@ -2343,7 +2343,7 @@ def plot_density_harmonics_and_kinetic_energy(runs, out_dir, dpi):
                    for i, run in enumerate(runs)]
     ax_abs.legend(handles=run_handles + [
         Line2D([], [], color="black", linestyle="-", label=r"$|\delta n_{i,1}|$"),
-        Line2D([], [], color="black", linestyle=":", label="полный остаток")],
+        Line2D([], [], color="black", linestyle=":", label="total remainder")],
         loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2,
         fontsize=ticksize)
     fig.tight_layout(pad=0.6)
@@ -2371,7 +2371,7 @@ def plot_density_harmonics_and_kinetic_energy(runs, out_dir, dpi):
     axis.set_ylabel(r"$(w_K(t)-w_K(0))/w_K(0)$", fontsize=labelsize)
     axis.tick_params(labelsize=ticksize)
     axis.grid(True, alpha=0.3)
-    axis.set_title("Кинетическая энергия", fontsize=labelsize, bbox=bbox)
+    axis.set_title("Kinetic energy", fontsize=labelsize, bbox=bbox)
 
     run_handles = [Line2D([], [], color=colors[i % len(colors)],
                           linewidth=1.8,
@@ -3993,7 +3993,7 @@ def run_compare(args):
         fontsize=labelsize)
     ax.tick_params(labelsize=ticksize)
     ax.grid(True, alpha=0.3)
-    ax.set_title(r"Амплитуда первой гармоники ионов",
+    ax.set_title(r"Ion first harmonic amplitude",
                  fontsize=labelsize, bbox=bbox)
     ax.set_box_aspect(1)
     # Legend outside, to the right: the test names are long and would otherwise
@@ -4025,7 +4025,7 @@ def run_compare(args):
     log_ax.set_ylabel(r"$|\delta n_{i,1}(t)|/n_i$", fontsize=labelsize)
     log_ax.tick_params(labelsize=ticksize)
     log_ax.grid(True, which="both", alpha=0.3)
-    log_ax.set_title(r"Амплитуда первой гармоники ионов (логарифмический масштаб)",
+    log_ax.set_title(r"Ion first harmonic amplitude (log scale)",
                      fontsize=labelsize, bbox=bbox)
     log_ax.set_box_aspect(1)
     log_ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0),
@@ -4063,7 +4063,7 @@ def run_compare(args):
         r"$\sqrt{2\langle(n_i/n_{i0}-1)^2\rangle_z}$", fontsize=labelsize)
     total_ax.tick_params(labelsize=ticksize)
     total_ax.grid(True, alpha=0.3)
-    total_ax.set_title(r"Полная амплитуда возмущения плотности ионов",
+    total_ax.set_title(r"Total ion density perturbation amplitude",
                        fontsize=labelsize, bbox=bbox)
     total_ax.set_box_aspect(1)
     total_handles = [Line2D([], [], color=colors[i % len(colors)],
@@ -4174,12 +4174,12 @@ def run_model_adv(args):
         ax.plot(run["time"], run["envelope"], color=color, linestyle="--",
                 linewidth=2.0, label="_nolegend_")
     ax.plot([], [], color="tab:gray", linestyle="--", linewidth=2.0,
-            label=r"штрих: $|A_+|e^{-\Gamma t}$")
+            label=r"dashed: $|A_+|e^{-\Gamma t}$")
     ax.plot(base["time"], base["model"], color="black", linestyle="-",
             linewidth=1.6, alpha=0.8,
             label=r"$|A_+e^{-i\omega t}+A_-e^{+i\omega t}|e^{-\Gamma t}$")
     ax.plot(base["time"], base["noise"], color="tab:gray", linestyle=":",
-            linewidth=1.8, label=rf"{base['label']}: шум по несигнальным $m$")
+            linewidth=1.8, label=rf"{base['label']}: noise from non-signal $m$")
 
     drawn = np.concatenate([run["amplitude"] for run in runs])
     drawn = drawn[np.isfinite(drawn) & (drawn > 0.0)]
@@ -4196,7 +4196,7 @@ def run_model_adv(args):
         fontsize=labelsize)
     ax.tick_params(labelsize=ticksize)
     ax.grid(True, which="both", alpha=0.3)
-    ax.set_title(r"Разложение на встречные ветви", fontsize=labelsize, bbox=bbox)
+    ax.set_title(r"Decomposition into counter-propagating branches", fontsize=labelsize, bbox=bbox)
     # Log scale leaves the band below the noise floor empty.
     ax.legend(loc="lower right", fontsize=ticksize, framealpha=0.9)
     fig.tight_layout()
@@ -4409,7 +4409,7 @@ def run_compare_temp(args):
         if spread >= 20.0:
             ax_temp.set_yscale("log")
     ax_temp.set_ylabel(r"$T_{\parallel,J}$ [keV]", fontsize=labelsize)
-    ax_temp.set_title(r"Продольная температура из $J_z$",
+    ax_temp.set_title(r"Parallel temperature from $J_z$",
                       fontsize=labelsize, bbox=bbox)
     ax_temp.grid(True, alpha=0.3, which="both")
     ax_temp.tick_params(labelsize=ticksize)
@@ -4427,7 +4427,7 @@ def run_compare_temp(args):
     ax_relative.set_xlabel(r"$t/T$", fontsize=labelsize)
     ax_relative.set_ylabel(r"$T_{\parallel,J}(t)-T_{\parallel,J}(t_1)$ [keV]",
                            fontsize=labelsize)
-    ax_relative.set_title(r"Изменение $T_{\parallel,J}$ (обмен энергией)",
+    ax_relative.set_title(r"Change of $T_{\parallel,J}$ (energy exchange)",
                           fontsize=labelsize, bbox=bbox)
     ax_relative.grid(True, alpha=0.3)
     ax_relative.tick_params(labelsize=ticksize)
@@ -4521,7 +4521,7 @@ def plot_electric_mode_amplitudes(times, profiles, z, Lz, T_wave, out_path, dpi,
         fontsize=labelsize)
     ax.tick_params(labelsize=ticksize)
     ax.grid(True, which="both", alpha=0.3)
-    ax.set_title(r"Амплитуды мод $m = 1\ldots%d$" % max(modes),
+    ax.set_title(r"Mode amplitudes $m = 1\ldots%d$" % max(modes),
                  fontsize=labelsize, bbox=bbox)
     # Six overlapping curves leave no free corner; keep the legend off the axes.
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
@@ -4661,7 +4661,7 @@ def run_model_electric(args):
     ax_z.axhline(0.0, color="grey", linewidth=0.8, linestyle="--")
     ax_z.legend(loc="upper right", fontsize=labelsize)
     ax_z.set_box_aspect(1)
-    ax_z.set_title(r"Профиль поля $E_z$", fontsize=labelsize, bbox=bbox)
+    ax_z.set_title(r"Field profile $E_z$", fontsize=labelsize, bbox=bbox)
 
     (line_amp,) = ax_amp.plot([], [], color="purple", marker="o", linestyle="-",
                               linewidth=2.5, markersize=4.0,
@@ -4679,7 +4679,7 @@ def run_model_electric(args):
         fontsize=labelsize)
     ax_amp.tick_params(labelsize=ticksize)
     ax_amp.grid(True, alpha=0.3)
-    ax_amp.set_title(r"Амплитуда поля", fontsize=labelsize, bbox=bbox)
+    ax_amp.set_title(r"Field amplitude", fontsize=labelsize, bbox=bbox)
     ax_amp.set_box_aspect(1)
     ax_amp.legend(loc="upper right", fontsize=ticksize)
 

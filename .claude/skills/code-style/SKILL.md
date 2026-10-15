@@ -18,6 +18,8 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 - A ternary lvalue is acceptable for a symmetric branch: `((cdf < u) ? x_lo : x_hi) = x;`.
 - Constructors: no `std::move` in the init list for cheap-to-copy types (`box(box)`); no default arguments for parameters the caller must set (an implicit default is implementation-specific); no redundant member initializers (`Vector3R phase;`, not `phase{0.0, 0.0, 0.0}`).
 
+- Write everything in English: comments, identifiers, messages, plot labels, in C++ and Python alike. The only exception is `doc/`.
+
 ## Errors and validation
 
 - Validate with `PetscCheckAbort(cond, PETSC_COMM_WORLD, PETSC_ERR_*, "msg")`, not `throw std::runtime_error(...)` (with or without `std::format`).

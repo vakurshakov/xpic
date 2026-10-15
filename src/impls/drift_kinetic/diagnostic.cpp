@@ -273,7 +273,7 @@ PetscErrorCode DkDistributionMoment::collect()
 
   DkShape shape;
 
-  // Итерация по дрейфово-кинетическому хранилищу dk_curr_storage
+  // Iterate over the drift-kinetic storage dk_curr_storage
   const auto& dk_storage = dk_particles.get_dk_curr_storage();
 
   // DK moments receive |B| interpolated at the gyrocenter; check out the
