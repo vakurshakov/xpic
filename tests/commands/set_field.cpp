@@ -1,6 +1,5 @@
 #include "src/commands/set_field.h"
 
-#include "src/utils/geometries.h"
 #include "src/utils/world.h"
 
 static constexpr char help[] = "Testing Yee staggering of SetField setters\n.";
@@ -60,13 +59,13 @@ int main(int argc, char** argv)
 
   const PetscReal two_pi = 2.0 * M_PI;
 
-  for (const Stagger* stagger : {&yee_E, &yee_B}) {
-    const char* tag = (stagger == &yee_E) ? "E" : "B";
+  for (const Stagger& stagger : {yee_E, yee_B}) {
+    const char* tag = (&stagger == &yee_E) ? "E" : "B";
 
     {
       PetscCall(VecSet(vec, 0));
-      PetscCall(SetUniformField{Vector3R{1.0, 2.0, 3.0}}(vec, *stagger));
-      PetscCall(check(tag, vec, *stagger, [](PetscInt c, const PetscReal*) {
+      PetscCall(SetUniformField{Vector3R{1.0, 2.0, 3.0}}(vec, stagger));
+      PetscCall(check(tag, vec, stagger, [](PetscInt c, const PetscReal*) {
         return c + 1.0;
       }));
     }
@@ -74,8 +73,8 @@ int main(int argc, char** argv)
     {
       const Vector3R amp{1.0, 2.0, 3.0}, m{1.0, 2.0, 1.0}, phase{0.1, 0.2, 0.3};
       PetscCall(VecSet(vec, 0));
-      PetscCall(SetCosineField{amp, m, phase}(vec, *stagger));
-      PetscCall(check(tag, vec, *stagger, [&](PetscInt c, const PetscReal r[3]) {
+      PetscCall(SetCosineField{amp, m, phase}(vec, stagger));
+      PetscCall(check(tag, vec, stagger, [&](PetscInt c, const PetscReal r[3]) {
         return amp[c] * std::cos(two_pi * m[c] / Geom[c] * r[c] + phase[c]);
       }));
     }
@@ -83,8 +82,8 @@ int main(int argc, char** argv)
     {
       const Vector3R amp{1.0, 2.0, 3.0}, m{1.0, 2.0, 1.0};
       PetscCall(VecSet(vec, 0));
-      PetscCall(SetGeneralCosineField{amp, m}(vec, *stagger));
-      PetscCall(check(tag, vec, *stagger, [&](PetscInt c, const PetscReal r[3]) {
+      PetscCall(SetGeneralCosineField{amp, m}(vec, stagger));
+      PetscCall(check(tag, vec, stagger, [&](PetscInt c, const PetscReal r[3]) {
         PetscReal phase = 0;
         for (PetscInt a = 0; a < 3; a++)
           phase += two_pi * m[a] / Geom[a] * r[a];
@@ -96,16 +95,16 @@ int main(int argc, char** argv)
       const Vector3R value{1.0, 2.0, 3.0};
       const PetscInt axis = X;
       const PetscReal length = 10.0, origin = 0.5;
-      PetscCall(SetGradientField{value, axis, length, origin}(vec, *stagger));
-      PetscCall(check(tag, vec, *stagger, [&](PetscInt c, const PetscReal r[3]) {
+      PetscCall(SetGradientField{value, axis, length, origin}(vec, stagger));
+      PetscCall(check(tag, vec, stagger, [&](PetscInt c, const PetscReal r[3]) {
         return value[c] * (1.0 + (r[axis] - origin) / length);
       }));
     }
 
     {
       const PetscReal value = 2.0, cx = 3.0, cy = 1.0, radius = 5.0;
-      PetscCall(SetAzimuthalField{value, cx, cy, radius}(vec, *stagger));
-      PetscCall(check(tag, vec, *stagger, [&](PetscInt c, const PetscReal r[3]) {
+      PetscCall(SetAzimuthalField{value, cx, cy, radius}(vec, stagger));
+      PetscCall(check(tag, vec, stagger, [&](PetscInt c, const PetscReal r[3]) {
         if (c == X)
           return -value * (r[Y] - cy) / radius;
         if (c == Y)
