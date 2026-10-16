@@ -27,8 +27,8 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 - State the condition positively (`PetscCheckAbort(n > 0 && v2 > 0, ...)`), not `if (!(x > 0.0) || ...) throw`.
 - Drop checks that other code already guarantees. No retry loops that can't help: check once and abort.
 - Messages are printf-formatted (`%s`, `%g`, `.c_str()` for strings). Assume required fields (e.g. `SortParameters::sort_name`) are set: no fallbacks.
-- A `PetscCheckAbort` is a logical block: surround it with blank lines.
-- `PetscCheckAbort`, `PetscCheck`, `LOG`, `PetscCall`, ... are in `WhitespaceSensitiveMacros` (`.clang-format`), so `clang-format` does not rewrap them. Format them by hand, better to keep everything on the same line; checks are formatted with the message on the new line; multi-line messages may be aligned manually.
+- A `PetscCheck` and a `PetscCheckAbort` are logical blocks: surround them with blank lines.
+-  `PetscCall`, `PetscCheck`, `PetscCheckAbort`, `LOG`, ... are in `WhitespaceSensitiveMacros` (`.clang-format`), so `clang-format` does not rewrap them. Format them by hand, better to keep everything on the same line; checks are formatted with the message on the new line; multi-line messages may be aligned manually.
 
 ## Includes
 
