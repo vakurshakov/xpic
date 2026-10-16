@@ -1,8 +1,6 @@
 #include "inject_particles_builder.h"
 
 #include "src/commands/inject_particles.h"
-#include "src/impls/drift_kinetic/inject_particles.h"
-#include "src/impls/drift_kinetic/particles.h"
 
 InjectParticlesBuilder::InjectParticlesBuilder(
   interfaces::Simulation& simulation, std::vector<Command_up>& result)
@@ -19,10 +17,10 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   auto&& ejected = simulation_.get_named_particles(ejected_name);
 
   for (const char* key : {"momentum_i", "momentum_e"}) {
-    if (info.at(key).at("name").get<std::string>() ==
-        "KineticIonSoundMoments")
+    if (info.at(key).at("name").get<std::string>() == "KineticIonSoundMoments")
       throw std::runtime_error(
-        "KineticIonSoundMoments is valid only for a paired SetParticles command");
+        "KineticIonSoundMoments is valid only for a paired SetParticles "
+        "command");
   }
 
   /// @note Since we can use this as a quasi-neutral
@@ -39,7 +37,7 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   PetscInt per_step_particles_num = 0.0;
 
   CoordinateGenerator generate_coordinate;
-  load_coordinate(info.at("coordinate"), //
+  load_coordinate(info.at("coordinate"),  //
     ionized, generate_coordinate, per_step_particles_num);
 
   PetscInt tau = (injection_end - injection_start);
@@ -58,22 +56,16 @@ PetscErrorCode InjectParticlesBuilder::build(const Configuration::json_t& info)
   MomentumGenerator generate_momentum_e;
   load_momentum(info.at("momentum_e"), ejected, generate_momentum_e);
 
-  auto* dk_ionized = dynamic_cast<drift_kinetic::Particles*>(&ionized);
-  auto* dk_ejected = dynamic_cast<drift_kinetic::Particles*>(&ejected);
-
-  if (dk_ionized && dk_ejected) {
-    auto&& diag = std::make_unique<drift_kinetic::InjectParticles>(
-      *dk_ionized, *dk_ejected, injection_start, injection_end,
-      per_step_particles_num, generate_coordinate, generate_momentum_i,
-      generate_momentum_e);
-    commands_.emplace_back(std::move(diag));
-  }
-  else {
-    auto&& diag = std::make_unique<InjectParticles>(ionized, ejected,
-      injection_start, injection_end, per_step_particles_num,  //
-      generate_coordinate, generate_momentum_i, generate_momentum_e);
-    commands_.emplace_back(std::move(diag));
-  }
+  commands_.emplace_back(std::make_unique<InjectParticles>(
+    std::vector<SetParticles::Sort>{
+      {ionized, generate_momentum_i},
+      {ejected, generate_momentum_e},
+    },
+    injection_start,         //
+    injection_end,           //
+    per_step_particles_num,  //
+    generate_coordinate      //
+    ));
 
   LOG("  InjectParticles command is added with ionized: \"{}\", ejected: \"{}\"", ionized_name, ejected_name);
   PetscFunctionReturn(PETSC_SUCCESS);

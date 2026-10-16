@@ -1,15 +1,11 @@
 #ifndef SRC_DRIFT_KINETIC_PARTICLES_H
 #define SRC_DRIFT_KINETIC_PARTICLES_H
 
-#include "src/pch.h"
 #include "src/interfaces/particles.h"
 
 namespace drift_kinetic {
 
 class Simulation;
-
-PointByField make_point_at_gc(
-  const Point& point, const Vector3R& Bp, PetscReal mp);
 
 /// @brief Stores, advances and redistributes drift-kinetic particles.
 class Particles : public interfaces::Particles {
@@ -19,7 +15,7 @@ public:
 
   PetscErrorCode form_iteration();
 
-  PetscErrorCode sync_dk_curr_storage();
+  PetscErrorCode commit_added_particles() override;
   PetscErrorCode prepare_storage();
   PetscReal kinetic_energy_local() const;
   PetscReal get_average_iteration_number() const;
@@ -36,7 +32,6 @@ public:
   const Simulation& simulation() const;
 
   void set_coord_is_gc(bool v);
-  bool get_coord_is_gc() const;
 
   Vec M;      // Sort magnetization.
   Vec M_loc;  // Local magnetization with ghost cells.
@@ -65,9 +60,6 @@ protected:
   bool fail_on_terminal_nonconvergence = false;
 
   Simulation& simulation_;
-
-  friend class InjectParticles;
-  friend class SetPairedParticles;
 };
 
 }  // namespace drift_kinetic

@@ -1,36 +1,37 @@
 #ifndef SRC_COMMANDS_SET_PARTICLES_H
 #define SRC_COMMANDS_SET_PARTICLES_H
 
-#include "src/pch.h"
 #include "src/interfaces/command.h"
 #include "src/interfaces/particles.h"
-/// @todo Move the implementation to /interfaces/particles.h
-#include "src/impls/drift_kinetic/particles.h"
 #include "src/utils/particles_load.h"
 
 class SetParticles : public interfaces::Command {
 public:
-  SetParticles( //
-    interfaces::Particles& particles,               //
-    PetscInt number_of_particles,                   //
-    const CoordinateGenerator& generate_coordinate, //
-    const MomentumGenerator& generate_momentum);
+  struct Sort {
+    interfaces::Particles& particles;
+    MomentumGenerator generate_momentum;
+  };
+
+  /// @brief All sorts share the generated coordinate, each has its own momentum.
+  SetParticles(                                       //
+    std::vector<Sort> sorts,                          //
+    PetscInt number_of_particles,                     //
+    const CoordinateGenerator& generate_coordinate);  //
 
   PetscErrorCode execute(PetscInt t) override;
 
-private:
+protected:
+  PetscErrorCode load(PetscInt number_of_particles);
   PetscErrorCode log_statistics();
 
-  using Particles = interfaces::Particles;
-  Particles& particles_;
+  std::vector<Sort> sorts;
+  CoordinateGenerator generate_coordinate;
 
-  PetscInt number_of_particles_;
+  std::vector<PetscReal> added_energy;
+  std::vector<PetscInt> added_particles;
 
-  CoordinateGenerator generate_coordinate_;
-  MomentumGenerator generate_momentum_;
-
-  PetscReal added_energy_ = 0.0;
-  PetscInt added_particles_ = 0;
+  /// @todo Number of loaded particles can vary, if `MPI_Comm_size() > 1`
+  PetscInt number_of_particles;
 };
 
-#endif // SRC_COMMANDS_SET_PARTICLES_H
+#endif  // SRC_COMMANDS_SET_PARTICLES_H

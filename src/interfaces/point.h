@@ -1,19 +1,11 @@
 #ifndef SRC_INTERFACES_POINT_H
 #define SRC_INTERFACES_POINT_H
 
-#include "src/pch.h"
 #include "src/utils/vector3.h"
 
 struct Point {
   Vector3R r;
   Vector3R p;
-
-  constexpr Point() = default;
-
-  constexpr Point(const Vector3R& r, const Vector3R& p)
-    : r(r), p(p)
-  {
-  }
 
   // clang-format off: access modifiers
   PetscReal& x() { return r.x(); }
@@ -40,19 +32,31 @@ struct PointByField {
   PetscReal p_parallel;
   PetscReal mu_p;
 
-  PointByField() = default;
-
-  PointByField(const Vector3R& r, PetscReal p_parallel, PetscReal mu_p)
-    : r(r), p{}, p_parallel(p_parallel), mu_p(mu_p)
+  /// @brief `point.r` is already the guiding center.
+  static PointByField from_guiding_center(
+    const Point& point, const Vector3R& Bp, PetscReal mp)
   {
+    const Vector3R b = Bp.normalized();
+    const PetscReal lenB = Bp.length();
+    const PetscReal p_perp = point.p.transverse_to(Bp).length();
+
+    return PointByField{
+      .r = point.r,
+      .p = point.p,
+      .p_parallel = point.p.dot(b),
+      .mu_p = mp * p_perp * p_perp / (2.0 * lenB),
+    };
   }
 
-  PointByField(const Point& point, const Vector3R& Bp, PetscReal mp, PetscReal qm)
-    : r(point.r + point.p.cross(Bp.normalized()) / (qm * Bp.length())),
-      p(point.p),
-      p_parallel(point.p.parallel_to(Bp).length()),
-      mu_p(mp * point.p.transverse_to(Bp).squared() / (2.0 * Bp.length()))
+  /// @brief `point.r` is the particle position, shifted by the Larmor vector.
+  static PointByField from_particle_position(
+    const Point& point, const Vector3R& Bp, PetscReal mp, PetscReal qm)
   {
+    Point gc{
+      .r = point.r + point.p.cross(Bp.normalized()) / (qm * Bp.length()),
+      .p = point.p,
+    };
+    return from_guiding_center(gc, Bp, mp);
   }
 
   // clang-format off: access modifiers

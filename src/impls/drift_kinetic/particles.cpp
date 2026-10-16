@@ -9,19 +9,6 @@
 
 namespace drift_kinetic {
 
-// The point coordinate is already a guiding center, so no Larmor shift.
-PointByField make_point_at_gc(const Point& point, const Vector3R& Bp, PetscReal mp)
-{
-  const Vector3R b = Bp.normalized();
-  const PetscReal Bmag = Bp.length();
-  const PetscReal p_par = point.p.dot(b);
-  const PetscReal p_perp = point.p.transverse_to(Bp).length();
-  const PetscReal mu = mp * p_perp * p_perp / (2.0 * Bmag);
-  PointByField r(point.r, p_par, mu);
-  r.p = point.p;
-  return r;
-}
-
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters),
     dk_curr_storage(world.size.elements_product()),
@@ -143,8 +130,9 @@ PetscErrorCode Particles::form_iteration()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// Converts newly loaded kinetic particles to guiding-center form.
-PetscErrorCode Particles::sync_dk_curr_storage()
+// Converts the points staged in `storage` by `add_particle()`
+// to guiding-center form and empties the staging cells.
+PetscErrorCode Particles::commit_added_particles()
 {
   PetscFunctionBeginUser;
   const PetscReal qm = parameters.q / parameters.m;
@@ -157,18 +145,16 @@ PetscErrorCode Particles::sync_dk_curr_storage()
 
   for (PetscInt g = 0; g < world.size.elements_product(); g++) {
     auto& cell = storage[g];
-    if (cell.empty())
-      continue;
 
-    auto& dk_cell = dk_curr_storage[g];
     for (const auto& point : cell) {
       Vector3R B_p{};
       PetscCall(esirkepov.interpolate_B(B_p, point.r));
-      if (coord_is_gc)
-        dk_cell.emplace_back(make_point_at_gc(point, B_p, mp));
-      else
-        dk_cell.emplace_back(point, B_p, mp, qm);
+      dk_curr_storage[g].emplace_back(coord_is_gc
+          ? PointByField::from_guiding_center(point, B_p, mp)
+          : PointByField::from_particle_position(point, B_p, mp, qm));
     }
+
+    cell.clear();
   }
 
   PetscCall(DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
@@ -269,11 +255,6 @@ const Simulation& Particles::simulation() const
 void Particles::set_coord_is_gc(bool v)
 {
   coord_is_gc = v;
-}
-
-bool Particles::get_coord_is_gc() const
-{
-  return coord_is_gc;
 }
 
 PetscErrorCode Particles::update_cells_seq()

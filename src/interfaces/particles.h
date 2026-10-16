@@ -48,6 +48,9 @@ public:
    */
   PetscErrorCode add_particle(const Point& point, bool* is_added = nullptr);
 
+  /// @brief Called by loaders once a batch of `add_particle()` calls is done.
+  virtual PetscErrorCode commit_added_particles();
+
   PetscErrorCode correct_coordinates();
   PetscErrorCode correct_coordinates(Point& point);
 

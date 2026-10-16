@@ -1,102 +1,46 @@
 #include "inject_particles.h"
 
-#include "src/diagnostics/energy.h"
-#include "src/utils/configuration.h"
-#include "src/utils/random_generator.h"
-
-InjectParticles::InjectParticles(                  //
-  interfaces::Particles& ionized,                  //
-  interfaces::Particles& ejected,                  //
-  PetscInt injection_start,                        //
-  PetscInt injection_end,                          //
-  PetscInt per_step_particles_num,                 //
-  const CoordinateGenerator& generate_coordinate,  //
-  const MomentumGenerator& generate_momentum_i,    //
-  const MomentumGenerator& generate_momentum_e)
-  : ionized_(ionized),
-    ejected_(ejected),
-    injection_start_(injection_start),
-    injection_end_(injection_end),
-    per_step_particles_num_(per_step_particles_num),
-    generate_coordinate_(generate_coordinate),
-    generate_momentum_i_(generate_momentum_i),
-    generate_momentum_e_(generate_momentum_e)
+InjectParticles::InjectParticles(   //
+  std::vector<Sort> sorts,          //
+  PetscInt injection_start,         //
+  PetscInt injection_end,           //
+  PetscInt per_step_particles_num,  //
+  const CoordinateGenerator& generate_coordinate)
+  : SetParticles(std::move(sorts), per_step_particles_num, generate_coordinate),
+    injection_start(injection_start),
+    injection_end(injection_end)
 {
 }
 
 PetscErrorCode InjectParticles::execute(PetscInt t)
 {
-  energy_i_ = 0.0;
-  energy_e_ = 0.0;
-  added_particles_ = 0;
-
-  if (t < injection_start_ || t > injection_end_)
-    return PETSC_SUCCESS;
-
-  const PetscReal mi = ionized_.parameters.m;
-  const PetscReal mpwi = ionized_.parameters.n / ionized_.parameters.Np;
-
-  const PetscReal me = ejected_.parameters.m;
-  const PetscReal mpwe = ejected_.parameters.n / ejected_.parameters.Np;
-
   PetscFunctionBeginUser;
-#pragma omp parallel for
-  for (PetscInt p = 0; p < per_step_particles_num_; ++p) {
-    Vector3R shared_coordinate = generate_coordinate_();
-    Vector3R pi = generate_momentum_i_(shared_coordinate);
-    Vector3R pe = generate_momentum_e_(shared_coordinate);
-
-    bool is_added = false;
-    ionized_.add_particle(Point(shared_coordinate, pi), &is_added);
-    ejected_.add_particle(Point(shared_coordinate, pe), &is_added);
-
-    if (is_added) {
-      energy_i_ += Energy::get_kinetic(pi, mi, mpwi);
-      energy_e_ += Energy::get_kinetic(pe, me, mpwe);
-      added_particles_++;
-    }
+  if (t < injection_start || t > injection_end) {
+    std::ranges::fill(added_energy, 0);
+    std::ranges::fill(added_particles, 0);
+    PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-  PetscCall(log_statistics());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode InjectParticles::log_statistics()
-{
-  PetscFunctionBeginUser;
-  LOG("  Particles have been injected");
-
-  PetscCall(MPIUtils::log_statistics("    ", added_particles_, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &added_particles_, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-
-  const std::vector<std::pair<std::string, PetscReal&>> map{
-    {ionized_.parameters.sort_name, energy_i_},
-    {ejected_.parameters.sort_name, energy_e_},
-  };
-
-  for (auto&& [name, energy] : map) {
-    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-    LOG("    energy added into \"{}\": {:6.4e}", name, energy);
-  }
+  PetscCall(SetParticles::execute(t));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 std::string InjectParticles::get_ionized_name() const
 {
-  return ionized_.parameters.sort_name;
+  return sorts[0].particles.parameters.sort_name;
 }
 
 std::string InjectParticles::get_ejected_name() const
 {
-  return ejected_.parameters.sort_name;
+  return sorts[1].particles.parameters.sort_name;
 }
 
 PetscReal InjectParticles::get_ionized_energy() const
 {
-  return energy_i_;
+  return added_energy[0];
 }
 
 PetscReal InjectParticles::get_ejected_energy() const
 {
-  return energy_e_;
+  return added_energy[1];
 }
