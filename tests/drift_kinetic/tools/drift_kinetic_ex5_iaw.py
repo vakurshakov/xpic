@@ -49,7 +49,7 @@ continuity equation  -i omega n_hat + i k n_s u_hat = 0,  u_hat = omega n_hat / 
 Caveats of the model.
   * Linear theory: the printed amplitudes are meaningful only while C_n,s / n_s
     << 1; the script warns above 5 %.
-  * KineticIonSoundMoments samples this non-relativistic Gaussian directly
+  * SetParticlesIonAcousticWave samples this non-relativistic Gaussian directly
     in velocity space.  Older momentum-space Maxwell loaders instead convert
     v = p / sqrt(m^2 + p^2), producing an O(v_T^2/c^2) model mismatch.
   * 1D electrostatic: matches the drift-kinetic solver only for k || B with
@@ -486,70 +486,66 @@ def species_from_config(config):
     return electron, ion
 
 
-def preset_for_species(config, name):
+def ion_acoustic_wave_for_species(config, name):
+    """Return the SetParticlesIonAcousticWave preset of a sort, or None."""
     for preset in config.get("Presets", []):
-        if preset.get("command") == "SetParticles" and \
+        if preset.get("command") == "SetParticlesIonAcousticWave" and \
                 preset.get("particles") == name:
             return preset
     return None
 
 
+def z_of(block, key):
+    """z component of a vector entry of a config block (missing -> 0)."""
+    vec = block.get(key)
+    return float(vec[2]) if vec is not None and len(vec) >= 3 else 0.0
+
+
 def loaded_perturbation(config, name):
     """Return (a_n, phi_n, C_u, phi_u) of the loaded z-perturbation for a sort.
 
-    a_n, phi_n from the coordinate loader (amplitude_z / phase_z), C_u, phi_u
-    from the momentum loader (velocity_z / phase_z).  For
-    KineticIonSoundMoments, the flux harmonic is derived directly from
-    M1=omega*M0/k. Handles two layouts:
-      * a standalone SetParticles preset (particles == name);
-      * a paired loader, where this sort is the `paired_with` target of another
-        preset -- it then shares that preset's `coordinate` and takes its
-        `momentum_paired` block. Missing keys -> 0."""
-    def z_of(block, key):
-        vec = block.get(key)
-        return float(vec[2]) if vec is not None and len(vec) >= 3 else 0.0
-
-    def unpack(coord, mom):
-        a_n = z_of(coord, "amplitude")
-        phi_n = z_of(coord, "phase")
-        if mom.get("name") != "KineticIonSoundMoments":
-            return (a_n, phi_n,
-                    z_of(mom, "velocity"), z_of(mom, "phase"))
-
-        mode = z_of(mom, "wave_number")
+    For SetParticlesIonAcousticWave, a_n and phi_n are its density_amplitude
+    and density_phase, the flux harmonic follows from M1=omega*M0/k.  For
+    SetParticles, a_n, phi_n come from the coordinate loader (amplitude_z /
+    phase_z), C_u, phi_u from the momentum loader (velocity_z / phase_z); a
+    sort that is the `paired_with` target of another preset shares that
+    preset's `coordinate` and takes its `momentum_paired`. Missing keys -> 0."""
+    wave = ion_acoustic_wave_for_species(config, name)
+    if wave is not None:
+        a_n = z_of(wave, "density_amplitude")
+        phi_n = z_of(wave, "density_phase")
+        mode = z_of(wave, "wave_number")
         Lz = float(config.get("Geometry", {}).get("z", 0.0))
         if mode == 0.0 or Lz <= 0.0:
             raise ValueError(
-                "KineticIonSoundMoments requires non-zero z mode and Lz")
+                "SetParticlesIonAcousticWave requires non-zero z mode and Lz")
         k = 2.0 * math.pi * mode / Lz
-        omega = complex(float(mom["omega_real"]), -float(mom["gamma"]))
+        omega = complex(float(wave["omega_real"]), -float(wave["gamma"]))
         density_hat = -1j * a_n * np.exp(1j * phi_n)
         velocity_hat = omega * density_hat / k
         return (a_n, phi_n, abs(velocity_hat),
                 float(np.angle(1j * velocity_hat)))
 
-    preset = preset_for_species(config, name)
-    if preset is not None:
-        coord, mom = preset.get("coordinate", {}), preset.get("momentum", {})
-        return unpack(coord, mom)
-
     for pr in config.get("Presets", []):
-        if pr.get("command") == "SetParticles" and pr.get("paired_with") == name:
-            coord = pr.get("coordinate", {})            # shared coordinate
-            mom = pr.get("momentum_paired", {})         # paired momentum
-            return unpack(coord, mom)
+        if pr.get("command") != "SetParticles":
+            continue
+        if pr.get("particles") == name:
+            momentum = pr.get("momentum", {})
+        elif pr.get("paired_with") == name:
+            momentum = pr.get("momentum_paired", {})
+        else:
+            continue
+        coordinate = pr.get("coordinate", {})
+        return (z_of(coordinate, "amplitude"), z_of(coordinate, "phase"),
+                z_of(momentum, "velocity"), z_of(momentum, "phase"))
     return 0.0, 0.0, 0.0, 0.0
 
 
 def field_amplitude_from_config(config):
     """Physical E harmonic used by a kinetic loader, or its grid fallback."""
     for preset in config.get("Presets", []):
-        if preset.get("command") != "SetParticles":
-            continue
-        momentum = preset.get("momentum", {})
-        if momentum.get("name") == "KineticIonSoundMoments" and \
-                "force_electric_amplitude" in momentum:
-            return float(momentum["force_electric_amplitude"])
+        if preset.get("command") == "SetParticlesIonAcousticWave":
+            return float(preset["force_electric_amplitude"])
 
     for preset in config.get("Presets", []):
         if preset.get("command") != "SetField" or preset.get("field") != "E":
@@ -563,23 +559,12 @@ def field_amplitude_from_config(config):
 def wave_number_from_config(config):
     """Integer z-mode number of the density perturbation (default 1)."""
     for preset in config.get("Presets", []):
-        if preset.get("command") != "SetParticles":
+        if preset.get("command") != "SetParticlesIonAcousticWave":
             continue
-        wn = preset.get("coordinate", {}).get("wave_number")
+        wn = preset.get("wave_number")
         if wn is not None and len(wn) >= 3 and wn[2] != 0.0:
             return float(wn[2])
     return 1.0
-
-
-def kinetic_loader_for_species(config, name):
-    """Return a supported kinetic ion-sound momentum block, or None."""
-    preset = preset_for_species(config, name)
-    if preset is None:
-        return None
-    momentum = preset.get("momentum", {})
-    if momentum.get("name") != "KineticIonSoundMoments":
-        return None
-    return momentum
 
 
 def distribution_diagnostic_for_species(config, name):
@@ -1039,15 +1024,12 @@ def prepare_theory(testname, ic_frame=None):
     wn = wave_number_from_config(config)
     k = 2.0 * math.pi * wn / const.Lz
 
-    configured_moment_loader = None
-    for s in species:
-        candidate = kinetic_loader_for_species(config, s.name)
-        if (candidate or {}).get("name") == "KineticIonSoundMoments":
-            configured_moment_loader = candidate
-            break
-    if configured_moment_loader is not None:
-        omega0 = complex(float(configured_moment_loader["omega_real"]),
-                         -float(configured_moment_loader["gamma"]))
+    configured_wave = next(
+        (w for w in (ion_acoustic_wave_for_species(config, s.name)
+                     for s in species) if w is not None), None)
+    if configured_wave is not None:
+        omega0 = complex(float(configured_wave["omega_real"]),
+                         -float(configured_wave["gamma"]))
     else:
         omega_s_guess, gamma_guess = acoustic_initial_guess(k, electron, ion)
         omega0 = solve_dispersion(
@@ -4735,30 +4717,25 @@ def run_model_electric(args):
 # --------------------------------------------------------------------------- #
 # Phase-space mode: f(z, v_parallel) from the 5-D DK histogram                 #
 # --------------------------------------------------------------------------- #
-def moment_matched_kinetic_parallel(species, z, v, loader,
-                                    density_amplitude, density_phase, Lz):
+def moment_matched_kinetic_parallel(species, z, v, wave, Lz):
     """Velocity-bin-averaged positive M0/M1/M2 ion-sound quasimode.
 
-    This mirrors KineticIonSoundMoments.  Its local Gaussian has density,
+    This mirrors SetParticlesIonAcousticWave.  Its local Gaussian has density,
     particle flux, and parallel second moment fixed by the Landau frequency
     and the linear Vlasov moment hierarchy.  The exponentially tiny change
     caused by the C++ loader's |v|<c rejection is intentionally omitted.
     """
-    mode = float(loader.get("wave_number", [0.0, 0.0, 1.0])[2])
-    field_phase = float(loader.get(
-        "field_phase", [0.0, 0.0, 0.0])[2])
-    z_min = float(loader.get("min", [0.0, 0.0, 0.0])[2])
-    k = 2.0 * math.pi * mode / Lz
-    omega = complex(float(loader["omega_real"]), -float(loader["gamma"]))
-    E_hat = float(loader["force_electric_amplitude"]) * \
-        np.exp(1j * field_phase)
-    density_hat = (-1j * species.n * density_amplitude *
-                   np.exp(1j * density_phase))
+    k = 2.0 * math.pi * z_of(wave, "wave_number") / Lz
+    omega = complex(float(wave["omega_real"]), -float(wave["gamma"]))
+    E_hat = float(wave["force_electric_amplitude"]) * \
+        np.exp(1j * z_of(wave, "field_phase"))
+    density_hat = (-1j * species.n * z_of(wave, "density_amplitude") *
+                   np.exp(1j * z_of(wave, "density_phase")))
     flux_hat = omega * density_hat / k
     second_hat = (omega * flux_hat -
                   1j * (species.q / species.m) * species.n * E_hat) / k
 
-    spatial_phase = np.exp(1j * k * (z - z_min))
+    spatial_phase = np.exp(1j * k * z)
     n_target = species.n + np.real(density_hat * spatial_phase)
     flux = np.real(flux_hat * spatial_phase)
     second = species.n * species.vT**2 + np.real(
@@ -4826,14 +4803,13 @@ def run_phase(args):
 
     for row, sp in enumerate(species):
         diagnostic = distribution_diagnostic_for_species(const.config, sp.name)
-        loader = kinetic_loader_for_species(const.config, sp.name)
-        preset = preset_for_species(const.config, sp.name)
+        wave = ion_acoustic_wave_for_species(const.config, sp.name)
         if diagnostic is None:
             raise SystemExit(
                 f"no DkDistributionFunction diagnostic for '{sp.name}'")
-        if loader is None or preset is None:
+        if wave is None:
             raise SystemExit(
-                f"no supported kinetic ion-sound loader for '{sp.name}'")
+                f"no SetParticlesIonAcousticWave command for '{sp.name}'")
 
         vinfo = diagnostic["v_parallel"]
         muinfo = diagnostic["mu_p"]
@@ -4865,12 +4841,9 @@ def run_phase(args):
         data = raw.reshape(const.Nz, const.Ny, const.Nx, nv, nmu)
         f_model = data.sum(axis=4).mean(axis=(1, 2)) * dmu
 
-        coord = preset.get("coordinate", {})
-        amplitude = float(coord.get("amplitude", [0.0, 0.0, 0.0])[2])
-        density_phase = float(coord.get("phase", [0.0, 0.0, 0.0])[2])
         theory_label = "moment-matched theory"
         f_theory, n_target, F0 = moment_matched_kinetic_parallel(
-            sp, z, v, loader, amplitude, density_phase, const.Lz)
+            sp, z, v, wave, const.Lz)
 
         baseline = n_target[:, None] * F0[None, :]
         expected_markers = f_theory * dv * const.Nx * const.Ny * \
@@ -4919,10 +4892,8 @@ def run_phase(args):
         weighted_rms = math.sqrt(np.mean(
             ((f_model[mask] - f_theory[mask]) /
              np.maximum(f_theory[mask], 1.0e-300))**2)) if np.any(mask) else math.nan
-        mode = float(loader.get("wave_number", [0.0, 0.0, 1.0])[2])
-        field_phase = float(loader.get(
-            "field_phase", [0.0, 0.0, 0.0])[2])
-        k = 2.0 * math.pi * mode / const.Lz
+        field_phase = z_of(wave, "field_phase")
+        k = 2.0 * math.pi * z_of(wave, "wave_number") / const.Lz
         theta = k * z + field_phase
         phase_projector = np.exp(-1j * theta)[:, None]
         conditional_model = f_model / np.maximum(n_model[:, None], 1.0e-300)
@@ -4947,8 +4918,8 @@ def run_phase(args):
             "model": np.mean(f_model, axis=0),
             "theory": np.mean(f_theory, axis=0),
             "maxwell": sp.n * F0,
-            "resonance": float(loader["omega_real"]) / k,
-            "resonance_width": float(loader["gamma"]) / abs(k),
+            "resonance": float(wave["omega_real"]) / k,
+            "resonance_width": float(wave["gamma"]) / abs(k),
             "harmonic_model": harmonic_model,
             "harmonic_theory": harmonic_theory,
             "theory_label": theory_label,

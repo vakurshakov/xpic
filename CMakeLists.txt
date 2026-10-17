@@ -76,6 +76,7 @@ set(diagnostics
 set(commands
   src/commands/inject_particles.cpp
   src/commands/set_particles.cpp
+  src/commands/set_particles_iaw.cpp
   src/commands/set_field.cpp
   src/commands/remove_particles.cpp
   src/commands/fields_damping.cpp
@@ -84,6 +85,7 @@ set(commands
   src/commands/builders/inject_particles_builder.cpp
   src/commands/builders/remove_particles_builder.cpp
   src/commands/builders/set_particles_builder.cpp
+  src/commands/builders/set_particles_iaw_builder.cpp
   src/commands/builders/set_field_builder.cpp
   src/commands/builders/fields_damping_builder.cpp
 )

@@ -1,5 +1,7 @@
 #include "particles_builder.h"
 
+#include "src/utils/vector3.h"
+
 ParticlesBuilder::ParticlesBuilder(
   interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : CommandBuilder(simulation, result)
@@ -32,37 +34,12 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
     gen = CoordinateInCylinder(std::move(cyl));
   }
-  else if (name == "KineticIonSoundCoordinates") {
-    BoxGeometry box;
-    load_geometry(info, box);
-
-    Vector3R amplitude = parse_vector(info, "amplitude");
-    Vector3R wave_number = parse_vector(info, "wave_number");
-    Vector3R phase = info.contains("phase")
-      ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
-
-    number_of_particles = (box.max - box.min).elements_product() * frac;
-    if (number_of_particles == 0 || number_of_particles % 2 != 0)
-      throw std::runtime_error(
-        "KineticIonSoundCoordinates requires positive, even number of particles");
-    const std::size_t active_axis_lattice_pairs =
-      static_cast<std::size_t>(number_of_particles / 2);
-    gen = KineticIonSoundCoordinates(std::move(box), amplitude,
-      wave_number, phase, active_axis_lattice_pairs);
-  }
   else if (name == "CoordinateInBoxCosineHump") {
     BoxGeometry box;
     load_geometry(info, box);
 
-    std::string axis_name = "Z";
-    if (info.contains("axis"))
-      info.at("axis").get_to(axis_name);
-
-    Axis axis;
-    if (axis_name == "X" || axis_name == "x")      axis = X;
-    else if (axis_name == "Y" || axis_name == "y") axis = Y;
-    else if (axis_name == "Z" || axis_name == "z") axis = Z;
-    else throw std::runtime_error("Unknown axis for CoordinateInBoxCosineHump: " + axis_name);
+    std::string axis_name = info.value("axis", "Z");
+    Axis axis = get_component(axis_name);
 
     number_of_particles = (box.max - box.min).elements_product() * frac;
     gen = CoordinateInBoxCosineHump{std::move(box), axis};
@@ -95,9 +72,13 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
 
     Vector3R velocity = parse_vector(info, "velocity");
     Vector3R wave_number = parse_vector(info, "wave_number");
-    Vector3R phase = info.contains("phase") ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
 
-    gen = MaxwellShiftedCosine(particles.parameters, box, velocity, wave_number, phase);
+    Vector3R phase;
+    if (info.contains("phase"))
+      phase = parse_vector(info, "phase");
+
+    gen = MaxwellShiftedCosine(
+      particles.parameters, box, velocity, wave_number, phase);
   }
   else if (name == "MaxwellShiftedSine") {
     BoxGeometry box;
@@ -105,29 +86,13 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
 
     Vector3R velocity = parse_vector(info, "velocity");
     Vector3R wave_number = parse_vector(info, "wave_number");
-    Vector3R phase = info.contains("phase") ? parse_vector(info, "phase") : Vector3R{0.0, 0.0, 0.0};
 
-    gen = MaxwellShiftedSine(particles.parameters, box, velocity, wave_number, phase);
-  }
-  else if (name == "KineticIonSoundMoments") {
-    BoxGeometry box;
-    load_geometry(info, box);
+    Vector3R phase;
+    if (info.contains("phase"))
+      phase = parse_vector(info, "phase");
 
-    const Vector3R wave_number = parse_vector(info, "wave_number");
-    const Vector3R field_phase = info.contains("field_phase")
-      ? parse_vector(info, "field_phase") : Vector3R{0.0, 0.0, 0.0};
-    const Vector3R density_amplitude =
-      parse_vector(info, "density_amplitude");
-    const Vector3R density_phase = info.contains("density_phase")
-      ? parse_vector(info, "density_phase") : Vector3R{0.0, 0.0, 0.0};
-    const PetscReal force_electric_amplitude =
-      info.at("force_electric_amplitude").get<PetscReal>();
-    const PetscReal omega_real = info.at("omega_real").get<PetscReal>();
-    const PetscReal gamma = info.at("gamma").get<PetscReal>();
-
-    gen = KineticIonSoundMoments(particles.parameters, std::move(box),
-      force_electric_amplitude, omega_real, gamma, wave_number, field_phase,
-      density_amplitude, density_phase);
+    gen = MaxwellShiftedSine(
+      particles.parameters, box, velocity, wave_number, phase);
   }
   else {
     throw std::runtime_error("Unknown momentum generator name " + name);

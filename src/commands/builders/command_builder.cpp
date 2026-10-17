@@ -5,6 +5,7 @@
 #include "src/commands/builders/remove_particles_builder.h"
 #include "src/commands/builders/set_field_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
+#include "src/commands/builders/set_particles_iaw_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
 
 CommandBuilder::CommandBuilder(
@@ -41,6 +42,9 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
 
     if (command == "SetParticles") {
       PetscCall(Builder::use_impl<SetParticlesBuilder>(info, simulation, result));
+    }
+    else if (command == "SetParticlesIonAcousticWave") {
+      PetscCall(Builder::use_impl<SetParticlesIonAcousticWaveBuilder>(info, simulation, result));
     }
     else if (command == "InjectParticles") {
       PetscCall(Builder::use_impl<InjectParticlesBuilder>(info, simulation, result));
