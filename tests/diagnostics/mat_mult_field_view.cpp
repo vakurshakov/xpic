@@ -7,7 +7,6 @@
 static constexpr char help[] =
   "Testing \'MatMultFieldView\' diagnostics: vector and scalar results\n.";
 
-/// @note Serial only: the file is compared with the natural order of the Vec.
 static PetscErrorCode test(const std::filesystem::path& out_dir,  //
   DM result_da, Mat op, Vec source, const Region& region)
 {
@@ -20,22 +19,7 @@ static PetscErrorCode test(const std::filesystem::path& out_dir,  //
   PetscCall(DMGetGlobalVector(result_da, &expected));
   PetscCall(MatMult(op, source, expected));
 
-  PetscInt n;
-  PetscCall(VecGetLocalSize(expected, &n));
-
-  std::vector<float> written(n);
-  std::ifstream file(out_dir / "0000", std::ios::binary);
-  file.read(reinterpret_cast<char*>(written.data()), n * sizeof(float));
-  PetscCheck(file.gcount() == static_cast<std::streamsize>(n * sizeof(float)), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Result file size should match the region");
-
-  const PetscReal* arr;
-  PetscCall(VecGetArrayRead(expected, &arr));
-  for (PetscInt i = 0; i < n; i++) {
-    PetscCheck(equal_tol(written[i], arr[i], 1e-6), PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "Written value differs from MatMult at %d", i);
-  }
-  PetscCall(VecRestoreArrayRead(expected, &arr));
+  PetscCall(compare_with_vec(out_dir / "0000", result_da, expected, 1e-6));
   PetscCall(DMRestoreGlobalVector(result_da, &expected));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

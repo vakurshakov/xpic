@@ -5,7 +5,6 @@
 
 static constexpr char help[] = "Testing \'FieldViewZAvg\' diagnostic\n.";
 
-/// @note Serial only: the file is compared with the natural order of the Vec.
 int main(int argc, char** argv)
 {
   PetscFunctionBeginUser;
@@ -23,11 +22,13 @@ int main(int argc, char** argv)
 
   Vec v;
   PetscReal**** arr;
+  PetscInt xs, ys, zs, xm, ym, zm;
+  PetscCall(DMDAGetCorners(world.da, &xs, &ys, &zs, &xm, &ym, &zm));
   PetscCall(DMCreateGlobalVector(world.da, &v));
   PetscCall(DMDAVecGetArrayDOF(world.da, v, &arr));
-  for (PetscInt z = 0; z < geom_nz; ++z) {
-    for (PetscInt y = 0; y < geom_ny; ++y) {
-      for (PetscInt x = 0; x < geom_nx; ++x) {
+  for (PetscInt z = zs; z < zs + zm; ++z) {
+    for (PetscInt y = ys; y < ys + ym; ++y) {
+      for (PetscInt x = xs; x < xs + xm; ++x) {
         for (PetscInt c = 0; c < 3; ++c) {
           arr[z][y][x][c] = value(x, y, z, c);
         }
@@ -50,11 +51,8 @@ int main(int argc, char** argv)
   PetscCall(diag->finalize());
 
   const PetscInt n = geom_nx * geom_ny * 3;
-  std::vector<float> written(n);
-  std::ifstream file(out_dir / "0000", std::ios::binary);
-  file.read(reinterpret_cast<char*>(written.data()), n * sizeof(float));
-  PetscCheck(file.gcount() == static_cast<std::streamsize>(n * sizeof(float)), PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Result file size should match the region");
+  std::vector<float> written;
+  PetscCall(read_floats(out_dir / "0000", n, written));
 
   for (PetscInt y = 0; y < geom_ny; ++y) {
     for (PetscInt x = 0; x < geom_nx; ++x) {

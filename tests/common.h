@@ -17,6 +17,52 @@ bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
     equal_tol(a[Z], b[Z], tol);
 }
 
+/// @brief Reads exactly `n` floats written by a field diagnostic (the whole file, on every rank).
+PetscErrorCode read_floats(
+  const std::filesystem::path& file, PetscInt n, std::vector<float>& out)
+{
+  PetscFunctionBeginUser;
+  const uintmax_t expected_size = n * sizeof(float);
+  PetscCheck(std::filesystem::file_size(file) == expected_size, PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Result file size should match the region");
+
+  out.resize(n);
+  std::ifstream ifs(file, std::ios::binary);
+  ifs.read(reinterpret_cast<char*>(out.data()), expected_size);
+  PetscCheck(ifs.gcount() == static_cast<std::streamsize>(expected_size), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Result file could not be read completely");
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/// @brief Compares the file, covering the whole `geom_n*` grid, with the local part of `expected` living on `da`.
+PetscErrorCode compare_with_vec(const std::filesystem::path& file, DM da,
+  Vec expected, PetscReal tol)
+{
+  PetscFunctionBeginUser;
+  PetscInt dof;
+  PetscInt xs, ys, zs, xm, ym, zm;
+  PetscCall(DMDAGetInfo(da, nullptr, REP3(nullptr), REP3(nullptr), &dof, nullptr, REP4(nullptr)));
+  PetscCall(DMDAGetCorners(da, &xs, &ys, &zs, &xm, &ym, &zm));
+
+  std::vector<float> written;
+  PetscCall(read_floats(file, geom_nx * geom_ny * geom_nz * dof, written));
+
+  const PetscReal**** arr;
+  PetscCall(DMDAVecGetArrayDOFRead(da, expected, &arr));
+  for (PetscInt z = zs; z < zs + zm; ++z) {
+    for (PetscInt y = ys; y < ys + ym; ++y) {
+      for (PetscInt x = xs; x < xs + xm; ++x) {
+        for (PetscInt c = 0; c < dof; ++c) {
+          PetscCheck(equal_tol(written[((z * geom_ny + y) * geom_nx + x) * dof + c], arr[z][y][x][c], tol), PETSC_COMM_WORLD, PETSC_ERR_USER,
+            "Written value differs from the expected one at (%" PetscInt_FMT ", %" PetscInt_FMT ", %" PetscInt_FMT ", %" PetscInt_FMT ")", x, y, z, c);
+        }
+      }
+    }
+  }
+  PetscCall(DMDAVecRestoreArrayDOFRead(da, expected, &arr));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 std::filesystem::path get_out_dir(std::string_view file)
 {
   std::filesystem::path result(file);
