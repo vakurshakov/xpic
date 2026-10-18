@@ -11,7 +11,7 @@ bool equal_tol(PetscReal a, PetscReal b, PetscReal tol)
 
 bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
 {
-  return  //
+  return                           //
     equal_tol(a[X], b[X], tol) &&  //
     equal_tol(a[Y], b[Y], tol) &&  //
     equal_tol(a[Z], b[Z], tol);
@@ -35,8 +35,8 @@ PetscErrorCode read_floats(
 }
 
 /// @brief Compares the file, covering the whole `geom_n*` grid, with the local part of `expected` living on `da`.
-PetscErrorCode compare_with_vec(const std::filesystem::path& file, DM da,
-  Vec expected, PetscReal tol)
+PetscErrorCode compare_with_vec(
+  const std::filesystem::path& file, DM da, Vec expected, PetscReal tol)
 {
   PetscFunctionBeginUser;
   PetscInt dof;
@@ -53,8 +53,8 @@ PetscErrorCode compare_with_vec(const std::filesystem::path& file, DM da,
     for (PetscInt y = ys; y < ys + ym; ++y) {
       for (PetscInt x = xs; x < xs + xm; ++x) {
         for (PetscInt c = 0; c < dof; ++c) {
-          PetscCheck(equal_tol(written[((z * geom_ny + y) * geom_nx + x) * dof + c], arr[z][y][x][c], tol), PETSC_COMM_WORLD, PETSC_ERR_USER,
-            "Written value differs from the expected one at (%" PetscInt_FMT ", %" PetscInt_FMT ", %" PetscInt_FMT ", %" PetscInt_FMT ")", x, y, z, c);
+          PetscCheck(equal_tol(written[indexing::t_g(x, y, z, c, dof)], arr[z][y][x][c], tol), PETSC_COMM_WORLD, PETSC_ERR_USER,
+            "Written value differs from the expected one at (%d, %d, %d, %d)", x, y, z, c);
         }
       }
     }
@@ -76,7 +76,8 @@ std::filesystem::path get_out_dir(std::string_view file)
 PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
 {
   PetscFunctionBeginUser;
-  auto get_filepath = [&](std::string_view type) {
+  auto get_filepath = [&](std::string_view type)
+  {
     std::filesystem::path result(file);
     result.replace_extension("");
 
@@ -92,7 +93,8 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
   PetscCheck(e_ifs.is_open() == o_ifs.is_open(), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Both expected and output files must be open, filepaths:\n   expected: \"%s\"\n   output: \"%s\"", e_path.c_str(), o_path.c_str());
 
-  auto get_linestream = [](std::istream& is) {
+  auto get_linestream = [](std::istream& is)
+  {
     std::string line;
     std::getline(is, line);
     return std::istringstream(line);
@@ -143,7 +145,8 @@ public:
     const Point& point, PetscInt skip = 1)
     : ParticleTrace(
         std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id),
-        [&point] {
+        [&point]
+        {
           return &point;
         },
         skip)
@@ -151,7 +154,7 @@ public:
   }
 };
 
-void update_counter_clockwise(  //
+void update_counter_clockwise(                   //
   const Vector3R& old_r, const Vector3R& new_r,  //
   const Vector3R& B_p, PetscReal& counter_clockwise)
 {
