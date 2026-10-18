@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 set(tests
   field_view
+  field_view_zavg
   mat_mult_field_view
   simulation_backup
 )
