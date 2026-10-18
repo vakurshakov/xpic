@@ -31,15 +31,19 @@ public:
   }
 
 protected:
+
+  /**
+   * @brief Common part of building: resolves `field`, the diagnosed region
+   * (scalar if `result_da` is `da_rho`, otherwise it is the vector one) and
+   * the optional "region", "component" and "out_dir" keys.
+   * @param result_da DM of the diagnosed data, `nullptr`
+   * if it is the one of the field itself.
+   */
+  void parse_view(const Configuration::json_t& info, const std::string& field,
+    DM result_da, DM& da, Vec& f, Region& region, std::string& out_dir);
+
   void parse_field(const Configuration::json_t& info, DM& da, Vec& f,
     Region& region, const std::string& name);
-
-  /// @brief Resolve a Mat-times-Vec diagnostic. If @p name selects an
-  /// operator-based field (rotE, rotB, rotM, "<sort_name>/rotM", ...),
-  /// returns the corresponding `Mat`; otherwise nullptr. The source Vec
-  /// for those names is what `parse_field` already produces, so the
-  /// caller only needs to know whether to wrap with MatMultFieldView.
-  Mat parse_operator(const std::string& name) const;
 
   void parse_region(
     const Configuration::json_t& info, Region& region, const std::string& name);

@@ -53,6 +53,7 @@ set(algorithms
 set(diagnostics
   src/diagnostics/field_view.cpp
   src/diagnostics/field_view_zavg.cpp
+  src/diagnostics/mat_mult_field_view.cpp
   src/diagnostics/energy.cpp
   src/diagnostics/distribution_moment.cpp
   src/diagnostics/mat_dump.cpp
@@ -66,6 +67,7 @@ set(diagnostics
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/field_view_zavg_builder.cpp
+  src/diagnostics/builders/mat_mult_field_view_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
   src/diagnostics/builders/log_view_builder.cpp
   src/diagnostics/builders/particle_trace_builder.cpp

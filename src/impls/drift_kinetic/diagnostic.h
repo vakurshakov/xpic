@@ -66,22 +66,6 @@ private:
   MPI_Comm comm = MPI_COMM_NULL;
 };
 
-class MatMultFieldView : public ::FieldView {
-public:
-  static std::unique_ptr<MatMultFieldView> create(const std::string& out_dir,
-    DM da, Vec source, Mat op, const Region& region);
-
-  PetscErrorCode finalize() override;
-  PetscErrorCode diagnose(PetscInt t) override;
-
-protected:
-  MatMultFieldView(const std::string& out_dir, DM da, Vec field,
-    Vec source, Mat op, MPI_Comm newcomm);
-
-  Vec source = nullptr;
-  Mat op = nullptr;
-};
-
 class EnergyConservation : public TableDiagnostic {
 public:
   EnergyConservation(const Simulation& simulation);

@@ -4,6 +4,7 @@
 #include "src/diagnostics/builders/field_view_builder.h"
 #include "src/diagnostics/builders/field_view_zavg_builder.h"
 #include "src/diagnostics/builders/log_view_builder.h"
+#include "src/diagnostics/builders/mat_mult_field_view_builder.h"
 #include "src/diagnostics/builders/particle_trace_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
 #include "src/diagnostics/builders/velocity_distribution_builder.h"
@@ -48,6 +49,9 @@ PetscErrorCode build_diagnostics(
     }
     else if (name == "FieldViewZAvg") {
       PetscCall(Builder::use_impl<FieldViewZAvgBuilder>(info, simulation, result));
+    }
+    else if (name == "MatMultFieldView") {
+      PetscCall(Builder::use_impl<MatMultFieldViewBuilder>(info, simulation, result));
     }
     else if (name == "DistributionMoment") {
       PetscCall(Builder::use_impl<DistributionMomentBuilder>(info, simulation, result));

@@ -480,54 +480,6 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-std::unique_ptr<MatMultFieldView> MatMultFieldView::create(
-  const std::string& out_dir, DM da, Vec source, Mat op,
-  const Region& region)
-{
-  PetscFunctionBeginUser;
-  MPI_Comm newcomm;
-  PetscCallAbort(PETSC_COMM_WORLD, World::create_local_comm(da, region, &newcomm));
-  if (newcomm == MPI_COMM_NULL)
-    PetscFunctionReturn(nullptr);
-
-  // Owned output Vec lives on the same DM as `source`; `op` acts on it
-  // through MatMult during each diagnose() call.
-  Vec field = nullptr;
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &field));
-
-  auto* diagnostic = new MatMultFieldView(
-    out_dir, da, field, source, op, newcomm);
-  PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_data_views(region));
-  PetscFunctionReturn(std::unique_ptr<MatMultFieldView>(diagnostic));
-}
-
-MatMultFieldView::MatMultFieldView(const std::string& out_dir, DM da,
-  Vec field, Vec source, Mat op, MPI_Comm newcomm)
-  : ::FieldView(out_dir, da, field, newcomm),
-    source(source),
-    op(op)
-{
-}
-
-PetscErrorCode MatMultFieldView::finalize()
-{
-  PetscFunctionBeginUser;
-  if (field != nullptr)
-    PetscCall(VecDestroy(&field));
-  PetscCall(::FieldView::finalize());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode MatMultFieldView::diagnose(PetscInt t)
-{
-  PetscFunctionBeginUser;
-  if (t % diagnose_period_ != 0)
-    PetscFunctionReturn(PETSC_SUCCESS);
-  PetscCall(MatMult(op, source, field));
-  PetscCall(::FieldView::diagnose(t));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 EnergyConservation::EnergyConservation(const Simulation& simulation)
   : TableDiagnostic(CONFIG().out_dir + "/temporal/dk_diagnostic.txt"),
     simulation(simulation)
