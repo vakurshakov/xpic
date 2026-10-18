@@ -1,6 +1,5 @@
 #include "src/diagnostics/mat_mult_field_view.h"
 
-#include "petscdm.h"
 #include "src/utils/operators.h"
 #include "src/utils/world.h"
 #include "tests/common.h"
