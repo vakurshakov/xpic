@@ -4,6 +4,7 @@
 #include "src/interfaces/particles.h"
 #include "src/diagnostics/field_view.h"
 
+// clang-format off
 /// @note The size of the returned `vector` should match the passed `region.dof`
 using Moment = std::vector<PetscReal> (*)(
   const interfaces::Particles&, const Point&);
@@ -20,6 +21,7 @@ std::vector<PetscReal> momentum_flux(PetscReal m, const Vector3R& v);
 std::vector<PetscReal> momentum_flux_diag(PetscReal m, const Vector3R& v);
 std::vector<PetscReal> momentum_flux_cyl(PetscReal m, const Vector3R& r, const Vector3R& v);
 std::vector<PetscReal> momentum_flux_diag_cyl(PetscReal m, const Vector3R& r, const Vector3R& v);
+// clang-format on
 
 
 /// @brief Diagnostic of particles _coordinate_ distribution moment
@@ -56,11 +58,21 @@ protected:
 
   virtual PetscErrorCode collect();
 
+  /**
+   * @brief Deposits moments of all particles with a cell-centered shape. The
+   * storage-specific part is `for_each_particle(g, deposit)`: it must call
+   * `deposit(r, moments)` for every particle of the local cell `g`.
+   */
+  template<typename ForEachParticle>
+  PetscErrorCode collect(ForEachParticle&& for_each_particle);
+
   DM da_glob;
   Vec field_loc;
 
   const interfaces::Particles& particles;
   Moment moment;
 };
+
+#include "distribution_moment.tpp"
 
 #endif  // SRC_DIAGNOSTICS_DISTRIBUTION_MOMENT_H

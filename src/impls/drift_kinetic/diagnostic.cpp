@@ -1,14 +1,10 @@
 #include "diagnostic.h"
 
-#include <algorithm>
-
+#include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/simulation.h"
-#include "src/algorithms/simple_interpolation.h"
 #include "src/utils/configuration.h"
-#include "src/utils/geometries.h"
 #include "src/utils/operators.h"
 #include "src/utils/shape.h"
-#include "src/utils/vector_utils.h"
 
 namespace drift_kinetic {
 
@@ -130,8 +126,8 @@ DkMoment dk_moment_from_string(const std::string& name)
 }
 
 std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
-  const std::string& out_dir, const Particles& particles,
-  const Moment& moment, const Region& region)
+  const std::string& out_dir, const Particles& particles, const Moment& moment,
+  const Region& region)
 {
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
@@ -142,9 +138,10 @@ std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
   // The shared DistributionMomentBuilder hands us a CWD-relative path; prefix
   // it with the simulation's output directory so density frames land next to
   // the field diagnostics regardless of where the binary was launched from.
-  std::string full_out_dir = CONFIG().out_dir + "/" + out_dir;
+  // std::string full_out_dir = CONFIG().out_dir + "/" + out_dir;
 
-  auto* diagnostic = new DkDistributionMoment(full_out_dir, particles, moment, newcomm);
+  auto* diagnostic =
+    new DkDistributionMoment(out_dir, particles, moment, newcomm);
   PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_data_views(region));
   PetscFunctionReturn(std::unique_ptr<DkDistributionMoment>(diagnostic));
 }
@@ -159,9 +156,10 @@ std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
-  std::string full_out_dir = CONFIG().out_dir + "/" + out_dir;
+  // std::string full_out_dir = CONFIG().out_dir + "/" + out_dir;
 
-  auto* diagnostic = new DkDistributionMoment(full_out_dir, particles, moment, newcomm);
+  auto* diagnostic =
+    new DkDistributionMoment(out_dir, particles, moment, newcomm);
   PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_data_views(region));
   PetscFunctionReturn(std::unique_ptr<DkDistributionMoment>(diagnostic));
 }
@@ -184,21 +182,6 @@ DkDistributionMoment::DkDistributionMoment(const std::string& out_dir,
 PetscErrorCode DkDistributionMoment::collect()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecSet(field_loc, 0.0));
-  PetscCall(VecSet(field, 0.0));
-
-  PetscReal**** arr;
-  PetscCall(DMDAVecGetArrayDOFWrite(da, field_loc, &arr));
-
-  Vector3I start, size;
-  PetscCall(DMDAGetCorners(da_glob, REP3_A(&start), REP3_A(&size)));
-
-  const Vector3I gstart = vector_cast(region.start);
-  const Vector3I gsize = vector_cast(region.size);
-
-  Shape shape;
-
-  // Iterate over the drift-kinetic storage dk_curr_storage
   const auto& dk_storage = dk_particles.get_dk_curr_storage();
 
   // DK moments receive |B| interpolated at the gyrocenter; check out the
@@ -211,59 +194,26 @@ PetscErrorCode DkDistributionMoment::collect()
     PetscCall(DMDAVecGetArrayRead(sim.da, sim.B_loc, &B_arr_local));
   }
 
-#pragma omp parallel for private(shape)
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
-    Vector3I vg{
-      start[X] + g % size[X],
-      start[Y] + (g / size[X]) % size[Y],
-      start[Z] + (g / size[X]) / size[Y],
-    };
-
-    if (!is_point_within_bounds(vg, gstart, gsize))
-      continue;
-
+  PetscCall(::DistributionMoment::collect([&](PetscInt g, auto&& deposit)
+  {
     for (const auto& point : dk_storage[g]) {
-      shape.setup(point.r);
-
-      std::vector<PetscReal> moments;
-      if (dk_moment) {
-        // Interpolate |B| at the gyrocenter with the 2nd-order spline (same
-        // kernel as DriftKineticEsirkepov::interpolate_B).
-        Vector3R B_p{};
-        ::Shape sh_B;
-        sh_B.setup(point.r, 1.5, spline_of_2nd_order);
-        SimpleInterpolation interp(sh_B);
-        SimpleInterpolation::Context B_ctx{{B_p, B_arr_local}};
-        interp.process({}, B_ctx);
-        moments = dk_moment(dk_particles, point, B_p.length());
-      } else {
-        moments = moment(particles, ::Point(point.r, point.p));
+      if (!dk_moment) {
+        deposit(point.r, moment(particles, ::Point(point.r, point.p)));
+        continue;
       }
-      auto msize = static_cast<PetscInt>(moments.size());
 
-      for (PetscInt i = 0; i < shape.shm; ++i) {
-        PetscInt g_x = shape.start[X] + i % shape.shw;
-        PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
-        PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
+      // Interpolate |B| at the gyrocenter with the 2nd-order spline.
+      Vector3R B_p;
+      DriftKineticEsirkepov interp(B_arr_local);
+      interp.interpolate_B(B_p, point.r);
 
-        PetscReal si = shape.cache[i] * particles.parameters.mpw;
-
-        for (PetscInt j = 0; j < msize; ++j) {
-          PetscReal mj = moments[j] * si;
-
-#pragma omp atomic update
-          arr[g_z][g_y][g_x][j] += mj;
-        }
-      }
+      deposit(point.r, dk_moment(dk_particles, point, B_p.length()));
     }
-  }
+  }));
 
   if (dk_moment) {
     PetscCall(DMDAVecRestoreArrayRead(sim.da, sim.B_loc, &B_arr_local));
   }
-
-  PetscCall(DMDAVecRestoreArrayDOFWrite(da, field_loc, &arr));
-  PetscCall(DMLocalToGlobal(da, field_loc, ADD_VALUES, field));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -274,10 +224,12 @@ std::unique_ptr<DkDistributionFunction> DkDistributionFunction::create(
 {
   if (!(v_parallel.max > v_parallel.min) || v_parallel.bins <= 0)
     throw std::runtime_error(
-      "DkDistributionFunction requires a non-empty v_parallel range and positive bins");
+      "DkDistributionFunction requires a non-empty v_parallel range and "
+      "positive bins");
   if (!(mu_p.max > mu_p.min) || mu_p.bins <= 0)
     throw std::runtime_error(
-      "DkDistributionFunction requires a non-empty mu_p range and positive bins");
+      "DkDistributionFunction requires a non-empty mu_p range and positive "
+      "bins");
   if (diagnose_period <= 0)
     throw std::runtime_error(
       "DkDistributionFunction diagnose_period must be positive");
@@ -287,17 +239,20 @@ std::unique_ptr<DkDistributionFunction> DkDistributionFunction::create(
 
   MPI_Comm comm = MPI_COMM_NULL;
   PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_dup(PETSC_COMM_WORLD, &comm));
-  return std::unique_ptr<DkDistributionFunction>(
-    new DkDistributionFunction(out_dir, particles, v_parallel, mu_p,
-      diagnose_period, max_frames, comm));
+  return std::unique_ptr<DkDistributionFunction>(new DkDistributionFunction(
+    out_dir, particles, v_parallel, mu_p, diagnose_period, max_frames, comm));
 }
 
 DkDistributionFunction::DkDistributionFunction(const std::string& out_dir,
   const Particles& particles, const DkPhaseAxis& v_parallel,
-  const DkPhaseAxis& mu_p, PetscInt diagnose_period,
-  PetscInt max_frames, MPI_Comm comm)
-  : interfaces::Diagnostic(out_dir, diagnose_period), particles(particles),
-    v_parallel(v_parallel), mu_p(mu_p), max_frames(max_frames), comm(comm)
+  const DkPhaseAxis& mu_p, PetscInt diagnose_period, PetscInt max_frames,
+  MPI_Comm comm)
+  : interfaces::Diagnostic(out_dir, diagnose_period),
+    particles(particles),
+    v_parallel(v_parallel),
+    mu_p(mu_p),
+    max_frames(max_frames),
+    comm(comm)
 {
 }
 
@@ -312,7 +267,7 @@ PetscErrorCode DkDistributionFunction::finalize()
 PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
 {
   if (t % diagnose_period_ != 0 ||
-      (max_frames > 0 && frames_written >= max_frames))
+    (max_frames > 0 && frames_written >= max_frames))
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
@@ -322,9 +277,7 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
   const PetscInt nmu = mu_p.bins;
   const PetscReal dv = (v_parallel.max - v_parallel.min) / nv;
   const PetscReal dmu = (mu_p.max - mu_p.min) / nmu;
-  const PetscReal marker_density =
-    particles.parameters.n /
-    static_cast<PetscReal>(particles.parameters.Np);
+  const PetscReal marker_density = particles.parameters.mpw;
   const PetscReal histogram_weight = marker_density / (dv * dmu);
 
   const std::size_t velocity_cells =
@@ -341,7 +294,7 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
     for (const auto& point : storage[g]) {
       const PetscInt iv = static_cast<PetscInt>(
         std::floor((point.p_parallel - v_parallel.min) / dv));
-      const PetscInt imu = static_cast<PetscInt>(
+      const PetscInt imu = static_cast<PetscInt>(  //
         std::floor((point.mu_p - mu_p.min) / dmu));
       if (iv < 0 || iv >= nv || imu < 0 || imu >= nmu) {
         ++omitted_local;
@@ -362,12 +315,15 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
     total > 0 ? static_cast<PetscReal>(counts[1]) / total : 0.0;
   LOG("  DkDistributionFunction {}: included {}, omitted {} ({:.6e})", particles.parameters.sort_name, counts[0], counts[1], omitted_fraction);
 
-  const PetscInt global_sizes[5]{
+  const PetscInt global_sizes[5]{//
     geom_nz, geom_ny, geom_nx, nv, nmu};
+
   const PetscInt local_sizes[5]{
     local_size[Z], local_size[Y], local_size[X], nv, nmu};
+
   const PetscInt file_starts[5]{
     local_start[Z], local_start[Y], local_start[X], 0, 0};
+
   PetscMPIInt global_sizes_mpi[5];
   PetscMPIInt local_sizes_mpi[5];
   PetscMPIInt file_starts_mpi[5];
@@ -562,8 +518,7 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
     add(std::max<PetscInt>(13, static_cast<PetscInt>(retries_title.size())),
       retries_title, "{:d}", sort->get_push_retries());
     add(std::max<PetscInt>(13, static_cast<PetscInt>(failures_title.size())),
-      failures_title, "{:d}",
-      sort->get_push_leaf_failures());
+      failures_title, "{:d}", sort->get_push_leaf_failures());
   }
   add(13, "AvgFieldIt", "{:d}", simulation.snes_iteration_number);
 
@@ -602,7 +557,7 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   PetscCall(DMRestoreGlobalVector(simulation.da, &fsum));
   PetscCall(DMRestoreGlobalVector(simulation.da, &fdiff));
 
-  add(13, "dK", "{: .6e}", (K - K0));
+  add(13, "dK", "{: .6e}", K - K0);
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;
     add(24, "dK_" + name, "{: .6e}", K_by_sort[i] - K0_by_sort[i]);
@@ -610,15 +565,16 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   add(13, "dE", "{: .6e}", dWE);
   add(13, "dB", "{: .6e}", dWB);
   add(13, "dE+dB+dK", "{: .6e}", dWE + dWB + (K - K0));
-  add(13, "dK-dMB+dt*dEJ", "{: .6e}", (K - K0) + (a_MB - simulation.a_MB0) - dt * a_EJ);
+  add(13, "dK-dMB+dt*dEJ", "{: .6e}",
+    (K - K0) + (a_MB - simulation.a_MB0) - dt * a_EJ);
 
-  add(13, "wK", "{: .6e}", (K));
+  add(13, "wK", "{: .6e}", K);
   for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
     const auto& name = simulation.particles_[i]->parameters.sort_name;
     add(13, "wK_" + name, "{: .6e}", K_by_sort[i]);
   }
-  add(13, "wE", "{: .6e}", (w_E));
-  add(13, "wB", "{: .6e}", (w_B));
+  add(13, "wE", "{: .6e}", w_E);
+  add(13, "wB", "{: .6e}", w_B);
   add(13, "wEB + wK", "{: .6e}", w_E + w_B + K);
 
   Vec sum = nullptr;
@@ -657,4 +613,4 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-} // namespace drift_kinetic
+}  // namespace drift_kinetic

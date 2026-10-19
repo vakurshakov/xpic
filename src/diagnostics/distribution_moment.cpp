@@ -97,55 +97,11 @@ void DistributionMoment::Shape::setup(const Vector3R& r)
 PetscErrorCode DistributionMoment::collect()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecSet(field, 0));
-  PetscCall(VecSet(field_loc, 0));
-
-  PetscReal**** arr;
-  PetscCall(DMDAVecGetArrayDOFWrite(da, field_loc, &arr));
-
-  Vector3I start, size;
-  PetscCall(DMDAGetCorners(da_glob, REP3_A(&start), REP3_A(&size)));
-
-  const Vector3I gstart = vector_cast(region.start);
-  const Vector3I gsize = vector_cast(region.size);
-
-  Shape shape;
-
-#pragma omp parallel for private(shape)
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
-    Vector3I vg{
-      start[X] + g % size[X],
-      start[Y] + (g / size[X]) % size[Y],
-      start[Z] + (g / size[X]) / size[Y],
-    };
-
-    if (!is_point_within_bounds(vg, gstart, gsize))
-      continue;
-
-    for (auto&& point : particles.storage[g]) {
-      shape.setup(point.r);
-
-      std::vector<PetscReal> moments = moment(particles, point);
-      auto msize = static_cast<PetscInt>(moments.size());
-
-      for (PetscInt i = 0; i < shape.shm; ++i) {
-        PetscInt g_x = shape.start[X] + i % shape.shw;
-        PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
-        PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
-
-        PetscReal si = shape.cache[i] * particles.parameters.mpw;
-
-        for (PetscInt j = 0; j < msize; ++j) {
-          PetscReal mj = moments[j] * si;
-
-#pragma omp atomic update
-          arr[g_z][g_y][g_x][j] += mj;
-        }
-      }
-    }
-  }
-  PetscCall(DMDAVecRestoreArrayDOFWrite(da, field_loc, &arr));
-  PetscCall(DMLocalToGlobal(da, field_loc, ADD_VALUES, field));
+  PetscCall(collect([&](PetscInt g, auto&& deposit)
+  {
+    for (auto&& point : particles.storage[g])
+      deposit(point.r, moment(particles, point));
+  }));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -1,4 +1,3 @@
-#include "simulation.h"
 #include "src/utils/configuration.h"
 
 namespace interfaces {
@@ -39,17 +38,27 @@ PetscErrorCode Simulation::init_particles(
     PetscCheck(params.m > 0.0 && isfinite(params.m), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
       "SortParameters requires finite, positive particles charge. Given m = %f", params.m);
 
-    if (info.contains("T")) {
+    bool set_Tall = info.contains("T");
+
+    bool set_Txyz =           //
+      info.contains("Tx") ||  //
+      info.contains("Ty") ||  //
+      info.contains("Tz");
+
+    PetscCheck((!set_Tall && !set_Txyz) || (set_Tall ^ set_Txyz), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "SortParameters requires either no temperature settings, a uniform, or a separate for each individual component temperature specification");
+
+    if (set_Tall) {
       PetscReal T;
       info.at("T").get_to(T);
       params.Tx = T;
       params.Ty = T;
       params.Tz = T;
     }
-    else {
-      info.at("Tx").get_to(params.Tx);
-      info.at("Ty").get_to(params.Ty);
-      info.at("Tz").get_to(params.Tz);
+    else if (set_Txyz) {
+      params.Tx = info.value("Tx", (PetscReal)0);
+      params.Ty = info.value("Ty", (PetscReal)0);
+      params.Tz = info.value("Tz", (PetscReal)0);
     }
 
     Vector3R T{

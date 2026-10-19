@@ -4,6 +4,8 @@ set(tests
   field_view
   field_view_zavg
   mat_mult_field_view
+  distribution_moment
+  distribution_moment_dk
   simulation_backup
 )
 
