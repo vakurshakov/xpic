@@ -85,55 +85,25 @@ inline std::vector<PetscReal> dk_get_temperature_perp(
 inline std::vector<PetscReal> dk_get_momentum_flux(
   const Particles& particles, const PointByField& point, PetscReal)
 {
-  const PetscReal m = particles.parameters.m;
-  const auto& v = point.p;
-  return {
-    m * v[X] * v[X],
-    m * v[X] * v[Y],
-    m * v[X] * v[Z],
-    m * v[Y] * v[Y],
-    m * v[Y] * v[Z],
-    m * v[Z] * v[Z],
-  };
+  return momentum_flux(particles.parameters.m, point.p);
 }
 
 inline std::vector<PetscReal> dk_get_momentum_flux_diag(
   const Particles& particles, const PointByField& point, PetscReal)
 {
-  const PetscReal m = particles.parameters.m;
-  const auto& v = point.p;
-  return {
-    m * v[X] * v[X],
-    m * v[Y] * v[Y],
-    m * v[Z] * v[Z],
-  };
+  return momentum_flux_diag(particles.parameters.m, point.p);
 }
 
 inline std::vector<PetscReal> dk_get_momentum_flux_cyl(
   const Particles& particles, const PointByField& point, PetscReal)
 {
-  const PetscReal m = particles.parameters.m;
-  const Vector3R v = to_cylindrical(point.r, point.p);
-  return {
-    m * v[R] * v[R],
-    m * v[R] * v[A],
-    m * v[R] * v[Z],
-    m * v[A] * v[A],
-    m * v[A] * v[Z],
-    m * v[Z] * v[Z],
-  };
+  return momentum_flux_cyl(particles.parameters.m, point.r, point.p);
 }
 
 inline std::vector<PetscReal> dk_get_momentum_flux_diag_cyl(
   const Particles& particles, const PointByField& point, PetscReal)
 {
-  const PetscReal m = particles.parameters.m;
-  const Vector3R v = to_cylindrical(point.r, point.p);
-  return {
-    m * v[R] * v[R],
-    m * v[A] * v[A],
-    m * v[Z] * v[Z],
-  };
+  return momentum_flux_diag_cyl(particles.parameters.m, point.r, point.p);
 }
 
 }  // namespace

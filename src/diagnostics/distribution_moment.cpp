@@ -180,11 +180,8 @@ inline std::vector<PetscReal> get_current(
   return {q * v[X], q * v[Y], q * v[Z]};
 }
 
-inline std::vector<PetscReal> get_momentum_flux(
-  const interfaces::Particles& particles, const Point& point)
+std::vector<PetscReal> momentum_flux(PetscReal m, const Vector3R& v)
 {
-  auto&& m = particles.parameters.m;
-  auto&& v = point.p;
   return {
     m * v[X] * v[X],
     m * v[X] * v[Y],
@@ -195,11 +192,8 @@ inline std::vector<PetscReal> get_momentum_flux(
   };
 }
 
-inline std::vector<PetscReal> get_momentum_flux_diag(
-  const interfaces::Particles& particles, const Point& point)
+std::vector<PetscReal> momentum_flux_diag(PetscReal m, const Vector3R& v)
 {
-  auto&& m = particles.parameters.m;
-  auto&& v = point.p;
   return {
     m * v[X] * v[X],
     m * v[Y] * v[Y],
@@ -207,32 +201,40 @@ inline std::vector<PetscReal> get_momentum_flux_diag(
   };
 }
 
+std::vector<PetscReal> momentum_flux_cyl(
+  PetscReal m, const Vector3R& r, const Vector3R& v)
+{
+  return momentum_flux(m, to_cylindrical(r, v));
+}
+
+std::vector<PetscReal> momentum_flux_diag_cyl(
+  PetscReal m, const Vector3R& r, const Vector3R& v)
+{
+  return momentum_flux_diag(m, to_cylindrical(r, v));
+}
+
+inline std::vector<PetscReal> get_momentum_flux(
+  const interfaces::Particles& particles, const Point& point)
+{
+  return momentum_flux(particles.parameters.m, point.p);
+}
+
+inline std::vector<PetscReal> get_momentum_flux_diag(
+  const interfaces::Particles& particles, const Point& point)
+{
+  return momentum_flux_diag(particles.parameters.m, point.p);
+}
 
 inline std::vector<PetscReal> get_momentum_flux_cyl(
   const interfaces::Particles& particles, const Point& point)
 {
-  auto&& m = particles.parameters.m;
-  auto&& v = to_cylindrical(point.r, point.p);
-  return {
-    m * v[R] * v[R],
-    m * v[R] * v[A],
-    m * v[R] * v[Z],
-    m * v[A] * v[A],
-    m * v[A] * v[Z],
-    m * v[Z] * v[Z],
-  };
+  return momentum_flux_cyl(particles.parameters.m, point.r, point.p);
 }
 
 inline std::vector<PetscReal> get_momentum_flux_diag_cyl(
   const interfaces::Particles& particles, const Point& point)
 {
-  auto&& m = particles.parameters.m;
-  auto&& v = to_cylindrical(point.r, point.p);
-  return {
-    m * v[R] * v[R],
-    m * v[A] * v[A],
-    m * v[Z] * v[Z],
-  };
+  return momentum_flux_diag_cyl(particles.parameters.m, point.r, point.p);
 }
 
 

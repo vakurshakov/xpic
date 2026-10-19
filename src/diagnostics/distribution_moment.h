@@ -15,6 +15,12 @@ Moment moment_from_string(const std::string& name);
 /// domain axis. Near the axis the Cartesian components are returned unchanged.
 Vector3R to_cylindrical(const Vector3R& r, const Vector3R& v);
 
+/// @brief Momentum flux components of a particle with mass `m` at `r` and velocity `v`
+std::vector<PetscReal> momentum_flux(PetscReal m, const Vector3R& v);
+std::vector<PetscReal> momentum_flux_diag(PetscReal m, const Vector3R& v);
+std::vector<PetscReal> momentum_flux_cyl(PetscReal m, const Vector3R& r, const Vector3R& v);
+std::vector<PetscReal> momentum_flux_diag_cyl(PetscReal m, const Vector3R& r, const Vector3R& v);
+
 
 /// @brief Diagnostic of particles _coordinate_ distribution moment
 class DistributionMoment : public FieldView {
