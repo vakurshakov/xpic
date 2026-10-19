@@ -144,7 +144,6 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
 
   dE = E - E0;
   dB = B - B0;
-  K = K;
 
   dF = dE + dB;
   energy_cons.add(13, "dE", "{: .6e}", dE);
