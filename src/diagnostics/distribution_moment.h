@@ -33,7 +33,17 @@ protected:
 
   PetscErrorCode set_data_views(const Region& reg) override;
 
-  struct Shape;
+  struct Shape {
+    static constexpr PetscInt shr = 1;
+    static constexpr PetscInt shw = 2;
+    static constexpr PetscInt shm = shw * shw * shw;
+
+    Vector3I start;
+    PetscReal cache[shm];
+
+    void setup(const Vector3R& r);
+  };
+
   virtual PetscErrorCode collect();
 
   DM da_glob;

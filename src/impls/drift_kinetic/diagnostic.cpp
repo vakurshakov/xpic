@@ -180,30 +180,6 @@ DkMoment dk_moment_from_string(const std::string& name)
   return nullptr;
 }
 
-struct DkShape {
-  static constexpr PetscInt shr = 1;
-  static constexpr PetscInt shw = 2;
-  static constexpr PetscInt shm = POW3(shw);
-  static constexpr const auto& sfunc = spline_of_1st_order;
-
-  Vector3I start;
-  PetscReal cache[shm];
-
-  void setup(const Vector3R& r)
-  {
-    Vector3R p_r = ::Shape::make_r(r);
-    start = ::Shape::make_start(p_r, shr);
-
-#pragma omp simd
-    for (PetscInt i = 0; i < shm; ++i) {
-      auto g_x = (PetscReal)(start[X] + i % shw) + 0.5;
-      auto g_y = (PetscReal)(start[Y] + (i / shw) % shw) + 0.5;
-      auto g_z = (PetscReal)(start[Z] + (i / shw) / shw) + 0.5;
-      cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
-    }
-  }
-};
-
 std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
   const std::string& out_dir, const Particles& particles,
   const Moment& moment, const Region& region)
@@ -271,7 +247,7 @@ PetscErrorCode DkDistributionMoment::collect()
   const Vector3I gstart = vector_cast(region.start);
   const Vector3I gsize = vector_cast(region.size);
 
-  DkShape shape;
+  Shape shape;
 
   // Iterate over the drift-kinetic storage dk_curr_storage
   const auto& dk_storage = dk_particles.get_dk_curr_storage();

@@ -67,42 +67,32 @@ PetscErrorCode DistributionMoment::diagnose(PetscInt t)
 
 
 /**
- * @brief This class is reduced from global `Shape` to be used in a specific task:
+ * @brief `Shape` is reduced from global `Shape` to be used in a specific task:
  * (1) All moments are represented as a cell-centered quantities;
  * (2) Lower order `sfunc` is used to reduce the computational time;
  * (3) Storage size for `cache` is also reduced using shape products.
  */
-struct DistributionMoment::Shape {
-  Shape() = default;
-
-  static constexpr PetscInt shr = 1;
-  static constexpr PetscInt shw = 2;
-  static constexpr PetscInt shm = POW3(shw);
+void DistributionMoment::Shape::setup(const Vector3R& r)
+{
   static constexpr const auto& sfunc = spline_of_1st_order;
 
-  Vector3I start;
-  PetscReal cache[shm];
+  Vector3R p_r = ::Shape::make_r(r);
+  start = ::Shape::make_start(p_r, shr);
 
-  void setup(const Vector3R& r)
-  {
-    Vector3R p_r = ::Shape::make_r(r);
-    start = ::Shape::make_start(p_r, shr);
-
-    static const double offset[3]{
-      geom_nx == 1 ? 0.5 : 0,
-      geom_ny == 1 ? 0.5 : 0,
-      geom_nz == 1 ? 0.5 : 0,
-    };
+  static const double offset[3]{
+    geom_nx == 1 ? 0.5 : 0,
+    geom_ny == 1 ? 0.5 : 0,
+    geom_nz == 1 ? 0.5 : 0,
+  };
 
 #pragma omp simd
-    for (PetscInt i = 0; i < shm; ++i) {
-      auto g_x = (PetscReal)(start[X] + i % shw) + offset[X];
-      auto g_y = (PetscReal)(start[Y] + (i / shw) % shw) + offset[Y];
-      auto g_z = (PetscReal)(start[Z] + (i / shw) / shw) + offset[Z];
-      cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
-    }
+  for (PetscInt i = 0; i < shm; ++i) {
+    auto g_x = (PetscReal)(start[X] + i % shw) + offset[X];
+    auto g_y = (PetscReal)(start[Y] + (i / shw) % shw) + offset[Y];
+    auto g_z = (PetscReal)(start[Z] + (i / shw) / shw) + offset[Z];
+    cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
   }
-};
+}
 
 PetscErrorCode DistributionMoment::collect()
 {
