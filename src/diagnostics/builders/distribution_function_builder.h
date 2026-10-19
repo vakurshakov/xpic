@@ -26,6 +26,9 @@ public:
       "}";
     return help;
   }
+
+private:
+  PetscErrorCode build_dk_distribution_function(const Configuration::json_t& info);
 };
 
 #endif  // SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_FUNCTION_BUILDER_H

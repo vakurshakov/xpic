@@ -215,21 +215,6 @@ std::unique_ptr<DkDistributionFunction> DkDistributionFunction::create(
   const DkPhaseAxis& v_parallel, const DkPhaseAxis& mu_p,
   PetscInt diagnose_period, PetscInt max_frames)
 {
-  if (!(v_parallel.max > v_parallel.min) || v_parallel.bins <= 0)
-    throw std::runtime_error(
-      "DkDistributionFunction requires a non-empty v_parallel range and "
-      "positive bins");
-  if (!(mu_p.max > mu_p.min) || mu_p.bins <= 0)
-    throw std::runtime_error(
-      "DkDistributionFunction requires a non-empty mu_p range and positive "
-      "bins");
-  if (diagnose_period <= 0)
-    throw std::runtime_error(
-      "DkDistributionFunction diagnose_period must be positive");
-  if (max_frames == 0 || max_frames < -1)
-    throw std::runtime_error(
-      "DkDistributionFunction max_frames must be positive or unlimited (-1)");
-
   MPI_Comm comm = MPI_COMM_NULL;
   PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_dup(PETSC_COMM_WORLD, &comm));
   return std::unique_ptr<DkDistributionFunction>(new DkDistributionFunction(

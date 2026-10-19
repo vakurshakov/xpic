@@ -1,6 +1,8 @@
 #include "distribution_function_builder.h"
 
 #include "src/diagnostics/distribution_function.h"
+#include "src/impls/drift_kinetic/diagnostic.h"
+#include "src/impls/drift_kinetic/particles.h"
 #include "src/utils/utils.h"
 
 DistributionFunctionBuilder::DistributionFunctionBuilder(
@@ -13,23 +15,29 @@ PetscErrorCode DistributionFunctionBuilder::build(
   const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
-  std::string particles;
-  info.at("particles").get_to(particles);
+  std::string particles_name;
+  info.at("particles").get_to(particles_name);
 
-  std::string projector;
-  info.at("projector").get_to(projector);
+  auto& particles = simulation_.get_named_particles(particles_name);
+  if (auto* dk_particles = dynamic_cast<drift_kinetic::Particles*>(&particles)) {
+    PetscCall(build_dk_distribution_function(info));
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+
+  std::string projector_name;
+  info.at("projector").get_to(projector_name);
 
   const auto& geometry = info.at("geometry");
 
-  std::string name;
-  geometry.at("name").get_to(name);
+  std::string geometry_name;
+  geometry.at("name").get_to(geometry_name);
 
   Tester test;
   Region xreg_aabb;
   xreg_aabb.dim = 2;
   xreg_aabb.dof = 1;
 
-  if (name == "BoxGeometry") {
+  if (geometry_name == "BoxGeometry") {
     BoxGeometry box;
     load_geometry(geometry, box);
     test = WithinBox(box);
@@ -50,7 +58,7 @@ PetscErrorCode DistributionFunctionBuilder::build(
 
     xreg_aabb.size -= xreg_aabb.start;
   }
-  else if (name == "CylinderGeometry") {
+  else if (geometry_name == "CylinderGeometry") {
     CylinderGeometry cyl;
     load_geometry(geometry, cyl);
     test = WithinCylinder(cyl);
@@ -72,7 +80,7 @@ PetscErrorCode DistributionFunctionBuilder::build(
     xreg_aabb.size -= xreg_aabb.start;
   }
   else {
-    throw std::runtime_error("Unknown geometry name " + name);
+    throw std::runtime_error("Unknown geometry name " + geometry_name);
   }
 
   DistributionFunction::VelocityRegion vreg{
@@ -98,17 +106,77 @@ PetscErrorCode DistributionFunctionBuilder::build(
     vreg.vy_min = (*it)[1];
   }
 
-  LOG("  {} velocity distribution diagnostic is added for {}", projector, particles);
+  std::string out_dir = particles_name + "/" + projector_name;
 
-  std::string res_dir = CONFIG().out_dir + "/" + particles + "/" + projector;
+  if (info.contains("out_dir"))
+    info.at("out_dir").get_to(out_dir);
 
-  auto&& diagnostic = DistributionFunction::create(  //
-    res_dir, simulation_.get_named_particles(particles),
-    projector_from_string(projector), test, xreg_aabb, vreg);
+  out_dir = CONFIG().out_dir + "/" + out_dir;
 
-  if (!diagnostic)
-    PetscFunctionReturn(PETSC_SUCCESS);
+  LOG("  {} velocity distribution diagnostic is added for {}, output directory: {}", projector_name, particles_name, out_dir);
 
-  diagnostics_.emplace_back(std::move(diagnostic));
+  auto&& diagnostic = DistributionFunction::create(out_dir, particles,
+    projector_from_string(projector_name), test, xreg_aabb, vreg);
+
+  if (diagnostic)
+    diagnostics_.emplace_back(std::move(diagnostic));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/// @todo `DkDistributionFunction` is internally inherits the logic from `DistributionFunction`
+PetscErrorCode DistributionFunctionBuilder::build_dk_distribution_function(
+  const Configuration::json_t& info)
+{
+  PetscFunctionBeginUser;
+  std::string particles_name;
+  info.at("particles").get_to(particles_name);
+
+  auto* particles = &simulation_.get_named_particles(particles_name);
+  auto* dk_particles = dynamic_cast<drift_kinetic::Particles*>(particles);
+
+  auto parse_dk_phase_axis =
+    [](const Configuration::json_t& info, const std::string& name)
+  {
+    auto axis_info = info.at(name);
+
+    drift_kinetic::DkPhaseAxis axis{
+      .min = parse_value(axis_info.at("min")),
+      .max = parse_value(axis_info.at("max")),
+      .bins = axis_info.at("bins").get<PetscInt>(),
+    };
+
+    if (!(axis.min < axis.max && axis.bins > 0))
+      throw std::runtime_error(
+        "DkDistributionFunction requires a non-empty"
+        "range and positive bins for " +
+        name);
+    return axis;
+  };
+
+  auto v_par = parse_dk_phase_axis(info, "v_parallel");
+  auto mu_p = parse_dk_phase_axis(info, "mu_p");
+
+  auto dp_parsed = info.value("diagnose_period", diagnose_period);
+  auto diagnose_period = std::max(1, ROUND_STEP(parse_value(dp_parsed), dt));
+  if (diagnose_period <= 0)
+    throw std::runtime_error(
+      "DkDistributionFunction diagnose_period must be positive");
+
+  auto max_frames = info.value("max_frames", (PetscInt)(-1));
+  if (max_frames <= 0)
+    throw std::runtime_error(
+      "DkDistributionFunction max_frames must be positive or omitted");
+
+  std::string out_dir = particles_name + "/distribution_function";
+
+  if (info.contains("out_dir"))
+    info.at("out_dir").get_to(out_dir);
+
+  out_dir = CONFIG().out_dir + "/" + out_dir;
+
+  LOG("  DkDistributionFunction diagnostic is added for {}, output directory: {}", particles_name, out_dir);
+
+  diagnostics_.emplace_back(drift_kinetic::DkDistributionFunction::create(
+    out_dir, *dk_particles, v_par, mu_p, diagnose_period, max_frames));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

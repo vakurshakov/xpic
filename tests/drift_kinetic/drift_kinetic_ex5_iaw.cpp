@@ -38,7 +38,7 @@ static constexpr char help[] =
   "                                                                          \n"
   "The diagnostics follow eigen_sound_ex15 rather than the ringdown family:  \n"
   "the three-component E dump, the parallel-temperature moment and the       \n"
-  "DkDistributionFunction frames are what ion_sound.py needs to start the    \n"
+  "DistributionFunction frames are what ion_sound.py needs to start the    \n"
   "exact linear theory from the realized f and to separate wave energy from  \n"
   "irreversible heating.  Ez itself stays below the noise floor at this      \n"
   "marker count and cannot be de-aliased by dumping more often: omega_pe*dt  \n"
@@ -282,7 +282,7 @@ void overwrite_config()
         // distribution instead of the configured moments.  One mu bin,
         // see mu_max_* above.
         {
-          {"diagnostic", "DkDistributionFunction"},
+          {"diagnostic", "DistributionFunction"},
           {"particles", "electrons"},
           {"out_dir", "electrons/distribution_function"},
           {"v_parallel",
@@ -301,7 +301,7 @@ void overwrite_config()
           {"max_frames", 5},
         },
         {
-          {"diagnostic", "DkDistributionFunction"},
+          {"diagnostic", "DistributionFunction"},
           {"particles", "ions"},
           {"out_dir", "ions/distribution_function"},
           {"v_parallel",
