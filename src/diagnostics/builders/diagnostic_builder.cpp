@@ -38,8 +38,8 @@ PetscErrorCode build_diagnostics(
     PetscFunctionReturn(PETSC_SUCCESS);
 
   for (auto&& info : *it) {
-    if (!info.contains("diagnostic"))
-      continue;
+    PetscCheck(info.contains("diagnostic"), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "Diagnostic should have it's name stored in \"diagnostic\".");
 
     std::string name;
     info.at("diagnostic").get_to(name);

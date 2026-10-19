@@ -34,8 +34,8 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
   LOG("Building commands from \"{}\"", name);
 
   for (auto&& info : *it) {
-    if (!info.contains("command"))
-      continue;
+    PetscCheck(info.contains("command"), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "Command should have it's name stored in \"command\".");
 
     std::string command;
     info.at("command").get_to(command);
