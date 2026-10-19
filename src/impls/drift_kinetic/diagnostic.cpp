@@ -225,8 +225,6 @@ PetscErrorCode DkDistributionMoment::collect()
     for (const auto& point : dk_storage[g]) {
       shape.setup(point.r);
 
-      ::Point dummy_point(point.r, point.p);
-
       std::vector<PetscReal> moments;
       if (dk_moment) {
         // Interpolate |B| at the gyrocenter with the 2nd-order spline (same
@@ -239,7 +237,7 @@ PetscErrorCode DkDistributionMoment::collect()
         interp.process({}, B_ctx);
         moments = dk_moment(dk_particles, point, B_p.length());
       } else {
-        moments = moment(particles, dummy_point);
+        moments = moment(particles, ::Point(point.r, point.p));
       }
       auto msize = static_cast<PetscInt>(moments.size());
 
@@ -248,7 +246,7 @@ PetscErrorCode DkDistributionMoment::collect()
         PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
         PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
 
-        PetscReal si = shape.cache[i] * particles.n_Np(dummy_point);
+        PetscReal si = shape.cache[i] * particles.parameters.mpw;
 
         for (PetscInt j = 0; j < msize; ++j) {
           PetscReal mj = moments[j] * si;

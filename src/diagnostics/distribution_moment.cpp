@@ -133,7 +133,7 @@ PetscErrorCode DistributionMoment::collect()
         PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
         PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
 
-        PetscReal si = shape.cache[i] * particles.n_Np(point);
+        PetscReal si = shape.cache[i] * particles.parameters.mpw;
 
         for (PetscInt j = 0; j < msize; ++j) {
           PetscReal mj = moments[j] * si;

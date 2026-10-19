@@ -152,7 +152,7 @@ PetscErrorCode VelocityDistribution::collect()
         continue;
 
 #pragma omp atomic update
-      arr[vg[Y]][vg[X]] += particles.n_Np(point);
+      arr[vg[Y]][vg[X]] += particles.parameters.mpw;
     }
   }
 

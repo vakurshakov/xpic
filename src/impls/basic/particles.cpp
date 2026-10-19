@@ -39,7 +39,8 @@ PetscErrorCode Particles::push()
       push.update_r(dt / 2.0, point);
 
       shape.setup(old_r, point.r, shr, sfunc);
-      EsirkepovDecomposition decomposition(shape, qn_Np(point) / (6.0 * dt));
+      EsirkepovDecomposition decomposition(
+        shape, parameters.q * parameters.mpw / (6.0 * dt));
       decomposition.process(J_arr);
     }
   }

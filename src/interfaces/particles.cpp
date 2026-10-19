@@ -5,11 +5,17 @@
 
 namespace interfaces {
 
+static SortParameters with_macro_particle_weight(SortParameters parameters)
+{
+  parameters.mpw = parameters.n / (PetscReal)parameters.Np;
+  return parameters;
+}
+
 Particles::Particles(const World& world, const SortParameters& parameters)
   : world(world),
     da(world.da),
     da_rho(world.da_rho),
-    parameters(parameters),
+    parameters(with_macro_particle_weight(parameters)),
     storage(world.size.elements_product())
 {
   PetscMPIInt size;
@@ -261,47 +267,11 @@ PetscErrorCode Particles::update_cells_mpi()
 }
 
 
-PetscInt Particles::particles_number(const Point& /* point */) const
-{
-  return parameters.Np;
-}
-
-PetscReal Particles::density(const Point& /* point */) const
-{
-  return parameters.n;
-}
-
-PetscReal Particles::charge(const Point& /* point */) const
-{
-  return parameters.q;
-}
-
-PetscReal Particles::mass(const Point& /* point */) const
-{
-  return parameters.m;
-}
-
-PetscReal Particles::q_m(const Point& point) const
-{
-  return charge(point) / mass(point);
-}
-
-PetscReal Particles::n_Np(const Point& point) const
-{
-  return density(point) / particles_number(point);
-}
-
-PetscReal Particles::qn_Np(const Point& point) const
-{
-  return charge(point) * density(point) / particles_number(point);
-}
-
-
 /// @todo our schemes are mostly non-relativistic, we should avoid it's direct usage
 Vector3R Particles::velocity(const Point& point) const
 {
   const Vector3R& p = point.p;
-  const PetscReal m = mass(point);
+  const PetscReal m = parameters.m;
   return p / std::sqrt(m * m + p.squared());
 }
 
@@ -422,7 +392,7 @@ PetscErrorCode Particles::calculate_rho()
 
   DefaultRhoShape shape;
   const PetscReal q = parameters.q;
-  const PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
+  const PetscReal mpw = parameters.mpw;
 
 #pragma omp parallel for private(shape)
   for (auto&& cell : storage) {

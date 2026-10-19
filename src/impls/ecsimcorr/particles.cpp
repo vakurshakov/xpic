@@ -66,7 +66,7 @@ PetscErrorCode Particles::second_push()
       Vector3R E_p = interpolate_E_s1(E_arr, point.r);
       Vector3R B_p = interpolate_B_s1(B_arr, point.r);
 
-      BorisPush push(q_m(point), E_p, B_p);
+      BorisPush push(parameters.q / parameters.m, E_p, B_p);
       push.update_vEB(dt, point);
       push.update_r(0.5 * dt, point);
 
@@ -75,7 +75,7 @@ PetscErrorCode Particles::second_push()
       decompose_esirkepov_current(shape, point);
 
 #pragma omp atomic update
-      pred_w += qn_Np(point) * 0.5 * (old_v + point.p).dot(E_p);
+      pred_w += parameters.q * parameters.mpw * 0.5 * (old_v + point.p).dot(E_p);
     }
   }
 
@@ -127,7 +127,8 @@ PetscErrorCode Particles::final_update()
 
 void Particles::decompose_esirkepov_current(const Shape& shape, const Point& point)
 {
-  EsirkepovDecomposition decomposition(shape, qn_Np(point) / (6.0 * dt));
+  EsirkepovDecomposition decomposition(
+    shape, parameters.q * parameters.mpw / (6.0 * dt));
   decomposition.process(currJe_arr);
 }
 
