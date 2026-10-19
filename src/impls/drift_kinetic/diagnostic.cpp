@@ -82,27 +82,6 @@ inline std::vector<PetscReal> dk_get_temperature_perp(
   return {2.0 * point.mu_p * lenB};
 }
 
-// Project the gyrocenter velocity Vph (stored in `point.p` after
-// `form_iteration`) onto cylindrical components at the gyrocenter position.
-// Follows the same convention as `_get_v_cyl` in distribution_moment.cpp:
-// particles inside the singular cell (r=0) keep Cartesian components.
-inline Vector3R dk_v_cyl(const PointByField& point)
-{
-  PetscReal x = point.x() - 0.5 * geom_x;
-  PetscReal y = point.y() - 0.5 * geom_y;
-  PetscReal r = std::hypot(x, y);
-
-  const auto& v = point.p;
-  if (std::isinf(1.0 / r))
-    return v;
-
-  return {
-    (+x * v[X] + y * v[Y]) / r,
-    (-y * v[X] + x * v[Y]) / r,
-    v[Z],
-  };
-}
-
 inline std::vector<PetscReal> dk_get_momentum_flux(
   const Particles& particles, const PointByField& point, PetscReal)
 {
@@ -134,7 +113,7 @@ inline std::vector<PetscReal> dk_get_momentum_flux_cyl(
   const Particles& particles, const PointByField& point, PetscReal)
 {
   const PetscReal m = particles.parameters.m;
-  const Vector3R v = dk_v_cyl(point);
+  const Vector3R v = to_cylindrical(point.r, point.p);
   return {
     m * v[R] * v[R],
     m * v[R] * v[A],
@@ -149,7 +128,7 @@ inline std::vector<PetscReal> dk_get_momentum_flux_diag_cyl(
   const Particles& particles, const PointByField& point, PetscReal)
 {
   const PetscReal m = particles.parameters.m;
-  const Vector3R v = dk_v_cyl(point);
+  const Vector3R v = to_cylindrical(point.r, point.p);
   return {
     m * v[R] * v[R],
     m * v[A] * v[A],

@@ -11,6 +11,10 @@ using Moment = std::vector<PetscReal> (*)(
 /// @note To see the list of available moment getters, check the implementation
 Moment moment_from_string(const std::string& name);
 
+/// @brief Projects `v` at the position `r` onto the (R, A, Z) basis around the
+/// domain axis. Near the axis the Cartesian components are returned unchanged.
+Vector3R to_cylindrical(const Vector3R& r, const Vector3R& v);
+
 
 /// @brief Diagnostic of particles _coordinate_ distribution moment
 class DistributionMoment : public FieldView {

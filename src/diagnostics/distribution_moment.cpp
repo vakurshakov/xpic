@@ -149,6 +149,23 @@ PetscErrorCode DistributionMoment::collect()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+Vector3R to_cylindrical(const Vector3R& r, const Vector3R& v)
+{
+  PetscReal x = r[X] - 0.5 * geom_x;
+  PetscReal y = r[Y] - 0.5 * geom_y;
+  PetscReal rho = std::hypot(x, y);
+
+  // Particles close to r=0 are not taken into account
+  if (std::isinf(1.0 / rho))
+    return v;
+
+  return {
+    (+x * v[X] + y * v[Y]) / rho,
+    (-y * v[X] + x * v[Y]) / rho,
+    v[Z],
+  };
+}
+
 inline std::vector<PetscReal> get_density(
   const interfaces::Particles& /* particles */, const Point& /* point */)
 {
@@ -190,30 +207,12 @@ inline std::vector<PetscReal> get_momentum_flux_diag(
   };
 }
 
-inline std::vector<PetscReal> _get_v_cyl(const Point& point)
-{
-  PetscReal x = point.x() - 0.5 * geom_x;
-  PetscReal y = point.y() - 0.5 * geom_y;
-  PetscReal r = std::hypot(x, y);
-
-  auto&& v = point.p;
-
-  // Particles close to r=0 are not taken into account
-  if (std::isinf(1.0 / r))
-    return {v[X], v[Y], v[Z]};
-
-  return {
-    (+x * v[X] + y * v[Y]) / r,
-    (-y * v[X] + x * v[Y]) / r,
-    v[Z],
-  };
-}
 
 inline std::vector<PetscReal> get_momentum_flux_cyl(
   const interfaces::Particles& particles, const Point& point)
 {
   auto&& m = particles.parameters.m;
-  auto&& v = _get_v_cyl(point);
+  auto&& v = to_cylindrical(point.r, point.p);
   return {
     m * v[R] * v[R],
     m * v[R] * v[A],
@@ -228,7 +227,7 @@ inline std::vector<PetscReal> get_momentum_flux_diag_cyl(
   const interfaces::Particles& particles, const Point& point)
 {
   auto&& m = particles.parameters.m;
-  auto&& v = _get_v_cyl(point);
+  auto&& v = to_cylindrical(point.r, point.p);
   return {
     m * v[R] * v[R],
     m * v[A] * v[A],

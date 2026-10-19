@@ -176,20 +176,8 @@ std::tuple<PetscReal, PetscReal> get_vz_vxy(const Point& point)
 
 std::tuple<PetscReal, PetscReal> get_vr_vphi(const Point& point)
 {
-  PetscReal x = point.x() - 0.5 * geom_x;
-  PetscReal y = point.y() - 0.5 * geom_y;
-  PetscReal r = std::hypot(x, y);
-
-  auto&& v = point.p;
-
-  // Particles close to r=0 are not taken into account
-  if (std::isinf(1.0 / r))
-    return {v[X], v[Y]};
-
-  return {
-    (+x * v[X] + y * v[Y]) / r,
-    (-y * v[X] + x * v[Y]) / r,
-  };
+  Vector3R v = to_cylindrical(point.r, point.p);
+  return {v[R], v[A]};
 }
 
 Projector projector_from_string(const std::string& name)
