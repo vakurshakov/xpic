@@ -1,11 +1,11 @@
-#include "velocity_distribution.h"
+#include "distribution_function.h"
 
 #include "src/utils/geometries.h"
 #include "src/utils/utils.h"
 #include "src/utils/vector_utils.h"
 
 
-std::unique_ptr<VelocityDistribution> VelocityDistribution::create(
+std::unique_ptr<DistributionFunction> DistributionFunction::create(
   const std::string& out_dir, const interfaces::Particles& particles,
   const Projector& projector, const Tester& within_geom,
   const Region& xreg_aabb, const VelocityRegion& vreg)
@@ -17,14 +17,14 @@ std::unique_ptr<VelocityDistribution> VelocityDistribution::create(
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
 
-  auto* diagnostic = new VelocityDistribution(
+  auto* diagnostic = new DistributionFunction(
     out_dir, particles, projector, within_geom, newcomm);
 
   PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_regions(xreg_aabb, vreg));
-  PetscFunctionReturn(std::unique_ptr<VelocityDistribution>(diagnostic));
+  PetscFunctionReturn(std::unique_ptr<DistributionFunction>(diagnostic));
 }
 
-VelocityDistribution::VelocityDistribution(const std::string& out_dir,
+DistributionFunction::DistributionFunction(const std::string& out_dir,
   const interfaces::Particles& particles, const Projector& projector,
   const Tester& within_geom, MPI_Comm newcomm)
   : DistributionMoment(out_dir, particles, nullptr, newcomm),
@@ -33,7 +33,7 @@ VelocityDistribution::VelocityDistribution(const std::string& out_dir,
 {
 }
 
-PetscErrorCode VelocityDistribution::finalize()
+PetscErrorCode DistributionFunction::finalize()
 {
   PetscFunctionBeginUser;
   PetscCall(ISDestroy(&is));
@@ -44,7 +44,7 @@ PetscErrorCode VelocityDistribution::finalize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode VelocityDistribution::set_regions(
+PetscErrorCode DistributionFunction::set_regions(
   const Region& xreg_aabb, const VelocityRegion& vreg)
 {
   PetscFunctionBeginUser;
@@ -90,7 +90,7 @@ PetscErrorCode VelocityDistribution::set_regions(
 }
 
 // `FieldView::set_data_views()` is simplified because the whole `field_` will be written
-PetscErrorCode VelocityDistribution::set_data_views(const Region& /* reg */)
+PetscErrorCode DistributionFunction::set_data_views(const Region& /* reg */)
 {
   PetscInt m_start[2] = {0, 0};
   PetscInt g_start[2] = {vstart[Y], vstart[X]};
@@ -109,7 +109,7 @@ PetscErrorCode VelocityDistribution::set_data_views(const Region& /* reg */)
 }
 
 
-PetscErrorCode VelocityDistribution::collect()
+PetscErrorCode DistributionFunction::collect()
 {
   PetscFunctionBeginUser;
   PetscCall(VecSet(field, 0.0));

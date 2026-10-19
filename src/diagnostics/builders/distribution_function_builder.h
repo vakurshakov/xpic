@@ -1,11 +1,11 @@
-#ifndef SRC_DIAGNOSTICS_BUILDERS_VELOCITY_DISTRIBUTION_BUILDER_H
-#define SRC_DIAGNOSTICS_BUILDERS_VELOCITY_DISTRIBUTION_BUILDER_H
+#ifndef SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_FUNCTION_BUILDER_H
+#define SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_FUNCTION_BUILDER_H
 
 #include "src/diagnostics/builders/distribution_moment_builder.h"
 
-class VelocityDistributionBuilder : public DistributionMomentBuilder {
+class DistributionFunctionBuilder : public DistributionMomentBuilder {
 public:
-  VelocityDistributionBuilder(interfaces::Simulation& simulation,
+  DistributionFunctionBuilder(interfaces::Simulation& simulation,
     std::vector<Diagnostic_up>& diagnostics);
 
   PetscErrorCode build(const Configuration::json_t& info) override;
@@ -13,9 +13,9 @@ public:
   std::string_view usage_message() const override
   {
     std::string_view help =
-      "\nStructure of the VelocityDistribution diagnostics description:\n"
+      "\nStructure of the DistributionFunction diagnostics description:\n"
       "{\n"
-      "  \"diagnostic\": \"VelocityDistribution\" -- Name of the diagnostic.\n"
+      "  \"diagnostic\": \"DistributionFunction\" -- Name of the diagnostic.\n"
       "  \"particles\": \"electrons\", -- Name from `Particles` settings.\n"
       "  \"projection\": \"vx_vy\", -- Name of the projector, available\n"
       "                           values are: vx_vy, vz_vxy, vr_vphi.\n"
@@ -28,4 +28,4 @@ public:
   }
 };
 
-#endif  // SRC_DIAGNOSTICS_BUILDERS_VELOCITY_DISTRIBUTION_BUILDER_H
+#endif  // SRC_DIAGNOSTICS_BUILDERS_DISTRIBUTION_FUNCTION_BUILDER_H

@@ -125,4 +125,4 @@
 
 - **Вывод**: Результаты сохраняются в указанную выходную директорию;
 
-- **Типы**: Включает ``FieldView``, ``DistributionMoment``, ``VelocityDistribution`` и т.д.
+- **Типы**: Включает ``FieldView``, ``DistributionMoment``, ``DistributionFunction`` и т.д.

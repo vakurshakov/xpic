@@ -1,5 +1,6 @@
 #include "diagnostic_builder.h"
 
+#include "src/diagnostics/builders/distribution_function_builder.h"
 #include "src/diagnostics/builders/distribution_moment_builder.h"
 #include "src/diagnostics/builders/field_view_builder.h"
 #include "src/diagnostics/builders/field_view_zavg_builder.h"
@@ -7,10 +8,8 @@
 #include "src/diagnostics/builders/mat_mult_field_view_builder.h"
 #include "src/diagnostics/builders/particle_trace_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
-#include "src/diagnostics/builders/velocity_distribution_builder.h"
 #include "src/impls/drift_kinetic/diagnostic.h"
 #include "src/impls/drift_kinetic/particles.h"
-#include "src/utils/geometries.h"
 
 DiagnosticBuilder::DiagnosticBuilder(
   interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
@@ -56,8 +55,8 @@ PetscErrorCode build_diagnostics(
     else if (name == "DistributionMoment") {
       PetscCall(Builder::use_impl<DistributionMomentBuilder>(info, simulation, result));
     }
-    else if (name == "VelocityDistribution") {
-      PetscCall(Builder::use_impl<VelocityDistributionBuilder>(info, simulation, result));
+    else if (name == "DistributionFunction") {
+      PetscCall(Builder::use_impl<DistributionFunctionBuilder>(info, simulation, result));
     }
     else if (name == "DkDistributionFunction") {
       std::string particles_name;
@@ -68,8 +67,9 @@ PetscErrorCode build_diagnostics(
         throw std::runtime_error(
           "DkDistributionFunction requires drift_kinetic particles");
 
-      auto parse_axis = [](const Configuration::json_t& axis_info,
-                          const std::string& axis_name) {
+      auto parse_axis =
+        [](const Configuration::json_t& axis_info, const std::string& axis_name)
+      {
         drift_kinetic::DkPhaseAxis axis;
         axis.min = interfaces::Builder::parse_value(axis_info.at("min"));
         axis.max = interfaces::Builder::parse_value(axis_info.at("max"));
@@ -80,15 +80,15 @@ PetscErrorCode build_diagnostics(
         return axis;
       };
 
-      const auto v_parallel =
-        parse_axis(info.at("v_parallel"), "v_parallel");
+      const auto v_parallel = parse_axis(info.at("v_parallel"), "v_parallel");
       const auto mu_p = parse_axis(info.at("mu_p"), "mu_p");
       const PetscInt period = info.contains("diagnose_period")
-        ? std::max<PetscInt>(1, ROUND_STEP(
-            interfaces::Builder::parse_value(info.at("diagnose_period")), dt))
+        ? std::max<PetscInt>(1,
+            ROUND_STEP(
+              interfaces::Builder::parse_value(info.at("diagnose_period")), dt))
         : diagnose_period;
-      const PetscInt max_frames = info.contains("max_frames")
-        ? info.at("max_frames").get<PetscInt>() : -1;
+      const PetscInt max_frames =
+        info.contains("max_frames") ? info.at("max_frames").get<PetscInt>() : -1;
       if (max_frames == 0 || max_frames < -1)
         throw std::runtime_error(
           "DkDistributionFunction max_frames must be positive or omitted");
@@ -97,9 +97,8 @@ PetscErrorCode build_diagnostics(
         info.at("out_dir").get_to(out_dir);
       out_dir = CONFIG().out_dir + "/" + out_dir;
 
-      result.emplace_back(
-        drift_kinetic::DkDistributionFunction::create(
-          out_dir, *particles, v_parallel, mu_p, period, max_frames));
+      result.emplace_back(drift_kinetic::DkDistributionFunction::create(
+        out_dir, *particles, v_parallel, mu_p, period, max_frames));
       LOG("  DkDistributionFunction diagnostic is added for {}, output directory: {}", particles_name, out_dir);
     }
     else if (name == "LogView") {

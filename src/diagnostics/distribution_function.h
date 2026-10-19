@@ -1,5 +1,5 @@
-#ifndef SRC_DIAGNOSTICS_VELOCITY_DISTRIBUTION_H
-#define SRC_DIAGNOSTICS_VELOCITY_DISTRIBUTION_H
+#ifndef SRC_DIAGNOSTICS_DISTRIBUTION_FUNCTION_H
+#define SRC_DIAGNOSTICS_DISTRIBUTION_FUNCTION_H
 
 #include "src/diagnostics/distribution_moment.h"
 
@@ -22,7 +22,7 @@ using Tester = std::function<bool(const Vector3R&)>;
  * operation. So, firstly partial distributions f(v) are
  * collected on separate ranks and then summed using `VecScatter`.
  */
-class VelocityDistribution : public DistributionMoment {
+class DistributionFunction : public DistributionMoment {
 public:
   struct VelocityRegion {
     PetscReal vx_max, vy_max;
@@ -30,7 +30,7 @@ public:
     PetscReal dvx, dvy;
   };
 
-  static std::unique_ptr<VelocityDistribution> create( //
+  static std::unique_ptr<DistributionFunction> create( //
     const std::string& out_dir, const interfaces::Particles& particles,
     const Projector& projector, const Tester& within_geom,
     const Region& xreg_aabb, const VelocityRegion& vreg);
@@ -38,7 +38,7 @@ public:
   PetscErrorCode finalize() override;
 
 protected:
-  VelocityDistribution(const std::string& out_dir,
+  DistributionFunction(const std::string& out_dir,
     const interfaces::Particles& particles, const Projector& projector,
     const Tester& within_geom, MPI_Comm newcomm);
 
@@ -60,4 +60,4 @@ protected:
   VecScatter ctx;
 };
 
-#endif  // SRC_DIAGNOSTICS_VELOCITY_DISTRIBUTION_H
+#endif  // SRC_DIAGNOSTICS_DISTRIBUTION_FUNCTION_H

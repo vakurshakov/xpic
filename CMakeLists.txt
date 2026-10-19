@@ -55,24 +55,24 @@ set(diagnostics
   src/diagnostics/field_view_zavg.cpp
   src/diagnostics/mat_mult_field_view.cpp
   src/diagnostics/energy.cpp
+  src/diagnostics/distribution_function.cpp
   src/diagnostics/distribution_moment.cpp
   src/diagnostics/mat_dump.cpp
   src/diagnostics/log_view.cpp
   src/diagnostics/simulation_backup.cpp
   src/diagnostics/charge_conservation.cpp
   src/diagnostics/momentum_conservation.cpp
-  src/diagnostics/velocity_distribution.cpp
   src/diagnostics/table_diagnostic.cpp
   src/diagnostics/particle_trace.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/field_view_zavg_builder.cpp
   src/diagnostics/builders/mat_mult_field_view_builder.cpp
+  src/diagnostics/builders/distribution_function_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
   src/diagnostics/builders/log_view_builder.cpp
   src/diagnostics/builders/particle_trace_builder.cpp
   src/diagnostics/builders/simulation_backup_builder.cpp
-  src/diagnostics/builders/velocity_distribution_builder.cpp
 )
 
 set(commands

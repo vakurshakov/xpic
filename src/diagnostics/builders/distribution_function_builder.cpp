@@ -1,15 +1,15 @@
-#include "velocity_distribution_builder.h"
+#include "distribution_function_builder.h"
 
-#include "src/diagnostics/velocity_distribution.h"
+#include "src/diagnostics/distribution_function.h"
 #include "src/utils/utils.h"
 
-VelocityDistributionBuilder::VelocityDistributionBuilder(
+DistributionFunctionBuilder::DistributionFunctionBuilder(
   interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
   : DistributionMomentBuilder(simulation, diagnostics)
 {
 }
 
-PetscErrorCode VelocityDistributionBuilder::build(
+PetscErrorCode DistributionFunctionBuilder::build(
   const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
@@ -75,7 +75,7 @@ PetscErrorCode VelocityDistributionBuilder::build(
     throw std::runtime_error("Unknown geometry name " + name);
   }
 
-  VelocityDistribution::VelocityRegion vreg{
+  DistributionFunction::VelocityRegion vreg{
     .vx_max = +1,
     .vy_max = +1,
     .vx_min = -1,
@@ -102,7 +102,7 @@ PetscErrorCode VelocityDistributionBuilder::build(
 
   std::string res_dir = CONFIG().out_dir + "/" + particles + "/" + projector;
 
-  auto&& diagnostic = VelocityDistribution::create(  //
+  auto&& diagnostic = DistributionFunction::create(  //
     res_dir, simulation_.get_named_particles(particles),
     projector_from_string(projector), test, xreg_aabb, vreg);
 
