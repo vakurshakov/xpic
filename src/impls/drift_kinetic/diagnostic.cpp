@@ -126,19 +126,14 @@ DkMoment dk_moment_from_string(const std::string& name)
 }
 
 std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
-  const std::string& out_dir, const Particles& particles, const Moment& moment,
-  const Region& region)
+  const std::string& out_dir, const Particles& particles,  //
+  const Moment& moment, const Region& region)
 {
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
   PetscCallAbort(PETSC_COMM_WORLD, World::create_local_comm(particles.world.da, region, &newcomm));
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
-
-  // The shared DistributionMomentBuilder hands us a CWD-relative path; prefix
-  // it with the simulation's output directory so density frames land next to
-  // the field diagnostics regardless of where the binary was launched from.
-  // std::string full_out_dir = CONFIG().out_dir + "/" + out_dir;
 
   auto* diagnostic =
     new DkDistributionMoment(out_dir, particles, moment, newcomm);
@@ -147,7 +142,7 @@ std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
 }
 
 std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
-  const std::string& out_dir, const Particles& particles,
+  const std::string& out_dir, const Particles& particles,  //
   const DkMoment& moment, const Region& region)
 {
   PetscFunctionBeginUser;
@@ -155,8 +150,6 @@ std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
   PetscCallAbort(PETSC_COMM_WORLD, World::create_local_comm(particles.world.da, region, &newcomm));
   if (newcomm == MPI_COMM_NULL)
     PetscFunctionReturn(nullptr);
-
-  // std::string full_out_dir = CONFIG().out_dir + "/" + out_dir;
 
   auto* diagnostic =
     new DkDistributionMoment(out_dir, particles, moment, newcomm);
