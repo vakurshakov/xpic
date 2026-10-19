@@ -61,7 +61,7 @@ int main(int argc, char** argv)
         for (PetscInt z = 0; z < geom_nz; ++z)
           avg += value(x, y, z, c) / (PetscReal)geom_nz;
 
-        PetscCheck(equal_tol(written[(y * geom_nx + x) * 3 + c], avg, 1e-5), PETSC_COMM_WORLD, PETSC_ERR_USER,
+        PetscCheck(equal_tol(written[(y * geom_nx + x) * 3 + c], avg, 1e-7), PETSC_COMM_WORLD, PETSC_ERR_USER,
           "Written value differs from the z-average at (%d, %d, %d)", x, y, c);
       }
     }

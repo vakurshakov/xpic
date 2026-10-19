@@ -21,7 +21,7 @@ static PetscErrorCode test_vec(DM da, Vec v)
   auto&& diag = FieldView::create(out_dir, da, v, region);
   PetscCall(diag->diagnose(0));
   PetscCall(diag->finalize());
-  PetscCall(compare_with_vec(out_dir / "0000", da, v, 1e-6));
+  PetscCall(compare_with_vec(out_dir / "0000", da, v, 1e-7));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -52,7 +52,7 @@ static PetscErrorCode test_vec_comp(DM da, Vec v)
   for (PetscInt z = zs; z < zs + zm; ++z) {
     for (PetscInt y = ys; y < ys + ym; ++y) {
       for (PetscInt x = xs; x < xs + xm; ++x) {
-        PetscCheck(equal_tol(written[(z * geom_ny + y) * geom_nx + x], arr[z][y][x][Z], 1e-6), PETSC_COMM_WORLD, PETSC_ERR_USER,
+        PetscCheck(equal_tol(written[(z * geom_ny + y) * geom_nx + x], arr[z][y][x][Z], 1e-7), PETSC_COMM_WORLD, PETSC_ERR_USER,
             "Written z-component differs from the field at (%d, %d, %d)", x, y, z);
       }
     }

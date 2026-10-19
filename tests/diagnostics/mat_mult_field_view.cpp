@@ -19,7 +19,7 @@ static PetscErrorCode test(const std::filesystem::path& out_dir,  //
   PetscCall(DMGetGlobalVector(result_da, &expected));
   PetscCall(MatMult(op, source, expected));
 
-  PetscCall(compare_with_vec(out_dir / "0000", result_da, expected, 1e-6));
+  PetscCall(compare_with_vec(out_dir / "0000", result_da, expected, 5e-7));
   PetscCall(DMRestoreGlobalVector(result_da, &expected));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
