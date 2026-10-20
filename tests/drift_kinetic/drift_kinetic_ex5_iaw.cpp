@@ -3,52 +3,27 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Ion-sound ringdown at mi/me = 25: a fast-damping variant of ringdown_ex1  \n"
-  "designed so that the measured Landau rate is limited by marker noise      \n"
-  "alone, not by the initial condition.                                      \n"
+  "Drift-kinetic ion-acoustic-wave ringdown with mi/me = 25.                 \n"
   "                                                                          \n"
-  "Three changes with respect to ringdown_ex1 (Lz = 32, dz = 1, Te = 5 keV,  \n"
-  "Ti = 0.1 keV, mode 1, dn/n = 0.03 are all kept):                          \n"
+  "The periodic domain has Lz = 32, dz = 1, Te = 5 keV, Ti = 0.1 keV and    \n"
+  "8192 markers per cell for each species.  The mode-1 perturbation has      \n"
+  "dn/n = 0.03.  The mass ratio gives omega = 3.9304e-3 and Landau damping   \n"
+  "Gamma = 4.7291e-4, so three wave periods fit in 960 steps with dt = 5.    \n"
   "                                                                          \n"
-  "  1. mi/me = 100 -> 25.  Gamma/omega ~ sqrt(me/mi) grows 0.060 -> 0.120   \n"
-  "     and omega ~ 1/sqrt(mi) shortens the period 3153 -> 1599, so the wave \n"
-  "     reaches the noise floor in 4x fewer steps.  Crucially zeta_i =       \n"
-  "     omega/(sqrt(2) k vTi) ~ sqrt(Te/2Ti) does NOT depend on mi, so it    \n"
-  "     stays at 5.06 and ion Landau damping remains negligible.  Raising Ti \n"
-  "     to 1 keV would reach the same Gamma/omega but drop zeta_i to 2.15,   \n"
-  "     where the Landau pole stops dominating: the exact linear response    \n"
-  "     then deviates from a pure exponential by ~29 %% (vs ~7 %% here) and a\n"
-  "     naive exponential fit overestimates Gamma by ~8 %% in theory alone.  \n"
+  "SetCosineField initializes Ez.  SetParticlesIonAcousticWave initializes  \n"
+  "the matching density, parallel-flow and pressure moments of electrons and \n"
+  "ions for the kinetic root, avoiding a counter-propagating branch caused   \n"
+  "by a density-only perturbation.  Tx = Ty = 0, so the dynamics is one-     \n"
+  "dimensional along the uniform magnetic field.                              \n"
   "                                                                          \n"
-  "  2. Eigenmode loading, as in eigen_sound_ex15: SetCosineField for E plus \n"
-  "     SetParticlesIonAcousticWave, which matches M0, M1 and M2 of the      \n"
-  "     kinetic root.  ringdown_ex1 loads a density perturbation at zero     \n"
-  "     bulk velocity, which excites both branches in equal parts            \n"
-  "     (|A-|/|A+| ~ 1) and adds a ballistic transient; fitting that mixture \n"
-  "     over half a period inflates Gamma by ~40 %% even in exact theory.    \n"
-  "     Its mirrored particle pairs remove the loading noise                 \n"
-  "     of the initial state (~5e-8 instead of ~9e-5 in the m = 2..9 rms).   \n"
-  "                                                                          \n"
-  "  3. Np = 1024 -> 8192 per cell.  The equilibrium marker-noise plateau of \n"
-  "     the relative density is ~0.48 sqrt(2/N_tot) per mode and falls only  \n"
-  "     as 1/sqrt(N_tot); the observable dynamic range is ln(a0/noise), so   \n"
-  "     8x more markers buys 1.81 -> 2.85 e-foldings of envelope decay.      \n"
-  "     Note that the quiet start only delays the plateau by ~0.1 T -- the   \n"
-  "     marker count, not the loader, sets the floor after that.             \n"
-  "                                                                          \n"
-  "The diagnostics follow eigen_sound_ex15 rather than the ringdown family:  \n"
-  "the three-component E dump, the parallel-temperature moment and the       \n"
-  "DistributionFunction frames are what ion_sound.py needs to start the    \n"
-  "exact linear theory from the realized f and to separate wave energy from  \n"
-  "irreversible heating.  Ez itself stays below the noise floor at this      \n"
-  "marker count and cannot be de-aliased by dumping more often: omega_pe*dt  \n"
-  "= 5 means the step is already longer than the plasma period.             \n";
+  "Density, parallel-temperature, current, E and B diagnostics describe the  \n"
+  "ringdown.  Five early DistributionFunction frames retain the realized     \n"
+  "f(z,v_parallel,mu) for linear-model and phase-space analysis with          \n"
+  "drift_kinetic_ex5_iaw.py.                                                 \n";
 
 namespace ringdown {
 
-// Inputs consumed by test_ion_sound_constants.py.  Keep them as literal
-// constexpr values so changing a physical/grid parameter makes the fast
-// theory-consistency CTest request regenerated mode constants.
+// Linear-theory parameters used to generate the initialized mode.
 constexpr double theory_mec2_kev = 511.0;
 constexpr double theory_Te_kev = 5.0;
 constexpr double theory_Ti_kev = 0.1;
@@ -229,9 +204,8 @@ void overwrite_config()
     {
       "Diagnostics",
       {
-        // Full three-component E, unlike the {"component", "z"} dumps of
-        // the older ringdown cases: ion_sound.electric_harmonic_series()
-        // expects the vector layout.
+        // The analysis script needs all three components to extract the
+        // longitudinal electric-field harmonic.
         {
           {"diagnostic", "FieldView"},
           {"field", "E"},
@@ -277,7 +251,7 @@ void overwrite_config()
           {"out_dir", "ions/temperature_parallel"},
         },
 
-        // Five early 5-D frames: enough for ion_sound.py --model to
+        // Five early 5-D frames: enough for drift_kinetic_ex5_iaw.py to
         // start the exact linear evolution from the realized
         // distribution instead of the configured moments.  One mu bin,
         // see mu_max_* above.

@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Ion-acoustic (ion-sound) wave: kinetic dispersion relation, the linear
-response of density and parallel velocity to a given electric field, and the
-exact linearized Vlasov-Poisson evolution of the loaded initial condition.
+"""Analysis tools for ``drift_kinetic_ex5_iaw``.
+
+The script calculates the ion-acoustic kinetic dispersion relation, constructs
+the density and parallel-velocity response to an electric field, and compares
+the saved simulation diagnostics with linearized Vlasov-Poisson evolution.
+``--model``, ``--model-pic`` and ``--phase`` read
+``tests/drift_kinetic/output/<test>/config.json`` and its diagnostic frames.
 
 The unperturbed distribution of every species is a one-dimensional Maxwellian
 
@@ -69,6 +73,13 @@ import re
 import sys
 
 import numpy as np
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEST_DIR = os.path.dirname(SCRIPT_DIR)
+REPO_DIR = os.path.abspath(os.path.join(TEST_DIR, "..", ".."))
+TOOLS_DIR = os.path.join(REPO_DIR, "tools")
+if TOOLS_DIR not in sys.path:
+    sys.path.insert(0, TOOLS_DIR)
 
 
 # NumPy >= 2.0 renamed trapz -> trapezoid; keep both working.
@@ -570,7 +581,7 @@ def wave_number_from_config(config):
 def distribution_diagnostic_for_species(config, name):
     """Return the 5-D drift-kinetic distribution diagnostic for a sort."""
     for diagnostic in config.get("Diagnostics", []):
-        if diagnostic.get("diagnostic") == "DkDistributionFunction" and \
+        if diagnostic.get("diagnostic") == "DistributionFunction" and \
                 diagnostic.get("particles") == name:
             return diagnostic
     return None
@@ -598,14 +609,14 @@ def load_kinetic_distribution_ic(config, const, config_dir, species, k,
                                  frame=0):
     """Read a realized initial condition from a 5-D distribution dump.
 
-    The DkDistributionFunction histogram is integrated over mu_p and averaged
+    The DistributionFunction histogram is integrated over mu_p and averaged
     over x,y.  Its velocity distribution in every z cell is treated as a
     conditional PDF and multiplied by the separately deposited density moment.
     This retains the realized velocity-space loading while making its zeroth
     moment identical to the density diagnostic used in the comparison plots.
 
     Returns a mapping accepted by solve_vlasov_poisson().  An empty mapping
-    means that this config has no DkDistributionFunction diagnostics.  The
+    means that this config has no DistributionFunction diagnostics.  The
     momentum loader is deliberately irrelevant here: the dump is the realized
     initial condition, regardless of how the particles were generated.
     """
@@ -639,7 +650,7 @@ def load_kinetic_distribution_ic(config, const, config_dir, species, k,
             const, config_dir, subdir, frame)
         if phase_path is None:
             raise SystemExit(
-                f"DkDistributionFunction frame {frame:04d} not found for "
+                f"DistributionFunction frame {frame:04d} not found for "
                 f"species '{s.name}' in '{subdir}'.")
         expected_size = const.Nz * const.Ny * const.Nx * nv * nmu
         if os.path.getsize(phase_path) != expected_size * 4:
@@ -936,76 +947,18 @@ def field_view_dir(config, field="E"):
     return None
 
 
-def measured_perturbation(const, species, k, frame, config_dir):
-    """Measure the realized first-harmonic IC (cn_hat, u_hat) from the dumps.
-
-    Returns (cn_hat, u_hat, t0) with the same conventions `prepare_theory` uses
-    for the config-derived amplitudes: cn_hat_s is the RELATIVE density
-    amplitude 2/Lz int (n_s/n_s - 1) e^{-ikz} dz, and u_hat_s the ABSOLUTE
-    parallel-velocity amplitude 2/Lz int J_{z,s}/(q_s n_s) e^{-ikz} dz [c].
-
-    Both moments are read from the SAME frame `frame`, and t0 = frame*dts is
-    returned so the caller can start the theory there instead of at t = 0. The
-    current is deposited over a step, so frame 0000 holds J == 0; the default
-    caller passes frame 1. Starting the theory at t0 (rather than back-rotating
-    to 0) keeps the IC exact -- no assumption about what happened before t0.
-
-    The grid shape factor cancels: n_hat and J_hat carry the same deposition
-    kernel as the frames we later compare against, and the evolution is linear.
-    Raises SystemExit if a species has no density or no J frames."""
-    Nx, Ny, Nz = const.Nx, const.Ny, const.Nz
-    z = (np.arange(Nz) + 0.5) * const.dz
-    kernel = np.exp(-1j * k * z)
-
-    def read(sub, ncomp):
-        for base in (const.in_dir, config_dir):
-            path = os.path.join(base, sub, f"{frame:04d}")
-            if not os.path.isfile(path):
-                continue
-            if os.path.getsize(path) != Nx * Ny * Nz * ncomp * 4:
-                continue
-            raw = np.fromfile(path, dtype=np.float32,
-                              count=Nx * Ny * Nz * ncomp)
-            return raw.reshape(Nz, Ny, Nx, ncomp) if ncomp > 1 \
-                else raw.reshape(Nz, Ny, Nx)
-        return None
-
-    cn_hat, u_hat = {}, {}
-    for s in species:
-        dens = read(os.path.join(s.name, "density"), 1)
-        if dens is None:
-            raise SystemExit(
-                f"--ic-from-dump: no 3D density frame {frame:04d} for '{s.name}'.")
-        cur = read(os.path.join(s.name, "J"), 3)
-        if cur is None:
-            raise SystemExit(
-                f"--ic-from-dump: no 3D '{s.name}/J' FieldView frame {frame:04d}; "
-                "add that diagnostic to the config or drop --ic-from-dump.")
-        dn = dens.mean(axis=(1, 2)) / s.n - 1.0
-        jz = cur[..., 2].mean(axis=(1, 2))
-        cn_hat[s.name] = complex(2.0 * np.mean(dn * kernel))
-        u_hat[s.name] = complex(2.0 * np.mean(jz * kernel) / (s.q * s.n))
-    return cn_hat, u_hat, frame * const.dts
-
-
 def prepare_theory(testname, ic_frame=None):
     """Load output/<testname>/config.json, extract plasma parameters and the
     loaded initial condition, solve the dispersion root, and build the complex
     first-harmonic amplitudes cn_hat, u_hat. Returns a context dict shared by the
     density (`--model`) and field (`--model_electric`) comparison modes.
 
-    Sets up sys.path and lib.constants' global `const`. Species without their own
-    perturbation inherit the DENSITY (not the velocity) from one that has it."""
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-    for p in (os.path.join(repo_dir, "tools"),
-              os.path.join(tests_dir, "drift_kinetic_tools")):
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    Uses lib.constants' global `const`. Species without their own perturbation
+    inherit the DENSITY (not the velocity) from one that has it."""
 
     from lib.constants import const, init_constants
 
-    config_path = os.path.join(tests_dir, "output", testname, "config.json")
+    config_path = os.path.join(TEST_DIR, "output", testname, "config.json")
     if not os.path.isfile(config_path):
         raise SystemExit(f"config not found: {config_path}")
     init_constants(config_path)
@@ -1052,7 +1005,7 @@ def prepare_theory(testname, ic_frame=None):
     if E0 is None:  # fallback: Poisson  ik E0 = sum_s q_s cn_hat_s
         E0 = float((sum(s.q * cn_hat[s.name] for s in species) / (1j * k)).real)
 
-    # A DkDistributionFunction dump stores the complete realized 5-D
+    # A DistributionFunction dump stores the complete realized 5-D
     # distribution, independently of the particle loader.  Use its
     # velocity-space first harmonic rather than reducing it to density and bulk
     # velocity and inventing a shifted Maxwellian.  Frame zero is the
@@ -1073,11 +1026,9 @@ def prepare_theory(testname, ic_frame=None):
             cn_hat[s.name] = saved["density_hat"] / s.n
             u_hat[s.name] = saved["velocity_hat"]
     elif ic_frame is not None:
-        # Moment-only fallback for older MaxwellShifted(Sine|Cosine) tests which have no
-        # DkDistributionFunction initial condition.
-        cn_hat, u_hat, t0 = measured_perturbation(const, species, k, ic_frame,
-                                                  config_dir)
-        ic_measured = ic_frame
+        raise SystemExit(
+            f"DistributionFunction frame {ic_frame:04d} is required by "
+            "--ic-from-dump")
 
     return dict(const=const, config=config, config_path=config_path,
                 config_dir=config_dir, species=species, electron=electron,
@@ -1491,7 +1442,7 @@ def run_model(args):
 def compare_label(testname):
     """Legend label: everything after the drift_kinetic_ prefix.
 
-    drift_kinetic_ringdown_ex12 -> ringdown_ex12.  A name without that prefix
+    drift_kinetic_ex5_iaw -> ex5_iaw.  A name without that prefix
     is used as it is, so runs from other suites stay distinguishable."""
     name = os.path.basename(str(testname).rstrip("/"))
     prefix = "drift_kinetic_"
@@ -1662,7 +1613,7 @@ def diagnostic_energy_series(ctx, model_tmax=None):
 def electric_harmonic_series(ctx, first_frame=0, model_tmax=None):
     """Complex first harmonic of the saved longitudinal electric field.
 
-    E_z is face centred in z, unlike density and DkDistributionFunction.  Use
+    E_z is face centred in z, unlike density and DistributionFunction.  Use
     the face coordinates here so the complex phase passed to Vlasov--Ampere is
     consistent with the field that the PIC pusher actually saw.
     """
@@ -1792,12 +1743,6 @@ def electric_harmonic_ratio_series(testname, args, modes=(1, 2)):
 
 def run_compare_electric(args):
     """Compare second/first electric harmonics in four stacked run panels."""
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-    tools_dir = os.path.join(repo_dir, "tools")
-    if tools_dir not in sys.path:
-        sys.path.insert(0, tools_dir)
-
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -1929,15 +1874,8 @@ def run_model_pic(args):
                "equilibrium" not in initial_distribution[s.name]]
     if missing:
         raise SystemExit(
-            "--model-pic requires DkDistributionFunction in the selected "
+            "--model-pic requires DistributionFunction in the selected "
             f"frame for every species; missing: {', '.join(missing)}")
-
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-    for path in (os.path.join(repo_dir, "tools"),
-                 os.path.join(tests_dir, "drift_kinetic_tools")):
-        if path not in sys.path:
-            sys.path.insert(0, path)
 
     import matplotlib
     matplotlib.use("Agg")
@@ -2188,12 +2126,7 @@ def load_ion_harmonic(testname, args, dz):
 
 
 class _DensityZTools:
-    """Small self-contained subset of the former density-z plot helper.
-
-    ``ion_sound.py`` only needs diagnostic discovery, binary-frame loading and
-    the default species styles.  Keeping those operations here avoids relying
-    on the removed ``tests/drift_kinetic/drift_kinetic_tools`` directory.
-    """
+    """Diagnostic discovery, binary-frame loading and species plot styles."""
 
     SPECIES_STYLE = {
         "electrons": {
@@ -2383,13 +2316,6 @@ def run_compare_article(args):
     signed first-harmonic difference from exact kinetic theory and one with
     the full-amplitude difference from the same exact theory.
     """
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-    for path in (os.path.join(repo_dir, "tools"),
-                 os.path.join(tests_dir, "drift_kinetic_tools")):
-        if path not in sys.path:
-            sys.path.insert(0, path)
-
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -2773,7 +2699,7 @@ def run_compare_article(args):
             if missing_distribution:
                 raise SystemExit(
                     "--article complex-density figure requires "
-                    "DkDistributionFunction in the initial frame for every "
+                    "DistributionFunction in the initial frame for every "
                     f"species of '{run['testname']}'; missing: "
                     f"{', '.join(missing_distribution)}")
             field_time, field_harmonic, _ = electric_harmonic_series(
@@ -2930,7 +2856,7 @@ def run_compare_article(args):
             pad_inches=0.12)
 
         # Match the three-curve palette of the comparison panel in
-        # drift_kinetic_curv_ex3_convergence.py.
+        # drift_kinetic_ex4_curv_convergence.py.
         comparison_colors = ("#9467bd", "#2ca02c", "#ff7f0e")
         for line, color in zip((profile_t0, profile_t1, profile_t2),
                                comparison_colors):
@@ -3920,13 +3846,6 @@ def run_article_energy(args):
 
 def run_compare(args):
     """Compare ion first-harmonic amplitudes from --model and --compare runs."""
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-    for path in (os.path.join(repo_dir, "tools"),
-                 os.path.join(tests_dir, "drift_kinetic_tools")):
-        if path not in sys.path:
-            sys.path.insert(0, path)
-
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -4107,13 +4026,6 @@ def run_model_adv(args):
     that carry no signal is drawn alongside, because |A_m| is only meaningful
     while it stays above it.
     """
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-    for path in (os.path.join(repo_dir, "tools"),
-                 os.path.join(tests_dir, "drift_kinetic_tools")):
-        if path not in sys.path:
-            sys.path.insert(0, path)
-
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -4348,12 +4260,6 @@ def load_current_temperature(testname, args):
 
 def run_compare_temp(args):
     """Compare electron/ion longitudinal velocity variance inferred from J."""
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-    tools_dir = os.path.join(repo_dir, "tools")
-    if tools_dir not in sys.path:
-        sys.path.insert(0, tools_dir)
-
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -4762,16 +4668,10 @@ def moment_matched_kinetic_parallel(species, z, v, wave, Lz):
 
 
 def run_phase(args):
-    tests_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_dir = os.path.abspath(os.path.join(tests_dir, "..", ".."))
-    tools_dir = os.path.join(repo_dir, "tools")
-    if tools_dir not in sys.path:
-        sys.path.insert(0, tools_dir)
-
     from lib.constants import const, init_constants
 
     config_path = os.path.join(
-        tests_dir, "output", args.phase, "config.json")
+        TEST_DIR, "output", args.phase, "config.json")
     if not os.path.isfile(config_path):
         raise SystemExit(f"config not found: {config_path}")
     init_constants(config_path)
@@ -4806,7 +4706,7 @@ def run_phase(args):
         wave = ion_acoustic_wave_for_species(const.config, sp.name)
         if diagnostic is None:
             raise SystemExit(
-                f"no DkDistributionFunction diagnostic for '{sp.name}'")
+                f"no DistributionFunction diagnostic for '{sp.name}'")
         if wave is None:
             raise SystemExit(
                 f"no SetParticlesIonAcousticWave command for '{sp.name}'")
@@ -5039,13 +4939,13 @@ def build_parser():
                    help="theory mode (default): print dispersion root and initial "
                         "density/velocity amplitudes for the CLI parameters")
     p.add_argument("--model", default=None,
-                   help="model mode: test name (e.g. drift_kinetic_eigen_sound_ex1); "
+                   help="model mode: test name (e.g. drift_kinetic_ex5_iaw); "
                         "reads output/<name>/config.json and compares the exact "
                         "kinetic n_s(z,t) against the run's density diagnostics")
     p.add_argument("--model-pic", default=None, metavar="TEST",
                    help="PIC-informed linear model: evolve only the first "
                         "spatial harmonic with linear Vlasov--Ampere from "
-                        "the realized DkDistributionFunction and E harmonic "
+                        "the realized DistributionFunction and E harmonic "
                         "in one saved frame. "
                         "Defaults to frame 0001; --ic-from-dump selects another")
     p.add_argument("-compare", "--compare", nargs="+", action="append",
@@ -5118,7 +5018,7 @@ def build_parser():
                         "z-harmonics m = 1..5 of E_z on one axis")
     p.add_argument("--phase", default=None,
                    help="phase-space mode: test name; read the 5-D "
-                        "DkDistributionFunction and compare f(z,v_parallel) "
+                        "DistributionFunction and compare f(z,v_parallel) "
                         "with its configured kinetic loading theory")
     p.add_argument("--phase-frame", type=int, default=0, metavar="FRAME",
                    help="phase-space diagnostic frame to read (default: 0)")
@@ -5171,13 +5071,10 @@ def build_parser():
     p.add_argument("--ic-from-dump", type=int, nargs="?", const=1, default=None,
                    metavar="FRAME",
                    help="model modes: start the theory from the REALIZED initial "
-                        "condition measured in dump FRAME (default 1) instead of "
-                        "the amplitudes requested in config.json. Needs a 3D "
-                        "'<sort>/J' FieldView for the velocity moment; frame 0 is "
-                        "unusable because J is deposited over a step. The theory "
-                        "clock then starts at t0 = FRAME*dts. --model-pic uses "
-                        "frame 1 by default and requires a phase-space dump and "
-                        "E FieldView from the same frame")
+                        "condition in DistributionFunction FRAME (default 1) "
+                        "instead of the amplitudes requested in config.json. "
+                        "The theory clock starts at t0 = FRAME*dts; --model-pic "
+                        "also requires an E FieldView from the same frame")
     p.add_argument("--model-tmax", type=float, default=None,
                    help="model mode: draw only frames with t/T not greater than "
                         "this positive number of ion-sound periods")
