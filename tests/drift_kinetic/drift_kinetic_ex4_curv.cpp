@@ -26,14 +26,17 @@ constexpr char help[] =
 
 static constexpr PetscReal cell = 0.5;
 static constexpr PetscReal B0_value = 1.0;  // constant |B|
-static constexpr PetscReal R_value = 15.0;  // field-line (curvature) radius (large R -> small rot B error)
-static constexpr PetscReal margin = 1;  // gyro-radius + interpolation stencil around the arc
+
+// field-line (curvature) radius (large R -> small rot B error)
+static constexpr PetscReal R_value = 15.0;
+
+// gyro-radius + interpolation stencil around the arc
+static constexpr PetscReal margin = 1;
 
 // Only a quarter of the field-line circle is covered: the axis (|| z) sits one
 // margin in from the lower-left transverse corner, and the box spans the first
 // quadrant (R + 2*margin) so the whole quarter arc + gyration fit inside.
-static constexpr PetscInt grid_nx =
-  static_cast<PetscInt>((R_value + 2 * margin) / cell);
+static constexpr PetscInt grid_nx = (PetscInt)((R_value + 2 * margin) / cell);
 static constexpr PetscInt grid_ny = grid_nx;
 static constexpr PetscInt grid_nz = 10;
 
@@ -43,7 +46,7 @@ static constexpr PetscReal dt_drift = 10.0;
 
 static const Vector3R center(margin, margin, 0.0);
 // Particle on the +x side of the circle: there e_phi = +y, so p0 = (v_perp, v_par, 0).
-static const Vector3R r0(center[X] + R_value, center[Y], grid_nz * cell / 2);
+static const Vector3R r0(center[X] + R_value, center[Y], grid_nz* cell / 3);
 static const Vector3R p0(0.2, 0.08, 0.0);
 
 void overwrite_config(
@@ -55,22 +58,22 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   const std::filesystem::path base = get_out_dir(__FILE__);
-  const std::string dk_dir = (base / "drift_kinetic").string();
-  const std::string kin_dir = (base / "eccapfim").string();
+  const std::string dir_kinetic = (base / "eccapfim").string();
+  const std::string dir_drift = (base / "drift_kinetic").string();
 
-  overwrite_config("drift_kinetic", dk_dir, dt_drift);
-  Configuration::save(dk_dir);
+  overwrite_config("eccapfim", dir_kinetic, dt_kinetic);
+  Configuration::save(dir_kinetic);
   {
-    drift_kinetic::Simulation simulation;
+    eccapfim::Simulation simulation;
     PetscCall(simulation.initialize());
     PetscCall(simulation.calculate());
     PetscCall(simulation.finalize());
   }
 
-  overwrite_config("eccapfim", kin_dir, dt_kinetic);
-  Configuration::save(kin_dir);
+  overwrite_config("drift_kinetic", dir_drift, dt_drift);
+  Configuration::save(dir_drift);
   {
-    eccapfim::Simulation simulation;
+    drift_kinetic::Simulation simulation;
     PetscCall(simulation.initialize());
     PetscCall(simulation.calculate());
     PetscCall(simulation.finalize());

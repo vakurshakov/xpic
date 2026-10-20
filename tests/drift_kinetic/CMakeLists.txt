@@ -14,6 +14,7 @@ foreach(test ${tests})
 
   add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -n 1 ./${test}.out)
   set_property(TEST "${test}" PROPERTY LABELS impls drift_kinetic)
+  set_property(TEST "${test}" PROPERTY RUN_SERIAL true)
 endforeach()
 
 set(plot_tests

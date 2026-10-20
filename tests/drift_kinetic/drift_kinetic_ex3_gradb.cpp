@@ -39,22 +39,22 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   const std::filesystem::path base = get_out_dir(__FILE__);
-  const std::string dk_dir = (base / "drift_kinetic").string();
-  const std::string kin_dir = (base / "eccapfim").string();
+  const std::string dir_kinetic = (base / "eccapfim").string();
+  const std::string dir_drift = (base / "drift_kinetic").string();
 
-  overwrite_config("drift_kinetic", dk_dir, dt_drift);
-  Configuration::save(dk_dir);
+  overwrite_config("eccapfim", dir_kinetic, dt_kinetic);
+  Configuration::save(dir_kinetic);
   {
-    drift_kinetic::Simulation simulation;
+    eccapfim::Simulation simulation;
     PetscCall(simulation.initialize());
     PetscCall(simulation.calculate());
     PetscCall(simulation.finalize());
   }
 
-  overwrite_config("eccapfim", kin_dir, dt_kinetic);
-  Configuration::save(kin_dir);
+  overwrite_config("drift_kinetic", dir_drift, dt_drift);
+  Configuration::save(dir_drift);
   {
-    eccapfim::Simulation simulation;
+    drift_kinetic::Simulation simulation;
     PetscCall(simulation.initialize());
     PetscCall(simulation.calculate());
     PetscCall(simulation.finalize());
