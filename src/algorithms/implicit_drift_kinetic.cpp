@@ -48,26 +48,18 @@ PetscReal acrossS1(
 
 void DriftKineticShapeE::setup(const DriftKineticSegment& segment)
 {
-  p_g = Vector3I{
-    (PetscInt)std::floor(segment.Rsh[X] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsh[Y] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsh[Z] + 0.5) - shr,
-  };
+  p_g = segment.cell - Vector3I(shr);
 }
 
 void DriftKineticShapeGradB::setup(const DriftKineticSegment& segment)
 {
   p_s = Vector3R{
-    std::floor(segment.Rsh[X] + 0.5),
-    std::floor(segment.Rsh[Y] + 0.5),
-    std::floor(segment.Rsh[Z] + 0.5),
+    (PetscReal)segment.cell[X],
+    (PetscReal)segment.cell[Y],
+    (PetscReal)segment.cell[Z],
   };
 
-  p_g = Vector3I{
-    (PetscInt)std::floor(segment.Rsh[X] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsh[Y] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsh[Z] + 0.5) - shr,
-  };
+  p_g = segment.cell - Vector3I(shr);
 }
 
 DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** B_g)
@@ -92,14 +84,11 @@ PetscErrorCode DriftKineticEsirkepov::interpolate(                     //
 
   DriftKineticSegment track = make_track(R0, Rn);
 
-  std::vector<DriftKineticSegment> periodic_track =
-    periodic_segments(track, CellSplitMode::centers);
-
   std::vector<DriftKineticSegment> segmented_track =
-    cell_segments(periodic_track, CellSplitMode::centers);
+    cell_segments(track, CellSplitMode::centers);
 
-  Vector3R pR0 = make_begin(periodic_track.front());
-  Vector3R pRn = make_end(periodic_track.back());
+  Vector3R pR0 = make_begin(segmented_track.front());
+  Vector3R pRn = make_end(segmented_track.back());
 
   Vector3R Bn0_p, Bn1_p;
   PetscCall(interpolate_B(Bn0_p, Bn0_g, pR0));
@@ -136,14 +125,11 @@ PetscErrorCode DriftKineticEsirkepov::decomposition(const Vector3R& Rn,
   PetscFunctionBeginHot;
   DriftKineticSegment track = make_track(R0, Rn);
 
-  std::vector<DriftKineticSegment> periodic_track =
-    periodic_segments(track, CellSplitMode::centers);
-
   std::vector<DriftKineticSegment> segmented_track =
-    cell_segments(periodic_track, CellSplitMode::centers);
+    cell_segments(track, CellSplitMode::centers);
 
-  Vector3R pR0 = make_begin(periodic_track.front());
-  Vector3R pRn = make_end(periodic_track.back());
+  Vector3R pR0 = make_begin(segmented_track.front());
+  Vector3R pRn = make_end(segmented_track.back());
 
   Vector3R Bn0_p, Bn1_p;
   PetscCall(interpolate_B(Bn0_p, Bn0_g, pR0));
