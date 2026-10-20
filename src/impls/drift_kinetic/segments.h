@@ -18,6 +18,7 @@ struct DriftKineticSegment {
   Vector3R Rsh;       // Midpoint.
   Vector3R dRs;       // Displacement.
   PetscReal dRs_len;  // Length in grid coordinates.
+  Vector3I cell;      // Cell index in the periodic box [0, Geom_n).
 };
 
 /// @brief Converts physical endpoints into a consistent grid track.
@@ -26,13 +27,10 @@ DriftKineticSegment make_track(const Vector3R& R0, const Vector3R& Rn);
 Vector3R make_begin(const DriftKineticSegment& segment);
 Vector3R make_end(const DriftKineticSegment& segment);
 
-/// @brief Splits a track at periodic boundaries and wraps its pieces.
-std::vector<DriftKineticSegment> periodic_segments(
-  const DriftKineticSegment& track, CellSplitMode mode);
-
-/// @brief Splits consistent grid segments at the selected cell planes.
+/// @brief Splits a track at the selected cell planes and wraps each piece
+/// into the periodic box, whose faces are a subset of these planes.
 std::vector<DriftKineticSegment> cell_segments(
-  const std::vector<DriftKineticSegment>& segments, CellSplitMode mode);
+  const DriftKineticSegment& track, CellSplitMode mode);
 
 }  // namespace drift_kinetic
 
