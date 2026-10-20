@@ -34,6 +34,9 @@ PANELSIZE = 26
 TITLESIZE = 26
 OFFSETSIZE = 27
 
+DRIFT_REL_TOL = 5e-3
+ENERGY_REL_TOL = 1e-5
+
 
 def load_config(path):
     with open(os.path.join(path, "config.json")) as f:
@@ -64,6 +67,17 @@ def azimuthal_B0(config):
 
 def load_trace(path):
     return np.loadtxt(os.path.join(path, "temporal", "particle_trace.txt"), skiprows=1)
+
+
+def max_relative_change(values):
+    return np.max(np.abs(values / values[0] - 1.0))
+
+
+def check_error(name, error, tolerance):
+    print(f"{name:<28} = {error:.3e} (limit {tolerance:.1e})")
+    if not np.isfinite(error) or error > tolerance:
+        raise AssertionError(
+            f"{name} is {error:.3e}, expected at most {tolerance:.1e}")
 
 
 def mark_ends(ax, xs, ys, color):
@@ -187,10 +201,16 @@ def main():
     ax.legend(fontsize=LEGENDSIZE)
     style_axes(ax, "(c)")
 
+    energy_dk = 0.5 * m * p_par_dk ** 2 + dk[:, 6] * B0
+
+    drift_error = np.max(np.abs(rel_err))
+    energy_error_dk = max_relative_change(energy_dk)
+
     print(f"B0 (config)             = {B0:.6e}")
     print(f"v_drift (theory)        = {v_drift:.6e}")
     print(f"v_drift (drift-kinetic) = {np.mean(v_dk):.6e}")
-    print(f"max relative error      = {np.max(np.abs(rel_err)):.3e}")
+    check_error("drift relative error", drift_error, DRIFT_REL_TOL)
+    check_error("DK energy relative change", energy_error_dk, ENERGY_REL_TOL)
 
     fig.tight_layout(w_pad=1.8)
     for extension in ("png", "pdf"):

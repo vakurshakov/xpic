@@ -34,6 +34,9 @@ PANELSIZE = 26
 TITLESIZE = 26
 OFFSETSIZE = 27
 
+DRIFT_REL_TOL = 1e-8
+ENERGY_REL_TOL = 1e-5
+
 
 def load_config(path):
     with open(os.path.join(path, "config.json")) as f:
@@ -41,7 +44,7 @@ def load_config(path):
 
 
 def gradient_field(config):
-    # Returns (value, length, axis) of the SetGradientField magnetic preset.
+    # Returns (value, length, axis, origin) of the magnetic preset.
     for preset in config["Presets"]:
         if preset.get("command") != "SetField" or preset.get("field") != "B":
             continue
@@ -51,12 +54,24 @@ def gradient_field(config):
             length = float(setter["length"])
             axis = {"X": 0, "x": 0, "Y": 1, "y": 1, "Z": 2, "z": 2}[
                 setter.get("axis", "X")]
-            return value, length, axis
+            origin = float(setter.get("origin", 0.0))
+            return value, length, axis, origin
     raise KeyError("SetGradientField preset is not found in the config")
 
 
 def load_trace(path):
     return np.loadtxt(os.path.join(path, "temporal", "particle_trace.txt"), skiprows=1)
+
+
+def max_relative_change(values):
+    return np.max(np.abs(values / values[0] - 1.0))
+
+
+def check_error(name, error, tolerance):
+    print(f"{name:<28} = {error:.3e} (limit {tolerance:.1e})")
+    if not np.isfinite(error) or error > tolerance:
+        raise AssertionError(
+            f"{name} is {error:.3e}, expected at most {tolerance:.1e}")
 
 
 def mark_ends(ax, xs, ys, color):
@@ -91,7 +106,7 @@ def main():
 
     # B = value * (1 + s/length) along `axis`; here value || z, axis = x, so the
     # magnitude gradient is |value|/length along x and the drift is along y.
-    value, length, _ = gradient_field(cfg_dk)
+    value, length, gradient_axis, gradient_origin = gradient_field(cfg_dk)
     B0 = np.linalg.norm(value)
     grad_b = B0 / length
 
@@ -158,9 +173,16 @@ def main():
     v_dk = np.gradient(y_dk, t_dk)
     rel_err = (v_dk - v_drift) / v_drift
 
+    b_dk = B0 * (1.0 + (dk[:, gradient_axis + 1] - gradient_origin) / length)
+    energy_dk = 0.5 * m * dk[:, 4] ** 2 + dk[:, 6] * b_dk
+
+    drift_error = np.max(np.abs(rel_err))
+    energy_error_dk = max_relative_change(energy_dk)
+
     print(f"v_drift (theory)        = {v_drift:.6e}")
     print(f"v_drift (drift-kinetic) = {np.mean(v_dk):.6e}")
-    print(f"max relative error      = {np.max(np.abs(rel_err)):.3e}")
+    check_error("drift relative error", drift_error, DRIFT_REL_TOL)
+    check_error("DK energy relative change", energy_error_dk, ENERGY_REL_TOL)
 
     fig.tight_layout(w_pad=1.8)
     for extension in ("png", "pdf"):

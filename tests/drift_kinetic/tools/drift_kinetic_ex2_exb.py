@@ -34,6 +34,9 @@ PANELSIZE = 26
 TITLESIZE = 26
 OFFSETSIZE = 27
 
+DRIFT_REL_TOL = 1e-8
+ENERGY_REL_TOL = 1e-5
+
 
 def load_config(path):
     with open(os.path.join(path, "config.json")) as f:
@@ -49,6 +52,17 @@ def preset_value(config, field):
 
 def load_trace(path):
     return np.loadtxt(os.path.join(path, "temporal", "particle_trace.txt"), skiprows=1)
+
+
+def max_relative_change(values):
+    return np.max(np.abs(values / values[0] - 1.0))
+
+
+def check_error(name, error, tolerance):
+    print(f"{name:<28} = {error:.3e} (limit {tolerance:.1e})")
+    if not np.isfinite(error) or error > tolerance:
+        raise AssertionError(
+            f"{name} is {error:.3e}, expected at most {tolerance:.1e}")
 
 
 def mark_ends(ax, xs, ys, color):
@@ -97,7 +111,8 @@ def main():
     dk = load_trace(DK_DIR)
     kin = load_trace(KIN_DIR)
 
-    t_dk, x_dk, y_dk, p_perp_dk = dk[:, 0], dk[:, 1], dk[:, 2], dk[:, 5]
+    t_dk, x_dk, y_dk = dk[:, 0], dk[:, 1], dk[:, 2]
+    p_par_dk, p_perp_dk, mu_dk = dk[:, 4], dk[:, 5], dk[:, 6]
     t_kin, x_kin, y_kin = kin[:, 0], kin[:, 1], kin[:, 2]
 
     # Guiding-center x and the Larmor radius give the gyration envelope used in
@@ -142,9 +157,15 @@ def main():
     v_dk = np.gradient(x_dk, t_dk)
     rel_err = (v_dk - v_drift_x) / v_drift_x
 
+    energy_dk = 0.5 * m * p_par_dk ** 2 + mu_dk * np.linalg.norm(B)
+
+    drift_error = np.max(np.abs(rel_err))
+    energy_error_dk = max_relative_change(energy_dk)
+
     print(f"v_drift (theory)        = {v_drift_x:.6e}")
     print(f"v_drift (drift-kinetic) = {np.mean(v_dk):.6e}")
-    print(f"max relative error      = {np.max(np.abs(rel_err)):.3e}")
+    check_error("drift relative error", drift_error, DRIFT_REL_TOL)
+    check_error("DK energy relative change", energy_error_dk, ENERGY_REL_TOL)
 
     fig.tight_layout(w_pad=1.8)
     for extension in ("png", "pdf"):
