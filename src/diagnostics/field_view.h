@@ -35,6 +35,7 @@ protected:
   PetscErrorCode flush();
   PetscErrorCode close();
   PetscErrorCode write(PetscInt size, const PetscReal* data);
+  PetscErrorCode write_floats(const float* data);
 
   DM da;
   Vec field;
