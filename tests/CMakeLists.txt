@@ -5,6 +5,7 @@ add_subdirectory(crank_nicolson_push)
 
 add_subdirectory(commands)
 add_subdirectory(diagnostics)
+add_subdirectory(utils)
 
 add_subdirectory(basic)
 add_subdirectory(eccapfim)

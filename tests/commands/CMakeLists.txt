@@ -13,6 +13,6 @@ foreach(test ${tests})
   add_test(NAME "${test}" COMMAND ./${test}.out)
   set_property(TEST "${test}" PROPERTY LABELS commands)
 
-  add_test(NAME "${test}_mpi_x1y1z2" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./${test}.out -da_processors_z 2)
-  set_property(TEST "${test}_mpi_x1y1z2" PROPERTY LABELS commands mpi)
+  add_test(NAME "${test}_mpi_z2" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./${test}.out -da_processors_z 2)
+  set_property(TEST "${test}_mpi_z2" PROPERTY LABELS commands mpi)
 endforeach()

@@ -29,12 +29,6 @@ protected:
   PetscInt mdof_, ndof_;
 };
 
-class Identity final : public Operator {
-public:
-  Identity(DM da);
-  PetscErrorCode create(Mat* mat) const;
-};
-
 /**
  * @brief This structure serves as an abstraction of derivatives in finite-
  * difference approximation. Yee stencil is used, so each operator can be

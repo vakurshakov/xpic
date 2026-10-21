@@ -20,17 +20,13 @@ foreach(test ${tests})
   set_property(TEST "${test}" PROPERTY LABELS diagnostics)
   set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "${test}")
 
-  foreach(decomposition x1y1z2:z x1y2z1:y x2y1z1:x)
-    string(REPLACE ":" ";" decomposition ${decomposition})
-    list(GET decomposition 0 suffix)
-    list(GET decomposition 1 axis)
-
+  foreach(axis x y z)
     # @todo Fix `FieldViewZAvg` for runs decomposed along z
     if(${test} STREQUAL "field_view_zavg" AND ${axis} STREQUAL "z")
         continue()
     endif()
 
-    set(name "${test}_mpi_${suffix}")
+    set(name "${test}_mpi_${axis}2")
     add_test(NAME "${name}" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./${test}.out -da_processors_${axis} 2)
     set_property(TEST "${name}" PROPERTY LABELS diagnostics mpi)
     set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "${test}")
