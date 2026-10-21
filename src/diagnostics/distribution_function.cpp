@@ -119,7 +119,7 @@ PetscErrorCode DistributionFunction::collect()
   PetscCall(VecGetArray2dWrite(field_loc, REP2_A(vsize), REP2_A(vstart), &arr));
 
   Vector3I start, size;
-  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+  PetscCall(DMDAGetCorners(da_glob, REP3_A(&start), REP3_A(&size)));
 
 #pragma omp parallel for
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
