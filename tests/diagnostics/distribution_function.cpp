@@ -101,13 +101,10 @@ PetscErrorCode check_distribution(  //
   std::vector<PetscReal> expected(written.size(), 0.0);
   for (const Point& point : expected_points) {
     auto [vx, vy] = projector(point);
-
-    auto vgx = ROUND_STEP(vx, dv) + nv / 2;
-    auto vgy = ROUND_STEP(vy, dv) + nv / 2;
-    auto g = indexing::petsc_index(vgx, vgy, 0, 0, nv, nv, 1, 1);
-
-    // Each point is loaded `Np` times with the weight `mpw`
-    expected[g] += n;
+    auto ivx = ROUND_STEP(vx, dv) + nv / 2;
+    auto ivy = ROUND_STEP(vy, dv) + nv / 2;
+    auto g = indexing::petsc_index(ivx, ivy, 0, 0, nv, nv, 1, 1);
+    expected[g] += n;  // Each point is loaded `Np` times with the weight `mpw`
   }
 
   for (std::size_t i = 0; i < written.size(); i++) {
