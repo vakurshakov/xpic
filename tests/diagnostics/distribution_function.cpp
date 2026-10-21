@@ -111,7 +111,7 @@ PetscErrorCode check_distribution(  //
   }
 
   for (std::size_t i = 0; i < written.size(); i++) {
-    PetscCheck(equal_tol(written[i], expected[i], 1e-7), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    PetscCheck(equal_tol(written[i], expected[i], 1e-8), PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Distribution \"%s\" differs from the expected one at the index %zu: %g vs %g", name.c_str(), i, (double)written[i], expected[i]);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
