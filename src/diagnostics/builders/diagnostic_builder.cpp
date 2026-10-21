@@ -1,12 +1,13 @@
 #include "diagnostic_builder.h"
 
+#include "src/diagnostics/builders/distribution_function_builder.h"
 #include "src/diagnostics/builders/distribution_moment_builder.h"
 #include "src/diagnostics/builders/field_view_builder.h"
 #include "src/diagnostics/builders/field_view_zavg_builder.h"
 #include "src/diagnostics/builders/log_view_builder.h"
+#include "src/diagnostics/builders/mat_mult_field_view_builder.h"
+#include "src/diagnostics/builders/particle_trace_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
-#include "src/diagnostics/builders/velocity_distribution_builder.h"
-#include "src/utils/geometries.h"
 
 DiagnosticBuilder::DiagnosticBuilder(
   interfaces::Simulation& simulation, std::vector<Diagnostic_up>& diagnostics)
@@ -34,8 +35,8 @@ PetscErrorCode build_diagnostics(
     PetscFunctionReturn(PETSC_SUCCESS);
 
   for (auto&& info : *it) {
-    if (!info.contains("diagnostic"))
-      continue;
+    PetscCheck(info.contains("diagnostic"), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "Diagnostic should have it's name stored in \"diagnostic\".");
 
     std::string name;
     info.at("diagnostic").get_to(name);
@@ -46,14 +47,20 @@ PetscErrorCode build_diagnostics(
     else if (name == "FieldViewZAvg") {
       PetscCall(Builder::use_impl<FieldViewZAvgBuilder>(info, simulation, result));
     }
+    else if (name == "MatMultFieldView") {
+      PetscCall(Builder::use_impl<MatMultFieldViewBuilder>(info, simulation, result));
+    }
     else if (name == "DistributionMoment") {
       PetscCall(Builder::use_impl<DistributionMomentBuilder>(info, simulation, result));
     }
-    else if (name == "VelocityDistribution") {
-      PetscCall(Builder::use_impl<VelocityDistributionBuilder>(info, simulation, result));
+    else if (name == "DistributionFunction") {
+      PetscCall(Builder::use_impl<DistributionFunctionBuilder>(info, simulation, result));
     }
     else if (name == "LogView") {
       PetscCall(Builder::use_impl<LogViewBuilder>(info, simulation, result));
+    }
+    else if (name == "ParticleTrace") {
+      PetscCall(Builder::use_impl<ParticleTraceBuilder>(info, simulation, result));
     }
     else {
       throw std::runtime_error("Unknown diagnostic name " + name);
@@ -61,4 +68,3 @@ PetscErrorCode build_diagnostics(
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-

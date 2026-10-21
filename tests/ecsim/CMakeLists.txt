@@ -10,9 +10,9 @@ foreach(test ${tests})
 
   add_test(NAME "${test}" COMMAND ./${test}.out)
   set_property(TEST "${test}" PROPERTY LABELS impls ecsim)
-  set_property(TEST "${test}" PROPERTY RUN_SERIAL true)
+  set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "${test}")
   
   add_test(NAME "${test}_mpi_x2" COMMAND mpiexec -np 2 ./${test}.out -da_processors_x 2)
   set_property(TEST "${test}_mpi_x2" PROPERTY LABELS impls ecsim mpi)
-  set_property(TEST "${test}_mpi_x2" PROPERTY RUN_SERIAL true)
+  set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "${test}")
 endforeach()

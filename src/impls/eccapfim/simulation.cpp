@@ -107,10 +107,10 @@ PetscErrorCode Simulation::init_log()
   PetscCall(PetscLogEventRegister("decomp_snes", classid, &events[5]));
   PetscCall(PetscLogEventRegister("mat_mult", classid, &events[6]));
 
-  PetscCall(PetscLogStageRegister("Initialization", &stagenums[0]));
-  PetscCall(PetscLogStageRegister("Init iteration", &stagenums[1]));
-  PetscCall(PetscLogStageRegister("Calc iteration", &stagenums[2]));
-  PetscCall(PetscLogStageRegister("After iteration", &stagenums[3]));
+  PetscCall(register_log_stage("Initialization", &stagenums[0]));
+  PetscCall(register_log_stage("Init iteration", &stagenums[1]));
+  PetscCall(register_log_stage("Calc iteration", &stagenums[2]));
+  PetscCall(register_log_stage("After iteration", &stagenums[3]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -142,9 +142,14 @@ PetscErrorCode Simulation::finalize()
 PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
-  PetscCall(init_iteration());
-  PetscCall(calc_iteration());
-  PetscCall(after_iteration());
+  if (evolve_fields) {
+    PetscCall(init_iteration());
+    PetscCall(calc_iteration());
+    PetscCall(after_iteration());
+  }
+  else {
+    PetscCall(push_particles());
+  }
   PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -167,6 +172,27 @@ PetscErrorCode Simulation::init_iteration()
 #endif
 
   PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::push_particles()
+{
+  PetscFunctionBeginUser;
+  PetscCall(clock.push(__FUNCTION__));
+
+  for (auto& sort : particles_)
+    PetscCall(sort->prepare_storage());
+
+  PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, E_loc));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
+
+  PetscCall(clear_sources());
+  PetscCall(form_current());
+
+  for (auto& sort : particles_)
+    PetscCall(sort->update_cells());
+
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -590,5 +616,6 @@ PetscErrorCode ConvergenceHistory::add_columns(PetscInt t)
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 }  // namespace eccapfim

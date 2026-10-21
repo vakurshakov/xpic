@@ -1,5 +1,7 @@
 #include "particles_builder.h"
 
+#include "src/utils/vector3.h"
+
 ParticlesBuilder::ParticlesBuilder(
   interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : CommandBuilder(simulation, result)
@@ -32,6 +34,16 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
     gen = CoordinateInCylinder(std::move(cyl));
   }
+  else if (name == "CoordinateInBoxCosineHump") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    std::string axis_name = info.value("axis", "Z");
+    Axis axis = get_component(axis_name);
+
+    number_of_particles = (box.max - box.min).elements_product() * frac;
+    gen = CoordinateInBoxCosineHump{std::move(box), axis};
+  }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);
   }
@@ -54,16 +66,35 @@ void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
 
     gen = MaxwellianMomentum(particles.parameters, tov);
   }
-  else if (name == "MaxwellCosinePerturbation") {
+  else if (name == "MaxwellShiftedCosine") {
     BoxGeometry box;
     load_geometry(info, box);
 
-    Vector3R a = parse_vector(info, "amplitude");
-    Vector3R m = parse_vector(info, "wave_number");
+    Vector3R velocity = parse_vector(info, "velocity");
+    Vector3R wave_number = parse_vector(info, "wave_number");
 
-    gen = MaxwellCosinePerturbation(particles.parameters, box, a, m);
+    Vector3R phase;
+    if (info.contains("phase"))
+      phase = parse_vector(info, "phase");
+
+    gen = MaxwellShiftedCosine(
+      particles.parameters, box, velocity, wave_number, phase);
+  }
+  else if (name == "MaxwellShiftedSine") {
+    BoxGeometry box;
+    load_geometry(info, box);
+
+    Vector3R velocity = parse_vector(info, "velocity");
+    Vector3R wave_number = parse_vector(info, "wave_number");
+
+    Vector3R phase;
+    if (info.contains("phase"))
+      phase = parse_vector(info, "phase");
+
+    gen = MaxwellShiftedSine(
+      particles.parameters, box, velocity, wave_number, phase);
   }
   else {
-    throw std::runtime_error("Unknown coordinate generator name " + name);
+    throw std::runtime_error("Unknown momentum generator name " + name);
   }
 }

@@ -24,7 +24,8 @@ FieldView::FieldView(DM da, Vec field)
 {
 }
 
-FieldView::FieldView(const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm)
+FieldView::FieldView(
+  const std::string& out_dir, DM da, Vec field, MPI_Comm newcomm)
   : interfaces::Diagnostic(out_dir), da(da), field(field), comm(newcomm)
 {
 }
@@ -162,13 +163,20 @@ PetscErrorCode FieldView::write(PetscInt size, const PetscReal* data)
 {
   PetscFunctionBeginHot;
 #if defined(PETSC_USE_REAL_SINGLE)
-  PetscCallMPI(MPI_File_write_all(file_, data, 1, memview_, MPI_STATUS_IGNORE));
+  PetscCall(write_floats(data));
 #else
   /// @todo It works, but it can be expensive for small datasets. We should exploit memview_.
   std::vector<float> buf(size);
   for (PetscInt i = 0; i < size; ++i)
     buf[i] = static_cast<float>(data[i]);
-  PetscCallMPI(MPI_File_write_all(file, buf.data(), 1, memview, MPI_STATUS_IGNORE));
+  PetscCall(write_floats(buf.data()));
 #endif
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode FieldView::write_floats(const float* data)
+{
+  PetscFunctionBeginHot;
+  PetscCallMPI(MPI_File_write_all(file, data, 1, memview, MPI_STATUS_IGNORE));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

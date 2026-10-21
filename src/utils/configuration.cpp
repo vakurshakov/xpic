@@ -18,20 +18,19 @@ void Configuration::overwrite(json_t&& json)
 
 void Configuration::init(const std::string& config_path)
 {
-  config.config_path_ = config_path;
+  config.path = config_path;
   std::ifstream file(config_path);
   overwrite(json_t::parse(file));
 }
 
 void Configuration::save(const std::string& out_dir)
 {
-  if (!config.config_path_.empty()) {
-    save(config.config_path_, out_dir,
+  if (!config.path.empty()) {
+    make_copy(config.path, out_dir,
       std::filesystem::copy_options::overwrite_existing);
   }
   else if (!config.json.empty()) {
-    std::ofstream os(out_dir + "/config.json");
-    os << std::setw(2) << config.json;
+    make_save(out_dir);
   }
 }
 
@@ -41,12 +40,12 @@ void Configuration::save_sources(const std::string& out_dir)
   src_dir = src_dir.parent_path();
   src_dir = src_dir.parent_path();
 
-  save(src_dir, out_dir,
+  make_copy(src_dir, out_dir,
     std::filesystem::copy_options::overwrite_existing |
       std::filesystem::copy_options::recursive);
 }
 
-void Configuration::save(const std::string& from, const std::string& to,
+void Configuration::make_copy(const std::string& from, const std::string& to,
   std::filesystem::copy_options options)
 {
   PetscInt rank;
@@ -57,6 +56,32 @@ void Configuration::save(const std::string& from, const std::string& to,
   try {
     std::filesystem::create_directories(to);
     std::filesystem::copy(from, to, options);
+  }
+  catch (const std::filesystem::filesystem_error& ex) {
+    std::stringstream ss;
+
+    ss << "what():  " << ex.what() << '\n'
+       << "path1(): " << ex.path1() << '\n'
+       << "path2(): " << ex.path2() << '\n'
+       << "code().value():    " << ex.code().value() << '\n'
+       << "code().message():  " << ex.code().message() << '\n'
+       << "code().category(): " << ex.code().category().name() << '\n';
+
+    throw std::runtime_error(ss.str());
+  }
+}
+
+void Configuration::make_save(const std::string& to)
+{
+  PetscInt rank;
+  MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+  if (rank != 0)
+    return;
+
+  try {
+    std::filesystem::create_directories(to);
+    std::ofstream ofs(to + "/config.json");
+    ofs << std::setw(2) << config.json;
   }
   catch (const std::filesystem::filesystem_error& ex) {
     std::stringstream ss;

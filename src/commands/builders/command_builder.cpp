@@ -3,8 +3,9 @@
 #include "src/commands/builders/fields_damping_builder.h"
 #include "src/commands/builders/inject_particles_builder.h"
 #include "src/commands/builders/remove_particles_builder.h"
-#include "src/commands/builders/set_magnetic_field_builder.h"
+#include "src/commands/builders/set_field_builder.h"
 #include "src/commands/builders/set_particles_builder.h"
+#include "src/commands/builders/set_particles_iaw_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
 
 CommandBuilder::CommandBuilder(
@@ -33,8 +34,8 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
   LOG("Building commands from \"{}\"", name);
 
   for (auto&& info : *it) {
-    if (!info.contains("command"))
-      continue;
+    PetscCheck(info.contains("command"), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+      "Command should have it's name stored in \"command\".");
 
     std::string command;
     info.at("command").get_to(command);
@@ -42,14 +43,17 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
     if (command == "SetParticles") {
       PetscCall(Builder::use_impl<SetParticlesBuilder>(info, simulation, result));
     }
+    else if (command == "SetParticlesIonAcousticWave") {
+      PetscCall(Builder::use_impl<SetParticlesIonAcousticWaveBuilder>(info, simulation, result));
+    }
     else if (command == "InjectParticles") {
       PetscCall(Builder::use_impl<InjectParticlesBuilder>(info, simulation, result));
     }
     else if (command == "RemoveParticles") {
       PetscCall(Builder::use_impl<RemoveParticlesBuilder>(info, simulation, result));
     }
-    else if (command == "SetMagneticField") {
-      PetscCall(Builder::use_impl<SetMagneticFieldBuilder>(info, simulation, result));
+    else if (command == "SetField") {
+      PetscCall(Builder::use_impl<SetFieldBuilder>(info, simulation, result));
     }
     else if (command == "FieldsDamping") {
       PetscCall(Builder::use_impl<FieldsDampingBuilder>(info, simulation, result));

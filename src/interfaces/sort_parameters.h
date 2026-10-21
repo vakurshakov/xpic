@@ -6,16 +6,17 @@
 
 struct SortParameters {
   std::string sort_name;
-  PetscInt Np;         // [dimensionless], Number of particles in a cell.
-  PetscReal n;         // [n0], Reference density of the particles.
-  PetscReal q;         // [e],  Reference charge of the particles.
-  PetscReal m;         // [me], Mass of the particles in a sort.
-  PetscReal px = 0.0;  // [me c], Inital impulse in x direction.
-  PetscReal py = 0.0;  // [me c], Inital impulse in y direction.
-  PetscReal pz = 0.0;  // [me c], Inital impulse in z direction.
-  PetscReal Tx = 0.0;  // [keV], Temperature in x direction.
-  PetscReal Ty = 0.0;  // [keV], Temperature in y direction.
-  PetscReal Tz = 0.0;  // [keV], Temperature in z direction.
+  PetscInt Np;           // [dimensionless], Number of particles in a cell.
+  PetscReal n;           // [n0], Reference density of the particles.
+  PetscReal q;           // [e],  Reference charge of the particles.
+  PetscReal m;           // [me], Mass of the particles in a sort.
+  PetscReal px = 0.0;    // [me c], Inital impulse in x direction.
+  PetscReal py = 0.0;    // [me c], Inital impulse in y direction.
+  PetscReal pz = 0.0;    // [me c], Inital impulse in z direction.
+  PetscReal Tx = 0.0;    // [keV], Temperature in x direction.
+  PetscReal Ty = 0.0;    // [keV], Temperature in y direction.
+  PetscReal Tz = 0.0;    // [keV], Temperature in z direction.
+  PetscReal mpw = 0.0;   // [n0], Macro-particle weight
 };
 
 

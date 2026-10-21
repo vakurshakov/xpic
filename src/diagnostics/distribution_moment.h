@@ -4,12 +4,24 @@
 #include "src/interfaces/particles.h"
 #include "src/diagnostics/field_view.h"
 
+// clang-format off
 /// @note The size of the returned `vector` should match the passed `region.dof`
 using Moment = std::vector<PetscReal> (*)(
   const interfaces::Particles&, const Point&);
 
 /// @note To see the list of available moment getters, check the implementation
 Moment moment_from_string(const std::string& name);
+
+/// @brief Projects `v` at the position `r` onto the (R, A, Z) basis around the
+/// domain axis. Near the axis the Cartesian components are returned unchanged.
+Vector3R to_cylindrical(const Vector3R& r, const Vector3R& v);
+
+/// @brief Momentum flux components of a particle with mass `m` at `r` and velocity `v`
+std::vector<PetscReal> momentum_flux(PetscReal m, const Vector3R& v);
+std::vector<PetscReal> momentum_flux_diag(PetscReal m, const Vector3R& v);
+std::vector<PetscReal> momentum_flux_cyl(PetscReal m, const Vector3R& r, const Vector3R& v);
+std::vector<PetscReal> momentum_flux_diag_cyl(PetscReal m, const Vector3R& r, const Vector3R& v);
+// clang-format on
 
 
 /// @brief Diagnostic of particles _coordinate_ distribution moment
@@ -33,8 +45,26 @@ protected:
 
   PetscErrorCode set_data_views(const Region& reg) override;
 
-  struct Shape;
+  struct Shape {
+    static constexpr PetscInt shr = 1;
+    static constexpr PetscInt shw = 2;
+    static constexpr PetscInt shm = shw * shw * shw;
+
+    Vector3I start;
+    PetscReal cache[shm];
+
+    void setup(const Vector3R& r);
+  };
+
   virtual PetscErrorCode collect();
+
+  /**
+   * @brief Deposits moments of all particles with a cell-centered shape. The
+   * storage-specific part is `for_each_particle(g, deposit)`: it must call
+   * `deposit(r, moments)` for every particle of the local cell `g`.
+   */
+  template<typename ForEachParticle>
+  PetscErrorCode collect(ForEachParticle&& for_each_particle);
 
   DM da_glob;
   Vec field_loc;
@@ -42,5 +72,7 @@ protected:
   const interfaces::Particles& particles;
   Moment moment;
 };
+
+#include "distribution_moment.tpp"
 
 #endif  // SRC_DIAGNOSTICS_DISTRIBUTION_MOMENT_H

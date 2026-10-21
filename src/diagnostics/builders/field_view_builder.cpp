@@ -1,5 +1,6 @@
 #include "field_view_builder.h"
 
+#include "src/impls/drift_kinetic/simulation.h"
 #include "src/utils/configuration.h"
 #include "src/utils/vector_utils.h"
 
@@ -20,6 +21,22 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
   DM da;
   Vec f;
   Region region;
+  parse_view(info, field, nullptr, da, f, region, out_dir);
+
+  LOG("  Field view diagnostic is added for {}, output directory: {}", field, out_dir);
+
+  auto diagnostic = FieldView::create(  //
+    CONFIG().out_dir + "/" + out_dir, da, f, region);
+
+  if (diagnostic)
+    diagnostics_.emplace_back(std::move(diagnostic));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+void FieldViewBuilder::parse_view(const Configuration::json_t& info,
+  const std::string& field, DM result_da, DM& da, Vec& f, Region& region,
+  std::string& out_dir)
+{
   region.dim = 4;
   region.dof = 3;
   region.start = Vector4I(0);
@@ -27,19 +44,28 @@ PetscErrorCode FieldViewBuilder::build(const Configuration::json_t& info)
 
   parse_field(info, da, f, region, field);
 
+  if (result_da == simulation_.da_rho) {
+    region.dim = 3;
+    region.dof = 1;
+    region.start[3] = 0;
+    region.size[3] = 1;
+  }
+
   if (info.contains("region"))
     parse_region(info.at("region"), region, field);
 
+  if (info.contains("component")) {
+    if (region.dof == 1)
+      throw std::runtime_error(
+        "Cannot select component when region.dof = 1 for " + field + ".");
+
+    Axis component = get_component(info.at("component").get<std::string>());
+    region.start[C] = component;
+    region.size[C] = 1;
+  }
+
   if (info.contains("out_dir"))
     info.at("out_dir").get_to(out_dir);
-
-  LOG("  field view diagnostic is added for {}, output directory: {}", field, out_dir);
-
-  if (auto&& diagnostic =
-        FieldView::create(CONFIG().out_dir + "/" + out_dir, da, f, region)) {
-    diagnostics_.emplace_back(std::move(diagnostic));
-  }
-  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 void FieldViewBuilder::parse_field(const Configuration::json_t& info, DM& da,
@@ -60,6 +86,15 @@ void FieldViewBuilder::parse_field(const Configuration::json_t& info, DM& da,
     std::string rho_name = sort->parameters.sort_name + "/rho";
     map[J_name] = std::make_pair(da_field, sort->J);
     map[rho_name] = std::make_pair(da_rho, sort->rho[1]);
+
+    if (auto* dk_sort = dynamic_cast<drift_kinetic::Particles*>(sort.get())) {
+      std::string M_name = sort->parameters.sort_name + "/M";
+      map[M_name] = std::make_pair(da_field, dk_sort->M);
+    }
+  }
+
+  if (auto&& simulation = dynamic_cast<drift_kinetic::Simulation*>(&simulation_)) {
+    map["M"] = std::make_pair(da_field, simulation->M);
   }
 
   if (!map.contains(name))

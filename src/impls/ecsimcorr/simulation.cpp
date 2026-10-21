@@ -21,12 +21,20 @@ PetscErrorCode Simulation::initialize_implementation()
 PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
-  PetscCall(clear_sources());
-  PetscCall(first_push());
-  PetscCall(advance_fields());
-  PetscCall(second_push());
-  PetscCall(correct_fields());
-  PetscCall(final_update());
+  if (evolve_fields) {
+    PetscCall(clear_sources());
+    PetscCall(first_push());
+    PetscCall(advance_fields());
+    PetscCall(second_push());
+    PetscCall(correct_fields());
+    PetscCall(final_update());
+  }
+  else {
+    PetscCall(clear_sources());
+    PetscCall(first_push());
+    PetscCall(VecCopy(E, Ep));
+    PetscCall(second_push());
+  }
   PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -145,8 +153,8 @@ PetscErrorCode Simulation::init_log_stages()
   stagenums[2] = ecsim::Simulation::stagenums[2];  // First push
   stagenums[4] = ecsim::Simulation::stagenums[4];  // Second push
   stagenums[6] = ecsim::Simulation::stagenums[5];  // Final update
-  PetscCall(PetscLogStageRegister("Predict field", &stagenums[3]));
-  PetscCall(PetscLogStageRegister("Correct fields", &stagenums[5]));
+  PetscCall(register_log_stage("Predict field", &stagenums[3]));
+  PetscCall(register_log_stage("Correct fields", &stagenums[5]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

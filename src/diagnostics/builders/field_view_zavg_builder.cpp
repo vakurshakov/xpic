@@ -19,24 +19,18 @@ PetscErrorCode FieldViewZAvgBuilder::build(const Configuration::json_t& info)
   DM da;
   Vec f;
   Region region;
-  region.dim = 4;
-  region.dof = 3;
-  region.start = Vector4I(0);
-  region.size = Vector4I(geom_nx, geom_ny, 1, 3);
+  parse_view(info, field, nullptr, da, f, region, out_dir);
 
-  parse_field(info, da, f, region, field);
+  // The average is taken over the whole z-range, the output is 2D
+  region.start[Z] = 0;
+  region.size[Z] = 1;
 
-  if (info.contains("region"))
-    parse_region(info.at("region"), region, field);
+  LOG("  Field view (z-average) diagnostic is added for {}, output directory: {}", field, out_dir);
 
-  if (info.contains("out_dir"))
-    info.at("out_dir").get_to(out_dir);
+  auto diagnostic = FieldViewZAvg::create(  //
+    CONFIG().out_dir + "/" + out_dir, da, f, region);
 
-  LOG("  field view (z-average) diagnostic is added for {}, output directory: {}", field, out_dir);
-
-  if (auto&& diagnostic =
-        FieldViewZAvg::create(CONFIG().out_dir + "/" + out_dir, da, f, region)) {
+  if (diagnostic)
     diagnostics_.emplace_back(std::move(diagnostic));
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

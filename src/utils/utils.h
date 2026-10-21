@@ -23,16 +23,22 @@ constexpr PetscInt petsc_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c,
   return ((z * size_y + y) * size_x + x) * size_c + c;
 }
 
+/// @brief Grid indices for tensor fields in PETSc natural ordering
+inline PetscInt t_g(PetscInt x, PetscInt y, PetscInt z, PetscInt c, PetscInt dof)
+{
+  return petsc_index(x, y, z, c, geom_nx, geom_ny, geom_nz, dof);
+}
+
 /// @brief Grid indices for scalar fields in PETSc natural ordering
 inline PetscInt s_g(PetscInt x, PetscInt y, PetscInt z)
 {
-  return petsc_index(x, y, z, 0, geom_nx, geom_ny, geom_nz, 1);
+  return t_g(x, y, z, 0, 1);
 }
 
 /// @brief Grid indices for vector fields in PETSc natural ordering
 inline PetscInt v_g(PetscInt x, PetscInt y, PetscInt z, PetscInt c)
 {
-  return petsc_index(x, y, z, c, geom_nx, geom_ny, geom_nz, 3);
+  return t_g(x, y, z, c, 3);
 }
 
 }  // namespace indexing
@@ -42,6 +48,10 @@ namespace MPIUtils {
 PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);
 
 }  // namespace MPIUtils
+
+/// @brief Re-enterable stage registration: reuses the stage if `name` is
+/// already registered, so several simulations can live in a single process.
+PetscErrorCode register_log_stage(const char* name, PetscLogStage* stage);
 
 
 #define REP2(A) A, A

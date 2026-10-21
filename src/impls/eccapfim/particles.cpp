@@ -36,7 +36,7 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
   PetscReal m = parameters.m;
   PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
 
-// #pragma omp parallel for
+  // #pragma omp parallel for
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     if (storage[g].empty())
       continue;

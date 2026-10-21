@@ -33,14 +33,11 @@ Your goal: increase the capabilities/correctness of `xpic`, identify bugs/ineffi
 
 ## Skills
 
-Before working on the build system, exploring/placing code, or tracing execution flow, consult the relevant skill:
+Before working on the build system, exploring/placing code, writing or reviewing code, or tracing execution flow, consult the relevant skill:
 
 | Work | Skill |
 | --- | --- |
 | Building, running, testing, formatting | `.claude/skills/building/SKILL.md` |
+| Writing or reviewing code: comments, includes, definition order, formatting | `.claude/skills/code-style/SKILL.md` |
 | Repository/code organization, where new code belongs | `.claude/skills/directory-structure/SKILL.md` |
 | Execution flow, config-driven dispatch pattern, module responsibilities | `.claude/skills/architecture/SKILL.md` |
-
-## Code style
-
-Enforced by `.clang-format` (run via `./run-clang-format.sh`) and CMake warning flags `-Wall -Wextra -Wpedantic -Werror`. Header guards use the `SRC_<PATH>_H` convention (not `#pragma once`); PETSc error handling follows the standard `PetscFunctionBeginUser` / `PetscCall(...)` / `PetscFunctionReturn(PETSC_SUCCESS)` idiom throughout.

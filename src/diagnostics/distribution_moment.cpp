@@ -67,96 +67,59 @@ PetscErrorCode DistributionMoment::diagnose(PetscInt t)
 
 
 /**
- * @brief This class is reduced from global `Shape` to be used in a specific task:
+ * @brief `Shape` is reduced from global `Shape` to be used in a specific task:
  * (1) All moments are represented as a cell-centered quantities;
  * (2) Lower order `sfunc` is used to reduce the computational time;
  * (3) Storage size for `cache` is also reduced using shape products.
  */
-struct DistributionMoment::Shape {
-  Shape() = default;
-
-  static constexpr PetscInt shr = 1;
-  static constexpr PetscInt shw = 2;
-  static constexpr PetscInt shm = POW3(shw);
+void DistributionMoment::Shape::setup(const Vector3R& r)
+{
   static constexpr const auto& sfunc = spline_of_1st_order;
 
-  Vector3I start;
-  PetscReal cache[shm];
+  Vector3R p_r = ::Shape::make_r(r);
+  start = ::Shape::make_start(p_r, shr);
 
-  void setup(const Vector3R& r)
-  {
-    Vector3R p_r = ::Shape::make_r(r);
-    start = ::Shape::make_start(p_r, shr);
-
-    static const double offset[3]{
-      geom_nx == 1 ? 0.5 : 0,
-      geom_ny == 1 ? 0.5 : 0,
-      geom_nz == 1 ? 0.5 : 0,
-    };
+  static const double offset[3]{
+    geom_nx == 1 ? 0.5 : 0,
+    geom_ny == 1 ? 0.5 : 0,
+    geom_nz == 1 ? 0.5 : 0,
+  };
 
 #pragma omp simd
-    for (PetscInt i = 0; i < shm; ++i) {
-      auto g_x = (PetscReal)(start[X] + i % shw) + offset[X];
-      auto g_y = (PetscReal)(start[Y] + (i / shw) % shw) + offset[Y];
-      auto g_z = (PetscReal)(start[Z] + (i / shw) / shw) + offset[Z];
-      cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
-    }
+  for (PetscInt i = 0; i < shm; ++i) {
+    auto g_x = (PetscReal)(start[X] + i % shw) + offset[X];
+    auto g_y = (PetscReal)(start[Y] + (i / shw) % shw) + offset[Y];
+    auto g_z = (PetscReal)(start[Z] + (i / shw) / shw) + offset[Z];
+    cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
   }
-};
+}
 
 PetscErrorCode DistributionMoment::collect()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecSet(field, 0));
-  PetscCall(VecSet(field_loc, 0));
-
-  PetscReal**** arr;
-  PetscCall(DMDAVecGetArrayDOFWrite(da, field_loc, &arr));
-
-  Vector3I start, size;
-  PetscCall(DMDAGetCorners(da_glob, REP3_A(&start), REP3_A(&size)));
-
-  const Vector3I gstart = vector_cast(region.start);
-  const Vector3I gsize = vector_cast(region.size);
-
-  Shape shape;
-
-#pragma omp parallel for private(shape)
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
-    Vector3I vg{
-      start[X] + g % size[X],
-      start[Y] + (g / size[X]) % size[Y],
-      start[Z] + (g / size[X]) / size[Y],
-    };
-
-    if (!is_point_within_bounds(vg, gstart, gsize))
-      continue;
-
-    for (auto&& point : particles.storage[g]) {
-      shape.setup(point.r);
-
-      std::vector<PetscReal> moments = moment(particles, point);
-      auto msize = static_cast<PetscInt>(moments.size());
-
-      for (PetscInt i = 0; i < shape.shm; ++i) {
-        PetscInt g_x = shape.start[X] + i % shape.shw;
-        PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
-        PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
-
-        PetscReal si = shape.cache[i] * particles.n_Np(point);
-
-        for (PetscInt j = 0; j < msize; ++j) {
-          PetscReal mj = moments[j] * si;
-
-#pragma omp atomic update
-          arr[g_z][g_y][g_x][j] += mj;
-        }
-      }
-    }
-  }
-  PetscCall(DMDAVecRestoreArrayDOFWrite(da, field_loc, &arr));
-  PetscCall(DMLocalToGlobal(da, field_loc, ADD_VALUES, field));
+  PetscCall(collect([&](PetscInt g, auto&& deposit)
+  {
+    for (auto&& point : particles.storage[g])
+      deposit(point.r, moment(particles, point));
+  }));
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+Vector3R to_cylindrical(const Vector3R& r, const Vector3R& v)
+{
+  PetscReal x = r[X] - 0.5 * geom_x;
+  PetscReal y = r[Y] - 0.5 * geom_y;
+  PetscReal rho = std::hypot(x, y);
+
+  // Particles close to r=0 are not taken into account
+  if (std::isinf(1.0 / rho))
+    return v;
+
+  return {
+    (+x * v[X] + y * v[Y]) / rho,
+    (-y * v[X] + x * v[Y]) / rho,
+    v[Z],
+  };
 }
 
 inline std::vector<PetscReal> get_density(
@@ -173,11 +136,8 @@ inline std::vector<PetscReal> get_current(
   return {q * v[X], q * v[Y], q * v[Z]};
 }
 
-inline std::vector<PetscReal> get_momentum_flux(
-  const interfaces::Particles& particles, const Point& point)
+std::vector<PetscReal> momentum_flux(PetscReal m, const Vector3R& v)
 {
-  auto&& m = particles.parameters.m;
-  auto&& v = point.p;
   return {
     m * v[X] * v[X],
     m * v[X] * v[Y],
@@ -188,11 +148,8 @@ inline std::vector<PetscReal> get_momentum_flux(
   };
 }
 
-inline std::vector<PetscReal> get_momentum_flux_diag(
-  const interfaces::Particles& particles, const Point& point)
+std::vector<PetscReal> momentum_flux_diag(PetscReal m, const Vector3R& v)
 {
-  auto&& m = particles.parameters.m;
-  auto&& v = point.p;
   return {
     m * v[X] * v[X],
     m * v[Y] * v[Y],
@@ -200,50 +157,40 @@ inline std::vector<PetscReal> get_momentum_flux_diag(
   };
 }
 
-inline std::vector<PetscReal> _get_v_cyl(const Point& point)
+std::vector<PetscReal> momentum_flux_cyl(
+  PetscReal m, const Vector3R& r, const Vector3R& v)
 {
-  PetscReal x = point.x() - 0.5 * geom_x;
-  PetscReal y = point.y() - 0.5 * geom_y;
-  PetscReal r = std::hypot(x, y);
+  return momentum_flux(m, to_cylindrical(r, v));
+}
 
-  auto&& v = point.p;
+std::vector<PetscReal> momentum_flux_diag_cyl(
+  PetscReal m, const Vector3R& r, const Vector3R& v)
+{
+  return momentum_flux_diag(m, to_cylindrical(r, v));
+}
 
-  // Particles close to r=0 are not taken into account
-  if (std::isinf(1.0 / r))
-    return {v[X], v[Y], v[Z]};
+inline std::vector<PetscReal> get_momentum_flux(
+  const interfaces::Particles& particles, const Point& point)
+{
+  return momentum_flux(particles.parameters.m, point.p);
+}
 
-  return {
-    (+x * v[X] + y * v[Y]) / r,
-    (-y * v[X] + x * v[Y]) / r,
-    v[Z],
-  };
+inline std::vector<PetscReal> get_momentum_flux_diag(
+  const interfaces::Particles& particles, const Point& point)
+{
+  return momentum_flux_diag(particles.parameters.m, point.p);
 }
 
 inline std::vector<PetscReal> get_momentum_flux_cyl(
   const interfaces::Particles& particles, const Point& point)
 {
-  auto&& m = particles.parameters.m;
-  auto&& v = _get_v_cyl(point);
-  return {
-    m * v[R] * v[R],
-    m * v[R] * v[A],
-    m * v[R] * v[Z],
-    m * v[A] * v[A],
-    m * v[A] * v[Z],
-    m * v[Z] * v[Z],
-  };
+  return momentum_flux_cyl(particles.parameters.m, point.r, point.p);
 }
 
 inline std::vector<PetscReal> get_momentum_flux_diag_cyl(
   const interfaces::Particles& particles, const Point& point)
 {
-  auto&& m = particles.parameters.m;
-  auto&& v = _get_v_cyl(point);
-  return {
-    m * v[R] * v[R],
-    m * v[A] * v[A],
-    m * v[Z] * v[Z],
-  };
+  return momentum_flux_diag_cyl(particles.parameters.m, point.r, point.p);
 }
 
 

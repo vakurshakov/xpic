@@ -1,6 +1,6 @@
 #include "src/pch.h"
 #include "src/interfaces/point.h"
-#include "src/diagnostics/table_diagnostic.h"
+#include "src/diagnostics/particle_trace.h"
 
 /// @todo There would be probably lots of utilities, they should be placed to some static library
 
@@ -11,10 +11,56 @@ bool equal_tol(PetscReal a, PetscReal b, PetscReal tol)
 
 bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
 {
-  return  //
+  return                           //
     equal_tol(a[X], b[X], tol) &&  //
     equal_tol(a[Y], b[Y], tol) &&  //
     equal_tol(a[Z], b[Z], tol);
+}
+
+/// @brief Reads exactly `n` floats written by a field diagnostic (the whole file, on every rank).
+PetscErrorCode read_floats(
+  const std::filesystem::path& file, PetscInt n, std::vector<float>& out)
+{
+  PetscFunctionBeginUser;
+  const uintmax_t expected_size = n * sizeof(float);
+  PetscCheck(std::filesystem::file_size(file) == expected_size, PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Result file size should match the region");
+
+  out.resize(n);
+  std::ifstream ifs(file, std::ios::binary);
+  ifs.read(reinterpret_cast<char*>(out.data()), expected_size);
+  PetscCheck(ifs.gcount() == static_cast<std::streamsize>(expected_size), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Result file could not be read completely");
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/// @brief Compares the file, covering the whole `geom_n*` grid, with the local part of `expected` living on `da`.
+PetscErrorCode compare_with_vec(
+  const std::filesystem::path& file, DM da, Vec expected, PetscReal tol)
+{
+  PetscFunctionBeginUser;
+  PetscInt dof;
+  PetscInt xs, ys, zs, xm, ym, zm;
+  PetscCall(DMDAGetInfo(da, nullptr, REP3(nullptr), REP3(nullptr), &dof, nullptr, REP4(nullptr)));
+  PetscCall(DMDAGetCorners(da, &xs, &ys, &zs, &xm, &ym, &zm));
+
+  std::vector<float> written;
+  PetscCall(read_floats(file, geom_nx * geom_ny * geom_nz * dof, written));
+
+  const PetscReal**** arr;
+  PetscCall(DMDAVecGetArrayDOFRead(da, expected, &arr));
+  for (PetscInt z = zs; z < zs + zm; ++z) {
+    for (PetscInt y = ys; y < ys + ym; ++y) {
+      for (PetscInt x = xs; x < xs + xm; ++x) {
+        for (PetscInt c = 0; c < dof; ++c) {
+          PetscCheck(equal_tol(written[indexing::t_g(x, y, z, c, dof)], arr[z][y][x][c], tol), PETSC_COMM_WORLD, PETSC_ERR_USER,
+            "Written value differs from the expected one at (%d, %d, %d, %d)", x, y, z, c);
+        }
+      }
+    }
+  }
+  PetscCall(DMDAVecRestoreArrayDOFRead(da, expected, &arr));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 std::filesystem::path get_out_dir(std::string_view file)
@@ -30,7 +76,8 @@ std::filesystem::path get_out_dir(std::string_view file)
 PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
 {
   PetscFunctionBeginUser;
-  auto get_filepath = [&](std::string_view type) {
+  auto get_filepath = [&](std::string_view type)
+  {
     std::filesystem::path result(file);
     result.replace_extension("");
 
@@ -46,7 +93,8 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
   PetscCheck(e_ifs.is_open() == o_ifs.is_open(), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Both expected and output files must be open, filepaths:\n   expected: \"%s\"\n   output: \"%s\"", e_path.c_str(), o_path.c_str());
 
-  auto get_linestream = [](std::istream& is) {
+  auto get_linestream = [](std::istream& is)
+  {
     std::string line;
     std::getline(is, line);
     return std::istringstream(line);
@@ -91,76 +139,22 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
 
 /// @warning For this to become a proper diagnostic,
 /// dangling references to `point` have to be solved
-class PointTrace : public TableDiagnostic {
+class PointTrace : public ParticleTrace<Point> {
 public:
   PointTrace(std::string_view file, std::string_view id,  //
     const Point& point, PetscInt skip = 1)
-    : TableDiagnostic(get_outputfile(file, id)), skip(skip), point(point)
+    : ParticleTrace(
+        std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id),
+        [&point]
+        {
+          return &point;
+        },
+        skip)
   {
-  }
-
-private:
-  PetscInt skip;
-  const Point& point;
-
-  PetscErrorCode add_columns(PetscInt t) override
-  {
-    if (t % skip != 0)
-      return PETSC_SUCCESS;
-
-    PetscFunctionBeginUser;
-    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
-    add(13, "x_[c/wpe]", "{: .6e}", point.x());
-    add(13, "y_[c/wpe]", "{: .6e}", point.y());
-    add(13, "z_[c/wpe]", "{: .6e}", point.z());
-    add(13, "vx_[c]", "{: .6e}", point.px());
-    add(13, "vy_[c]", "{: .6e}", point.py());
-    add(13, "vz_[c]", "{: .6e}", point.pz());
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-
-  std::filesystem::path get_outputfile(std::string_view file, std::string_view id)
-  {
-    return std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id);
   }
 };
 
-class PointByFieldTrace : public TableDiagnostic {
-public:
-  PointByFieldTrace(std::string_view file, std::string_view id,
-    const PointByField& point, PetscInt skip = 1)
-    : TableDiagnostic(get_outputfile(file, id)), skip(skip), point(point)
-  {
-  }
-
-private:
-  PetscInt skip;
-  const PointByField& point;
-
-  PetscErrorCode add_columns(PetscInt t) override
-  {
-    if (t % skip != 0)
-      return PETSC_SUCCESS;
-
-    PetscFunctionBeginUser;
-    add(13, "t_[1/wpe]", "{: .6e}", t * dt);
-    add(13, "x_[c/wpe]", "{: .6e}", point.x());
-    add(13, "y_[c/wpe]", "{: .6e}", point.y());
-    add(13, "z_[c/wpe]", "{: .6e}", point.z());
-    add(13, "p_par_[mc]", "{: .6e}", point.p_par());
-    add(13, "p_perp_[mc]", "{: .6e}", point.p_perp_ref());
-    add(13, "mu_p_[mc^2/B]", "{: .6e}", point.mu());
-    PetscFunctionReturn(PETSC_SUCCESS);
-  }
-
-  static std::filesystem::path get_outputfile(
-    std::string_view file, std::string_view id)
-  {
-    return std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id);
-  }
-};
-
-void update_counter_clockwise(  //
+void update_counter_clockwise(                   //
   const Vector3R& old_r, const Vector3R& new_r,  //
   const Vector3R& B_p, PetscReal& counter_clockwise)
 {

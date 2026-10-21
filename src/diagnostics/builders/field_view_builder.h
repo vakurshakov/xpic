@@ -18,6 +18,7 @@ public:
       "{\n"
       "  \"diagnostic\": \"FieldView\", -- Name of the diagnostic, constant.\n"
       "  \"field\": \"E\", -- Field name set by `PetscObjectSetName()`.\n"
+      "  \"component\": \"z\", -- Optional x/y/z component of a vector field.\n"
       "  \"start\": [ox, oy, oz], -- Starting point of a diagnosed region, in\n"
       "                              global coordinates of c/w_pe units.\n"
       "                              Optional, zeros will be used if empty.\n"
@@ -30,6 +31,17 @@ public:
   }
 
 protected:
+
+  /**
+   * @brief Common part of building: resolves `field`, the diagnosed region
+   * (scalar if `result_da` is `da_rho`, otherwise it is the vector one) and
+   * the optional "region", "component" and "out_dir" keys.
+   * @param result_da DM of the diagnosed data, `nullptr`
+   * if it is the one of the field itself.
+   */
+  void parse_view(const Configuration::json_t& info, const std::string& field,
+    DM result_da, DM& da, Vec& f, Region& region, std::string& out_dir);
+
   void parse_field(const Configuration::json_t& info, DM& da, Vec& f,
     Region& region, const std::string& name);
 

@@ -17,6 +17,11 @@ Diagnostic::Diagnostic(const std::string& out_dir, PetscInt diagnose_period)
 {
 }
 
+PetscErrorCode Diagnostic::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 /* static */ std::string Diagnostic::format_time(PetscInt t)
 {

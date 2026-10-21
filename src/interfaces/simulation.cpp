@@ -6,11 +6,13 @@
 #include "src/diagnostics/energy.h"
 #include "src/diagnostics/momentum_conservation.h"
 #include "src/impls/basic/simulation.h"
+#include "src/impls/drift_kinetic/simulation.h"
 #include "src/impls/eccapfim/simulation.h"
 #include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
 #include "src/utils/configuration.h"
 #include "src/utils/operators.h"
+#include "src/utils/utils.h"
 
 std::unique_ptr<interfaces::Simulation> build_simulation()
 {
@@ -23,6 +25,8 @@ std::unique_ptr<interfaces::Simulation> build_simulation()
 
   if (simulation_str == "basic")
     simulation = std::make_unique<basic::Simulation>();
+  else if (simulation_str == "drift_kinetic")
+    simulation = std::make_unique<drift_kinetic::Simulation>();
   else if (simulation_str == "eccapfim")
     simulation = std::make_unique<eccapfim::Simulation>();
   else if (simulation_str == "ecsim")
@@ -46,8 +50,8 @@ PetscErrorCode Simulation::initialize()
   PetscCall(world.initialize());
   PetscCall(log_information());
 
-  PetscCall(PetscLogStageRegister("Commands run", &stagenums[0]));
-  PetscCall(PetscLogStageRegister("Diagnostics run", &stagenums[1]));
+  PetscCall(register_log_stage("Commands run", &stagenums[0]));
+  PetscCall(register_log_stage("Diagnostics run", &stagenums[1]));
 
   da = world.da;
   da_rho = world.da_rho;
@@ -85,10 +89,15 @@ PetscErrorCode Simulation::initialize()
   Divergence divergence(da);
   PetscCall(divergence.create_negative(&divE));
 
+  const Configuration::json_t& json = CONFIG().json;
+  if (json.contains("Fields") && json.at("Fields").contains("evolve")) {
+    json.at("Fields").at("evolve").get_to(evolve_fields);
+  }
+
   PetscCall(initialize_implementation());
 
   std::vector<const interfaces::Particles*> particles;
-  for (const auto& sort : particles_) {
+  for (const Particles_sp& sort : particles_) {
     particles.emplace_back(sort.get());
   }
 
@@ -96,20 +105,20 @@ PetscErrorCode Simulation::initialize()
   /// @todo Or else store the `TableDiagnostics` themselves
   bool append_energy_conservation = true;
 
-  for (auto& diagnostic : diagnostics_) {
+  for (const Diagnostic_up& diagnostic : diagnostics_) {
     if (dynamic_cast<Energy*>(diagnostic.get()))
       append_energy_conservation = false;
   }
 
   if (append_energy_conservation) {
-    diagnostics_.emplace_back( //
+    diagnostics_.emplace_back(  //
       std::make_unique<Energy>(*this));
   }
 
-  diagnostics_.emplace_back( //
+  diagnostics_.emplace_back(  //
     std::make_unique<ChargeConservation>(*this));
 
-  diagnostics_.emplace_back( //
+  diagnostics_.emplace_back(  //
     std::make_unique<MomentumConservation>(da, E, particles));
 
   std::vector<Command_up> presets;
@@ -209,7 +218,7 @@ PetscErrorCode Simulation::log_information() const
 
 Particles& Simulation::get_named_particles(std::string_view name)
 {
-  auto it = std::find_if(particles_.begin(), particles_.end(), //
+  auto it = std::find_if(particles_.begin(), particles_.end(),  //
     [&](const Particles_sp& sort) {
       return sort->parameters.sort_name == name;
     });

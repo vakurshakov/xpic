@@ -5,16 +5,22 @@
 
 namespace interfaces {
 
+static SortParameters with_macro_particle_weight(SortParameters parameters)
+{
+  parameters.mpw = parameters.n / (PetscReal)parameters.Np;
+  return parameters;
+}
+
 Particles::Particles(const World& world, const SortParameters& parameters)
   : world(world),
     da(world.da),
     da_rho(world.da_rho),
-    parameters(parameters),
+    parameters(with_macro_particle_weight(parameters)),
     storage(world.size.elements_product())
 {
   PetscMPIInt size;
   PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_size(PETSC_COMM_WORLD, &size));
-  update_cells = (size == 1) //
+  update_cells = (size == 1)  //
     ? std::bind(std::mem_fn(&Particles::update_cells_seq), this)
     : std::bind(std::mem_fn(&Particles::update_cells_mpi), this);
 
@@ -50,6 +56,11 @@ PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
     *is_added = true;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Particles::commit_added_particles()
+{
+  return PETSC_SUCCESS;
 }
 
 PetscErrorCode Particles::correct_coordinates()
@@ -105,11 +116,13 @@ PetscErrorCode Particles::update_cells_mpi()
 {
   constexpr PetscInt dim = 3;
 
-  auto neighbor_index = [&](PetscInt x, PetscInt y, PetscInt z) {
+  auto neighbor_index = [&](PetscInt x, PetscInt y, PetscInt z)
+  {
     return indexing::petsc_index(x, y, z, 0, dim, dim, dim, 1);
   };
 
-  auto get_index = [&](const Vector3I& r, Axis axis) {
+  auto get_index = [&](const Vector3I& r, Axis axis)
+  {
     if (r[axis] < world.start[axis])
       return 0;
     if (r[axis] < world.end[axis])
@@ -118,7 +131,8 @@ PetscErrorCode Particles::update_cells_mpi()
   };
 
   /// @note `PETSC_DEFAULT` isn't identical to `MPI_PROC_NULL`
-  auto get_neighbor = [&](PetscInt i) {
+  auto get_neighbor = [&](PetscInt i)
+  {
     return world.neighbors[i] < 0 ? MPI_PROC_NULL : world.neighbors[i];
   };
 
@@ -154,13 +168,13 @@ PetscErrorCode Particles::update_cells_mpi()
       }
 
       PetscInt i = neighbor_index(  //
-        get_index(ng, X),  //
-        get_index(ng, Y),  //
+        get_index(ng, X),           //
+        get_index(ng, Y),           //
         get_index(ng, Z));
 
       // Particle didn't cross boundaries, local update cell is needed
       if (i == center_index) {
-        PetscInt j = world.s_g(  //
+        PetscInt j = world.s_g(    //
           ng[X] - world.start[X],  //
           ng[Y] - world.start[Y],  //
           ng[Z] - world.start[Z]);
@@ -217,7 +231,7 @@ PetscErrorCode Particles::update_cells_mpi()
       continue;
 
     for (auto&& point : incoming[i]) {
-      PetscInt g = world.s_g(  //
+      PetscInt g = world.s_g(                        //
         FLOOR_STEP(point.x(), dx) - world.start[X],  //
         FLOOR_STEP(point.y(), dy) - world.start[Y],  //
         FLOOR_STEP(point.z(), dz) - world.start[Z]);
@@ -253,47 +267,11 @@ PetscErrorCode Particles::update_cells_mpi()
 }
 
 
-PetscInt Particles::particles_number(const Point& /* point */) const
-{
-  return parameters.Np;
-}
-
-PetscReal Particles::density(const Point& /* point */) const
-{
-  return parameters.n;
-}
-
-PetscReal Particles::charge(const Point& /* point */) const
-{
-  return parameters.q;
-}
-
-PetscReal Particles::mass(const Point& /* point */) const
-{
-  return parameters.m;
-}
-
-PetscReal Particles::q_m(const Point& point) const
-{
-  return charge(point) / mass(point);
-}
-
-PetscReal Particles::n_Np(const Point& point) const
-{
-  return density(point) / particles_number(point);
-}
-
-PetscReal Particles::qn_Np(const Point& point) const
-{
-  return charge(point) * density(point) / particles_number(point);
-}
-
-
 /// @todo our schemes are mostly non-relativistic, we should avoid it's direct usage
 Vector3R Particles::velocity(const Point& point) const
 {
   const Vector3R& p = point.p;
-  PetscReal m = mass(point);
+  const PetscReal m = parameters.m;
   return p / std::sqrt(m * m + p.squared());
 }
 
@@ -304,9 +282,9 @@ PetscErrorCode Particles::log_distribution() const
   static constexpr PetscInt hist_h = hist_w / 2;
   PetscInt hist[3][hist_w];
 
-  std::fill_n(hist[X], hist_w, 0);
-  std::fill_n(hist[Y], hist_w, 0);
-  std::fill_n(hist[Z], hist_w, 0);
+  std::ranges::fill(hist[X], 0);
+  std::ranges::fill(hist[Y], 0);
+  std::ranges::fill(hist[Z], 0);
 
   for (const auto& cell : storage) {
     for (const auto& point : cell) {
@@ -414,7 +392,7 @@ PetscErrorCode Particles::calculate_rho()
 
   DefaultRhoShape shape;
   const PetscReal q = parameters.q;
-  const PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
+  const PetscReal mpw = parameters.mpw;
 
 #pragma omp parallel for private(shape)
   for (auto&& cell : storage) {

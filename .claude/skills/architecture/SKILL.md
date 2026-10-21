@@ -45,14 +45,14 @@ Numerical building blocks shared across `src/impls/` schemes, with no config-dis
 
 ## `src/commands/` + `src/commands/builders/`
 
-Actions that modify the simulation outside the main physics step: `InjectParticles`, `SetParticles`, `RemoveParticles`, `SetMagneticField`, `FieldsDamping`. Config `"Presets"` run once at init; `"StepPresets"` run once per timestep. Each command has a matching builder in `builders/` (`command_builder.h`/`.cpp` holds the dispatch chain). See `doc/src/commands.rst` for the full JSON schema of each command, including shared `"coordinate"`/`"momentum"`/`"geometry"` sub-config formats (`PreciseCoordinate`/`CoordinateInBox`/`CoordinateInCylinder`, `PreciseMomentum`/`MaxwellianMomentum`, `BoxGeometry`/`CylinderGeometry`).
+Actions that modify the simulation outside the main physics step: `InjectParticles`, `SetParticles`, `RemoveParticles`, `SetField` (`"field": "E"|"B"`), `FieldsDamping`. Config `"Presets"` run once at init; `"StepPresets"` run once per timestep. Each command has a matching builder in `builders/` (`command_builder.h`/`.cpp` holds the dispatch chain). See `doc/src/commands.rst` for the full JSON schema of each command, including shared `"coordinate"`/`"momentum"`/`"geometry"` sub-config formats (`PreciseCoordinate`/`CoordinateInBox`/`CoordinateInCylinder`, `PreciseMomentum`/`MaxwellianMomentum`, `BoxGeometry`/`CylinderGeometry`).
 
 ## `src/diagnostics/` + `src/diagnostics/builders/`
 
 Output/logging of simulation data, run on the config's `diagnose_period`, writing to `OutputDirectory`:
 
 - `FieldView` / `FieldViewZAvg` — raw and Z-averaged field snapshots.
-- `DistributionMoment` / `VelocityDistribution` — particle-distribution moments and velocity-space histograms.
+- `DistributionMoment` / `DistributionFunction` — particle-distribution moments and velocity-space histograms.
 - `Energy`, `ChargeConservation`, `MomentumConservation` — conservation checks, most relevant to `ecsim`/`ecsimcorr`/`eccapfim`.
 - `LogView` — periodic scalar log output.
 - `MatDump` — raw PETSc matrix dump, mainly for debugging implicit solves.
