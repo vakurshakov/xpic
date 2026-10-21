@@ -163,7 +163,7 @@ PetscErrorCode DistributionFunctionBuilder::build_dk_distribution_function(
       "DkDistributionFunction diagnose_period must be positive");
 
   auto max_frames = info.value("max_frames", (PetscInt)(-1));
-  if (max_frames <= 0)
+  if (info.contains("max_frames") && max_frames <= 0)
     throw std::runtime_error(
       "DkDistributionFunction max_frames must be positive or omitted");
 
