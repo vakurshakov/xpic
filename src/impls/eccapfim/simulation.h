@@ -12,7 +12,7 @@
 
 namespace eccapfim {
 
-#define SNES_ITERATE_B 0
+#define SNES_ITERATE_B       0
 #define SNES_PRECONDITIONING 0
 
 static constexpr PetscReal atol = 1e-7;

@@ -30,7 +30,7 @@ public:
     PetscReal dvx, dvy;
   };
 
-  static std::unique_ptr<DistributionFunction> create( //
+  static std::unique_ptr<DistributionFunction> create(  //
     const std::string& out_dir, const interfaces::Particles& particles,
     const Projector& projector, const Tester& within_geom,
     const Region& xreg_aabb, const VelocityRegion& vreg);

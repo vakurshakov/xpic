@@ -137,7 +137,8 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
   PetscInt numparts, count;
 
   for (auto& sort : particles_) {
-    std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, sort->parameters.sort_name);
+    std::filesystem::path fname =
+      std::format("{}/{}/{}", out_dir_, t, sort->parameters.sort_name);
 
     PetscCall(create_viewer(fname.string() + ".numparts", PETSC_TRUE, FILE_MODE_READ, &viewer));
     PetscCall(PetscViewerBinaryRead(viewer, &numparts, 1, &count, PETSC_INT));

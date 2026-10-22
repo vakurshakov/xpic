@@ -151,7 +151,7 @@ PetscErrorCode World::create_local_dm(
 }
 
 
-/* static */ void World::set_geometry(  //
+/* static */ void World::set_geometry(                         //
   PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
   PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
   PetscReal _dtp)
@@ -174,12 +174,12 @@ PetscErrorCode World::create_local_dm(
   diagnose_period = ROUND_STEP(_dtp, dt);
 }
 
-/* static */ void World::set_geometry(  //
+/* static */ void World::set_geometry(                         //
   PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt,  //
   PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
   PetscReal _dtp)
 {
-  set_geometry(  //
+  set_geometry(                          //
     static_cast<PetscReal>(_gnx) * _dx,  //
     static_cast<PetscReal>(_gny) * _dy,  //
     static_cast<PetscReal>(_gnz) * _dz,  //
@@ -187,13 +187,13 @@ PetscErrorCode World::create_local_dm(
     _dx, _dy, _dz, _dt, _dtp);
 }
 
-/* static */ void World::set_geometry(  //
+/* static */ void World::set_geometry(                         //
   PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
   PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt,  //
   PetscReal _dtp)
 {
-  set_geometry(  //
-    _gx, _gy, _gz, _gt,  //
+  set_geometry(                          //
+    _gx, _gy, _gz, _gt,                  //
     _gx / static_cast<PetscReal>(_gnx),  //
     _gy / static_cast<PetscReal>(_gny),  //
     _gz / static_cast<PetscReal>(_gnz),  //

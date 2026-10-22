@@ -219,7 +219,8 @@ PetscErrorCode Simulation::log_information() const
 Particles& Simulation::get_named_particles(std::string_view name)
 {
   auto it = std::find_if(particles_.begin(), particles_.end(),  //
-    [&](const Particles_sp& sort) {
+    [&](const Particles_sp& sort)
+    {
       return sort->parameters.sort_name == name;
     });
 

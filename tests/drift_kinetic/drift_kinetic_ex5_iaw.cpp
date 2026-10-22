@@ -5,21 +5,21 @@
 static constexpr char help[] =
   "Drift-kinetic ion-acoustic-wave ringdown with mi/me = 25.                 \n"
   "                                                                          \n"
-  "The periodic domain has Lz = 32, dz = 1, Te = 5 keV, Ti = 0.1 keV and    \n"
+  "The periodic domain has Lz = 32, dz = 1, Te = 5 keV, Ti = 0.1 keV and     \n"
   "8192 markers per cell for each species.  The mode-1 perturbation has      \n"
   "dn/n = 0.03.  The mass ratio gives omega = 3.9304e-3 and Landau damping   \n"
   "Gamma = 4.7291e-4, so three wave periods fit in 960 steps with dt = 5.    \n"
   "                                                                          \n"
-  "SetCosineField initializes Ez.  SetParticlesIonAcousticWave initializes  \n"
+  "SetCosineField initializes Ez.  SetParticlesIonAcousticWave initializes   \n"
   "the matching density, parallel-flow and pressure moments of electrons and \n"
   "ions for the kinetic root, avoiding a counter-propagating branch caused   \n"
   "by a density-only perturbation.  Tx = Ty = 0, so the dynamics is one-     \n"
-  "dimensional along the uniform magnetic field.                              \n"
+  "dimensional along the uniform magnetic field.                             \n"
   "                                                                          \n"
   "Density, parallel-temperature, current, E and B diagnostics describe the  \n"
   "ringdown.  Five early DistributionFunction frames retain the realized     \n"
-  "f(z,v_parallel,mu) for linear-model and phase-space analysis with          \n"
-  "drift_kinetic_ex5_iaw.py.                                                 \n";
+  "f(z,v_parallel,mu) for linear-model and phase-space analysis with         \n"
+  "drift_kinetic_ex5_iaw.py.                                                \n";
 
 namespace ringdown {
 

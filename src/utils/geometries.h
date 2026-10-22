@@ -42,12 +42,12 @@ struct WithinAnnulus {
 bool is_point_within_bounds(
   const Vector3I& point, const Vector3I& b_start, const Vector3I& b_size);
 
-bool is_region_within_bounds( //
-  const Vector3I& r_start, const Vector3I& r_size, //
+bool is_region_within_bounds(                       //
+  const Vector3I& r_start, const Vector3I& r_size,  //
   const Vector3I& b_start, const Vector3I& b_size);
 
-bool is_region_intersect_bounds( //
-  const Vector3I& r_start, const Vector3I& r_size, //
+bool is_region_intersect_bounds(                    //
+  const Vector3I& r_start, const Vector3I& r_size,  //
   const Vector3I& b_start, const Vector3I& b_size);
 
-#endif // SRC_UTILS_GEOMETRIES_H
+#endif  // SRC_UTILS_GEOMETRIES_H

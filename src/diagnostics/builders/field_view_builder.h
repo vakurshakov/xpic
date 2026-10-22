@@ -31,7 +31,6 @@ public:
   }
 
 protected:
-
   /**
    * @brief Common part of building: resolves `field`, the diagnosed region
    * (scalar if `result_da` is `da_rho`, otherwise it is the vector one) and

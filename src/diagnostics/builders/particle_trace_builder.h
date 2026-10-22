@@ -15,8 +15,10 @@ public:
     std::string_view help =
       "\nStructure of the ParticleTrace diagnostic description:\n"
       "{\n"
-      "  \"diagnostic\": \"ParticleTrace\", -- Name of the diagnostic, constant.\n"
-      "  \"particles\": \"name\", -- Sort name, the first stored particle is traced.\n"
+      "  \"diagnostic\": \"ParticleTrace\", -- Name of the\n"
+      "                                     diagnostic, constant.\n"
+      "  \"particles\": \"name\", -- Sort name, the first stored\n"
+      "                           particle is traced.\n"
       "  \"skip\": 1, -- Optional, trace is written each `skip`-th timestep.\n"
       "}";
     return help;

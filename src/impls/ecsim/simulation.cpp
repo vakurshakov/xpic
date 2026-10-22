@@ -399,7 +399,8 @@ PetscErrorCode Simulation::fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j)
   const PetscInt dims[4]{REP3_AP(world.gsize), 3};
   const PetscInt start[4]{REP3_AP(world.gstart), 0};
 
-  auto remap_stencil = [&](const MatStencil& s) {
+  auto remap_stencil = [&](const MatStencil& s)
+  {
     auto in = (PetscInt*)&s;
     PetscInt tmp = *in++ - start[0];
 

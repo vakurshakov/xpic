@@ -18,9 +18,9 @@ public:
       "  \"operator\": \"rotB\", -- One of: rotE, rotB, matM, divE.\n"
       "  \"field\": \"E\", -- Field the operator is applied to, same names\n"
       "                     as in FieldView.\n"
-      "  \"component\", \"start\", \"size\", \"type\", \"out_dir\" -- Optional,\n"
-      "                     the same as in FieldView. Default out_dir is\n"
-      "                     \"<operator>_<field>\".\n"
+      "  \"component\", \"start\", \"size\", \"type\", \"out_dir\" -- \n"
+      "    Optional, the same as in FieldView.\n"
+      "    Default out_dir is \"<operator>_<field>\".\n"
       "}";
     return help;
   }

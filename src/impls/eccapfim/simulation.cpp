@@ -46,7 +46,8 @@ PetscErrorCode Simulation::init_snes()
   PetscCall(DMCreateGlobalVector(da, &E_hk));
 
 #if SNES_ITERATE_B || SNES_PRECONDITIONING
-  auto create_dm = [&](PetscInt dim, DM* local_dm) {
+  auto create_dm = [&](PetscInt dim, DM* local_dm)
+  {
     Region region{
       .dim = 4,
       .dof = dim,

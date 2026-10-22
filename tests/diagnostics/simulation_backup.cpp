@@ -53,7 +53,7 @@ int main(int argc, char** argv)
 
   using Particles = interfaces::Particles;
 
-  auto particles = std::make_unique<Particles>(world, //
+  auto particles = std::make_unique<Particles>(world,  //
     SortParameters{.sort_name = "particles"});
 
   for (const auto& point : prepared_points)

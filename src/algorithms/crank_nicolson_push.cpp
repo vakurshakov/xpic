@@ -30,7 +30,8 @@ void CrankNicolsonPush::process(PetscReal dt, Point& pn, const Point& p0)
 
   set_fields(pn.r, p0.r, E_p, B_p);
 
-  auto calc_residue = [&] {
+  auto calc_residue = [&]
+  {
     return ((pn.p - p0.p) - dt * qm * (E_p + vh.cross(B_p))).length();
   };
 

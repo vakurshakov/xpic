@@ -38,7 +38,8 @@ PetscErrorCode ParticleTraceBuilder::build(const Configuration::json_t& info)
   if (auto* dk = dynamic_cast<drift_kinetic::Particles*>(&particles)) {
     diagnostics_.emplace_back(std::make_unique<ParticleTrace<PointByField>>(
       filename,
-      [dk] {
+      [dk]
+      {
         return first_point(dk->get_dk_curr_storage());
       },
       skip));
@@ -46,7 +47,8 @@ PetscErrorCode ParticleTraceBuilder::build(const Configuration::json_t& info)
   else {
     diagnostics_.emplace_back(std::make_unique<ParticleTrace<Point>>(
       filename,
-      [&particles] {
+      [&particles]
+      {
         return first_point(particles.storage);
       },
       skip));
