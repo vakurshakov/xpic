@@ -20,7 +20,7 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) are set in `header.sh
   - `./run-tests.sh -L "impls ecsim"` — run tests by label (labels combine an area label like `impls`/`diagnostics`/`boris`/`crank_nicolson`/`drift_kinetic` with an implementation label like `basic`/`ecsim`/`ecsimcorr`/`eccapfim`, and MPI variants add the `mpi` label).
   - `./run-tests.sh --help` — shows ctest's own help.
 
-- `./run-clang-format.sh` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`).
+- `./run-format-all.sh [--install]` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`); `--install` installs `clang-format` if missing. Run it _only_ when explicitly asked to fix project-wide styling issues or before major releases.
 
 ## Test layout
 
@@ -38,7 +38,7 @@ Tests are plain executables registered with `add_test` in each `tests/<area>/CMa
 
 - **clangd / LSP**: `.clangd` points at `build/compile_commands.json`, a symlink that CMake updates to the last configured build type (`./build.sh` configures both). Without a configured build clangd can't find the PETSc headers; run `./build.sh Debug` first. Use the LSP tool (`findReferences`, `goToDefinition`, `documentSymbol`) and `getDiagnostics` for navigation and checks, and restart clangd after changing `.clangd`; the build remains the final check.
 
-- **clang-format**: run `./run-clang-format.sh` before committing; config lives in `.clang-format`. Header guards use `SRC_<PATH>_H` (not `#pragma once`).
+- **clang-format**: files edited via `Edit`/`Write` are formatted automatically by the `PostToolUse` hook (`.claude/hooks/format.sh`, registered in `.claude/settings.json`); don't run it by hand. Config lives in `.clang-format`. Header guards use `SRC_<PATH>_H` (not `#pragma once`).
 - Keep CMake configuration in `CMakeLists.txt` files simple and readable — avoid complex generator expressions, deep custom macros, or conditional compilation for minor variations unless there's a strong reason.
 
 ## Dependency management

@@ -59,7 +59,7 @@ Use when writing, reviewing, or cleaning up C++ code. Formatting is enforced by 
 
 ## Formatting
 
-- Run `clang-format -i` on the files you edit, not the repo-wide `./run-clang-format.sh`, to avoid unrelated churn.
+- Files you edit are formatted automatically by the `PostToolUse` hook (`.claude/hooks/format.sh`). Don't run `clang-format` manually, and run the repo-wide `./run-format-all.sh` _only_ when explicitly asked to fix project-wide styling or before major releases (it causes unrelated churn).
 - 80 columns, 2-space indent, `PointerAlignment: Left`, function-definition brace on its own line, class/struct brace on the same line.
 - Header guards use `SRC_<PATH>_H` (no `#pragma once`). PETSc error handling follows `PetscFunctionBeginUser` / `PetscCall(...)` / `PetscFunctionReturn(PETSC_SUCCESS)`.
 - Blank lines separate logical blocks (declarations, checks, update steps).
