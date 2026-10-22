@@ -1,16 +1,16 @@
-#ifndef SRC_COMMANDS_FIELDS_DAMPING_H
-#define SRC_COMMANDS_FIELDS_DAMPING_H
+#ifndef SRC_COMMANDS_DAMPEN_FIELDS_H
+#define SRC_COMMANDS_DAMPEN_FIELDS_H
 
 #include "src/pch.h"
 #include "src/interfaces/command.h"
 #include "src/interfaces/particles.h"
 #include "src/utils/geometries.h"
 
-class FieldsDamping : public interfaces::Command {
+class DampenFields : public interfaces::Command {
 public:
   using Tester = std::function<bool(const Vector3R&)>;
   using Damping = std::function<PetscReal(const Vector3R&)>;
-  FieldsDamping(DM da, Vec E, Vec B, Vec B0, Tester&& test, Damping&& damp);
+  DampenFields(DM da, Vec E, Vec B, Vec B0, Tester&& test, Damping&& damp);
 
   PetscErrorCode execute(PetscInt t) override;
 
@@ -41,4 +41,4 @@ struct DampForCylinder {
   PetscReal coefficient;
 };
 
-#endif  // SRC_COMMANDS_FIELDS_DAMPING_H
+#endif  // SRC_COMMANDS_DAMPEN_FIELDS_H

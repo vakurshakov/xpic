@@ -1,8 +1,8 @@
-#include "fields_damping.h"
+#include "dampen_fields.h"
 
 #include "src/diagnostics/energy.h"
 
-FieldsDamping::FieldsDamping(
+DampenFields::DampenFields(
   DM da, Vec E, Vec B, Vec B0, Tester&& test, Damping&& damp)
   : da_(da),
     E_(E),
@@ -13,7 +13,7 @@ FieldsDamping::FieldsDamping(
 {
 }
 
-PetscErrorCode FieldsDamping::execute(PetscInt /* t */)
+PetscErrorCode DampenFields::execute(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
   damped_energy_ = 0.0;
@@ -28,7 +28,7 @@ PetscErrorCode FieldsDamping::execute(PetscInt /* t */)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode FieldsDamping::damping_implementation(Vec f)
+PetscErrorCode DampenFields::damping_implementation(Vec f)
 {
   PetscFunctionBeginUser;
   Vector3I start;
@@ -59,7 +59,7 @@ PetscErrorCode FieldsDamping::damping_implementation(Vec f)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscReal FieldsDamping::get_damped_energy() const
+PetscReal DampenFields::get_damped_energy() const
 {
   return damped_energy_;
 }

@@ -1,11 +1,11 @@
-#ifndef SRC_COMMANDS_BUILDERS_FIELDS_DAMPING_BUILDER_H
-#define SRC_COMMANDS_BUILDERS_FIELDS_DAMPING_BUILDER_H
+#ifndef SRC_COMMANDS_BUILDERS_DAMPEN_FIELDS_BUILDER_H
+#define SRC_COMMANDS_BUILDERS_DAMPEN_FIELDS_BUILDER_H
 
 #include "src/commands/builders/command_builder.h"
 
-class FieldsDampingBuilder : public CommandBuilder {
+class DampenFieldsBuilder : public CommandBuilder {
 public:
-  FieldsDampingBuilder(
+  DampenFieldsBuilder(
     interfaces::Simulation& simulation, std::vector<Command_up>& result);
 
   PetscErrorCode build(const Configuration::json_t& info) override;
@@ -14,7 +14,7 @@ public:
   {
     std::string_view help =
       "{\n"
-      "  \"command\": \"FieldsDamping\",\n"
+      "  \"command\": \"DampenFields\",\n"
       "  \"damping_coefficient\": \"D\",\n"
       "  \"geometry\": {\n"
       "    \"name\": \"BoxGeometry\",\n"
@@ -26,4 +26,4 @@ public:
   }
 };
 
-#endif  // SRC_COMMANDS_BUILDERS_FIELDS_DAMPING_BUILDER_H
+#endif  // SRC_COMMANDS_BUILDERS_DAMPEN_FIELDS_BUILDER_H

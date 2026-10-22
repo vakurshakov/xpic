@@ -45,7 +45,7 @@ Numerical building blocks shared across `src/impls/` schemes, with no config-dis
 
 ## `src/commands/` + `src/commands/builders/`
 
-Actions that modify the simulation outside the main physics step: `InjectParticles`, `SetParticles`, `RemoveParticles`, `SetField` (`"field": "E"|"B"`), `FieldsDamping`. Config `"Presets"` run once at init; `"StepPresets"` run once per timestep. Each command has a matching builder in `builders/` (`command_builder.h`/`.cpp` holds the dispatch chain). See `doc/src/commands.rst` for the full JSON schema of each command, including shared `"coordinate"`/`"momentum"`/`"geometry"` sub-config formats (`PreciseCoordinate`/`CoordinateInBox`/`CoordinateInCylinder`, `PreciseMomentum`/`MaxwellianMomentum`, `BoxGeometry`/`CylinderGeometry`).
+Actions that modify the simulation outside the main physics step: `InjectParticles`, `SetParticles`, `RemoveParticles`, `SetField` (`"field": "E"|"B"`), `DampenFields`. Config `"Presets"` run once at init; `"StepPresets"` run once per timestep. Each command has a matching builder in `builders/` (`command_builder.h`/`.cpp` holds the dispatch chain). See `doc/src/commands.rst` for the full JSON schema of each command, including shared `"coordinate"`/`"momentum"`/`"geometry"` sub-config formats (`PreciseCoordinate`/`CoordinateInBox`/`CoordinateInCylinder`, `PreciseMomentum`/`MaxwellianMomentum`, `BoxGeometry`/`CylinderGeometry`).
 
 ## `src/diagnostics/` + `src/diagnostics/builders/`
 

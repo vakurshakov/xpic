@@ -81,7 +81,7 @@ set(commands
   src/commands/set_particles_iaw.cpp
   src/commands/set_field.cpp
   src/commands/remove_particles.cpp
-  src/commands/fields_damping.cpp
+  src/commands/dampen_fields.cpp
   src/commands/builders/command_builder.cpp
   src/commands/builders/particles_builder.cpp
   src/commands/builders/inject_particles_builder.cpp
@@ -89,7 +89,7 @@ set(commands
   src/commands/builders/set_particles_builder.cpp
   src/commands/builders/set_particles_iaw_builder.cpp
   src/commands/builders/set_field_builder.cpp
-  src/commands/builders/fields_damping_builder.cpp
+  src/commands/builders/dampen_fields_builder.cpp
 )
 
 set(utils

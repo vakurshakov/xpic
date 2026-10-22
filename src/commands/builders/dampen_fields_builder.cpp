@@ -1,14 +1,14 @@
-#include "fields_damping_builder.h"
+#include "dampen_fields_builder.h"
 
-#include "src/commands/fields_damping.h"
+#include "src/commands/dampen_fields.h"
 
-FieldsDampingBuilder::FieldsDampingBuilder(
+DampenFieldsBuilder::DampenFieldsBuilder(
   interfaces::Simulation& simulation, std::vector<Command_up>& result)
   : CommandBuilder(simulation, result)
 {
 }
 
-PetscErrorCode FieldsDampingBuilder::build(const Configuration::json_t& info)
+PetscErrorCode DampenFieldsBuilder::build(const Configuration::json_t& info)
 {
   PetscFunctionBeginUser;
   Vec E = simulation_.E;
@@ -23,8 +23,8 @@ PetscErrorCode FieldsDampingBuilder::build(const Configuration::json_t& info)
   std::string name;
   geometry.at("name").get_to(name);
 
-  FieldsDamping::Tester test;
-  FieldsDamping::Damping damp;
+  DampenFields::Tester test;
+  DampenFields::Damping damp;
 
   if (name == "BoxGeometry") {
     BoxGeometry box;
@@ -42,9 +42,9 @@ PetscErrorCode FieldsDampingBuilder::build(const Configuration::json_t& info)
     throw std::runtime_error("Unknown geometry name " + name);
   }
 
-  commands_.emplace_back(std::make_unique<FieldsDamping>(
+  commands_.emplace_back(std::make_unique<DampenFields>(
     simulation_.world.da, E, B, B0, std::move(test), std::move(damp)));
 
-  LOG("  FieldsDamping command is added");
+  LOG("  DampenFields command is added");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
