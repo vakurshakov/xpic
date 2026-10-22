@@ -38,7 +38,7 @@ PetscErrorCode SetParticles::load(PetscInt number_of_particles)
 
       if (is_added) {
         const PetscReal m = particles.parameters.m;
-        const PetscReal mpw = particles.parameters.n / particles.parameters.Np;
+        const PetscReal mpw = particles.parameters.mpw;
 
         added_energy[s] += Energy::get_kinetic(momentum, m, mpw);
         added_particles[s]++;

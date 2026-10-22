@@ -33,11 +33,6 @@ struct WithinCylinder {
   CylinderGeometry geom;
 };
 
-struct WithinAnnulus {
-  bool operator()(const Vector3R& r);
-  AnnulusGeometry geom;
-};
-
 
 bool is_point_within_bounds(
   const Vector3I& point, const Vector3I& b_start, const Vector3I& b_size);

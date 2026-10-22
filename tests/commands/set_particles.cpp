@@ -221,7 +221,7 @@ PetscErrorCode check_energy(  //
   PetscFunctionBeginUser;
   const char* name = particles.parameters.sort_name.c_str();
   const PetscReal m = particles.parameters.m;
-  const PetscReal mpw = particles.parameters.n / particles.parameters.Np;
+  const PetscReal mpw = particles.parameters.mpw;
   const PetscReal expected = inject_num * Energy::get_kinetic(p, m, mpw);
 
   PetscCheck(equal_tol(energy, expected, 1e-12), PETSC_COMM_WORLD, PETSC_ERR_USER,
