@@ -78,13 +78,13 @@ PetscReal DampForBox::operator()(const Vector3R& g)
       delta = g[i] - geom.max[i];
     }
     else if (g[i] < geom.min[i]) {
-      width = geom.min[i] - 0;
-      delta = g[i] - 0;
+      width = geom.min[i];
+      delta = geom.min[i] - g[i];
     }
     else
       continue;
 
-    damping *= 1.0 - coefficient * POW2(delta / width - 1.0);
+    damping *= 1.0 - coefficient * POW2(delta / width);
   }
   return damping;
 }
@@ -99,13 +99,8 @@ PetscReal DampForCylinder::operator()(const Vector3R& g)
 
   PetscReal width = geom.center[X] - geom.radius;
   PetscReal delta = r - geom.radius;
-  PetscReal delta0 = width * (1.0 + 1.0 / std::sqrt(coefficient));
 
-  /// @note To avoid negative damping coefficients, we check against `delta0`.
-  PetscReal damping = 0.0;
-
-  if (delta < delta0)
-    damping = 1.0 - coefficient * POW2(delta / width - 1.0);
-
-  return damping;
+  /// @note The corners of the domain are farther than `width`, so the
+  /// damping is bounded from below to avoid negative coefficients.
+  return std::max(0.0, 1.0 - coefficient * POW2(delta / width));
 }

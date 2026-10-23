@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(tests
+  dampen_fields
   remove_particles
   set_field
   set_particles
