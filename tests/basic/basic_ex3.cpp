@@ -87,17 +87,5 @@ void overwrite_config()
         {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
       }},
     },
-    {
-      "Diagnostics",
-      {
-        {{"diagnostic", "FieldView"}, {"field", "E"}},
-        {{"diagnostic", "FieldView"}, {"field", "B"}},
-        {
-          {"diagnostic", "DistributionMoment"},
-          {"particles", "electrons"},
-          {"moment", "density"},
-        },
-      },
-    },
   });
 }
