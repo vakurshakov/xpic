@@ -63,4 +63,8 @@ static constexpr const auto& shape_function = spline_of_5th_order;
 static constexpr PetscInt shape_width =
   static_cast<PetscInt>(2.0 * shape_radius) + 1;
 
+/// @note A particle shifts by less than one cell per step, so the box covering
+/// both its old and new shapes is at most one cell wider.
+static constexpr PetscInt shape_moving_width = shape_width + 1;
+
 #endif  // SRC_INTERFACES_SORT_PARAMETERS_H

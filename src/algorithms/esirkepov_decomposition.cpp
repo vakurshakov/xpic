@@ -4,7 +4,7 @@ namespace indexing {
 
 constexpr PetscInt j_p(PetscInt x1, PetscInt x2)
 {
-  return x2 * shape_width + x1;
+  return x2 * shape_moving_width + x1;
 }
 
 }  // namespace indexing
@@ -20,7 +20,7 @@ EsirkepovDecomposition::EsirkepovDecomposition(const Shape& shape, PetscReal alp
 PetscErrorCode EsirkepovDecomposition::process(Context& J) const
 {
   PetscFunctionBeginHot;
-  static constexpr PetscInt j_geom = POW2(shape_width);
+  static constexpr PetscInt j_geom = POW2(shape_moving_width);
   static constexpr PetscInt j_size = Vector3I::dim * j_geom;
 
   PetscReal temp_j[j_size];

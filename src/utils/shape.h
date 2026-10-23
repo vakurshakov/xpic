@@ -15,7 +15,8 @@ enum ShapeType : std::uint8_t {
  * @brief Structure containing pre-computed values ​​of shape function
  * calls. Demo desmos program: https://www.desmos.com/calculator/vo3qf9q0h8.
  *
- * @note This class will work _only_ with `size`(s) less than `shape_width`.
+ * @note This class will work _only_ with `size`(s) not exceeding `shape_width`
+ * for a single point and `shape_moving_width` for an (old, new) pair.
  * @note Any version of `setup()` must be called before accessing shape by indices.
  */
 class Shape {
@@ -88,7 +89,7 @@ private:
 
   /// @note `Vector3I::dim` is used as a coordinate space dimensionality.
   static constexpr PetscInt shc = Vector3I::dim * 2;
-  static constexpr PetscInt shm = POW3(shape_width) * shc;
+  static constexpr PetscInt shm = POW3(shape_moving_width) * shc;
   PetscReal shape[shm];
 };
 
