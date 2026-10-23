@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 set(tests
   basic_ex1
+  basic_ex2
+  basic_ex3
 )
 
 foreach(test ${tests})
@@ -16,3 +18,5 @@ foreach(test ${tests})
   set_property(TEST "${test}_mpi_x2" PROPERTY LABELS impls basic mpi)
   set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "${test}")
 endforeach()
+
+set_property(TEST "basic_ex3" PROPERTY DEPENDS "basic_ex1;basic_ex2")

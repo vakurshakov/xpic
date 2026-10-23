@@ -16,7 +16,7 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
   info.at("name").get_to(name);
 
   const PetscInt Np = particles.parameters.Np;
-  const PetscReal frac = Np / (dx * dy * dz);
+  const PetscReal np = Np / (dx * dy * dz);
 
   if (name == "PreciseCoordinate") {
     number_of_particles = Np;
@@ -25,13 +25,13 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
   else if (name == "CoordinateInBox") {
     BoxGeometry box;
     load_geometry(info, box);
-    number_of_particles = (box.max - box.min).elements_product() * frac;
+    number_of_particles = std::round((box.max - box.min).elements_product() * np);
     gen = CoordinateInBox(std::move(box));
   }
   else if (name == "CoordinateInCylinder") {
     CylinderGeometry cyl;
     load_geometry(info, cyl);
-    number_of_particles = M_PI * POW2(cyl.radius) * cyl.height * frac;
+    number_of_particles = std::round(M_PI * POW2(cyl.radius) * cyl.height * np);
     gen = CoordinateInCylinder(std::move(cyl));
   }
   else if (name == "CoordinateInBoxCosineHump") {
@@ -41,7 +41,7 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     std::string axis_name = info.value("axis", "Z");
     Axis axis = get_component(axis_name);
 
-    number_of_particles = (box.max - box.min).elements_product() * frac;
+    number_of_particles = std::round((box.max - box.min).elements_product() * np);
     gen = CoordinateInBoxCosineHump{std::move(box), axis};
   }
   else {

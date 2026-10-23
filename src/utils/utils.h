@@ -43,6 +43,24 @@ inline PetscInt v_g(PetscInt x, PetscInt y, PetscInt z, PetscInt c)
 
 }  // namespace indexing
 
+/// @brief Component `c` of a Yee-staggered field lives at the point
+/// `(idx[a] + offset[c][a]) * d[a]` along each axis `a`.
+struct Stagger {
+  PetscReal offset[3][3];
+};
+
+constexpr Stagger yee_E{{
+  {0.5, 0.0, 0.0},
+  {0.0, 0.5, 0.0},
+  {0.0, 0.0, 0.5},
+}};
+
+constexpr Stagger yee_B{{
+  {0.0, 0.5, 0.5},
+  {0.5, 0.0, 0.5},
+  {0.5, 0.5, 0.0},
+}};
+
 namespace MPIUtils {
 
 PetscErrorCode log_statistics(std::string prefix, PetscInt agg, MPI_Comm comm);

@@ -1,6 +1,6 @@
 {
   "Simulation": "basic",
-  "OutputDirectory": "/home/kurshakov/Code/xpic/tests/basic/output/basic_ex1/",
+  "OutputDirectory": "/home/kurshakov/Code/xpic/tests/basic/output/basic_ex3/",
   "Geometry": {
     "x": 0.5,
     "y": 0.5,

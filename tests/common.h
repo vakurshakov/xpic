@@ -9,6 +9,13 @@ bool equal_tol(PetscReal a, PetscReal b, PetscReal tol)
   return std::abs(a - b) < tol;
 }
 
+/// @brief Relative comparison with an absolute floor `atol`, so that the values
+/// being zero up to the round-off noise are equal to each other.
+bool equal_rel(PetscReal a, PetscReal b, PetscReal tol, PetscReal atol)
+{
+  return std::abs(a - b) <= tol * std::max(std::abs(a), std::abs(b)) + atol;
+}
+
 bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
 {
   return                           //
@@ -73,7 +80,10 @@ std::filesystem::path get_out_dir(std::string_view file)
   return result;
 }
 
-PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
+/// @brief Compares the table `diag` with the expected one, relative error is
+/// `PETSC_SMALL`. Use `atol` for columns that are only a round-off noise.
+PetscErrorCode compare_temporal(std::string_view file, std::string_view diag,
+  PetscReal atol = PETSC_MACHINE_EPSILON)
 {
   PetscFunctionBeginUser;
   auto get_filepath = [&](std::string_view type)
@@ -111,10 +121,10 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
     o_iss >> o_title;
 
     PetscCheck((bool)e_iss == (bool)o_iss, PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "Incorrect header size of output, error occurred at col %" PetscInt_FMT " (%s)", col+1, e_title.c_str());
+      "Incorrect header size of output, error occurred at col %d (%s)", col+1, e_title.c_str());
 
     PetscCheck(e_title == o_title, PETSC_COMM_WORLD, PETSC_ERR_USER,
-      "File headers must be the same, at col %" PetscInt_FMT " expected: \"%s\", output: \"%s\"", col+1, e_title.c_str(), o_title.c_str());
+      "File headers must be the same, at col %d expected: \"%s\", output: \"%s\"", col+1, e_title.c_str(), o_title.c_str());
 
     titles.push_back(e_title);
   }
@@ -128,10 +138,10 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag)
       o_ifs >> o_n;
 
       PetscCheck((bool)e_ifs == (bool)o_ifs, PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "Incorrect filesize of output, error occurred at row %" PetscInt_FMT " col %" PetscInt_FMT " (%s)", row+2, col+1, titles[col].c_str());
+        "Incorrect filesize of output, error occurred at row %d col %d (%s)", row+2, col+1, titles[col].c_str());
 
-      PetscCheck(equal_tol(e_n, o_n, PETSC_SMALL), PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "Column values differ, at row %" PetscInt_FMT " col %" PetscInt_FMT " (%s) expected: %.6e, output: %.6e", row+2, col+1, titles[col].c_str(), e_n, o_n);
+      PetscCheck(equal_rel(e_n, o_n, PETSC_SMALL, atol), PETSC_COMM_WORLD, PETSC_ERR_USER,
+        "Column values differ, at row %d col %d (%s) expected: %.6e, output: %.6e", row+2, col+1, titles[col].c_str(), e_n, o_n);
     }
   }
   PetscFunctionReturn(PETSC_SUCCESS);
