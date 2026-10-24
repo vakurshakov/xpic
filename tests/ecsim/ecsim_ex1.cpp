@@ -3,7 +3,7 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Test of energy conservation for \"ecsim\" implementation. \n"
+  "Test of energy conservation for \"ecsim\" implementation.                \n"
   "The simplest case is tested: plasma cube of size L=5.0 (N=10) is modeled \n"
   "in periodic boundaries for 100 cycles (dt=1.5). There are only maxwellian\n"
   "electrons with the temperature T=100 eV, ions are stationary background. \n";
@@ -18,12 +18,27 @@ int main(int argc, char** argv)
   overwrite_config();
   Configuration::save(get_out_dir(__FILE__));
 
+  // Setting tolerances manually to stabilize the result
+  const PetscReal atol = 1e-14;
+  const PetscReal rtol = 1e-14;
+
   ecsim::Simulation simulation;
+  PetscCall(simulation.set_tolerances(atol, rtol, PETSC_DEFAULT, PETSC_DEFAULT));
   PetscCall(simulation.initialize());
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
-  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
+  // The embedded property of the "ecsim" is the energy
+  // conservation (up to `atol`, used in the field solver)
+  PetscCall(compare_temporal(__FILE__, "energy.txt", atol));
+  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt", atol));
+
+  // Charge is _not_ conserved for "ecsim", for that we've implemented "ecsimcorr"
+  // PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));
+
+  // "Unfortunately conservation of energy and momentum appear to be
+  // mutually exclusive", see https://doi.org/10.1016/j.jcp.2017.01.002
+  // PetscCall(compare_temporal(__FILE__, "momentum_conservation.txt"));
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -78,18 +93,6 @@ void overwrite_config()
         {"coordinate", {{"name", "CoordinateInBox"}}},
         {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
       }},
-    },
-    {
-      "Diagnostics",
-      {
-        {{"diagnostic", "FieldView"}, {"field", "E"}},
-        {{"diagnostic", "FieldView"}, {"field", "B"}},
-        {
-          {"diagnostic", "DistributionMoment"},
-          {"particles", "electrons"},
-          {"moment", "density"},
-        },
-      },
     },
   });
 }

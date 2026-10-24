@@ -1,7 +1,6 @@
 #include "simulation.h"
 
 #include "src/utils/geometries.h"
-#include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
 
@@ -139,6 +138,16 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(PetscLogStagePop());
   PetscCall(init_clock.pop());
   LOG("Initialization of ecsim took {:6.4e} seconds", init_clock.get(__FUNCTION__));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Simulation::finalize());
+  PetscCall(KSPDestroy(&ksp));
+  PetscCall(MatDestroy(&matL));
+  PetscCall(VecDestroy(&Ep));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -573,20 +582,14 @@ PetscErrorCode Simulation::set_tolerances(
   PetscReal atol, PetscReal rtol, PetscReal divtol, PetscInt maxit)
 {
   PetscFunctionBeginUser;
-  this->atol = atol;
-  this->rtol = rtol;
-  this->divtol = divtol;
-  this->maxit = maxit;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::finalize()
-{
-  PetscFunctionBeginUser;
-  PetscCall(interfaces::Simulation::finalize());
-  PetscCall(KSPDestroy(&ksp));
-  PetscCall(MatDestroy(&matL));
-  PetscCall(VecDestroy(&Ep));
+  if (atol != PETSC_DEFAULT)
+    this->atol = atol;
+  if (rtol != PETSC_DEFAULT)
+    this->rtol = rtol;
+  if (divtol != PETSC_DEFAULT)
+    this->divtol = divtol;
+  if (maxit != PETSC_DEFAULT)
+    this->maxit = maxit;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
