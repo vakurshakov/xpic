@@ -70,13 +70,14 @@ PetscErrorCode compare_with_vec(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-std::filesystem::path get_out_dir(std::string_view file)
+std::filesystem::path get_out_dir(
+  std::string_view file, std::string_view type = "output")
 {
   std::filesystem::path result(file);
   result.replace_extension("");
 
-  result = std::format("{}/output/{}/",  //
-    result.parent_path().c_str(), result.filename().c_str());
+  result = std::format("{}/{}/{}/",  //
+    result.parent_path().c_str(), type, result.filename().c_str());
   return result;
 }
 
@@ -86,17 +87,8 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag,
   PetscReal atol = PETSC_MACHINE_EPSILON)
 {
   PetscFunctionBeginUser;
-  auto get_filepath = [&](std::string_view type)
-  {
-    std::filesystem::path result(file);
-    result.replace_extension("");
-
-    return std::format("{}/{}/{}/temporal/{}",  //
-      result.parent_path().c_str(), type, result.filename().c_str(), diag);
-  };
-
-  auto e_path = get_filepath("expected");
-  auto o_path = get_filepath("output");
+  auto e_path = get_out_dir(file, "expected") / "temporal" / diag;
+  auto o_path = get_out_dir(file, "output") / "temporal" / diag;
   std::ifstream e_ifs(e_path);
   std::ifstream o_ifs(o_path);
 
