@@ -5,12 +5,12 @@
     "x": 5.0,
     "y": 5.0,
     "z": 5.0,
-    "t": 15.0,
+    "t": 150.0,
     "dx": 0.5,
     "dy": 0.5,
     "dz": 0.5,
     "dt": 1.5,
-    "diagnose_period": 7.5,
+    "diagnose_period": 50,
     "da_boundary_x": "DM_BOUNDARY_PERIODIC",
     "da_boundary_y": "DM_BOUNDARY_PERIODIC",
     "da_boundary_z": "DM_BOUNDARY_PERIODIC"
@@ -18,7 +18,7 @@
   "Particles": [
     {
       "sort_name": "electrons",
-      "Np": 100,
+      "Np": 10,
       "n": 1.0,
       "q": -1.0,
       "m": 1.0,
@@ -36,21 +36,6 @@
         "name": "MaxwellianMomentum",
         "tov": true
       }
-    }
-  ],
-  "Diagnostics": [
-    {
-      "diagnostic": "FieldView",
-      "field": "E"
-    },
-    {
-      "diagnostic": "FieldView",
-      "field": "B"
-    },
-    {
-      "diagnostic": "DistributionMoment",
-      "particles": "electrons",
-      "moment": "density"
     }
   ]
 }

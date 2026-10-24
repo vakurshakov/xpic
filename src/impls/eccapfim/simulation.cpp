@@ -1,7 +1,5 @@
 #include "simulation.h"
 
-#include "src/utils/geometries.h"
-#include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
 
@@ -34,14 +32,19 @@ PetscErrorCode Simulation::init_snes()
 
   /// @note `SNESANDERSON` can be more effective: -snes_type anderson -snes_anderson_beta 0.4
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
-  PetscCall(SNESSetType(snes, SNESNGMRES));
+  PetscCall(SNESSetType(snes, snes_type));
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
   PetscCall(SNESSetConvergenceHistory(snes, conv_hist.data(), NULL, maxit, PETSC_TRUE));
   PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
   PetscCall(SNESKSPSetUseEW(snes, PETSC_TRUE));
   PetscCall(SNESKSPSetParametersEW(snes, ew_version, ew_rtol_0, ew_rtol_0, ew_gamma, ew_alpha, PETSC_CURRENT, PETSC_CURRENT));
+
   PetscCall(SNESSetFromOptions(snes));
+
+  PetscCall(SNESGetType(snes, &snes_type));
+  PetscCall(SNESGetTolerances(snes, &atol, &rtol, &stol, &maxit, &maxf));
+  PetscCall(SNESGetDivergenceTolerance(snes, &divtol));
 
   PetscCall(DMCreateGlobalVector(da, &E_hk));
 

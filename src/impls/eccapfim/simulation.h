@@ -15,24 +15,20 @@ namespace eccapfim {
 #define SNES_ITERATE_B       0
 #define SNES_PRECONDITIONING 0
 
-static constexpr PetscReal atol = 1e-7;
-static constexpr PetscReal rtol = 1e-7;
-static constexpr PetscReal stol = 1e-7;
-static constexpr PetscReal divtol = PETSC_DETERMINE;
-static constexpr PetscInt maxit = 1000;
-static constexpr PetscInt maxf = PETSC_UNLIMITED;
-
-static constexpr PetscInt ew_version = 3;
-static constexpr PetscReal ew_rtol_0 = 0.8;
-static constexpr PetscReal ew_gamma = 0.9;
-static constexpr PetscReal ew_alpha = 1.5;
-
 class Simulation : public interfaces::Simulation {
 public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
   std::vector<std::shared_ptr<Particles>> particles_;
+
+  SNESType snes_type = SNESANDERSON;
+  PetscReal atol = 1e-7;
+  PetscReal rtol = 1e-7;
+  PetscReal stol = 1e-7;
+  PetscInt maxit = 1000;
+  PetscInt maxf = PETSC_UNLIMITED;
+  PetscReal divtol = PETSC_DETERMINE;
 
 private:
   PetscErrorCode initialize_implementation() override;
@@ -72,6 +68,11 @@ private:
 
   PetscErrorCode comp_snes(Vec vE, Vec vB, Vec v);
   PetscErrorCode decomp_snes(Vec vE, Vec vB, Vec v);
+
+  const PetscInt ew_version = 2;
+  const PetscReal ew_rtol_0 = 0.8;
+  const PetscReal ew_gamma = 0.9;
+  const PetscReal ew_alpha = 1.5;
 
   // `da` can be extended, if we iterate magnetic and electric field together
   SNES snes;

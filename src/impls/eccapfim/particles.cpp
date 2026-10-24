@@ -117,6 +117,8 @@ PetscErrorCode Particles::form_iteration()
 
   PetscReal max = std::numeric_limits<double>::max();
 
+  const PetscReal atol = simulation_.atol;
+
   auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe)
   {
     if (vh > 0 && abs(xe - x) > 1e-7)
