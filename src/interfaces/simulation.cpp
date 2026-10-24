@@ -119,7 +119,7 @@ PetscErrorCode Simulation::initialize()
     std::make_unique<ChargeConservation>(*this));
 
   diagnostics_.emplace_back(  //
-    std::make_unique<MomentumConservation>(da, E, particles));
+    std::make_unique<MomentumConservation>(da, E, B, particles));
 
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));

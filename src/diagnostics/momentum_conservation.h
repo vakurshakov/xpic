@@ -2,13 +2,13 @@
 #define SRC_DIAGNOSTICS_MOMENTUM_CONSERVATION_H
 
 #include "src/interfaces/particles.h"
-#include "src/diagnostics/distribution_moment.h"
 #include "src/diagnostics/table_diagnostic.h"
 
 class MomentumConservation : public TableDiagnostic {
 public:
   MomentumConservation(
-    DM da, Vec E, std::vector<const interfaces::Particles*> particles);
+    DM da, Vec E, Vec B, std::vector<const interfaces::Particles*> particles);
+  PetscErrorCode finalize() override;
 
 private:
   PetscErrorCode calculate();
@@ -17,8 +17,11 @@ private:
 
   DM da;
   Vec E;
+  Vec B;
+  Vec En0;
+  Vec Bn0;
   std::vector<const interfaces::Particles*> particles;
-  std::vector<Vector3R> P0, P1, QE;
+  std::vector<Vector3R> P0, P1, QE, QVB;
 };
 
 #endif  // SRC_DIAGNOSTICS_MOMENTUM_CONSERVATION_H

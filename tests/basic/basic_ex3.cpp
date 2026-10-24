@@ -3,10 +3,10 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Test of energy and charge conservation for \"basic\" implementation.      \n"
-  "The simplest case is tested: plasma cube of size L=0.5 (N=10) is modeled  \n"
-  "in periodic boundaries for 100 cycles (dt=0.25). There are only maxwellian\n"
-  "electrons with the temperature T=100 eV, ions are stationary background. \n";
+  "Test of the momentum balance for \"basic\" implementation. Maxwellian    \n"
+  "electrons (ions are stationary background) are advanced for 5 cycles in  \n"
+  "the static non-uniform E and B fields. The momentum diagnostic must      \n"
+  "report (P^{n+1} - P^n) / dt = sum[q * (E + v x B)] up to round-off.      \n";
 
 void overwrite_config();
 
@@ -23,15 +23,41 @@ int main(int argc, char** argv)
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
-  PetscCall(compare_temporal(__FILE__, "energy.txt"));
+  PetscMPIInt rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+  if (rank == 0) {
+    // Time Px Py Pz QEx QEy QEz QVBx QVBy QVBz N2dP_electrons fP_electrons N2dP
+    std::ifstream ifs(get_out_dir(__FILE__) /  //
+      "temporal/momentum_conservation.txt");
 
-  // The residual errors of the order ~1e-11 are round-off noise that varies
-  // between runs (atomic updates order), so only its magnitude is compared.
-  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt", 1e-10));
-  PetscCall(compare_temporal(__FILE__, "charge_conservation.txt", 1e-10));
+    std::string line;
+    std::getline(ifs, line);
 
-  /// @todo There is some problem with MPI version of this diagnostic
-  /// PetscCall(compare_temporal(__FILE__, "momentum_conservation.txt"));
+    PetscInt n, t;
+    PetscReal v[12], max_f = 0.0, max_err = 0.0;
+
+    for (n = 0; n <= geom_nt; ++n) {
+      ifs >> t;
+      for (PetscReal& x : v) {
+        ifs >> x;
+      }
+
+      PetscCheck(ifs && t == n, PETSC_COMM_SELF, PETSC_ERR_USER, "Broken row %d", (int)n);
+
+      max_f = std::max({max_f,                             // max(QE[c], QVB[c])
+        std::abs(v[3]), std::abs(v[4]), std::abs(v[5]),    // QE
+        std::abs(v[6]), std::abs(v[7]), std::abs(v[8])});  // QVB
+
+      if (n > 0)  // there is no step to balance at t=0
+        max_err = std::max(max_err, v[9]);
+    }
+
+    PetscCheck(max_f > 1e-6, PETSC_COMM_SELF, PETSC_ERR_USER,
+      "Force on particles is too small to be checked: %g", max_f);
+
+    PetscCheck(max_err < 1e-12 * max_f, PETSC_COMM_SELF, PETSC_ERR_USER,
+      "Momentum balance is violated, max error: %g, max force: %g", max_err, max_f);
+  }
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -39,17 +65,18 @@ int main(int argc, char** argv)
 
 void overwrite_config()
 {
-  dx = 0.05;
+  dx = 0.5;
   geom_nx = 10;
   geom_x = geom_nx * dx;
 
-  dt = 0.025;
-  geom_nt = 100;
+  dt = 0.25;
+  geom_nt = 5;
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
     {"Simulation", "basic"},
     {"OutputDirectory", get_out_dir(__FILE__)},
+    {"Fields", {{"evolve", false}}},
     {
       "Geometry",
       {
@@ -61,7 +88,7 @@ void overwrite_config()
         {"dy", dx},
         {"dz", dx},
         {"dt", dt},
-        {"diagnose_period", geom_t / 2},
+        {"diagnose_period", geom_t},
         {"da_boundary_x", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_y", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_z", "DM_BOUNDARY_PERIODIC"},
@@ -71,7 +98,7 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", "electrons"},
-        {"Np", 100},
+        {"Np", 20},
         {"n", +1.0},
         {"q", -1.0},
         {"m", +1.0},
@@ -80,12 +107,34 @@ void overwrite_config()
     },
     {
       "Presets",
-      {{
-        {"command", "SetParticles"},
-        {"particles", "electrons"},
-        {"coordinate", {{"name", "CoordinateInBox"}}},
-        {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
-      }},
+      {
+        {
+          {"command", "SetField"},
+          {"field", "B"},
+          {"setter",
+            {
+              {"name", "SetGeneralCosineField"},
+              {"amplitude", {0.3, -0.2, 0.4}},
+              {"wave_number", {1.0, 1.0, 2.0}},
+            }},
+        },
+        {
+          {"command", "SetField"},
+          {"field", "E"},
+          {"setter",
+            {
+              {"name", "SetGeneralCosineField"},
+              {"amplitude", {0.01, 0.02, 0.03}},
+              {"wave_number", {1.0, 2.0, 1.0}},
+            }},
+        },
+        {
+          {"command", "SetParticles"},
+          {"particles", "electrons"},
+          {"coordinate", {{"name", "CoordinateInBox"}}},
+          {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+        },
+      },
     },
   });
 }

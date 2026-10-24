@@ -4,6 +4,7 @@ set(tests
   basic_ex1
   basic_ex2
   basic_ex3
+  basic_ex4
 )
 
 foreach(test ${tests})
@@ -19,4 +20,4 @@ foreach(test ${tests})
   set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "${test}")
 endforeach()
 
-set_property(TEST "basic_ex3" PROPERTY DEPENDS "basic_ex1;basic_ex2")
+set_property(TEST "basic_ex4" PROPERTY DEPENDS "basic_ex1;basic_ex2;basic_ex3")
