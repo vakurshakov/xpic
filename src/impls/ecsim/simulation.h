@@ -41,6 +41,9 @@ public:
 
   void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
 
+  PetscErrorCode set_tolerances(
+    PetscReal atol, PetscReal rtol, PetscReal divtol, PetscInt maxit);
+
 protected:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt t) override;

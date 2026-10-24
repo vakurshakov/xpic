@@ -569,6 +569,17 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode Simulation::set_tolerances(
+  PetscReal atol, PetscReal rtol, PetscReal divtol, PetscInt maxit)
+{
+  PetscFunctionBeginUser;
+  this->atol = atol;
+  this->rtol = rtol;
+  this->divtol = divtol;
+  this->maxit = maxit;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Simulation::finalize()
 {
   PetscFunctionBeginUser;

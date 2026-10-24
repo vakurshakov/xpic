@@ -5,6 +5,14 @@ CrankNicolsonPush::CrankNicolsonPush(PetscReal qm)
 {
 }
 
+void CrankNicolsonPush::set_tolerances(
+  PetscReal atol, PetscReal rtol, PetscInt maxit)
+{
+  this->atol = atol;
+  this->rtol = rtol;
+  this->maxit = maxit;
+}
+
 void CrankNicolsonPush::set_qm(PetscReal qm)
 {
   this->qm = qm;

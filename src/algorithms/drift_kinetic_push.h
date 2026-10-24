@@ -10,7 +10,12 @@ public:
   DriftKineticPush() = default;
   DriftKineticPush(PetscReal qm, PetscReal mp);
 
+  /// @brief Sets iteration tolerances and limit.
+  void set_tolerances(PetscReal atol, PetscReal rtol, PetscInt maxit);
+
+  /// @brief Sets the charge-to-mass ratio.
   void set_qm(PetscReal qm);
+  /// @brief Sets the particle mass.
   void set_mp(PetscReal mp);
   PetscReal get_mp() const;
   PetscReal get_qm() const;
