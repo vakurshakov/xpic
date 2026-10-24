@@ -20,20 +20,15 @@ int main(int argc, char** argv)
   overwrite_config();
   Configuration::save(get_out_dir(__FILE__));
 
-  // Setting tolerances manually to stabilize the result
-  const PetscReal atol = 1e-14;
-  const PetscReal rtol = 1e-14;
-
   ecsimcorr::Simulation simulation;
-  PetscCall(simulation.set_tolerances(atol, rtol, PETSC_DEFAULT, PETSC_DEFAULT));
   PetscCall(simulation.initialize());
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
   // The embedded property of the "ecsimcorr" is the energy
   // conservation (up to `atol`, used in the field solver)
-  PetscCall(compare_temporal(__FILE__, "energy.txt", atol));
-  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt", atol));
+  PetscCall(compare_temporal(__FILE__, "energy.txt", simulation.atol));
+  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt", simulation.atol));
 
   // In "ecsimcorr" charge _is_ conserved, compared to "ecsim"
   PetscCall(compare_temporal(__FILE__, "charge_conservation.txt", 1e-10));

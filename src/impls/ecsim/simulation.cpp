@@ -574,22 +574,10 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
   PetscCall(KSPSetTolerances(ksp, rtol, atol, divtol, maxit));
   PetscCall(KSPSetResidualHistory(ksp, conv_hist.data(), maxit, PETSC_TRUE));
-  PetscCall(KSPSetFromOptions(ksp));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
-PetscErrorCode Simulation::set_tolerances(
-  PetscReal atol, PetscReal rtol, PetscReal divtol, PetscInt maxit)
-{
-  PetscFunctionBeginUser;
-  if (atol != PETSC_DEFAULT)
-    this->atol = atol;
-  if (rtol != PETSC_DEFAULT)
-    this->rtol = rtol;
-  if (divtol != PETSC_DEFAULT)
-    this->divtol = divtol;
-  if (maxit != PETSC_DEFAULT)
-    this->maxit = maxit;
+  PetscCall(KSPSetFromOptions(ksp));
+
+  PetscCall(KSPGetTolerances(ksp, &rtol, &atol, &divtol, &maxit));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
