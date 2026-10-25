@@ -30,4 +30,11 @@ if ! command -v clang-format &> /dev/null; then
   $cmd || exit 1
 fi
 
-find src/ tests/ -type f \( -name '*.h' -o -name '*.cpp' \) -exec clang-format -i "{}" \;
+find                               \
+    src/                           \
+    tests/                         \
+    -type f                        \
+    \( -name '*.h' -o              \
+       -name '*.tpp' -o            \
+       -name '*.cpp' \)            \
+    -exec clang-format -i "{}" \;

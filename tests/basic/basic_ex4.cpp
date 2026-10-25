@@ -23,9 +23,9 @@ int main(int argc, char** argv)
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
-  // The explicit scheme does not conserve energy exactly, so the drift of the
-  // total energy W = wE + wB + wK (running sum of per-step balances dE + dB + dK
-  // is exactly W(t) - W(0)) is bounded, not compared to round-off.
+  // The explicit scheme does not conserve energy exactly, so the drift
+  // of the total energy W = wE + wB + wK (running sum of per-step balances
+  // dE + dB + dK is exactly W(t) - W(0)) is bounded, not compared to round-off.
   PetscReal max_wK, max_drift;
   PetscCall(max_abs_column(__FILE__, "energy.txt", "wK_electrons", max_wK));
   PetscCall(max_abs_column(__FILE__, "energy_conservation.txt", "dE+dB+dK", max_drift, true));

@@ -2,7 +2,6 @@
 #define SRC_DIAGNOSTICS_PARTICLE_TRACE_H
 
 #include "src/diagnostics/table_diagnostic.h"
-#include "src/interfaces/point.h"
 
 /**
  * @brief Writes the time series of a single traced point. Supported point
