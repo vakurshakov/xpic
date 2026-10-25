@@ -23,41 +23,25 @@ int main(int argc, char** argv)
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
 
-  PetscMPIInt rank;
-  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
-  if (rank == 0) {
-    // Time Px Py Pz QEx QEy QEz QVBx QVBy QVBz N2dP_electrons fP_electrons N2dP
-    std::ifstream ifs(get_out_dir(__FILE__) /  //
-      "temporal/momentum_conservation.txt");
-
-    std::string line;
-    std::getline(ifs, line);
-
-    PetscInt n, t;
-    PetscReal v[12], max_f = 0.0, max_err = 0.0;
-
-    for (n = 0; n <= geom_nt; ++n) {
-      ifs >> t;
-      for (PetscReal& x : v) {
-        ifs >> x;
-      }
-
-      PetscCheck(ifs && t == n, PETSC_COMM_SELF, PETSC_ERR_USER, "Broken row %d", (int)n);
-
-      max_f = std::max({max_f,                             // max(QE[c], QVB[c])
-        std::abs(v[3]), std::abs(v[4]), std::abs(v[5]),    // QE
-        std::abs(v[6]), std::abs(v[7]), std::abs(v[8])});  // QVB
-
-      if (n > 0)  // there is no step to balance at t=0
-        max_err = std::max(max_err, v[9]);
-    }
-
-    PetscCheck(max_f > 1e-6, PETSC_COMM_SELF, PETSC_ERR_USER,
-      "Force on particles is too small to be checked: %g", max_f);
-
-    PetscCheck(max_err < 1e-12 * max_f, PETSC_COMM_SELF, PETSC_ERR_USER,
-      "Momentum balance is violated, max error: %g, max force: %g", max_err, max_f);
+  // The force on particles: max(QE[c], QVB[c])
+  PetscReal max_f = 0.0;
+  for (const char* title : {                                 //
+         "QEx_electrons", "QEy_electrons", "QEz_electrons",  //
+         "QVBx_electron", "QVBy_electron", "QVBz_electron"}) {
+    PetscReal max_c;
+    PetscCall(max_abs_column(__FILE__, "momentum_conservation.txt", title, max_c));
+    max_f = std::max(max_f, max_c);
   }
+
+  // There is no step to balance at t=0
+  PetscReal max_err;
+  PetscCall(max_abs_column(__FILE__, "momentum_conservation.txt", "N2dP", max_err, false, 1));
+
+  PetscCheck(max_f > 1e-6, PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Force on particles is too small to be checked: %g", max_f);
+
+  PetscCheck(max_err < 1e-12 * max_f, PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Momentum balance is violated, max error: %g, max force: %g", max_err, max_f);
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);

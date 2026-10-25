@@ -140,10 +140,11 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag,
 }
 
 /// @brief Finds max(|column|) over all rows of the output table `diag`, or of its
-/// running sum if `cumulative` is set. The table is written by the root rank
-/// only, so the result is broadcasted.
+/// running sum if `cumulative` is set, skipping the first `skip_rows` rows. The
+/// table is written by the root rank only, so the result is broadcasted.
 PetscErrorCode max_abs_column(std::string_view file, std::string_view diag,
-  std::string_view title, PetscReal& result, bool cumulative = false)
+  std::string_view title, PetscReal& result, bool cumulative = false,
+  PetscInt skip_rows = 0)
 {
   PetscFunctionBeginUser;
   PetscMPIInt rank;
@@ -170,7 +171,7 @@ PetscErrorCode max_abs_column(std::string_view file, std::string_view diag,
 
     PetscReal v, sum = 0;
     for (PetscInt i = 0; ifs >> v; ++i) {
-      if (i % n_cols != col)
+      if (i % n_cols != col || i / n_cols < skip_rows)
         continue;
 
       sum += v;
