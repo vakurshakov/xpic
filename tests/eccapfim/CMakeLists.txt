@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 set(tests
   eccapfim_ex1
+  eccapfim_ex2
+  eccapfim_ex3
+  eccapfim_ex4
 )
 
 # Setting snes options manually to stabilize the result
@@ -38,3 +41,5 @@ foreach(test ${tests})
   set_property(TEST "${test}_mpi_x2" PROPERTY LABELS impls eccapfim mpi)
   set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "${test}")
 endforeach()
+
+set_property(TEST "eccapfim_ex4" PROPERTY DEPENDS "eccapfim_ex1;eccapfim_ex2;eccapfim_ex3")

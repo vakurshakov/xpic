@@ -139,6 +139,48 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @brief Finds max(|column|) over all rows of the output table `diag`, or of its
+/// running sum if `cumulative` is set. The table is written by the root rank
+/// only, so the result is broadcasted.
+PetscErrorCode max_abs_column(std::string_view file, std::string_view diag,
+  std::string_view title, PetscReal& result, bool cumulative = false)
+{
+  PetscFunctionBeginUser;
+  PetscMPIInt rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+
+  result = 0;
+  if (rank == 0) {
+    auto path = get_out_dir(file) / "temporal" / diag;
+    std::ifstream ifs(path);
+    PetscCheck(ifs.is_open(), PETSC_COMM_SELF, PETSC_ERR_USER,
+      "Cannot open \"%s\"", path.c_str());
+
+    std::string line, name;
+    std::getline(ifs, line);
+    std::istringstream header(line);
+
+    PetscInt col = -1, n_cols = 0;
+    for (; header >> name; ++n_cols) {
+      if (name == title)
+        col = n_cols;
+    }
+    PetscCheck(col >= 0, PETSC_COMM_SELF, PETSC_ERR_USER,
+        "No column \"%s\" in \"%s\"", std::string(title).c_str(), path.c_str());
+
+    PetscReal v, sum = 0;
+    for (PetscInt i = 0; ifs >> v; ++i) {
+      if (i % n_cols != col)
+        continue;
+
+      sum += v;
+      result = std::max(result, std::abs(cumulative ? sum : v));
+    }
+  }
+  PetscCallMPI(MPI_Bcast(&result, 1, MPIU_REAL, 0, PETSC_COMM_WORLD));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /// @warning For this to become a proper diagnostic,
 /// dangling references to `point` have to be solved
 class PointTrace : public ParticleTrace<Point> {

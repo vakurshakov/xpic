@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 
 set(tests
   ecsimcorr_ex1
+  ecsimcorr_ex2
+  ecsimcorr_ex3
+  ecsimcorr_ex4
 )
 
 # Setting tolerances manually to stabilize the result
@@ -26,3 +29,5 @@ foreach(test ${tests})
   set_property(TEST "${test}_mpi_x2" PROPERTY LABELS impls ecsimcorr mpi)
   set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "${test}")
 endforeach()
+
+set_property(TEST "ecsimcorr_ex4" PROPERTY DEPENDS "ecsimcorr_ex1;ecsimcorr_ex2;ecsimcorr_ex3")
