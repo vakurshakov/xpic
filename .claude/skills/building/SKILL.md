@@ -18,6 +18,7 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) are set in `header.sh
 - `./run-tests.sh [ctest args]` — rebuilds Release, then runs `ctest --test-dir build/Release [ctest args]`. When using raw `ctest` always specify the `--test-dir` with `build/Release` or `build/Debug`, this flag is required; omitting it will fail. Use this when the code is already built and you want to iterate on test runs without triggering a rebuild. These commands support normal ctest agrument list, e.g.:
   - `./run-tests.sh -R basic_ex1` — run a specific test by name.
   - `./run-tests.sh -L "impls ecsim"` — run tests by label (labels combine an area label like `impls`/`diagnostics`/`boris`/`crank_nicolson`/`drift_kinetic` with an implementation label like `basic`/`ecsim`/`ecsimcorr`/`eccapfim`, and MPI variants add the `mpi` label).
+  - `./run-tests.sh -L smoke` / `-L sanity` / `-L regression` — every test has exactly one level label. `smoke`: single mechanism (pushers, commands, diagnostics, operators, `*_ex1` field solvers). `sanity`: short run, one invariant bounded (Gauss law, energy/momentum balance). `regression`: long runs with bounded physics outcome. Add `-LE mpi` to skip MPI variants.
   - `./run-tests.sh --help` — shows ctest's own help.
 
 - `./run-format-all.sh [--install]` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`); `--install` installs `clang-format` if missing. Run it _only_ when explicitly asked to fix project-wide styling issues or before major releases.

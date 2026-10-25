@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(tests
+set(smoke_tests
   eccapfim_ex1
+)
+
+set(sanity_tests
   eccapfim_ex2
   eccapfim_ex3
+)
+
+set(regression_tests
   eccapfim_ex4
 )
 
@@ -29,17 +35,19 @@ set(snes_opt
     -snes_ksp_ew_threshold 0.1
 )
 
-foreach(test ${tests})
-  add_executable(${test}.out ${test}.cpp)
-  target_link_libraries(${test}.out ${PROJECT_NAME})
+foreach(level smoke sanity regression)
+  foreach(test ${${level}_tests})
+    add_executable(${test}.out ${test}.cpp)
+    target_link_libraries(${test}.out ${PROJECT_NAME})
 
-  add_test(NAME "${test}" COMMAND ./${test}.out ${snes_opt})
-  set_property(TEST "${test}" PROPERTY LABELS impls eccapfim)
-  set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "${test}")
+    add_test(NAME "${test}" COMMAND ./${test}.out ${snes_opt})
+    set_property(TEST "${test}" PROPERTY LABELS ${level} impls eccapfim)
+    set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "${test}")
 
-  add_test(NAME "${test}_mpi_x2" COMMAND mpiexec -np 2 ./${test}.out ${snes_opt} -da_processors_x 2)
-  set_property(TEST "${test}_mpi_x2" PROPERTY LABELS impls eccapfim mpi)
-  set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "${test}")
+    add_test(NAME "${test}_mpi_x2" COMMAND mpiexec -np 2 ./${test}.out ${snes_opt} -da_processors_x 2)
+    set_property(TEST "${test}_mpi_x2" PROPERTY LABELS ${level} impls eccapfim mpi)
+    set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "${test}")
+  endforeach()
 endforeach()
 
-set_property(TEST "eccapfim_ex4" PROPERTY DEPENDS "eccapfim_ex1;eccapfim_ex2;eccapfim_ex3")
+set_property(TEST ${regression_tests} PROPERTY DEPENDS "${smoke_tests};${sanity_tests}")

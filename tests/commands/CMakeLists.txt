@@ -13,8 +13,8 @@ foreach(test ${tests})
   target_link_libraries(${test}.out ${PROJECT_NAME})
 
   add_test(NAME "${test}" COMMAND ./${test}.out)
-  set_property(TEST "${test}" PROPERTY LABELS commands)
+  set_property(TEST "${test}" PROPERTY LABELS smoke commands)
 
   add_test(NAME "${test}_mpi_z2" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./${test}.out -da_processors_z 2)
-  set_property(TEST "${test}_mpi_z2" PROPERTY LABELS commands mpi)
+  set_property(TEST "${test}_mpi_z2" PROPERTY LABELS smoke commands mpi)
 endforeach()

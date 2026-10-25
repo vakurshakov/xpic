@@ -17,7 +17,7 @@ foreach(test ${tests})
   target_link_libraries(${test}.out ${PROJECT_NAME})
 
   add_test(NAME "${test}" COMMAND ./${test}.out)
-  set_property(TEST "${test}" PROPERTY LABELS diagnostics)
+  set_property(TEST "${test}" PROPERTY LABELS smoke diagnostics)
   set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "${test}")
 
   foreach(axis x y z)
@@ -28,7 +28,7 @@ foreach(test ${tests})
 
     set(name "${test}_mpi_${axis}2")
     add_test(NAME "${name}" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./${test}.out -da_processors_${axis} 2)
-    set_property(TEST "${name}" PROPERTY LABELS diagnostics mpi)
+    set_property(TEST "${name}" PROPERTY LABELS smoke diagnostics mpi)
     set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "${test}")
   endforeach()
 endforeach()

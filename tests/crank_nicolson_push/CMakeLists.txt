@@ -22,6 +22,6 @@ foreach(test ${tests})
 
   foreach(omega_dt ${omega_dt_values})
     add_test(NAME "${test}_omega_dt_${omega_dt}" COMMAND ./${test}.out -omega_dt ${omega_dt})
-    set_property(TEST "${test}_omega_dt_${omega_dt}" PROPERTY LABELS crank_nicolson)
+    set_property(TEST "${test}_omega_dt_${omega_dt}" PROPERTY LABELS smoke crank_nicolson)
   endforeach()
 endforeach()
