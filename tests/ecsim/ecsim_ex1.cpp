@@ -3,12 +3,19 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Test of energy conservation for \"ecsim\" implementation. \n"
-  "The simplest case is tested: plasma cube of size L=5.0 (N=10) is modeled \n"
-  "in periodic boundaries for 100 cycles (dt=1.5). There are only maxwellian\n"
-  "electrons with the temperature T=100 eV, ions are stationary background. \n";
+  "Test of the field solver of \"ecsim\" implementation. A standing wave   \n"
+  "E_y = a * cos(kx) is launched in vacuum (no particles) along x and is   \n"
+  "advanced for 5 cycles. The result is compared with the exact recurrence \n"
+  "of the Crank-Nicolson scheme, B^{n+1} = B^{n} - dt * rot(E^{n+1/2}) and \n"
+  "E^{n+1} = E^{n} + dt * rot(B^{n+1/2}), in the Yee-staggered points.     \n";
+
+static constexpr PetscReal amplitude = 1.0;
+static constexpr PetscReal tol = 1e-13;
 
 void overwrite_config();
+
+static PetscErrorCode check(Vec vec, const Stagger& stagger, PetscInt c,
+  PetscReal expected, PetscReal (*f)(PetscReal));
 
 int main(int argc, char** argv)
 {
@@ -21,10 +28,18 @@ int main(int argc, char** argv)
   ecsim::Simulation simulation;
   PetscCall(simulation.initialize());
   PetscCall(simulation.calculate());
+
+  // B_z = b * sin(k * x_B), E_y = a * cos(k * x_E). Each step rotates (a, b)
+  // by the angle 2 * atan(dt * kappa / 2), where kappa is the discrete wave number.
+  const PetscReal kappa = 2.0 / dx * std::sin(M_PI * dx / geom_x);
+  const PetscReal phi = 2.0 * std::atan(0.5 * dt * kappa);
+  const PetscReal a = amplitude * std::cos(geom_nt * phi);
+  const PetscReal b = amplitude * std::sin(geom_nt * phi);
+
+  PetscCall(check(simulation.E, yee_E, Y, a, std::cos));
+  PetscCall(check(simulation.B, yee_B, Z, b, std::sin));
+
   PetscCall(simulation.finalize());
-
-  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
-
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -35,8 +50,8 @@ void overwrite_config()
   geom_nx = 10;
   geom_x = geom_nx * dx;
 
-  dt = 1.5;
-  geom_nt = 100;
+  dt = 1.0;
+  geom_nt = 5;
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
@@ -53,43 +68,58 @@ void overwrite_config()
         {"dy", dx},
         {"dz", dx},
         {"dt", dt},
-        {"diagnose_period", geom_t / 2},
+        {"diagnose_period", geom_t},
         {"da_boundary_x", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_y", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_z", "DM_BOUNDARY_PERIODIC"},
       },
     },
     {
-      "Particles",
-      {{
-        {"sort_name", "electrons"},
-        {"Np", 100},
-        {"n", +1.0},
-        {"q", -1.0},
-        {"m", +1.0},
-        {"T", +0.1},
-      }},
-    },
-    {
       "Presets",
       {{
-        {"command", "SetParticles"},
-        {"particles", "electrons"},
-        {"coordinate", {{"name", "CoordinateInBox"}}},
-        {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+        {"command", "SetField"},
+        {"field", "E"},
+        {
+          "setter",
+          {
+            {"name", "SetGeneralCosineField"},
+            {"amplitude", {0.0, amplitude, 0.0}},
+            {"wave_number", {1.0, 0.0, 0.0}},
+          },
+        },
       }},
     },
-    {
-      "Diagnostics",
-      {
-        {{"diagnostic", "FieldView"}, {"field", "E"}},
-        {{"diagnostic", "FieldView"}, {"field", "B"}},
-        {
-          {"diagnostic", "DistributionMoment"},
-          {"particles", "electrons"},
-          {"moment", "density"},
-        },
-      },
-    },
   });
+}
+
+/// @brief Checks the component `c` of `vec` to be `expected * f(k * x)`, where
+/// `x` is a position of this component in the Yee cell, all others are zero.
+static PetscErrorCode check(Vec vec, const Stagger& stagger, PetscInt c,
+  PetscReal expected, PetscReal (*f)(PetscReal))
+{
+  PetscFunctionBeginUser;
+  DM da;
+  PetscCall(VecGetDM(vec, &da));
+
+  PetscInt xs, ys, zs, xm, ym, zm;
+  PetscCall(DMDAGetCorners(da, &xs, &ys, &zs, &xm, &ym, &zm));
+
+  const PetscReal k = 2.0 * M_PI / geom_x;
+
+  const PetscReal**** arr;
+  PetscCall(DMDAVecGetArrayDOFRead(da, vec, &arr));
+  for (PetscInt z = zs; z < zs + zm; ++z) {
+    for (PetscInt y = ys; y < ys + ym; ++y) {
+      for (PetscInt x = xs; x < xs + xm; ++x) {
+        for (PetscInt i = 0; i < 3; ++i) {
+          const PetscReal x_c = (x + stagger.offset[i][X]) * dx;
+          const PetscReal e = (i == c) ? expected * f(k * x_c) : 0.0;
+          PetscCheck(equal_tol(arr[z][y][x][i], e, tol), PETSC_COMM_WORLD, PETSC_ERR_USER,
+            "Wrong value at (%d %d %d)[%d], got %g, expected %g", x, y, z, i, arr[z][y][x][i], e);
+        }
+      }
+    }
+  }
+  PetscCall(DMDAVecRestoreArrayDOFRead(da, vec, &arr));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

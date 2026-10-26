@@ -14,6 +14,7 @@ public:
    * @brief Constructs `Field_view` diagnostic of a particular `field`.
    * @note Result _can_ be `nullptr`, if `region` doesn't touch
    * the local part of DM.
+   * @todo Replace this with virtual `initialize()` method
    */
   static std::unique_ptr<FieldView> create(
     const std::string& out_dir, DM da, Vec field, const Region& region);
@@ -34,6 +35,7 @@ protected:
   PetscErrorCode flush();
   PetscErrorCode close();
   PetscErrorCode write(PetscInt size, const PetscReal* data);
+  PetscErrorCode write_floats(const float* data);
 
   DM da;
   Vec field;

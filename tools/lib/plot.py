@@ -94,7 +94,7 @@ class PlotIm:
         self.im = self.axis.imshow(
             self.data,
             cmap=self.cmap,
-            interpolation="gaussian",
+            #interpolation="gaussian",
             origin="lower",
             aspect="auto",
             extent=self.bounds,

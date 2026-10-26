@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include <petscdmtypes.h>  // for DMBoundaryType
+#include <petscdmtypes.h>   // for DMBoundaryType
 #include <petscsystypes.h>  // for PetscInt
 
 #include <nlohmann/json.hpp>
@@ -53,10 +53,12 @@ public:
     PetscInt& px, PetscInt& py, PetscInt& pz);
 
 private:
-  std::string config_path_;
+  std::string path;
 
-  static void save(const std::string& from, const std::string& our_dir,
+  static void make_copy(const std::string& from, const std::string& our_dir,
     std::filesystem::copy_options options);
+
+  static void make_save(const std::string& our_dir);
 
   Configuration() = default;
   static Configuration config;

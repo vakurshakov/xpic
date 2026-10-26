@@ -41,8 +41,10 @@ public:
 
   void get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& off);
 
-  PetscErrorCode set_tolerances(
-    PetscReal atol, PetscReal rtol, PetscReal divtol, PetscInt maxit);
+  PetscReal atol = 1e-7;
+  PetscReal rtol = 1e-5;
+  PetscReal divtol = PETSC_DETERMINE;
+  PetscInt maxit = 1000;
 
 protected:
   PetscErrorCode initialize_implementation() override;
@@ -67,11 +69,6 @@ protected:
 
   PetscErrorCode fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j);
   PetscErrorCode fill_ecsim_current(PetscReal* coo_v);
-
-  PetscReal atol = 1e-7;
-  PetscReal rtol = 1e-5;
-  PetscReal divtol = PETSC_DETERMINE;
-  PetscInt maxit = 1000;
 
   KSP ksp;
 

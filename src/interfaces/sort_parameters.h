@@ -6,16 +6,17 @@
 
 struct SortParameters {
   std::string sort_name;
-  PetscInt Np;         // [dimensionless], Number of particles in a cell.
-  PetscReal n;         // [n0], Reference density of the particles.
-  PetscReal q;         // [e],  Reference charge of the particles.
-  PetscReal m;         // [me], Mass of the particles in a sort.
-  PetscReal px = 0.0;  // [me c], Inital impulse in x direction.
-  PetscReal py = 0.0;  // [me c], Inital impulse in y direction.
-  PetscReal pz = 0.0;  // [me c], Inital impulse in z direction.
-  PetscReal Tx = 0.0;  // [keV], Temperature in x direction.
-  PetscReal Ty = 0.0;  // [keV], Temperature in y direction.
-  PetscReal Tz = 0.0;  // [keV], Temperature in z direction.
+  PetscInt Np;          // [dimensionless], Number of particles in a cell.
+  PetscReal n;          // [n0], Reference density of the particles.
+  PetscReal q;          // [e],  Reference charge of the particles.
+  PetscReal m;          // [me], Mass of the particles in a sort.
+  PetscReal px = 0.0;   // [me c], Inital impulse in x direction.
+  PetscReal py = 0.0;   // [me c], Inital impulse in y direction.
+  PetscReal pz = 0.0;   // [me c], Inital impulse in z direction.
+  PetscReal Tx = 0.0;   // [keV], Temperature in x direction.
+  PetscReal Ty = 0.0;   // [keV], Temperature in y direction.
+  PetscReal Tz = 0.0;   // [keV], Temperature in z direction.
+  PetscReal mpw = 0.0;  // [n0], Macro-particle weight
 };
 
 
@@ -61,5 +62,9 @@ static constexpr const auto& shape_function = spline_of_5th_order;
 
 static constexpr PetscInt shape_width =
   static_cast<PetscInt>(2.0 * shape_radius) + 1;
+
+/// @note A particle shifts by less than one cell per step, so the box covering
+/// both its old and new shapes is at most one cell wider.
+static constexpr PetscInt shape_moving_width = shape_width + 1;
 
 #endif  // SRC_INTERFACES_SORT_PARAMETERS_H

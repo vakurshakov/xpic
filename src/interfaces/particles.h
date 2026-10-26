@@ -40,6 +40,7 @@ public:
   /// @brief Points are stored in a contiguous 3d array of cells.
   std::vector<std::list<Point>> storage;
 
+  /// @brief Releases particle resources, derived sorts release their own first.
   virtual PetscErrorCode finalize();
 
   /**
@@ -51,6 +52,9 @@ public:
    * @param is_added Whether the `point` has been added after the MPI-boundaries test.
    */
   PetscErrorCode add_particle(const Point& point, bool* is_added = nullptr);
+
+  /// @brief Called by loaders once a batch of `add_particle()` calls is done.
+  virtual PetscErrorCode commit_added_particles();
 
   PetscErrorCode correct_coordinates();
   PetscErrorCode correct_coordinates(Point& point);
@@ -65,15 +69,6 @@ public:
   PetscErrorCode update_cells_mpi();
 
   PetscErrorCode calculate_moments();
-
-  PetscReal mass(const Point& point) const;
-  PetscReal charge(const Point& point) const;
-  PetscReal density(const Point& point) const;
-  PetscInt particles_number(const Point& point) const;
-
-  PetscReal q_m(const Point& point) const;
-  PetscReal n_Np(const Point& point) const;
-  PetscReal qn_Np(const Point& point) const;
 
   Vector3R velocity(const Point& point) const;
 

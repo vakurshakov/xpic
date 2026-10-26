@@ -53,7 +53,7 @@ int main(int argc, char** argv)
 
   using Particles = interfaces::Particles;
 
-  auto particles = std::make_unique<Particles>(world, //
+  auto particles = std::make_unique<Particles>(world,  //
     SortParameters{.sort_name = "particles"});
 
   for (const auto& point : prepared_points)
@@ -63,8 +63,8 @@ int main(int argc, char** argv)
 
   /// @note We should create the diagnostic within some scope to properly run the destructors.
   {
-    std::vector<Vec> _fields{{v}};
-    std::vector<Particles*> _particles{{particles.get()}};
+    std::vector<Vec> _fields{v};
+    std::vector<Particles*> _particles{particles.get()};
 
     auto&& diag =
       std::make_unique<SimulationBackup>(out_dir, 1, _fields, _particles);

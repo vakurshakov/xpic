@@ -1,7 +1,6 @@
 #ifndef SRC_UTILS_PARTICLES_LOAD_H
 #define SRC_UTILS_PARTICLES_LOAD_H
 
-#include "src/pch.h"
 #include "src/interfaces/sort_parameters.h"
 #include "src/utils/geometries.h"
 #include "src/utils/vector3.h"
@@ -26,18 +25,22 @@ struct CoordinateInCylinder {
   CylinderGeometry cyl;
 };
 
+/// @brief Randomly samples a cosine density profile along one box axis.
+struct CoordinateInBoxCosineHump {
+  Vector3R operator()();
+  BoxGeometry box;
+  Axis axis = Z;
+};
+
 struct CoordinateOnAnnulus {
   Vector3R operator()();
   AnnulusGeometry ann;
 };
 
-
 struct PreciseMomentum {
   Vector3R operator()(const Vector3R& coordinate);
   Vector3R value;
 };
-
-PetscReal temperature_momentum(PetscReal temperature, PetscReal mass);
 
 struct MaxwellianMomentum {
   Vector3R operator()(const Vector3R& coordinate);
@@ -45,14 +48,23 @@ struct MaxwellianMomentum {
   bool tov = false;
 };
 
-struct MaxwellCosinePerturbation {
+struct MaxwellShiftedCosine {
   Vector3R operator()(const Vector3R& coordinate);
   SortParameters params;
   BoxGeometry box;
-  Vector3R a;
-  Vector3R m;
+  Vector3R velocity;
+  Vector3R wave_number;
+  Vector3R phase;
 };
 
+struct MaxwellShiftedSine {
+  Vector3R operator()(const Vector3R& coordinate);
+  SortParameters params;
+  BoxGeometry box;
+  Vector3R velocity;
+  Vector3R wave_number;
+  Vector3R phase;
+};
 
 struct AngularMomentum {
   Vector3R operator()(const Vector3R& coordinate);

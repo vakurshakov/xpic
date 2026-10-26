@@ -27,7 +27,7 @@ auto make_simulation_backup(interfaces::Simulation& simulation, PetscInt period)
     backup_particles.emplace_back(sort.get());
 
   return std::make_unique<SimulationBackup>(
-    CONFIG().out_dir + "/simulation_backup/", period, //
+    CONFIG().out_dir + "/simulation_backup/", period,  //
     backup_fields, backup_particles);
 }
 

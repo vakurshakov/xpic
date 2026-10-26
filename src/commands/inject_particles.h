@@ -1,22 +1,18 @@
 #ifndef SRC_COMMANDS_INJECT_PARTICLES_H
 #define SRC_COMMANDS_INJECT_PARTICLES_H
 
-#include "src/pch.h"
-#include "src/interfaces/command.h"
-#include "src/interfaces/particles.h"
-#include "src/utils/particles_load.h"
+#include "src/commands/set_particles.h"
 
-class InjectParticles : public interfaces::Command {
+/// @brief Loads the ionized and the ejected sort (in that order)
+/// every step within `[injection_start, injection_end]`.
+class InjectParticles : public SetParticles {
 public:
-  InjectParticles( //
-    interfaces::Particles& ionized,                  //
-    interfaces::Particles& ejected,                  //
-    PetscInt injection_start,                        //
-    PetscInt injection_end,                          //
-    PetscInt per_step_particles_num,                 //
-    const CoordinateGenerator& generate_coordinate,  //
-    const MomentumGenerator& generate_momentum_i,    //
-    const MomentumGenerator& generate_momentum_e);
+  InjectParticles(                                    //
+    std::vector<Sort> sorts,                          //
+    PetscInt injection_start,                         //
+    PetscInt injection_end,                           //
+    PetscInt per_step_particles_num,                  //
+    const CoordinateGenerator& generate_coordinate);  //
 
   PetscErrorCode execute(PetscInt t) override;
 
@@ -26,25 +22,8 @@ public:
   PetscReal get_ejected_energy() const;
 
 private:
-  PetscErrorCode log_statistics();
-
-  using Particles = interfaces::Particles;
-  Particles& ionized_;
-  Particles& ejected_;
-
-  PetscInt injection_start_;
-  PetscInt injection_end_;
-
-  /// @todo Number of injected particles can vary, if `MPI_Comm_size() > 1`
-  PetscInt per_step_particles_num_;
-
-  CoordinateGenerator generate_coordinate_;
-  MomentumGenerator generate_momentum_i_;
-  MomentumGenerator generate_momentum_e_;
-
-  PetscReal energy_i_ = 0.0;
-  PetscReal energy_e_ = 0.0;
-  PetscInt added_particles_ = 0;
+  PetscInt injection_start;
+  PetscInt injection_end;
 };
 
-#endif // SRC_COMMANDS_INJECT_PARTICLES_H
+#endif  // SRC_COMMANDS_INJECT_PARTICLES_H

@@ -33,7 +33,9 @@ struct World {
   const PetscMPIInt* neighbors;
 
   const PetscInt dof = Vector3R::dim;
-  const PetscInt st = 2 * static_cast<PetscInt>(std::ceil(shape_radius));
+  const PetscInt s = 2 * static_cast<PetscInt>(std::ceil(shape_radius));
+  const DMDAStencilType st = DMDA_STENCIL_BOX;
+  const PetscInt* lg[3];
 
   Vector3I start;
   Vector3I size;
@@ -59,19 +61,19 @@ struct World {
     return indexing::petsc_index(x, y, z, c, size[X], size[Y], size[Z], 3);
   }
 
-  static void set_geometry( //
-    PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
-    PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
+  static void set_geometry(                                      //
+    PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
+    PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
     PetscReal _dtp);
 
-  static void set_geometry( //
-    PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
-    PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt, //
+  static void set_geometry(                                      //
+    PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt,  //
+    PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
     PetscReal _dtp);
 
-  static void set_geometry( //
-    PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt, //
-    PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt, //
+  static void set_geometry(                                      //
+    PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
+    PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt,  //
     PetscReal _dtp);
 };
 

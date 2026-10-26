@@ -36,9 +36,7 @@ AlignConsecutiveShortCaseStatements:
   AlignCaseColons:  false
 AlignEscapedNewlines: Left
 AlignOperands: DontAlign
-AlignTrailingComments:
-  Kind: Leave
-  OverEmptyLines: 0
+AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowBreakBeforeNoexceptSpecifier: Never
@@ -70,7 +68,7 @@ BraceWrapping:
   AfterExternBlock: false
   BeforeCatch: true
   BeforeElse: true
-  BeforeLambdaBody: false
+  BeforeLambdaBody: true
   BeforeWhile: true
   IndentBraces: false
   SplitEmptyFunction: true

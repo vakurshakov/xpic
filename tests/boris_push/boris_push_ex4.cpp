@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     PetscCall(trace.diagnose(t));
     process_impl(chin_scheme_id, push, point, interpolated_fields);
 
-    check_energy_conservation += //
+    check_energy_conservation +=  //
       (0.5 * (point.p.squared() - old_v.squared()) +
         0.5 * (point.p + old_v).dot(E0) * dt) /
       geom_nt;

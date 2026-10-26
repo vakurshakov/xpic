@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# clangd (see .clangd) reads the database of the last configured build type.
+file(CREATE_LINK ${CMAKE_BINARY_DIR}/compile_commands.json
+  ${CMAKE_SOURCE_DIR}/build/compile_commands.json SYMBOLIC)
+
 set(MPI_DIR $ENV{MPI_DIR})
 set(JSON_DIR $ENV{JSON_DIR})
 set(PETSC_DIR $ENV{PETSC_DIR})
@@ -19,7 +25,7 @@ set(CMAKE_CONFIGURATION_TYPES
 
 set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -mno-wbnoinvd")
 
 set(PETSC_ARCH_OPT linux-mpi-opt)
 set(PETSC_ARCH_DEBUG linux-mpi-debug)
@@ -41,43 +47,49 @@ set(algorithms
   src/algorithms/crank_nicolson_push.cpp
   src/algorithms/drift_kinetic_push.cpp
   src/algorithms/implicit_esirkepov.cpp
-  src/algorithms/drift_kinetic_implicit.cpp
+  src/algorithms/implicit_drift_kinetic.cpp
 )
 
 set(diagnostics
   src/diagnostics/field_view.cpp
   src/diagnostics/field_view_zavg.cpp
+  src/diagnostics/mat_mult_field_view.cpp
   src/diagnostics/energy.cpp
+  src/diagnostics/distribution_function.cpp
   src/diagnostics/distribution_moment.cpp
   src/diagnostics/mat_dump.cpp
   src/diagnostics/log_view.cpp
   src/diagnostics/simulation_backup.cpp
   src/diagnostics/charge_conservation.cpp
   src/diagnostics/momentum_conservation.cpp
-  src/diagnostics/velocity_distribution.cpp
   src/diagnostics/table_diagnostic.cpp
+  src/diagnostics/particle_trace.cpp
   src/diagnostics/builders/diagnostic_builder.cpp
   src/diagnostics/builders/field_view_builder.cpp
   src/diagnostics/builders/field_view_zavg_builder.cpp
+  src/diagnostics/builders/mat_mult_field_view_builder.cpp
+  src/diagnostics/builders/distribution_function_builder.cpp
   src/diagnostics/builders/distribution_moment_builder.cpp
   src/diagnostics/builders/log_view_builder.cpp
+  src/diagnostics/builders/particle_trace_builder.cpp
   src/diagnostics/builders/simulation_backup_builder.cpp
-  src/diagnostics/builders/velocity_distribution_builder.cpp
 )
 
 set(commands
   src/commands/inject_particles.cpp
   src/commands/set_particles.cpp
-  src/commands/set_magnetic_field.cpp
+  src/commands/set_particles_iaw.cpp
+  src/commands/set_field.cpp
   src/commands/remove_particles.cpp
-  src/commands/fields_damping.cpp
+  src/commands/dampen_fields.cpp
   src/commands/builders/command_builder.cpp
   src/commands/builders/particles_builder.cpp
   src/commands/builders/inject_particles_builder.cpp
   src/commands/builders/remove_particles_builder.cpp
   src/commands/builders/set_particles_builder.cpp
-  src/commands/builders/set_magnetic_field_builder.cpp
-  src/commands/builders/fields_damping_builder.cpp
+  src/commands/builders/set_particles_iaw_builder.cpp
+  src/commands/builders/set_field_builder.cpp
+  src/commands/builders/dampen_fields_builder.cpp
 )
 
 set(utils
@@ -102,6 +114,10 @@ set(impls
   src/impls/ecsimcorr/particles.cpp
   src/impls/eccapfim/simulation.cpp
   src/impls/eccapfim/particles.cpp
+  src/impls/drift_kinetic/simulation.cpp
+  src/impls/drift_kinetic/diagnostic.cpp
+  src/impls/drift_kinetic/particles.cpp
+  src/impls/drift_kinetic/segments.cpp
 )
 
 add_library(

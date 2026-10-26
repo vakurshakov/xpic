@@ -53,20 +53,6 @@ PetscInt Operator::n_index(PetscInt x, PetscInt y, PetscInt z, PetscInt c) const
 }
 
 
-Identity::Identity(DM da)
-  : Operator(da)
-{
-}
-
-PetscErrorCode Identity::create(Mat* mat) const
-{
-  PetscFunctionBeginUser;
-  PetscInt ls = size_[X] * size_[Y] * size_[Z];  // without ghost cells
-  PetscCall(MatCreateConstantDiagonal(PetscObjectComm((PetscObject)da_), ls, ls, PETSC_DETERMINE, PETSC_DETERMINE, 1.0, mat));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-
 FiniteDifferenceOperator::FiniteDifferenceOperator(
   DM da, PetscInt mdof, PetscInt ndof, const std::vector<PetscReal>& v)
   : Operator(da, mdof, ndof), values_(v)
@@ -157,7 +143,7 @@ Rotor::Rotor(DM da)
       {
         +1.0 / dy, -1.0 / dy, -1.0 / dz, +1.0 / dz,  //
         -1.0 / dx, +1.0 / dx, +1.0 / dz, -1.0 / dz,  //
-        +1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy,  //
+        +1.0 / dx, -1.0 / dx, -1.0 / dy, +1.0 / dy   //
       })
 {
 }
@@ -277,7 +263,7 @@ Divergence::Divergence(DM da)
       {
         +1.0 / dx, -1.0 / dx,  //
         +1.0 / dy, -1.0 / dy,  //
-        +1.0 / dz, -1.0 / dz,  //
+        +1.0 / dz, -1.0 / dz   //
       })
 {
 }
@@ -337,7 +323,7 @@ Gradient::Gradient(DM da)
       {
         +1.0 / dx, -1.0 / dx,  //
         +1.0 / dy, -1.0 / dy,  //
-        +1.0 / dz, -1.0 / dz,  //
+        +1.0 / dz, -1.0 / dz   //
       })
 {
 }

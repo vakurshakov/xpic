@@ -1,10 +1,9 @@
 #ifndef SRC_COMMANDS_BUILDERS_INJECT_PARTICLES_BUILDER_H
 #define SRC_COMMANDS_BUILDERS_INJECT_PARTICLES_BUILDER_H
 
-#include "src/commands/builders/particles_builder.h"
-#include "src/utils/particles_load.h"
+#include "src/commands/builders/set_particles_builder.h"
 
-class InjectParticlesBuilder : public ParticlesBuilder {
+class InjectParticlesBuilder : public SetParticlesBuilder {
 public:
   InjectParticlesBuilder(
     interfaces::Simulation& simulation, std::vector<Command_up>& result);

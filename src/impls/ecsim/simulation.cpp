@@ -1,7 +1,6 @@
 #include "simulation.h"
 
 #include "src/utils/geometries.h"
-#include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
 
@@ -142,14 +141,32 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode Simulation::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Simulation::finalize());
+  PetscCall(KSPDestroy(&ksp));
+  PetscCall(MatDestroy(&matL));
+  PetscCall(VecDestroy(&Ep));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 {
   PetscFunctionBeginUser;
-  PetscCall(clear_sources());
-  PetscCall(first_push());
-  PetscCall(advance_fields());
-  PetscCall(second_push());
-  PetscCall(final_update());
+  if (evolve_fields) {
+    PetscCall(clear_sources());
+    PetscCall(first_push());
+    PetscCall(advance_fields());
+    PetscCall(second_push());
+    PetscCall(final_update());
+  }
+  else {
+    PetscCall(clear_sources());
+    PetscCall(first_push());
+    PetscCall(VecCopy(E, Ep));
+    PetscCall(second_push());
+  }
   PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -332,7 +349,7 @@ PetscErrorCode Simulation::update_cells_with_assembly()
         if (!is_point_within_bounds(vgi, world.start, world.size))
           continue;
 
-        PetscInt j = world.s_g(  //
+        PetscInt j = world.s_g(     //
           vgi[X] - world.start[X],  //
           vgi[Y] - world.start[Y],  //
           vgi[Z] - world.start[Z]);
@@ -390,7 +407,8 @@ PetscErrorCode Simulation::fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j)
   const PetscInt dims[4]{REP3_AP(world.gsize), 3};
   const PetscInt start[4]{REP3_AP(world.gstart), 0};
 
-  auto remap_stencil = [&](const MatStencil& s) {
+  auto remap_stencil = [&](const MatStencil& s)
+  {
     auto in = (PetscInt*)&s;
     PetscInt tmp = *in++ - start[0];
 
@@ -516,12 +534,12 @@ PetscErrorCode Simulation::init_log_stages()
   PetscCall(PetscLogEventRegister("update_cells_with_assembly", classid, &events[0]));
   PetscCall(PetscLogEventRegister("fill_ecsim_current", classid, &events[1]));
 
-  PetscCall(PetscLogStageRegister("Initialization", &stagenums[0]));
-  PetscCall(PetscLogStageRegister("Clear sources", &stagenums[1]));
-  PetscCall(PetscLogStageRegister("First push", &stagenums[2]));
-  PetscCall(PetscLogStageRegister("Advance field", &stagenums[3]));
-  PetscCall(PetscLogStageRegister("Second push", &stagenums[4]));
-  PetscCall(PetscLogStageRegister("Final update", &stagenums[5]));
+  PetscCall(register_log_stage("Initialization", &stagenums[0]));
+  PetscCall(register_log_stage("Clear sources", &stagenums[1]));
+  PetscCall(register_log_stage("First push", &stagenums[2]));
+  PetscCall(register_log_stage("Advance field", &stagenums[3]));
+  PetscCall(register_log_stage("Second push", &stagenums[4]));
+  PetscCall(register_log_stage("Final update", &stagenums[5]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -555,28 +573,10 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
   PetscCall(KSPSetTolerances(ksp, rtol, atol, divtol, maxit));
   PetscCall(KSPSetResidualHistory(ksp, conv_hist.data(), maxit, PETSC_TRUE));
+
   PetscCall(KSPSetFromOptions(ksp));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
-PetscErrorCode Simulation::set_tolerances(
-  PetscReal atol, PetscReal rtol, PetscReal divtol, PetscInt maxit)
-{
-  PetscFunctionBeginUser;
-  this->atol = atol;
-  this->rtol = rtol;
-  this->divtol = divtol;
-  this->maxit = maxit;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::finalize()
-{
-  PetscFunctionBeginUser;
-  PetscCall(interfaces::Simulation::finalize());
-  PetscCall(KSPDestroy(&ksp));
-  PetscCall(MatDestroy(&matL));
-  PetscCall(VecDestroy(&Ep));
+  PetscCall(KSPGetTolerances(ksp, &rtol, &atol, &divtol, &maxit));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -34,6 +34,6 @@ foreach(test ${tests})
 
   foreach(id ${${test}_ids})
     add_test(NAME "${test}_${id}" COMMAND ./${test}.out -id ${id})
-    set_property(TEST "${test}_${id}" PROPERTY LABELS chin boris)
+    set_property(TEST "${test}_${id}" PROPERTY LABELS smoke chin boris)
   endforeach()
 endforeach()

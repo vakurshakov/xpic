@@ -36,7 +36,7 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
   PetscReal m = parameters.m;
   PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
 
-// #pragma omp parallel for
+  // #pragma omp parallel for
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
     if (storage[g].empty())
       continue;
@@ -117,7 +117,10 @@ PetscErrorCode Particles::form_iteration()
 
   PetscReal max = std::numeric_limits<double>::max();
 
-  auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe) {
+  const PetscReal atol = simulation_.atol;
+
+  auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe)
+  {
     if (vh > 0 && abs(xe - x) > 1e-7)
       return (xe - x) / vh;
     else if (vh < 0 && abs(xb - x) > 1e-7)
@@ -126,7 +129,8 @@ PetscErrorCode Particles::form_iteration()
       return max;
   };
 
-  auto bound_periodic = [&](PetscReal& s, Axis axis) {
+  auto bound_periodic = [&](PetscReal& s, Axis axis)
+  {
     if (s < 0.0) {
       s = Geom[axis] - (0.0 - s);
       return true;
@@ -174,7 +178,8 @@ PetscErrorCode Particles::form_iteration()
         Vector3R E_p, B_p, rsn, rs0;
         std::vector<Vector3R> coords;
 
-        auto set_fields = [&] {
+        auto set_fields = [&]
+        {
           E_p = Vector3R{};
           B_p = Vector3R{};
 
@@ -195,7 +200,8 @@ PetscErrorCode Particles::form_iteration()
           }
         };
 
-        auto get_residue = [&] {
+        auto get_residue = [&]
+        {
           return ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p))).length();
         };
 

@@ -1,6 +1,6 @@
 #include "energy.h"
 
-#include "src/commands/fields_damping.h"
+#include "src/commands/dampen_fields.h"
 #include "src/commands/inject_particles.h"
 #include "src/commands/remove_particles.h"
 #include "src/utils/configuration.h"
@@ -144,7 +144,6 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
 
   dE = E - E0;
   dB = B - B0;
-  K = K;
 
   dF = dE + dB;
   energy_cons.add(13, "dE", "{: .6e}", dE);
@@ -158,7 +157,7 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
   }
 
   for (const auto& command : simulation.step_presets_) {
-    if (auto&& damp = dynamic_cast<FieldsDamping*>(command.get())) {
+    if (auto&& damp = dynamic_cast<DampenFields*>(command.get())) {
       energy_cons.add(13, "Damped(E+B)", "{: .6e}", damp->get_damped_energy());
       dF += damp->get_damped_energy();
     }

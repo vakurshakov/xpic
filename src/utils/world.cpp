@@ -35,7 +35,7 @@ PetscErrorCode World::initialize()
     Configuration::get_boundaries_type(REP3_A(bounds));
   }
 
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, st, REP3(nullptr), &da));
+  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), DMDA_STENCIL_BOX, REP3_A(Geom_n), REP3_A(procs), dof, s, REP3(nullptr), &da));
   PetscCall(DMSetFromOptions(da));
   PetscCall(DMSetUp(da));
 
@@ -55,9 +55,11 @@ PetscErrorCode World::initialize()
   PetscCall(DMSetApplicationContext(da_rho, this));
   PetscCall(DMSetApplicationContext(da_mflux, this));
 
+  PetscCall(DMDAGetInfo(da, NULL, REP3(NULL), REP3_A(&procs), NULL, NULL, REP3(NULL), NULL));
   PetscCall(DMDAGetNeighbors(da, &neighbors));
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
   PetscCall(DMDAGetGhostCorners(da, REP3_A(&gstart), REP3_A(&gsize)));
+  PetscCall(DMDAGetOwnershipRanges(da, REP3_A(&lg)));
 
   end = start + size;
   gend = gstart + gsize;
@@ -154,7 +156,7 @@ PetscErrorCode World::create_local_dm(
 }
 
 
-/* static */ void World::set_geometry(  //
+/* static */ void World::set_geometry(                         //
   PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
   PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
   PetscReal _dtp)
@@ -177,12 +179,12 @@ PetscErrorCode World::create_local_dm(
   diagnose_period = ROUND_STEP(_dtp, dt);
 }
 
-/* static */ void World::set_geometry(  //
+/* static */ void World::set_geometry(                         //
   PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt,  //
   PetscReal _dx, PetscReal _dy, PetscReal _dz, PetscReal _dt,  //
   PetscReal _dtp)
 {
-  set_geometry(  //
+  set_geometry(                          //
     static_cast<PetscReal>(_gnx) * _dx,  //
     static_cast<PetscReal>(_gny) * _dy,  //
     static_cast<PetscReal>(_gnz) * _dz,  //
@@ -190,13 +192,13 @@ PetscErrorCode World::create_local_dm(
     _dx, _dy, _dz, _dt, _dtp);
 }
 
-/* static */ void World::set_geometry(  //
+/* static */ void World::set_geometry(                         //
   PetscReal _gx, PetscReal _gy, PetscReal _gz, PetscReal _gt,  //
   PetscInt _gnx, PetscInt _gny, PetscInt _gnz, PetscInt _gnt,  //
   PetscReal _dtp)
 {
-  set_geometry(  //
-    _gx, _gy, _gz, _gt,  //
+  set_geometry(                          //
+    _gx, _gy, _gz, _gt,                  //
     _gx / static_cast<PetscReal>(_gnx),  //
     _gy / static_cast<PetscReal>(_gny),  //
     _gz / static_cast<PetscReal>(_gnz),  //

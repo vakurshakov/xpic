@@ -1,7 +1,5 @@
 #include "simulation.h"
 
-#include "src/utils/geometries.h"
-#include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
 
@@ -34,19 +32,25 @@ PetscErrorCode Simulation::init_snes()
 
   /// @note `SNESANDERSON` can be more effective: -snes_type anderson -snes_anderson_beta 0.4
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
-  PetscCall(SNESSetType(snes, SNESNGMRES));
+  PetscCall(SNESSetType(snes, snes_type));
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
   PetscCall(SNESSetConvergenceHistory(snes, conv_hist.data(), NULL, maxit, PETSC_TRUE));
   PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
   PetscCall(SNESKSPSetUseEW(snes, PETSC_TRUE));
   PetscCall(SNESKSPSetParametersEW(snes, ew_version, ew_rtol_0, ew_rtol_0, ew_gamma, ew_alpha, PETSC_CURRENT, PETSC_CURRENT));
+
   PetscCall(SNESSetFromOptions(snes));
+
+  PetscCall(SNESGetType(snes, &snes_type));
+  PetscCall(SNESGetTolerances(snes, &atol, &rtol, &stol, &maxit, &maxf));
+  PetscCall(SNESGetDivergenceTolerance(snes, &divtol));
 
   PetscCall(DMCreateGlobalVector(da, &E_hk));
 
 #if SNES_ITERATE_B || SNES_PRECONDITIONING
-  auto create_dm = [&](PetscInt dim, DM* local_dm) {
+  auto create_dm = [&](PetscInt dim, DM* local_dm)
+  {
     Region region{
       .dim = 4,
       .dof = dim,
@@ -107,10 +111,10 @@ PetscErrorCode Simulation::init_log()
   PetscCall(PetscLogEventRegister("decomp_snes", classid, &events[5]));
   PetscCall(PetscLogEventRegister("mat_mult", classid, &events[6]));
 
-  PetscCall(PetscLogStageRegister("Initialization", &stagenums[0]));
-  PetscCall(PetscLogStageRegister("Init iteration", &stagenums[1]));
-  PetscCall(PetscLogStageRegister("Calc iteration", &stagenums[2]));
-  PetscCall(PetscLogStageRegister("After iteration", &stagenums[3]));
+  PetscCall(register_log_stage("Initialization", &stagenums[0]));
+  PetscCall(register_log_stage("Init iteration", &stagenums[1]));
+  PetscCall(register_log_stage("Calc iteration", &stagenums[2]));
+  PetscCall(register_log_stage("After iteration", &stagenums[3]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -142,9 +146,14 @@ PetscErrorCode Simulation::finalize()
 PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 {
   PetscFunctionBeginUser;
-  PetscCall(init_iteration());
-  PetscCall(calc_iteration());
-  PetscCall(after_iteration());
+  if (evolve_fields) {
+    PetscCall(init_iteration());
+    PetscCall(calc_iteration());
+    PetscCall(after_iteration());
+  }
+  else {
+    PetscCall(push_particles());
+  }
   PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -167,6 +176,27 @@ PetscErrorCode Simulation::init_iteration()
 #endif
 
   PetscCall(PetscLogStagePop());
+  PetscCall(clock.pop());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::push_particles()
+{
+  PetscFunctionBeginUser;
+  PetscCall(clock.push(__FUNCTION__));
+
+  for (auto& sort : particles_)
+    PetscCall(sort->prepare_storage());
+
+  PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, E_loc));
+  PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
+
+  PetscCall(clear_sources());
+  PetscCall(form_current());
+
+  for (auto& sort : particles_)
+    PetscCall(sort->update_cells());
+
   PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -595,5 +625,6 @@ PetscErrorCode ConvergenceHistory::add_columns(PetscInt t)
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
 
 }  // namespace eccapfim

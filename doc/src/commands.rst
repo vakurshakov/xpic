@@ -185,7 +185,7 @@ SetMagneticField
   }
 
 
-FieldsDamping
+DampenFields
 =============
 
 **Описание:** Команда для затухания полей в определенной геометрической области. Применяет коэффициент затухания к электрическому и магнитному полям.
@@ -195,7 +195,7 @@ FieldsDamping
 .. code-block:: json
 
   {
-    "command": "FieldsDamping",  // Имя команды
+    "command": "DampenFields",  // Имя команды
     "E": "E",                    // Имя электрического поля
     "B": "B",                    // Имя магнитного поля
     "B0": "B0",                  // Имя базового магнитного поля
@@ -281,7 +281,7 @@ RemoveParticles
 .. code-block:: json
 
   {
-    "command": "FieldsDamping",
+    "command": "DampenFields",
     "E": "E",
     "B": "B",
     "B0": "B0",

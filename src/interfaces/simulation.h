@@ -48,11 +48,18 @@ public:
 
   Mat rotE;
   Mat rotB;
-  Mat matM; // (I + (0.25 * dt * dt) rotB * rotE)
+  Mat matM;  // (I + (0.25 * dt * dt) rotB * rotE)
   Mat divE;
 
   // Utility vectors (e.g. to store rotE * E)
   Vec rE, rB;
+
+  /**
+   * @brief If false, the fields are prescribed by presets and stay constant,
+   * only the particles are advanced (test-particle mode). Configured by
+   * `"Fields": {"evolve": false}`.
+   */
+  bool evolve_fields = true;
 
   /**
    * @brief Container of abstract particles, the down-casted pointers to this
@@ -66,6 +73,8 @@ public:
 
   PetscErrorCode initialize();
   PetscErrorCode calculate();
+
+  /// @brief Finishes diagnostics and releases simulation resources.
   virtual PetscErrorCode finalize();
 
   Particles& get_named_particles(std::string_view name);
@@ -77,7 +86,10 @@ protected:
 
   PetscErrorCode log_information() const;
 
+  /// @brief Creates fields, particle sorts and diagnostics of the concrete model.
   virtual PetscErrorCode initialize_implementation() = 0;
+
+  /// @brief Advances fields and particles by one timestep according to the concrete model.
   virtual PetscErrorCode timestep_implementation(PetscInt timestep) = 0;
 
   std::vector<Command_up> step_presets_;

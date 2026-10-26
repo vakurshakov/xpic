@@ -23,17 +23,21 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   }
 
   PetscCall(push_particles());
-  PetscCall(push_fields());
+
+  if (evolve_fields)
+    PetscCall(push_fields());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::push_particles()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecAXPY(B, -1.0, B0));
-  PetscCall(MatMult(rotE, E, rE));
-  PetscCall(VecAXPY(B, -0.5 * dt, rE));
-  PetscCall(VecAXPY(B, +1.0, B0));
+  if (evolve_fields) {
+    PetscCall(VecAXPY(B, -1.0, B0));
+    PetscCall(MatMult(rotE, E, rE));
+    PetscCall(VecAXPY(B, -0.5 * dt, rE));
+    PetscCall(VecAXPY(B, +1.0, B0));
+  }
 
   PetscCall(DMGlobalToLocal(da, E, INSERT_VALUES, E_loc));
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
@@ -64,9 +68,12 @@ PetscErrorCode Simulation::push_fields()
   PetscCall(VecCopy(E, util));
   PetscCall(VecAXPY(B, -1.0, B0));
 
+  // B^{n+1} = B^{n+1/2} - rot(E^{n}) * (0.5 * dt)
   PetscCall(MatMult(rotE, E, rE));
-  PetscCall(MatMult(rotB, E, rB));
   PetscCall(VecAXPY(B, -0.5 * dt, rE));
+
+  // E^{n+1} = E^{n} + rot(B^{n+1}) * dt - J * dt
+  PetscCall(MatMult(rotB, B, rB));
   PetscCall(VecAXPY(E, +1.0 * dt, rB));
   PetscCall(VecAXPY(E, -dt, J));
 

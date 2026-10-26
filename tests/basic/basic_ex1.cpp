@@ -3,12 +3,18 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Test of energy and charge conservation for \"basic\" implementation.\n"
-  "The simplest case is tested: plasma cube of size L=0.5 (N=10) is modeled\n"
-  "in periodic boundaries for 100 cycles (dt=0.25). There are only maxwellian\n"
-  "electrons with the temperature T=100 eV, ions are stationary background.\n";
+  "Test of the field solver of \"basic\" implementation. A standing wave   \n"
+  "E_y = a * cos(kx) is launched in vacuum (no particles) along x and is   \n"
+  "advanced for 5 cycles. The result is compared with the exact recurrence \n"
+  "of the discrete scheme, B^{n+1} = B^{n} - dt * rot(E^{n}) and           \n"
+  "E^{n+1} = E^{n} + dt * rot(B^{n+1}), in the Yee-staggered points.       \n";
+
+static constexpr PetscReal amplitude = 1.0;
 
 void overwrite_config();
+
+static PetscErrorCode check(Vec vec, const Stagger& stagger, PetscInt c,
+  PetscReal expected, PetscReal (*f)(PetscReal));
 
 int main(int argc, char** argv)
 {
@@ -21,27 +27,32 @@ int main(int argc, char** argv)
   basic::Simulation simulation;
   PetscCall(simulation.initialize());
   PetscCall(simulation.calculate());
+
+  // B_z = b * sin(k * x_B), E_y = a * cos(k * x_E)
+  const PetscReal kappa = 2.0 / dx * std::sin(M_PI * dx / geom_x);
+  PetscReal a = amplitude;
+  PetscReal b = 0.0;
+  for (PetscInt t = 0; t < geom_nt; ++t) {
+    b += dt * kappa * a;
+    a -= dt * kappa * b;
+  }
+
+  PetscCall(check(simulation.E, yee_E, Y, a, std::cos));
+  PetscCall(check(simulation.B, yee_B, Z, b, std::sin));
+
   PetscCall(simulation.finalize());
-
-  PetscCall(compare_temporal(__FILE__, "energy.txt"));
-  PetscCall(compare_temporal(__FILE__, "energy_conservation.txt"));
-  PetscCall(compare_temporal(__FILE__, "charge_conservation.txt"));
-
-  /// @todo There is some problem with MPI version of this diagnostic
-  // PetscCall(compare_temporal(__FILE__, "momentum_conservation.txt"));
-
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 void overwrite_config()
 {
-  dx = 0.05;
+  dx = 0.5;
   geom_nx = 10;
   geom_x = geom_nx * dx;
 
-  dt = 0.025;
-  geom_nt = 100;
+  dt = 0.25;
+  geom_nt = 5;
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
@@ -58,43 +69,58 @@ void overwrite_config()
         {"dy", dx},
         {"dz", dx},
         {"dt", dt},
-        {"diagnose_period", geom_t / 2},
+        {"diagnose_period", geom_t},
         {"da_boundary_x", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_y", "DM_BOUNDARY_PERIODIC"},
         {"da_boundary_z", "DM_BOUNDARY_PERIODIC"},
       },
     },
     {
-      "Particles",
-      {{
-        {"sort_name", "electrons"},
-        {"Np", 100},
-        {"n", +1.0},
-        {"q", -1.0},
-        {"m", +1.0},
-        {"T", +0.1},
-      }},
-    },
-    {
       "Presets",
       {{
-        {"command", "SetParticles"},
-        {"particles", "electrons"},
-        {"coordinate", {{"name", "CoordinateInBox"}}},
-        {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+        {"command", "SetField"},
+        {"field", "E"},
+        {
+          "setter",
+          {
+            {"name", "SetGeneralCosineField"},
+            {"amplitude", {0.0, amplitude, 0.0}},
+            {"wave_number", {1.0, 0.0, 0.0}},
+          },
+        },
       }},
     },
-    {
-      "Diagnostics",
-      {
-        {{"diagnostic", "FieldView"}, {"field", "E"}},
-        {{"diagnostic", "FieldView"}, {"field", "B"}},
-        {
-          {"diagnostic", "DistributionMoment"},
-          {"particles", "electrons"},
-          {"moment", "density"},
-        },
-      },
-    },
   });
+}
+
+/// @brief Checks the component `c` of `vec` to be `expected * f(k * x)`, where
+/// `x` is a position of this component in the Yee cell, all others are zero.
+static PetscErrorCode check(Vec vec, const Stagger& stagger, PetscInt c,
+  PetscReal expected, PetscReal (*f)(PetscReal))
+{
+  PetscFunctionBeginUser;
+  DM da;
+  PetscCall(VecGetDM(vec, &da));
+
+  PetscInt xs, ys, zs, xm, ym, zm;
+  PetscCall(DMDAGetCorners(da, &xs, &ys, &zs, &xm, &ym, &zm));
+
+  const PetscReal k = 2.0 * M_PI / geom_x;
+
+  const PetscReal**** arr;
+  PetscCall(DMDAVecGetArrayDOFRead(da, vec, &arr));
+  for (PetscInt z = zs; z < zs + zm; ++z) {
+    for (PetscInt y = ys; y < ys + ym; ++y) {
+      for (PetscInt x = xs; x < xs + xm; ++x) {
+        for (PetscInt i = 0; i < 3; ++i) {
+          const PetscReal x_c = (x + stagger.offset[i][X]) * dx;
+          const PetscReal e = (i == c) ? expected * f(k * x_c) : 0.0;
+          PetscCheck(equal_tol(arr[z][y][x][i], e, 1e-15), PETSC_COMM_WORLD, PETSC_ERR_USER,
+            "Wrong value at (%d %d %d)[%d], got %g, expected %g", x, y, z, i, arr[z][y][x][i], e);
+        }
+      }
+    }
+  }
+  PetscCall(DMDAVecRestoreArrayDOFRead(da, vec, &arr));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
