@@ -98,6 +98,7 @@ set(utils
   src/utils/sync_clock.cpp
   src/utils/operators.cpp
   src/utils/shape.cpp
+  src/utils/particle_storage.cpp
   src/utils/particles_load.cpp
   src/utils/geometries.cpp
   src/utils/world.cpp

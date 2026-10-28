@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 set(tests
   operators
+  particle_storage
 )
 
 foreach(test ${tests})
