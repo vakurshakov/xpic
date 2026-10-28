@@ -1,5 +1,7 @@
 #include "particle_trace.h"
 
+#include "src/interfaces/point.h"
+
 template<class PointT>
 ParticleTrace<PointT>::ParticleTrace(
   const std::string& filename, Getter get_point, PetscInt skip)
