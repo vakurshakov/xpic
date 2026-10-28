@@ -11,6 +11,7 @@ namespace ecsim {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
+  PetscCallAbort(PETSC_COMM_WORLD, storage.commit_fields());
   currI = J;
   currI_loc = J_loc;
 

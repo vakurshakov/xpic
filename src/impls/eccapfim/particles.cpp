@@ -8,9 +8,30 @@ namespace eccapfim {
 
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters),
-    previous_storage(world.size.elements_product()),
     simulation_(simulation)
 {
+  PetscCallAbort(PETSC_COMM_WORLD, storage.register_previous("r"));
+  PetscCallAbort(PETSC_COMM_WORLD, storage.register_previous("p"));
+  PetscCallAbort(PETSC_COMM_WORLD, storage.commit_fields());
+
+  PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("eccapfim::Particles", &classid));
+  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("prepare_storage", classid, &events[0]));
+  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("form_iteration", classid, &events[1]));
+}
+
+PetscReal Particles::get_interpolate_time() const
+{
+  return interpolate_time;
+}
+
+PetscReal Particles::get_cn_push_time() const
+{
+  return cn_push_time;
+}
+
+PetscReal Particles::get_decompose_time() const
+{
+  return decompose_time;
 }
 
 PetscReal Particles::get_average_iteration_number() const
@@ -106,6 +127,7 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
+  PetscLogEventBegin(events[1], 0, 0, 0, 0);
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
 
   avgit = 0;
@@ -154,15 +176,19 @@ PetscErrorCode Particles::form_iteration()
   ParticleStorage::Fields f;
   PetscCall(storage.get_fields(f));
   const PointArrays arrays(f);
-  const std::vector<PetscInt>& offsets = storage.cell_offsets();
+  const PetscReal* r_prev = f["r_prev"];
+  const PetscReal* p_prev = f["p_prev"];
 
-  /// @todo(2) Measure the time to interpolate / push / decompose separately
-#pragma omp parallel for reduction(+ : avgit, avgcell), reduction(max : maxcell)
-  for (PetscInt g = 0; g < (PetscInt)previous_storage.size(); ++g) {
+  // `t_cn_push` is the update of a Crank-Nicolson iteration, without `set_fields()`
+  PetscReal t_interpolate = 0, t_cn_push = 0, t_decompose = 0;
+
+#pragma omp parallel reduction(+ : avgit, avgcell, t_interpolate, t_cn_push, t_decompose), reduction(max : maxcell)
+  {
     ImplicitEsirkepov util(E_arr, B_arr, J_arr);
 
-    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++) {
-      Point curr = previous_storage[g][i - offsets[g]];
+#pragma omp for schedule(static)
+    for (PetscInt i = 0; i < f.size; i++) {
+      Point curr{Vector3R(r_prev + 3 * i), Vector3R(p_prev + 3 * i)};
       Point tmp = curr;
 
       PetscReal tau = 0, dtau = 0, dtx, dty, dtz;
@@ -194,6 +220,7 @@ PetscErrorCode Particles::form_iteration()
 
         auto set_fields = [&]
         {
+          const PetscReal t0 = omp_get_wtime();
           E_p = Vector3R{};
           B_p = Vector3R{};
 
@@ -212,6 +239,7 @@ PetscErrorCode Particles::form_iteration()
             E_p += Es_p * bs;
             B_p += Bs_p * bs;
           }
+          t_interpolate += omp_get_wtime() - t0;
         };
 
         auto get_residue = [&]
@@ -223,6 +251,7 @@ PetscErrorCode Particles::form_iteration()
         rn = r0 = get_residue();
 
         for (; rn > cn_atol + cn_rtol * r0 && it < cn_maxit; it++) {
+          const PetscReal t0 = omp_get_wtime();
           Vector3R a, b, w;
           a = alpha * E_p;
           b = alpha * B_p;
@@ -231,6 +260,7 @@ PetscErrorCode Particles::form_iteration()
 
           pn.r = p0.r + dtau * vh;
           pn.p = 2.0 * vh - p0.p;
+          t_cn_push += omp_get_wtime() - t0;
 
           set_fields();
           rn = get_residue();
@@ -240,6 +270,7 @@ PetscErrorCode Particles::form_iteration()
         avgcell += (PetscReal)(coords.size() - 1) / size;
         maxcell = std::max(maxcell, (PetscInt)(coords.size() - 1));
 
+        const PetscReal t0 = omp_get_wtime();
         d = (pn.r - p0.r).length();
         coords = cell_traversal(pn.r, p0.r);
 
@@ -251,6 +282,7 @@ PetscErrorCode Particles::form_iteration()
 
           util.decompose(a0 * bs * (dtau / dt), vh, rsn, rs0);
         }
+        t_decompose += omp_get_wtime() - t0;
 
         bool reset = false;
         reset |= bound_periodic(pn.r[X], X);
@@ -267,6 +299,10 @@ PetscErrorCode Particles::form_iteration()
 
   PetscCall(storage.restore_fields(f));
 
+  interpolate_time += t_interpolate / omp_get_max_threads();
+  cn_push_time += t_cn_push / omp_get_max_threads();
+  decompose_time += t_decompose / omp_get_max_threads();
+
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
 
@@ -279,30 +315,17 @@ PetscErrorCode Particles::form_iteration()
 
   avgit /= (PetscReal)size;
   avgcell /= (PetscReal)size;
+  PetscLogEventEnd(events[1], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
-  const PointArrays arrays(f);
-  const std::vector<PetscInt>& offsets = storage.cell_offsets();
-
-  size = f.size;
-
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    if (offsets[g] == offsets[g + 1])
-      continue;
-
-    auto&& prev = previous_storage[g];
-    prev.clear();
-    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++)
-      prev.push_back(arrays.load(i));
-  }
-
-  PetscCall(storage.restore_fields(f));
+  PetscLogEventBegin(events[0], 0, 0, 0, 0);
+  PetscCall(storage.get_size(&size));
+  PetscCall(storage.save_previous());
+  PetscLogEventEnd(events[0], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

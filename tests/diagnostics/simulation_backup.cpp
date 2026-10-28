@@ -55,6 +55,7 @@ int main(int argc, char** argv)
 
   auto particles = std::make_unique<Particles>(world,  //
     SortParameters{.sort_name = "particles"});
+  PetscCall(particles->storage.commit_fields());
 
   for (const auto& point : prepared_points)
     PetscCall(particles->add_particle(point));

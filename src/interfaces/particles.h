@@ -38,6 +38,8 @@ namespace interfaces {
 
 class Particles {
 public:
+  /// @warning The derived sort registers its own fields of `storage` (if any)
+  /// and must call `storage.commit_fields()` at the end of its constructor.
   Particles(const World& world, const SortParameters& parameters);
   virtual ~Particles() = default;
 

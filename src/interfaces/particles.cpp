@@ -22,7 +22,6 @@ Particles::Particles(const World& world, const SortParameters& parameters)
   PetscCallAbort(PETSC_COMM_WORLD, storage.initialize());
   PetscCallAbort(PETSC_COMM_WORLD, storage.register_field("r", 3));
   PetscCallAbort(PETSC_COMM_WORLD, storage.register_field("p", 3));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.commit_fields());
 
   PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("interfaces::Particles", &classid));
   PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("update_cells", classid, &events[0]));

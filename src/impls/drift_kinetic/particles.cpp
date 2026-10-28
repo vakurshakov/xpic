@@ -15,6 +15,7 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
     dk_prev_storage(world.size.elements_product()),
     simulation_(simulation)
 {
+  PetscCallAbort(PETSC_COMM_WORLD, storage.commit_fields());
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &M));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &M_loc));
 }
