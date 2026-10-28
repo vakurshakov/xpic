@@ -86,8 +86,7 @@ int main(int argc, char** argv)
     PetscCall(VecDuplicate(v, &tmp));
     PetscCall(VecSwap(v, tmp));
 
-    for (auto& cell : particles->storage)
-      cell.clear();
+    PetscCall(particles->storage.clear());
 
     // Loading the backup into "field" `v` and "particles" `particles`
     PetscCall(diag->load(0));
@@ -97,6 +96,11 @@ int main(int argc, char** argv)
     PetscCall(VecNorm(tmp, NORM_2, &norm));
     PetscCheck(norm < PETSC_MACHINE_EPSILON, PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Field data is loaded incorrectly, norm2 error: %f", norm);
+
+    ParticleStorage::Fields f;
+    PetscCall(particles->storage.get_fields(f));
+    const PointArrays arrays(f);
+    const std::vector<PetscInt>& offsets = particles->storage.cell_offsets();
 
     for (const auto& point : prepared_points) {
       Vector3I vg{
@@ -109,15 +113,17 @@ int main(int argc, char** argv)
         continue;
 
       PetscInt g = world.s_g(REP3_A(vg));
-      const auto& cell = particles->storage[g];
+      const PetscInt first = offsets[g];
+      const PetscInt count = offsets[g + 1] - first;
 
-      PetscCheck(cell.size() == 1, PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "Particles data is loaded incorrectly, cell.size() is %" PetscInt_FMT " at g: %" PetscInt_FMT, (PetscInt)cell.size(), g);
+      PetscCheck(count == 1, PETSC_COMM_WORLD, PETSC_ERR_USER,
+        "Particles data is loaded incorrectly, cell.size() is %" PetscInt_FMT " at g: %" PetscInt_FMT, count, g);
 
-      PetscCheck(*cell.begin() == point, PETSC_COMM_WORLD, PETSC_ERR_USER,
+      PetscCheck(arrays.load(first) == point, PETSC_COMM_WORLD, PETSC_ERR_USER,
         "Particles data is incorrect, wrong particle point at g: %" PetscInt_FMT, g);
     }
 
+    PetscCall(particles->storage.restore_fields(f));
     PetscCall(VecDestroy(&tmp));
   }
 

@@ -121,6 +121,11 @@ PetscErrorCode DistributionFunction::collect()
   Vector3I start, size;
   PetscCall(DMDAGetCorners(da_glob, REP3_A(&start), REP3_A(&size)));
 
+  ParticleStorage::Fields f;
+  PetscCall(particles.storage.get_fields(f));
+  const PointArrays arrays(f);
+  const std::vector<PetscInt>& offsets = particles.storage.cell_offsets();
+
 #pragma omp parallel for
   for (PetscInt g = 0; g < size.elements_product(); ++g) {
     Vector3I vg{
@@ -141,8 +146,8 @@ PetscErrorCode DistributionFunction::collect()
     if (!within_geom(r))
       continue;
 
-    for (auto&& point : particles.storage[g]) {
-      auto [vx, vy] = projector(point);
+    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++) {
+      auto [vx, vy] = projector(arrays.load(i));
 
       vg[X] = ROUND_STEP(vx, vreg.dvx);
       vg[Y] = ROUND_STEP(vy, vreg.dvy);
@@ -156,6 +161,7 @@ PetscErrorCode DistributionFunction::collect()
     }
   }
 
+  PetscCall(particles.storage.restore_fields(f));
   PetscCall(VecRestoreArray2dWrite(field_loc, REP2_A(vsize), REP2_A(vstart), &arr));
   PetscCall(VecScatterBegin(ctx, field_loc, field, ADD_VALUES, SCATTER_FORWARD));
   PetscCall(VecScatterEnd(ctx, field_loc, field, ADD_VALUES, SCATTER_FORWARD));

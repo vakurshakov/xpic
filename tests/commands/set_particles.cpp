@@ -159,6 +159,13 @@ static PetscInt count_points(const std::vector<std::list<PointT>>& storage)
   return count;
 }
 
+static PetscInt count_points(const ParticleStorage& storage)
+{
+  PetscInt count;
+  PetscCallAbort(PETSC_COMM_WORLD, storage.get_size(&count));
+  return count;
+}
+
 PetscErrorCode check_counts(interfaces::Particles& particles, PetscInt expected)
 {
   PetscFunctionBeginUser;

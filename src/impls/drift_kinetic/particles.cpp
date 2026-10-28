@@ -15,12 +15,6 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
     dk_prev_storage(world.size.elements_product()),
     simulation_(simulation)
 {
-  PetscMPIInt mpi_size;
-  PetscCallAbort(PETSC_COMM_WORLD, MPI_Comm_size(PETSC_COMM_WORLD, &mpi_size));
-  update_cells = (mpi_size == 1)  //
-    ? std::bind(std::mem_fn(&Particles::update_cells_seq), this)
-    : std::bind(std::mem_fn(&Particles::update_cells_mpi), this);
-
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &M));
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &M_loc));
 }
@@ -143,20 +137,26 @@ PetscErrorCode Particles::commit_added_particles()
 
   DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 
-  for (PetscInt g = 0; g < world.size.elements_product(); g++) {
-    auto& cell = storage[g];
+  ParticleStorage::Fields f;
+  PetscCall(storage.get_fields(f));
+  const PointArrays arrays(f);
 
-    for (const auto& point : cell) {
-      Vector3R B_p{};
-      PetscCall(esirkepov.interpolate_B(B_p, point.r));
-      dk_curr_storage[g].emplace_back(coord_is_gc
-          ? PointByField::from_guiding_center(point, B_p, mp)
-          : PointByField::from_particle_position(point, B_p, mp, qm));
-    }
+  for (PetscInt i = 0; i < f.size; i++) {
+    const Point point = arrays.load(i);
+    const PetscInt g = world.s_g(  //
+      FLOOR_STEP(point.x(), dx) - world.start[X],
+      FLOOR_STEP(point.y(), dy) - world.start[Y],
+      FLOOR_STEP(point.z(), dz) - world.start[Z]);
 
-    cell.clear();
+    Vector3R B_p{};
+    PetscCall(esirkepov.interpolate_B(B_p, point.r));
+    dk_curr_storage[g].emplace_back(coord_is_gc
+        ? PointByField::from_guiding_center(point, B_p, mp)
+        : PointByField::from_particle_position(point, B_p, mp, qm));
   }
 
+  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.clear());
   PetscCall(DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -255,6 +255,15 @@ const Simulation& Particles::simulation() const
 void Particles::set_coord_is_gc(bool v)
 {
   coord_is_gc = v;
+}
+
+PetscErrorCode Particles::update_cells()
+{
+  PetscFunctionBeginUser;
+  PetscMPIInt mpi_size;
+  PetscCallMPI(MPI_Comm_size(PETSC_COMM_WORLD, &mpi_size));
+  PetscCall((mpi_size == 1) ? update_cells_seq() : update_cells_mpi());
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::update_cells_seq()

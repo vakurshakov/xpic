@@ -78,17 +78,20 @@ PetscErrorCode Energy::calculate_kinetic()
     vx = vy = vz = w = 0;
     n = 0;
 
-#pragma omp parallel for reduction(+ : vx, vy, vz, w, n)
-    for (auto&& cell : sort->storage) {
-      for (auto&& point : cell) {
-        vx += point.px();
-        vy += point.py();
-        vz += point.pz();
+    ParticleStorage::Fields f;
+    PetscCall(sort->storage.get_fields(f));
+    const PetscReal* p = f["p"];
 
-        w += point.p.squared();
-        n++;
-      }
+#pragma omp parallel for reduction(+ : vx, vy, vz, w)
+    for (PetscInt j = 0; j < f.size; j++) {
+      vx += p[3 * j + X];
+      vy += p[3 * j + Y];
+      vz += p[3 * j + Z];
+      w += p[3 * j + X] * p[3 * j + X] + p[3 * j + Y] * p[3 * j + Y] + p[3 * j + Z] * p[3 * j + Z];
     }
+
+    n = f.size;
+    PetscCall(sort->storage.restore_fields(f));
 
     K[i] = frac * w;
 

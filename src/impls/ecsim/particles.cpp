@@ -24,12 +24,18 @@ PetscErrorCode Particles::first_push()
   PetscFunctionBeginUser;
   PetscLogEventBegin(events[0], 0, 0, 0, 0);
 
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      BorisPush::update_r(dt, point);
-    }
+  ParticleStorage::Fields f;
+  PetscCall(storage.get_fields(f));
+  const PointArrays arrays(f);
+
+#pragma omp parallel for
+  for (PetscInt i = 0; i < f.size; i++) {
+    Point point = arrays.load(i);
+    BorisPush::update_r(dt, point);
+    arrays.store(i, point);
   }
+
+  PetscCall(storage.restore_fields(f));
 
   PetscLogEventEnd(events[0], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -40,22 +46,28 @@ PetscErrorCode Particles::fill_ecsim_current(PetscReal* coo_v)
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(da, currI_loc, &currI_arr));
 
+  ParticleStorage::Fields f;
+  PetscCall(storage.get_fields(f));
+  const PointArrays arrays(f);
+  const std::vector<PetscInt>& offsets = storage.cell_offsets();
+
   PetscInt prev_g = 0;
   PetscInt off = 0;
 
 #pragma omp parallel for firstprivate(prev_g, off)
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    if (storage[g].empty())
+    if (offsets[g] == offsets[g + 1])
       continue;
 
     simulation_.get_array_offset(prev_g, g, off);
     prev_g = g;
 
     PetscReal* coo_cv = coo_v + off;
-    for (const auto& point : storage[g]) {
-      decompose_ecsim_current(point, coo_cv);
-    }
+    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++)
+      decompose_ecsim_current(arrays.load(i), coo_cv);
   }
+
+  PetscCall(storage.restore_fields(f));
 
   PetscCall(DMDAVecRestoreArrayWrite(da, currI_loc, &currI_arr));
   PetscCall(DMLocalToGlobal(da, currI_loc, ADD_VALUES, currI));
@@ -185,16 +197,22 @@ PetscErrorCode Particles::second_push()
   PetscReal q = parameters.q;
   PetscReal m = parameters.m;
 
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      Vector3R E_p = interpolate_E_s1(E_arr, point.r);
-      Vector3R B_p = interpolate_B_s1(B_arr, point.r);
+  ParticleStorage::Fields f;
+  PetscCall(storage.get_fields(f));
+  const PointArrays arrays(f);
 
-      BorisPush push(q / m, E_p, B_p);
-      push.update_vEB(dt, point);
-    }
+#pragma omp parallel for
+  for (PetscInt i = 0; i < f.size; i++) {
+    Point point = arrays.load(i);
+    Vector3R E_p = interpolate_E_s1(E_arr, point.r);
+    Vector3R B_p = interpolate_B_s1(B_arr, point.r);
+
+    BorisPush push(q / m, E_p, B_p);
+    push.update_vEB(dt, point);
+    arrays.store(i, point);
   }
+
+  PetscCall(storage.restore_fields(f));
 
   PetscLogEventBegin(events[2], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);

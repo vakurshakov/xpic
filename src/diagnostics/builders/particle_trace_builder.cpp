@@ -10,13 +10,25 @@ ParticleTraceBuilder::ParticleTraceBuilder(
 }
 
 template<class PointT>
-static const PointT* first_point(const std::vector<std::list<PointT>>& storage)
+static std::optional<PointT> first_point(
+  const std::vector<std::list<PointT>>& storage)
 {
   for (const auto& cell : storage) {
     if (!cell.empty())
-      return &cell.front();
+      return cell.front();
   }
-  return nullptr;
+  return std::nullopt;
+}
+
+static std::optional<Point> first_point(const ParticleStorage& storage)
+{
+  ParticleStorage::Fields f;
+  PetscCallAbort(PETSC_COMM_WORLD, storage.get_fields(f));
+  std::optional<Point> point;
+  if (f.size > 0)
+    point = PointArrays(f).load(0);
+  PetscCallAbort(PETSC_COMM_WORLD, storage.restore_fields(f));
+  return point;
 }
 
 PetscErrorCode ParticleTraceBuilder::build(const Configuration::json_t& info)

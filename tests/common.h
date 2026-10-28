@@ -192,7 +192,7 @@ public:
         std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id),
         [&point]
         {
-          return &point;
+          return point;
         },
         skip)
   {

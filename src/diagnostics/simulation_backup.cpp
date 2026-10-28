@@ -69,9 +69,11 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
     std::filesystem::path fname =
       std::format("{}/{}/{}", out_dir_, t, sort->parameters.sort_name);
 
-    PetscInt numparts = 0;
-    for (const auto& cell : sort->storage)
-      numparts += (PetscInt)cell.size();
+    ParticleStorage::Fields f;
+    PetscCall(sort->storage.get_fields(f));
+    const PointArrays arrays(f);
+
+    PetscInt numparts = f.size;
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &numparts, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
 
     PetscCall(create_viewer(fname.string() + ".numparts", PETSC_TRUE, FILE_MODE_WRITE, &viewer));
@@ -79,11 +81,12 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
     PetscCall(PetscViewerDestroy(&viewer));
 
     PetscCall(create_viewer(fname, PETSC_TRUE, FILE_MODE_WRITE, &viewer));
-    for (const auto& cell : sort->storage) {
-      std::vector<Point> copy(cell.begin(), cell.end());
-      PetscCall(PetscViewerBinaryWriteAll(viewer, copy.data(), 6 * (PetscInt)copy.size(), PETSC_DETERMINE, PETSC_DETERMINE, PETSC_REAL));
-    }
+    std::vector<Point> points(f.size);
+    for (PetscInt i = 0; i < f.size; i++)
+      points[i] = arrays.load(i);
+    PetscCall(PetscViewerBinaryWriteAll(viewer, points.data(), 6 * f.size, PETSC_DETERMINE, PETSC_DETERMINE, PETSC_REAL));
     PetscCall(PetscViewerDestroy(&viewer));
+    PetscCall(sort->storage.restore_fields(f));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -154,6 +157,7 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
       PetscCall(sort->add_particle(point));
     }
     PetscCall(PetscViewerDestroy(&viewer));
+    PetscCall(sort->commit_added_particles());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

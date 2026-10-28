@@ -78,7 +78,37 @@ PetscErrorCode ParticleStorage::grow(PetscInt n, PetscInt* first)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode ParticleStorage::get_fields(Fields& f)
+PetscErrorCode ParticleStorage::remove(std::vector<PetscInt> indices)
+{
+  PetscFunctionBeginUser;
+  Fields f;
+  PetscCall(get_fields(f));
+  std::vector<PetscReal*> curr = exchanged_arrays(f);
+
+  // Removing from the largest index keeps the last particle a non-removed one
+  std::ranges::sort(indices, std::greater<>());
+  PetscInt np = f.size;
+  for (PetscInt i : indices) {
+    np--;
+    for (size_t k = 0; k < fields.size(); k++) {
+      const PetscInt dof = fields[k].dof;
+      if (i != np)
+        std::copy_n(curr[k] + dof * np, dof, curr[k] + dof * i);
+    }
+  }
+  PetscCall(restore_fields(f));
+  PetscCall(DMSwarmSetLocalSizes(swarm, np, -1));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode ParticleStorage::clear()
+{
+  PetscFunctionBeginUser;
+  PetscCall(DMSwarmSetLocalSizes(swarm, 0, -1));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode ParticleStorage::get_fields(Fields& f) const
 {
   PetscFunctionBeginUser;
   PetscCall(DMSwarmGetLocalSize(swarm, &f.size));
@@ -91,7 +121,7 @@ PetscErrorCode ParticleStorage::get_fields(Fields& f)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode ParticleStorage::restore_fields(Fields& f)
+PetscErrorCode ParticleStorage::restore_fields(Fields& f) const
 {
   PetscFunctionBeginUser;
   for (const auto& field : previous)

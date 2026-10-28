@@ -52,12 +52,22 @@ public:
   PetscErrorCode grow(PetscInt n, PetscInt* first);
 
   /**
+   * @brief Removes the particles with the given indices by replacing them with
+   * the last ones. The order of the rest is lost.
+   * @note Not collective. Invalidates the pointers of `Fields` and the order.
+   */
+  PetscErrorCode remove(std::vector<PetscInt> indices);
+
+  /// @brief Removes all particles. The same notes as for `remove()`.
+  PetscErrorCode clear();
+
+  /**
    * @brief Gets the raw arrays. Call it once on the main thread and pass the
    * pointers to the parallel region. Every `get_fields()` must be paired with
    * `restore_fields()` before anything that changes `size()`.
    */
-  PetscErrorCode get_fields(Fields& f);
-  PetscErrorCode restore_fields(Fields& f);
+  PetscErrorCode get_fields(Fields& f) const;
+  PetscErrorCode restore_fields(Fields& f) const;
 
   /**
    * @brief Copies every field with a `_prev` companion to it.

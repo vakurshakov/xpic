@@ -16,6 +16,7 @@ public:
   PetscErrorCode form_iteration();
 
   PetscErrorCode commit_added_particles() override;
+  PetscErrorCode update_cells() override;
   PetscErrorCode prepare_storage();
   PetscReal kinetic_energy_local() const;
   PetscReal get_average_iteration_number() const;

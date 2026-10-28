@@ -77,8 +77,7 @@ PetscErrorCode check_removal(interfaces::Particles& particles,
   const PetscReal m = particles.parameters.m;
   const PetscReal mpw = particles.parameters.mpw;
 
-  for (auto& cell : particles.storage)
-    cell.clear();
+  PetscCall(particles.storage.clear());
 
   PetscInt expected_removed = 0;
   PetscReal expected_energy = 0;
@@ -110,9 +109,8 @@ PetscErrorCode check_removal(interfaces::Particles& particles,
   RemoveParticles remove(particles, std::move(kept));
   PetscCall(remove.execute(0));
 
-  PetscInt remained = 0;
-  for (const auto& cell : particles.storage)
-    remained += (PetscInt)cell.size();
+  PetscInt remained;
+  PetscCall(particles.storage.get_size(&remained));
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &remained, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
   PetscCheck(remained == POW3(N) - expected_removed, PETSC_COMM_WORLD, PETSC_ERR_USER,
