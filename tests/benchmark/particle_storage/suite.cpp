@@ -1,4 +1,4 @@
-#include "storage_spike.h"
+#include "suite.h"
 
 #include <omp.h>
 
@@ -9,22 +9,22 @@
 #include <random>
 
 static constexpr char help[] =
-  " Each step of every backend:                         \n"
-  " - snapshot (prev),                                  \n"
-  " - push (Boris from prev),                           \n"
-  " - 2nd order deposit,                                \n"
-  " - update_cells (periodic wrap, migration, re-sort),  \n"
-  " - optionally binary collisions (-collide k).        \n"
-  " Phases are timed apart. Options: -n -ppc -steps     \n"
-  " -vth -omega -backends [lvabcde] -resort -collide.   \n"
-  " Usage: [mpiexec -n N] ./storage_spike.out [options] \n";
+  " Each step of every backend:                                  \n"
+  " - snapshot (prev),                                           \n"
+  " - push (Boris from prev),                                    \n"
+  " - 2nd order deposit,                                         \n"
+  " - update_cells (periodic wrap, migration, re-sort),          \n"
+  " - optionally binary collisions (-collide k).                 \n"
+  " Phases are timed apart. Options: -n -ppc -steps              \n"
+  " -vth -omega -backends [lvabcde] -resort -collide.            \n"
+  " Usage: [mpiexec -n N] ./particle_storage_suite.out [options] \n";
 
 int main(int argc, char** argv)
 {
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
 
-  using namespace storage_spike;
+  using namespace particle_storage;
 
   Config cfg;
   char backends[16] = "lvabcde";
@@ -73,7 +73,7 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-namespace storage_spike {
+namespace particle_storage {
 
 bool xpic_tags = false;
 PetscReal omega_dt = 0.1;
@@ -1389,4 +1389,4 @@ PetscErrorCode update_flat(DM sw, const Local& loc, PetscReal L, Phases& t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-}  // namespace storage_spike
+}  // namespace particle_storage

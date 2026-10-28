@@ -1,22 +1,21 @@
-# Particle storage spike
+# Particle storage suite
 
 Standalone micro-benchmark of particle storage backends (not a simulation, not in ctest).
 
-- [storage_spike.h](storage_spike.h), [storage_spike.cpp](storage_spike.cpp): the benchmark.
-- [run_storage_spike.py](run_storage_spike.py): runs all backends on 1/2/4/8 ranks, averages the repeats and writes the tables to `output/storage_spike.md`.
+- [suite.h](suite.h), [suite.cpp](suite.cpp): the benchmark.
+- [run.py](run.py): builds the benchmark (Release), runs all backends on 1/2/4/8 ranks, averages the repeats and writes the tables to `output/particle_storage_suite.md`.
 
 ```sh
-./build.sh Release
-python3 -I tests/benchmark/run_storage_spike.py build/Release/tests/benchmark/storage_spike.out 5 20
+python3 -I tests/benchmark/particle_storage/run.py 5 20
 ```
 
 Single run (the defaults are exactly this setup; `a`, `b` are skipped on more than one rank):
 
 ```sh
-mpiexec -n R build/Release/tests/benchmark/storage_spike.out -n 32 -ppc 16 -steps 20 -vth 0.05 -backends lvabcde
+mpiexec -n R build/Release/tests/benchmark/particle_storage_suite.out -n 32 -ppc 16 -steps 20 -vth 0.05 -backends lvabcde
 ```
 
-With `collide` as the 4th argument, the script runs the collision variants only and writes `output/storage_spike_collide.md`.
+With `collide` as the 3rd argument, the script runs the collision variants only and writes `output/particle_storage_collide.md`.
 
 ## Problem
 
@@ -152,7 +151,7 @@ Same-species binary collisions inside a cell (Takizuka-Abe: random pairing by a 
 | e + sort | cell order of `e` is stale: counting sort (permutes the fields) before the collisions, in `collide` |
 | e + index | counting pass that produces only `perm` (indices by cell), fields stay in place, the kernel gathers through `perm`; in `collide` |
 
-Options: `-collide k` (every k steps), `-collide_index 1` (`e + index`). `collide` includes the grouping for `e`. Same setup and statistics as above; full tables, also for collisions every 10 steps on 2 and 4 ranks, are in `output/storage_spike_collide.md` after `run_storage_spike.py ... collide`.
+Options: `-collide k` (every k steps), `-collide_index 1` (`e + index`). `collide` includes the grouping for `e`. Same setup and statistics as above; full tables, also for collisions every 10 steps on 2 and 4 ranks, are in `output/particle_storage_collide.md` after `run.py ... collide`.
 
 **Collisions every step, 1 rank**
 

@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-# Benchmark, not a test: run by hand, see storage_spike.cpp.
-add_executable(storage_spike.out storage_spike.cpp)
-target_link_libraries(storage_spike.out ${PROJECT_NAME})
+# Benchmarks, not tests, run by hand
+
+add_executable(particle_storage_suite.out particle_storage/suite.cpp)
+target_link_libraries(particle_storage_suite.out ${PROJECT_NAME})

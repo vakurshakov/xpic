@@ -1,12 +1,12 @@
-#ifndef TESTS_BENCHMARK_STORAGE_SPIKE_H
-#define TESTS_BENCHMARK_STORAGE_SPIKE_H
+#ifndef TESTS_BENCHMARK_PARTICLE_STORAGE_SUITE_H
+#define TESTS_BENCHMARK_PARTICLE_STORAGE_SUITE_H
 
 #include <vector>
 
 #include <petsc.h>
 
 // Micro-benchmark of particle storage backends, see README.md.
-namespace storage_spike {
+namespace particle_storage {
 
 // Options
 extern bool xpic_tags;          // -xpic_tags: same tags as update_cells_mpi()
@@ -104,8 +104,10 @@ PetscErrorCode wrap_and_migrate(DM sw, PetscReal L, Phases& t);
 PetscErrorCode migrate_own(DM sw, const Local& loc, PetscReal L, Phases& t);
 PetscErrorCode check_count(DM sw, PetscInt expected);
 PetscErrorCode counting_sort(DM sw, const Local&, std::vector<PetscInt>&);
-PetscErrorCode build_index(DM sw, const Local&, std::vector<PetscInt>& offsets, std::vector<PetscInt>& perm);
-PetscErrorCode collide_swarm(DM sw, const std::vector<PetscInt>& offsets, const PetscInt* perm, PetscInt step);
+PetscErrorCode build_index(DM sw, const Local&, std::vector<PetscInt>& offsets,
+  std::vector<PetscInt>& perm);
+PetscErrorCode collide_swarm(DM sw, const std::vector<PetscInt>& offsets,
+  const PetscInt* perm, PetscInt step);
 PetscErrorCode get_fields(DM sw, Fields& f);
 PetscErrorCode restore_fields(DM sw, Fields& f);
 
@@ -125,6 +127,6 @@ PetscErrorCode gather_blocks(DM sw, const Blocks& b, VecP& out);
 PetscErrorCode run_flat(const Config& cfg, const VecP& init);
 PetscErrorCode update_flat(DM sw, const Local& loc, PetscReal L, Phases& t);
 
-}  // namespace storage_spike
+}  // namespace particle_storage
 
-#endif  // TESTS_BENCHMARK_STORAGE_SPIKE_H
+#endif  // TESTS_BENCHMARK_PARTICLE_STORAGE_SUITE_H
