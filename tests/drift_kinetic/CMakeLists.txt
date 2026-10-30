@@ -87,5 +87,4 @@ foreach(test ${plot_tests})
   set_property(TEST "${test}_plot" PROPERTY ENVIRONMENT "MPLBACKEND=Agg")
 endforeach()
 
-set_property(TEST ${sanity_tests} PROPERTY DEPENDS "${smoke_tests}")
 set_property(TEST ${regression_tests} PROPERTY DEPENDS "${smoke_tests};${sanity_tests}")
