@@ -530,7 +530,7 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   }
   add(13, "wE", "{: .6e}", w_E);
   add(13, "wB", "{: .6e}", w_B);
-  add(13, "wEB + wK", "{: .6e}", w_E + w_B + K);
+  add(13, "wEB+wK", "{: .6e}", w_E + w_B + K);
 
   Vec sum = nullptr;
   Vec diff = nullptr;
