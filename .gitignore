@@ -6,7 +6,7 @@ external/f2cblaslapack**
 **/__pycache__/**
 
 build/
-doc/build/
+docs/build/
 
 tests/**/output/**
 (^tests)*.txt

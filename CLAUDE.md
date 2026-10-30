@@ -55,3 +55,8 @@ Default five-label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, 
 ### Domain docs
 
 Single-context: one root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+## Documentation structure
+
+- `docs/agents/`: Reserved for automated agent state and tool tracking.
+- `docs/src/`: Core project documentation (Sphinx sources). The agent can read it for context but must NOT modify it unless explicitly asked.

@@ -48,7 +48,7 @@ Keep external dependencies minimal. `xpic` depends on CMake, PETSc, MPI, and nlo
 
 ## Configuration file format
 
-`xpic` uses JSON for configuration, driven entirely by a config file passed as `./run.sh <config.json>` — there is no interactive mode. See `doc/src/commands.rst` for the JSON schema of commands/diagnostics, and `doc/src/structure.rst` for the broader config-driven architecture. Config-driven object construction matches a `name`/`command`/`diagnostic`/`Simulation` string field against a fixed set of literals in a builder or `build_*()` function; unknown values throw `std::runtime_error`.
+`xpic` uses JSON for configuration, driven entirely by a config file passed as `./run.sh <config.json>` — there is no interactive mode. See `docs/src/commands.rst` for the JSON schema of commands/diagnostics, and `docs/src/structure.rst` for the broader config-driven architecture. Config-driven object construction matches a `name`/`command`/`diagnostic`/`Simulation` string field against a fixed set of literals in a builder or `build_*()` function; unknown values throw `std::runtime_error`.
 
 ## Troubleshooting builds
 
