@@ -25,7 +25,8 @@ struct Moments {
   PetscReal p_par = 0;
 };
 
-static Moments collect_moments(const drift_kinetic::Particles& particles);
+static PetscErrorCode collect_moments(
+  const drift_kinetic::Particles& particles, Moments* m);
 
 int main(int argc, char** argv)
 {
@@ -38,9 +39,10 @@ int main(int argc, char** argv)
   drift_kinetic::Simulation simulation;
   PetscCall(simulation.initialize());
 
-  const Moments m0 = collect_moments(*simulation.particles_[0]);
+  Moments m0, m1;
+  PetscCall(collect_moments(*simulation.particles_[0], &m0));
   PetscCall(simulation.calculate());
-  const Moments m1 = collect_moments(*simulation.particles_[0]);
+  PetscCall(collect_moments(*simulation.particles_[0], &m1));
 
   PetscReal E_max, B_max;
   PetscCall(VecNorm(simulation.E, NORM_INFINITY, &E_max));
@@ -66,14 +68,13 @@ int main(int argc, char** argv)
     "Number of particles has changed: %d -> %d", m0.count, m1.count);
 
   // The same `mu` values are carried by the particles, up to the summation order.
-  PetscCheck(
-    equal_rel(m1.mu_sum, m0.mu_sum, 1e-12, 0) &&
-    equal_rel(m1.mu_sq, m0.mu_sq, 1e-12, 0) &&
-    m1.mu_min == m0.mu_min &&
-    m1.mu_max == m0.mu_max,
-    PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "Magnetic moment is not conserved: sum %.15e -> %.15e, max %.15e -> %.15e",
-    m0.mu_sum, m1.mu_sum, m0.mu_max, m1.mu_max);
+  bool mu_conserved =                                  //
+    equal_rel(m1.mu_sum, m0.mu_sum, 1e-12, 0) &&       //
+    equal_rel(m1.mu_sq, m0.mu_sq, 1e-12, 0) &&         //
+    m1.mu_min == m0.mu_min && m1.mu_max == m0.mu_max;  //
+
+  PetscCheck(mu_conserved, PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Magnetic moment is not conserved: sum %.15e -> %.15e, max %.15e -> %.15e", m0.mu_sum, m1.mu_sum, m0.mu_max, m1.mu_max);
 
   // The electrons have no neutralizing background, so the total momentum is
   // not an exact invariant, only its drift is bounded by the thermal scale.
@@ -83,33 +84,12 @@ int main(int argc, char** argv)
 
   PetscCheck(std::isfinite(E_max) && E_max < 0.1, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Electric field is not bounded: %g", E_max);
+
   PetscCheck(std::isfinite(B_max) && std::abs(B_max - B0) < 0.01, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Magnetic field is not bounded: %g", B_max);
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-static Moments collect_moments(const drift_kinetic::Particles& particles)
-{
-  Moments m;
-  for (const auto& cell : particles.get_dk_curr_storage()) {
-    for (const auto& point : cell) {
-      ++m.count;
-      m.mu_sum += point.mu();
-      m.mu_sq += POW2(point.mu());
-      m.mu_min = std::min(m.mu_min, point.mu());
-      m.mu_max = std::max(m.mu_max, point.mu());
-      m.p_par += point.p_par();
-    }
-  }
-
-  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m.count, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m.mu_sum, 2, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m.mu_min, 1, MPIU_REAL, MPI_MIN, PETSC_COMM_WORLD));
-  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m.mu_max, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
-  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m.p_par, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-  return m;
 }
 
 void overwrite_config()
@@ -170,4 +150,27 @@ void overwrite_config()
       },
     },
   });
+}
+
+static PetscErrorCode collect_moments(
+  const drift_kinetic::Particles& particles, Moments* m)
+{
+  PetscFunctionBeginUser;
+  for (const auto& cell : particles.get_dk_curr_storage()) {
+    for (const auto& point : cell) {
+      ++m->count;
+      m->mu_sum += point.mu();
+      m->mu_sq += POW2(point.mu());
+      m->mu_min = std::min(m->mu_min, point.mu());
+      m->mu_max = std::max(m->mu_max, point.mu());
+      m->p_par += point.p_par();
+    }
+  }
+
+  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m->count, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m->mu_sum, 2, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m->mu_min, 1, MPIU_REAL, MPI_MIN, PETSC_COMM_WORLD));
+  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m->mu_max, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
+  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m->p_par, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
