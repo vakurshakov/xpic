@@ -169,24 +169,11 @@ static PetscInt count_points(const ParticleStorage& storage)
 PetscErrorCode check_counts(interfaces::Particles& particles, PetscInt expected)
 {
   PetscFunctionBeginUser;
-  // DK points are converted out of `storage`, others stay there
-  auto* dk = dynamic_cast<drift_kinetic::Particles*>(&particles);
-
-  PetscInt count = count_points(dk ? dk->get_dk_curr_storage() :  //
-      std::vector<std::list<PointByField>>{});
-
-  PetscInt staged = count_points(particles.storage);
-
+  PetscInt count = count_points(particles.storage);
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &count, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &staged, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
   const char* name = particles.parameters.sort_name.c_str();
-
-  PetscCheck((dk ? count : staged) == expected, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "\"%s\": %d particles, expected %d", name, dk ? count : staged, expected);
-
-  PetscCheck(!dk || staged == 0, PETSC_COMM_WORLD, PETSC_ERR_USER,
-    "\"%s\": %d points are left in `storage`", name, staged);
+  PetscCheck(count == expected, PETSC_COMM_WORLD, PETSC_ERR_USER, "\"%s\": %d particles, expected %d", name, count, expected);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -207,18 +194,22 @@ PetscErrorCode check_conversion(  //
 
   const PetscReal expected_mu = m * (p[X] * p[X] + p[Y] * p[Y]) / (2.0 * B_value);
 
-  for (const auto& cell : particles.get_dk_curr_storage()) {
-    for (const auto& point : cell) {
-      PetscCheck(equal_tol(point.r, expected_r, 1e-12), PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "\"%s\": wrong guiding center", name);
+  ParticleStorage::Fields f;
+  PetscCall(particles.storage.get_fields(f));
+  const drift_kinetic::DkPointArrays arrays(f);
 
-      PetscCheck(equal_tol(point.p_parallel, p[Z], 1e-12), PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "\"%s\": wrong p_parallel %g, expected %g", name, point.p_parallel, p[Z]);
+  for (PetscInt i = 0; i < f.size; i++) {
+    const PointByField point = arrays.load(i);
+    PetscCheck(equal_tol(point.r, expected_r, 1e-12), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "\"%s\": wrong guiding center", name);
 
-      PetscCheck(equal_tol(point.mu_p, expected_mu, 1e-12), PETSC_COMM_WORLD, PETSC_ERR_USER,
-        "\"%s\": wrong mu %g, expected %g", name, point.mu_p, expected_mu);
-    }
+    PetscCheck(equal_tol(point.p_parallel, p[Z], 1e-12), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "\"%s\": wrong p_parallel %g, expected %g", name, point.p_parallel, p[Z]);
+
+    PetscCheck(equal_tol(point.mu_p, expected_mu, 1e-12), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "\"%s\": wrong mu %g, expected %g", name, point.mu_p, expected_mu);
   }
+  PetscCall(particles.storage.restore_fields(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

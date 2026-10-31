@@ -176,7 +176,10 @@ DkDistributionMoment::DkDistributionMoment(const std::string& out_dir,
 PetscErrorCode DkDistributionMoment::collect()
 {
   PetscFunctionBeginUser;
-  const auto& dk_storage = dk_particles.get_dk_curr_storage();
+  ParticleStorage::Fields f;
+  PetscCall(dk_particles.storage.get_fields(f));
+  const DkPointArrays arrays(f);
+  const std::vector<PetscInt>& offsets = dk_particles.storage.cell_offsets();
 
   // DK moments receive |B| interpolated at the gyrocenter; check out the
   // current B field once before the particle loop. (The non-DK `moment`
@@ -190,7 +193,8 @@ PetscErrorCode DkDistributionMoment::collect()
 
   PetscCall(::DistributionMoment::collect([&](PetscInt g, auto&& deposit)
   {
-    for (const auto& point : dk_storage[g]) {
+    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++) {
+      const PointByField point = arrays.load(i);
       if (!dk_moment) {
         deposit(point.r, moment(particles, ::Point(point.r, point.p)));
         continue;
@@ -208,6 +212,7 @@ PetscErrorCode DkDistributionMoment::collect()
   if (dk_moment) {
     PetscCall(DMDAVecRestoreArrayRead(sim.da, sim.B_loc, &B_arr_local));
   }
+  PetscCall(dk_particles.storage.restore_fields(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -278,11 +283,15 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
 
   PetscInt included_local = 0;
   PetscInt omitted_local = 0;
-  const auto& storage = particles.get_dk_curr_storage();
+  ParticleStorage::Fields f;
+  PetscCall(particles.storage.get_fields(f));
+  const DkPointArrays arrays(f);
+  const std::vector<PetscInt>& offsets = particles.storage.cell_offsets();
 
 #pragma omp parallel for reduction(+ : included_local, omitted_local)
-  for (PetscInt g = 0; g < static_cast<PetscInt>(storage.size()); ++g) {
-    for (const auto& point : storage[g]) {
+  for (PetscInt g = 0; g < coord_cells; ++g) {
+    for (PetscInt n = offsets[g]; n < offsets[g + 1]; ++n) {
+      const PointByField point = arrays.load(n);
       PetscInt iv = FLOOR_STEP(point.p_parallel - v_parallel.min, dv);
       PetscInt imu = FLOOR_STEP(point.mu_p - mu_p.min, dmu);
 
@@ -298,6 +307,7 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
       histogram[index] += histogram_weight;
     }
   }
+  PetscCall(particles.storage.restore_fields(f));
 
   PetscInt counts[2]{included_local, omitted_local};
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, counts, 2, MPIU_INT, MPI_SUM, comm));
@@ -326,11 +336,13 @@ void EnergyConservation::calculate_kinetic_energies(
   per_sort.assign(simulation.particles_.size(), 0.0);
   total = 0.0;
 
-  for (PetscInt i = 0; i < (PetscInt)simulation.particles_.size(); ++i) {
-    const PetscReal kinetic = simulation.particles_[i]->kinetic_energy_local();
-    per_sort[i] = kinetic;
+  for (PetscInt i = 0; i < (PetscInt)simulation.particles_.size(); ++i)
+    per_sort[i] = simulation.particles_[i]->kinetic_energy_local();
+
+  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, per_sort.data(), (PetscMPIInt)per_sort.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+
+  for (PetscReal kinetic : per_sort)
     total += kinetic;
-  }
 }
 
 PetscErrorCode EnergyConservation::diagnose(PetscInt t)
@@ -428,7 +440,9 @@ PetscErrorCode EnergyConservation::collect_charge_density(PetscInt sort_id)
   auto& local = charge_locals[sort_id];
   auto& field = charge_fields[sort_id];
   const auto& sort = *simulation.particles_[sort_id];
-  const auto& dk_curr_storage = sort.get_dk_curr_storage();
+  ParticleStorage::Fields f;
+  PetscCall(sort.storage.get_fields(f));
+  const DkPointArrays arrays(f);
   const PetscReal qn_np = sort.parameters.q * sort.parameters.n /
     static_cast<PetscReal>(sort.parameters.Np);
 
@@ -441,20 +455,19 @@ PetscErrorCode EnergyConservation::collect_charge_density(PetscInt sort_id)
   ChargeShape shape;
 
 #pragma omp parallel for private(shape)
-  for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); ++g) {
-    for (const auto& point : dk_curr_storage[g]) {
-      shape.setup(point.r);
+  for (PetscInt n = 0; n < f.size; ++n) {
+    shape.setup(Vector3R(arrays.r + 3 * n));
 
-      for (PetscInt i = 0; i < shape.shm; ++i) {
-        const PetscInt g_x = shape.start[X] + i % shape.shw;
-        const PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
-        const PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
+    for (PetscInt i = 0; i < shape.shm; ++i) {
+      const PetscInt g_x = shape.start[X] + i % shape.shw;
+      const PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
+      const PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
 
 #pragma omp atomic update
-        arr[g_z][g_y][g_x] += qn_np * shape.cache[i];
-      }
+      arr[g_z][g_y][g_x] += qn_np * shape.cache[i];
     }
   }
+  PetscCall(sort.storage.restore_fields(f));
 
   PetscCall(DMDAVecRestoreArrayWrite(charge_da, local, &arr));
   PetscCall(DMLocalToGlobal(charge_da, local, ADD_VALUES, field));
@@ -551,7 +564,6 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
 
     PetscCall(MatMultAdd(divE, simulation.particles_[i]->J, diff, diff));
     PetscCall(VecNorm(diff, NORM_1_AND_2, norm));
-
     const auto& name = simulation.particles_[i]->parameters.sort_name;
     add(13, "N1dQ_" + name, "{: .6e}", norm[0]);
     add(13, "N2dQ_" + name, "{: .6e}", norm[1]);

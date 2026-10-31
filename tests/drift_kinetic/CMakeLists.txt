@@ -54,13 +54,13 @@ foreach(level smoke sanity regression)
       set(opt ${snes_opt})
     endif()
 
-    add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -n 1 ./${test}.out ${opt})
+    add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec -n 1 ./${test}.out ${opt})
     set_property(TEST "${test}" PROPERTY LABELS ${level} impls drift_kinetic)
     set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "drift_kinetic")
 
     if(${test} IN_LIST mpi_tests)
       foreach(axis x y z)
-        add_test(NAME "${test}_mpi_${axis}2" COMMAND mpiexec --bind-to none -np 2 ./${test}.out ${opt} -da_processors_${axis} 2)
+        add_test(NAME "${test}_mpi_${axis}2" COMMAND mpiexec -n 2 ./${test}.out ${opt} -da_processors_${axis} 2)
         set_property(TEST "${test}_mpi_${axis}2" PROPERTY LABELS ${level} impls drift_kinetic mpi)
         set_property(TEST "${test}_mpi_${axis}2" PROPERTY RESOURCE_LOCK "drift_kinetic")
       endforeach()
@@ -68,9 +68,9 @@ foreach(level smoke sanity regression)
   endforeach()
 endforeach()
 
-# Known baseline defect of the list-based storage: with several ranks the energy
-# balance and the charge continuity of the balance test are violated (the serial
-# run holds them to round-off). The port must make these pass; drop WILL_FAIL then.
+# Known defect of the DK pusher: periodic stencils at the domain seam are indexed
+# outside the local ghosted array on multi-rank runs, breaking charge continuity
+# and energy balance (see the separate issue). Drop WILL_FAIL when it is fixed.
 set_property(TEST drift_kinetic_ex7_balance_mpi_x2 drift_kinetic_ex7_balance_mpi_y2
   drift_kinetic_ex7_balance_mpi_z2 PROPERTY WILL_FAIL TRUE)
 

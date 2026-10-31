@@ -9,24 +9,14 @@ ParticleTraceBuilder::ParticleTraceBuilder(
 {
 }
 
-template<class PointT>
-static std::optional<PointT> first_point(
-  const std::vector<std::list<PointT>>& storage)
-{
-  for (const auto& cell : storage) {
-    if (!cell.empty())
-      return cell.front();
-  }
-  return std::nullopt;
-}
-
-static std::optional<Point> first_point(const ParticleStorage& storage)
+template<class PointT, class Arrays>
+static std::optional<PointT> first_point(const ParticleStorage& storage)
 {
   ParticleStorage::Fields f;
   PetscCallAbort(PETSC_COMM_WORLD, storage.get_fields(f));
-  std::optional<Point> point;
+  std::optional<PointT> point;
   if (f.size > 0)
-    point = PointArrays(f).load(0);
+    point = Arrays(f).load(0);
   PetscCallAbort(PETSC_COMM_WORLD, storage.restore_fields(f));
   return point;
 }
@@ -52,7 +42,8 @@ PetscErrorCode ParticleTraceBuilder::build(const Configuration::json_t& info)
       filename,
       [dk]
       {
-        return first_point(dk->get_dk_curr_storage());
+        using namespace drift_kinetic;
+        return first_point<PointByField, DkPointArrays>(dk->storage);
       },
       skip));
   }
@@ -61,7 +52,7 @@ PetscErrorCode ParticleTraceBuilder::build(const Configuration::json_t& info)
       filename,
       [&particles]
       {
-        return first_point(particles.storage);
+        return first_point<Point, PointArrays>(particles.storage);
       },
       skip));
   }
