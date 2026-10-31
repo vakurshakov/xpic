@@ -49,7 +49,7 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   // dx != dy != dz to catch axis mix-ups
-  World::set_geometry(6.0, 4.0, 3.0, 1.0, 1.0, 0.5, 0.25, 1.0, 1.0);
+  World::set_geometry(8.0, 7.0, 6.0, 1.0, 1.0, 0.5, 0.25, 1.0, 1.0);
 
   World world;
   PetscCall(world.initialize());
