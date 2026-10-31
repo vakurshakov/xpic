@@ -32,9 +32,6 @@ PetscErrorCode Particles::finalize()
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
-  if (size == 0)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecGetArrayWrite(da, M_loc, &M_arr));
 
