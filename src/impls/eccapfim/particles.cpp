@@ -18,11 +18,11 @@ PetscErrorCode Particles::initialize()
   PetscCall(interfaces::Particles::initialize());
 
   PetscCall(storage.initialize());
-  PetscCall(storage.register_field("r", 3));
-  PetscCall(storage.register_field("p", 3));
+  PetscCall(storage.register_attribute("r", 3));
+  PetscCall(storage.register_attribute("p", 3));
   PetscCall(storage.register_previous("r"));
   PetscCall(storage.register_previous("p"));
-  PetscCall(storage.commit_fields());
+  PetscCall(storage.commit_attributes());
 
   PetscCall(PetscClassIdRegister("eccapfim::Particles", &classid));
   PetscCall(PetscLogEventRegister("prepare_storage", classid, &events[0]));
@@ -68,8 +68,8 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
   PetscReal m = parameters.m;
   PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
   const std::vector<PetscInt>& offsets = storage.cell_offsets();
 
@@ -130,7 +130,7 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
     }
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -184,8 +184,8 @@ PetscErrorCode Particles::form_iteration()
     return false;
   };
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   PetscCall(storage.get_previous(f));
   const PointArrays arrays(f);
   const PointArrays arrays_prev(f, "_prev");
@@ -308,7 +308,7 @@ PetscErrorCode Particles::form_iteration()
     }
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   interpolate_time += t_interpolate / omp_get_max_threads();
   cn_push_time += t_cn_push / omp_get_max_threads();

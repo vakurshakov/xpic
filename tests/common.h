@@ -215,14 +215,14 @@ using Snapshot = std::vector<std::vector<PetscReal>>;
 PetscErrorCode take_snapshot(const ParticleStorage& storage, Snapshot& out)
 {
   PetscFunctionBeginUser;
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   out.assign(f.size, {});
   for (const auto& [name, dof] : f.dof) {
     for (PetscInt i = 0; i < f.size; i++)
       out[i].insert(out[i].end(), f[name] + dof * i, f[name] + dof * (i + 1));
   }
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
   std::ranges::sort(out);
   PetscFunctionReturn(PETSC_SUCCESS);
 }

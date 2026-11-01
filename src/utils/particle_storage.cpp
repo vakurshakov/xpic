@@ -30,15 +30,15 @@ PetscErrorCode ParticleStorage::finalize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode ParticleStorage::register_field(
+PetscErrorCode ParticleStorage::register_attribute(
   const std::string& name, PetscInt dof)
 {
   PetscFunctionBeginUser;
-  PetscCheck(!fields.empty() || (name == "r" && dof == 3), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
-    "The first field is the position \"r\" with 3 components");
+  PetscCheck(!attributes.empty() || (name == "r" && dof == 3), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+    "The first attribute is the position \"r\" with 3 components");
 
   PetscCall(DMSwarmRegisterPetscDatatypeField(swarm, name.c_str(), dof, PETSC_REAL));
-  fields.push_back({name, dof});
+  attributes.push_back({name, dof});
   stride += dof;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -46,22 +46,96 @@ PetscErrorCode ParticleStorage::register_field(
 PetscErrorCode ParticleStorage::register_previous(const std::string& name)
 {
   PetscFunctionBeginUser;
-  auto field = std::ranges::find(fields, name, &Field::name);
-  PetscCheck(field != fields.end(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
-    "Field \"%s\" is not registered to register previous from it", name.c_str());
+  auto attribute = std::ranges::find(attributes, name, &Attribute::name);
+  PetscCheck(attribute != attributes.end(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+    "Attribute \"%s\" is not registered to register previous from it", name.c_str());
 
-  PetscCall(DMSwarmRegisterPetscDatatypeField(swarm, (name + "_prev").c_str(), field->dof, PETSC_REAL));
-  previous.push_back(*field);
+  PetscCall(DMSwarmRegisterPetscDatatypeField(swarm, (name + "_prev").c_str(), attribute->dof, PETSC_REAL));
+  previous.push_back(*attribute);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode ParticleStorage::commit_fields()
+PetscErrorCode ParticleStorage::commit_attributes()
 {
   PetscFunctionBeginUser;
   PetscCall(DMSwarmFinalizeFieldRegister(swarm));
   PetscCall(DMSwarmSetLocalSizes(swarm, 0, 0));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
+
+PetscErrorCode ParticleStorage::get_attributes(Attributes& f) const
+{
+  PetscFunctionBeginUser;
+  f.data.clear();
+  f.dof.clear();
+  for (const auto& attribute : attributes)
+    PetscCall(get_attribute(f, attribute.name));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode ParticleStorage::get_previous(Attributes& f) const
+{
+  PetscFunctionBeginUser;
+  for (const auto& attribute : previous)
+    PetscCall(get_attribute(f, attribute.name + "_prev"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode ParticleStorage::get_attribute(
+  Attributes& f, const std::string& name) const
+{
+  PetscFunctionBeginUser;
+  std::string base;
+  const std::vector<Attribute>* list;
+
+  if (!name.ends_with("_prev")) {
+    base = name;
+    list = &attributes;
+  }
+  else {
+    base = name.substr(0, name.size() - 5);
+    list = &previous;
+  }
+
+  auto attribute = std::ranges::find(*list, base, &Attribute::name);
+  PetscCheck(attribute != list->end(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+    "Attribute \"%s\" is not registered", name.c_str());
+
+  PetscCall(DMSwarmGetLocalSize(swarm, &f.size));
+  PetscCall(DMSwarmGetField(swarm, name.c_str(), NULL, NULL, (void**)&f.data[name]));
+  f.dof[name] = attribute->dof;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode ParticleStorage::restore_attributes(Attributes& f) const
+{
+  PetscFunctionBeginUser;
+  for (auto& [name, array] : f.data)
+    PetscCall(DMSwarmRestoreField(swarm, name.c_str(), NULL, NULL, (void**)&array));
+  f.data.clear();
+  f.dof.clear();
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode ParticleStorage::save_previous()
+{
+  PetscFunctionBeginUser;
+  Attributes f;
+  PetscCall(get_attributes(f));
+  PetscCall(get_previous(f));
+  for (const auto& [name, dof] : previous) {
+    const PetscInt n = dof * f.size;
+    const PetscReal* curr = f[name];
+    PetscReal* prev = f[name + "_prev"];
+
+#pragma omp parallel for
+    for (PetscInt i = 0; i < n; i++)
+      prev[i] = curr[i];
+  }
+  PetscCall(restore_attributes(f));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 
 PetscErrorCode ParticleStorage::get_size(PetscInt* n) const
 {
@@ -81,8 +155,8 @@ PetscErrorCode ParticleStorage::grow(PetscInt n, PetscInt* first)
 PetscErrorCode ParticleStorage::remove(std::vector<PetscInt> indices)
 {
   PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(f));
+  Attributes f;
+  PetscCall(get_attributes(f));
   std::vector<PetscReal*> curr = exchanged_arrays(f);
 
   // Removing from the largest index keeps the last particle a non-removed one
@@ -90,13 +164,13 @@ PetscErrorCode ParticleStorage::remove(std::vector<PetscInt> indices)
   PetscInt np = f.size;
   for (PetscInt i : indices) {
     np--;
-    for (size_t k = 0; k < fields.size(); k++) {
-      const PetscInt dof = fields[k].dof;
+    for (size_t k = 0; k < attributes.size(); k++) {
+      const PetscInt dof = attributes[k].dof;
       if (i != np)
         std::copy_n(curr[k] + dof * np, dof, curr[k] + dof * i);
     }
   }
-  PetscCall(restore_fields(f));
+  PetscCall(restore_attributes(f));
   PetscCall(DMSwarmSetLocalSizes(swarm, np, -1));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -108,85 +182,13 @@ PetscErrorCode ParticleStorage::clear()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode ParticleStorage::get_fields(Fields& f) const
-{
-  PetscFunctionBeginUser;
-  f.data.clear();
-  f.dof.clear();
-  for (const auto& field : fields)
-    PetscCall(get_field(f, field.name));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode ParticleStorage::get_previous(Fields& f) const
-{
-  PetscFunctionBeginUser;
-  for (const auto& field : previous)
-    PetscCall(get_field(f, field.name + "_prev"));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode ParticleStorage::get_field(Fields& f, const std::string& name) const
-{
-  PetscFunctionBeginUser;
-  std::string base;
-  const std::vector<Field>* list;
-
-  if (!name.ends_with("_prev")) {
-    base = name;
-    list = &fields;
-  }
-  else {
-    base = name.substr(0, name.size() - 5);
-    list = &previous;
-  }
-
-  auto field = std::ranges::find(*list, base, &Field::name);
-  PetscCheck(field != list->end(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
-    "Field \"%s\" is not registered", name.c_str());
-
-  PetscCall(DMSwarmGetLocalSize(swarm, &f.size));
-  PetscCall(DMSwarmGetField(swarm, name.c_str(), NULL, NULL, (void**)&f.data[name]));
-  f.dof[name] = field->dof;
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode ParticleStorage::restore_fields(Fields& f) const
-{
-  PetscFunctionBeginUser;
-  for (auto& [name, array] : f.data)
-    PetscCall(DMSwarmRestoreField(swarm, name.c_str(), NULL, NULL, (void**)&array));
-  f.data.clear();
-  f.dof.clear();
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode ParticleStorage::save_previous()
-{
-  PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(f));
-  PetscCall(get_previous(f));
-  for (const auto& [name, dof] : previous) {
-    const PetscInt n = dof * f.size;
-    const PetscReal* curr = f[name];
-    PetscReal* prev = f[name + "_prev"];
-
-#pragma omp parallel for
-    for (PetscInt i = 0; i < n; i++)
-      prev[i] = curr[i];
-  }
-  PetscCall(restore_fields(f));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 // The sender's slot `s` is the receiver's slot `26 - s`. With 2 ranks several
 // slots share the same neighbour, so the messages are told apart by the tag.
 PetscErrorCode ParticleStorage::update_cells()
 {
   PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(f));
+  Attributes f;
+  PetscCall(get_attributes(f));
   std::vector<PetscReal*> curr = exchanged_arrays(f);
 
   // Threads own ascending chunks, so the indices are ascending in thread order
@@ -214,17 +216,17 @@ PetscErrorCode ParticleStorage::update_cells()
       Packed& out = outgoing[neighbor_slot(&curr[0][3 * i])];
 
       np--;
-      for (size_t k = 0; k < fields.size(); k++) {
-        const PetscInt dof = fields[k].dof;
-        PetscReal* field = curr[k];
-        out.insert(out.end(), field + dof * i, field + dof * (i + 1));
+      for (size_t k = 0; k < attributes.size(); k++) {
+        const PetscInt dof = attributes[k].dof;
+        PetscReal* attribute = curr[k];
+        out.insert(out.end(), attribute + dof * i, attribute + dof * (i + 1));
 
         if (i != np)
-          std::copy_n(field + dof * np, dof, field + dof * i);
+          std::copy_n(attribute + dof * np, dof, attribute + dof * i);
       }
     }
   }
-  PetscCall(restore_fields(f));
+  PetscCall(restore_attributes(f));
 
   size_t o_num[slots];
   size_t i_num[slots];
@@ -255,28 +257,28 @@ PetscErrorCode ParticleStorage::update_cells()
     received += in.size() / stride;
   PetscCall(DMSwarmSetLocalSizes(swarm, np + (PetscInt)received, -1));
 
-  PetscCall(get_fields(f));
+  PetscCall(get_attributes(f));
   curr = exchanged_arrays(f);
   PetscInt w = np;
   for (const Packed& in : incoming) {
     const PetscReal* src = in.data();
     for (size_t n = 0; n < in.size() / stride; n++, w++) {
-      for (size_t k = 0; k < fields.size(); k++) {
-        const PetscInt dof = fields[k].dof;
+      for (size_t k = 0; k < attributes.size(); k++) {
+        const PetscInt dof = attributes[k].dof;
         std::copy_n(src, dof, curr[k] + dof * w);
         src += dof;
       }
     }
   }
-  PetscCall(restore_fields(f));
+  PetscCall(restore_attributes(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode ParticleStorage::sort()
 {
   PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(f));
+  Attributes f;
+  PetscCall(get_attributes(f));
   std::vector<PetscReal*> curr = exchanged_arrays(f);
 
   offsets.assign(world.size.elements_product() + 1, 0);
@@ -298,17 +300,17 @@ PetscErrorCode ParticleStorage::sort()
     dst[i] = fill[key[i]]++;
 
   std::vector<PetscReal> scratch(stride * (size_t)f.size);
-  for (size_t k = 0; k < fields.size(); k++) {
-    const PetscInt dof = fields[k].dof;
-    PetscReal* field = curr[k];
+  for (size_t k = 0; k < attributes.size(); k++) {
+    const PetscInt dof = attributes[k].dof;
+    PetscReal* attribute = curr[k];
 
 #pragma omp parallel for
     for (PetscInt i = 0; i < f.size; i++)
-      std::copy_n(field + dof * i, dof, &scratch[dof * dst[i]]);
+      std::copy_n(attribute + dof * i, dof, &scratch[dof * dst[i]]);
 
-    std::copy_n(scratch.data(), dof * f.size, field);
+    std::copy_n(scratch.data(), dof * f.size, attribute);
   }
-  PetscCall(restore_fields(f));
+  PetscCall(restore_attributes(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -317,11 +319,11 @@ const std::vector<PetscInt>& ParticleStorage::cell_offsets() const
   return offsets;
 }
 
-std::vector<PetscReal*> ParticleStorage::exchanged_arrays(const Fields& f) const
+std::vector<PetscReal*> ParticleStorage::exchanged_arrays(const Attributes& f) const
 {
   std::vector<PetscReal*> arrays;
-  for (const auto& field : fields)
-    arrays.push_back(f[field.name]);
+  for (const auto& attribute : attributes)
+    arrays.push_back(f[attribute.name]);
   return arrays;
 }
 

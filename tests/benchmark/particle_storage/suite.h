@@ -92,7 +92,7 @@ PetscErrorCode run_vectors(const Config& cfg, const Local& loc, const VecP& init
 // Backends a, b, c: swarm with a cell-sorted layout
 PetscErrorCode run_swarm(const Config& cfg, const VecP& init, char mode);
 
-struct Fields {
+struct Attributes {
   PetscInt np;
   PetscReal *r, *v, *rp, *vp;
 };
@@ -108,8 +108,8 @@ PetscErrorCode build_index(DM sw, const Local&, std::vector<PetscInt>& offsets,
   std::vector<PetscInt>& perm);
 PetscErrorCode collide_swarm(DM sw, const std::vector<PetscInt>& offsets,
   const PetscInt* perm, PetscInt step);
-PetscErrorCode get_fields(DM sw, Fields& f);
-PetscErrorCode restore_fields(DM sw, Fields& f);
+PetscErrorCode get_attributes(DM sw, Attributes& f);
+PetscErrorCode restore_attributes(DM sw, Attributes& f);
 
 // Backend d: fixed-capacity per-cell blocks in the swarm fields
 struct Blocks {

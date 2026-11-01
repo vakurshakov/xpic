@@ -16,7 +16,7 @@ struct PointArrays {
   PetscReal* r;
   PetscReal* p;
 
-  PointArrays(const ParticleStorage::Fields& f, const std::string& suffix = "")
+  PointArrays(const ParticleStorage::Attributes& f, const std::string& suffix = "")
     : r(f["r" + suffix]), p(f["p" + suffix])
   {
   }
@@ -43,7 +43,7 @@ public:
   /**
    * @brief Creates the particle resources, the derived sort calls it first.
    * @warning The derived sort registers `"r"`, `"p"` and its own fields of
-   * `storage` (if any) and calls `storage.commit_fields()` afterwards.
+   * `storage` (if any) and calls `storage.commit_attributes()` afterwards.
    */
   virtual PetscErrorCode initialize();
 

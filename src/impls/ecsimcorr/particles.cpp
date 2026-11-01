@@ -39,8 +39,8 @@ PetscErrorCode Particles::first_push()
 
   PetscLogEventBegin(events[0], currJe_loc, 0, 0, 0);
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
 
 #pragma omp parallel for
@@ -55,7 +55,7 @@ PetscErrorCode Particles::first_push()
     arrays.store(i, point);
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscLogEventEnd(events[0], currJe_loc, 0, 0, 0);
 
@@ -71,8 +71,8 @@ PetscErrorCode Particles::second_push()
 
   PetscLogEventBegin(events[1], 0, 0, 0, 0);
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
 
 #pragma omp parallel for
@@ -97,7 +97,7 @@ PetscErrorCode Particles::second_push()
     pred_w += parameters.q * parameters.mpw * 0.5 * (old_v + point.p).dot(E_p);
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
@@ -124,15 +124,15 @@ PetscErrorCode Particles::final_update()
   PetscReal lambda2 = 1.0 + dt * (corr_w - pred_w) / K;
   PetscReal lambda = std::sqrt(lambda2);
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_field(f, "p"));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attribute(f, "p"));
   PetscReal* p = f["p"];
 
 #pragma omp parallel for
   for (PetscInt i = 0; i < 3 * f.size; i++)
     p[i] *= lambda;
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscLogEventEnd(events[2], 0, 0, 0, 0);
 
@@ -165,15 +165,15 @@ PetscErrorCode Particles::calculate_energy()
   const PetscReal m = parameters.m;
   const PetscReal mpw = parameters.n / parameters.Np;
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_field(f, "p"));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attribute(f, "p"));
   const PetscReal* p = f["p"];
 
 #pragma omp parallel for reduction(+ : energy)
   for (PetscInt i = 0; i < f.size; i++)
     energy += Energy::get_kinetic(Vector3R(p + 3 * i), m, mpw);
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);

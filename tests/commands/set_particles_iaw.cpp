@@ -109,8 +109,8 @@ PetscErrorCode check_pairs(const interfaces::Particles& particles)
   PetscReal sum_px = 0;
   PetscReal sum_py = 0;
 
-  ParticleStorage::Fields f;
-  PetscCall(particles.storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(particles.storage.get_attributes(f));
   const PointArrays arrays(f);
 
   for (PetscInt i = 0; i < f.size; i++) {
@@ -120,7 +120,7 @@ PetscErrorCode check_pairs(const interfaces::Particles& particles)
     sum_py += point.py();
     count++;
   }
-  PetscCall(particles.storage.restore_fields(f));
+  PetscCall(particles.storage.restore_attributes(f));
 
   // Pairs are never split between ranks: they share the coordinate
   for (const auto& [coordinate, number] : multiplicity)

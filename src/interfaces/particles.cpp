@@ -55,12 +55,12 @@ PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
   PetscInt first;
   PetscCall(storage.grow(n, &first));
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
   for (PetscInt i = 0; i < n; i++)
     arrays.store(first + i, points[i]);
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscCall(storage.sort());
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -71,8 +71,8 @@ PetscErrorCode Particles::extract(
   std::vector<Point>* extracted)
 {
   PetscFunctionBeginUser;
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
 
   std::vector<PetscInt> indices;
@@ -83,7 +83,7 @@ PetscErrorCode Particles::extract(
     extracted->push_back(point);
     indices.push_back(i);
   }
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscCall(storage.remove(std::move(indices)));
   PetscCall(storage.sort());
@@ -124,15 +124,15 @@ PetscErrorCode Particles::log_distribution() const
   std::ranges::fill(hist[Y], 0);
   std::ranges::fill(hist[Z], 0);
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_field(f, "p"));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attribute(f, "p"));
   const PetscReal* p = f["p"];
 
   for (PetscInt i = 0; i < f.size; i++) {
     for (PetscInt a : {X, Y, Z})
       hist[a][(PetscInt)(p[3 * i + a] * hist_h) + hist_h]++;
   }
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, hist[X], hist_w, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, hist[Y], hist_w, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
@@ -218,8 +218,8 @@ PetscErrorCode Particles::calculate_moments()
   const PetscReal m = parameters.m;
   const PetscReal mpw = parameters.mpw;
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
 
 #pragma omp parallel for private(shape)
@@ -255,7 +255,7 @@ PetscErrorCode Particles::calculate_moments()
       }
     }
   }
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscCall(DMDAVecRestoreArrayWrite(da_rho, r_loc, &r_arr));
   PetscCall(DMDAVecRestoreArrayDOFWrite(da_mflux, mflux_loc, &mflux_arr));

@@ -37,6 +37,10 @@ _Avoid_: mu (in prose)
 Switching a macro-particle between kinetic and drift-kinetic description at a step boundary.
 _Avoid_: Transfer, switching
 
+**Attribute**:
+One named per-particle quantity of a sort (position `r`, momentum `p`, ...) with a fixed number of components, stored as a flat array in the particle storage.
+_Avoid_: Field (that is the electromagnetic field), property, column
+
 ### Time and space
 
 **Step**:

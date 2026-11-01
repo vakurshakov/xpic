@@ -666,8 +666,8 @@ PetscErrorCode run_swarm(const Config& cfg, const VecP& init, char mode)
     PetscReal t1 = omp_get_wtime();
     t.prepare += t1 - t0;
 
-    Fields f;
-    PetscCall(get_fields(sw, f));
+    Attributes f;
+    PetscCall(get_attributes(sw, f));
 
     if (own_sort) {
 #pragma omp parallel for
@@ -714,7 +714,7 @@ PetscErrorCode run_swarm(const Config& cfg, const VecP& init, char mode)
     t.deposit += t3 - t2;
 
     PetscInt np = f.np;
-    PetscCall(restore_fields(sw, f));
+    PetscCall(restore_attributes(sw, f));
     PetscCall(check_charge(rho, np));
 
     if (!own_sort)
@@ -766,13 +766,13 @@ PetscErrorCode create_swarm(const VecP& init, const Local& loc, DM* sw)
   PetscCall(DMSwarmFinalizeFieldRegister(*sw));
   PetscCall(DMSwarmSetLocalSizes(*sw, (PetscInt)init.size(), (PetscInt)init.size() * buffer_percent / 100));
 
-  Fields f;
-  PetscCall(get_fields(*sw, f));
+  Attributes f;
+  PetscCall(get_attributes(*sw, f));
   for (PetscInt i = 0; i < f.np; i++) {
     std::memcpy(&f.r[3 * i], init[i].r, 3 * sizeof(PetscReal));
     std::memcpy(&f.v[3 * i], init[i].v, 3 * sizeof(PetscReal));
   }
-  PetscCall(restore_fields(*sw, f));
+  PetscCall(restore_attributes(*sw, f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -781,8 +781,8 @@ PetscErrorCode diagnose_cells(DM sw, const Config& cfg)
   PetscFunctionBeginUser;
   const PetscInt n = cfg.n;
 
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
 
   std::vector<PetscInt> count((size_t)n * n * n), total((size_t)n * n * n);
   for (PetscInt i = 0; i < f.np; i++) {
@@ -790,7 +790,7 @@ PetscErrorCode diagnose_cells(DM sw, const Config& cfg)
     count[((PetscInt)r[2] * n + (PetscInt)r[1]) * n + (PetscInt)r[0]]++;
   }
 
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscCallMPI(MPI_Allreduce(count.data(), total.data(), n * n * n, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
   PetscInt bad = 0;
@@ -817,14 +817,14 @@ PetscErrorCode wrap_and_migrate(DM sw, PetscReal L, Phases& t)
   PetscFunctionBeginUser;
   PetscReal t0 = omp_get_wtime();
 
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
 
 #pragma omp parallel for
   for (PetscInt i = 0; i < f.np; i++)
     wrap(&f.r[3 * i], L);
 
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscCall(DMSwarmMigrate(sw, PETSC_TRUE));
 
   t.migrate += omp_get_wtime() - t0;
@@ -841,8 +841,8 @@ PetscErrorCode migrate_own(DM sw, const Local& loc, PetscReal L, Phases& t)
   const PetscMPIInt* neighbors;
   PetscCall(DMDAGetNeighbors(loc.da, &neighbors));
 
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
 
   VecP outgoing[slots];
   VecP incoming[slots];
@@ -864,7 +864,7 @@ PetscErrorCode migrate_own(DM sw, const Local& loc, PetscReal L, Phases& t)
       outgoing[slot].push_back(p);
     }
   }
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
 
   PetscCall(exchange(neighbors, outgoing, incoming));
 
@@ -873,7 +873,7 @@ PetscErrorCode migrate_own(DM sw, const Local& loc, PetscReal L, Phases& t)
     received += (PetscInt)in.size();
   PetscCall(DMSwarmSetLocalSizes(sw, kept + received, -1));
 
-  PetscCall(get_fields(sw, f));
+  PetscCall(get_attributes(sw, f));
   PetscInt w = kept;
   for (const auto& in : incoming) {
     for (const P& p : in) {
@@ -882,7 +882,7 @@ PetscErrorCode migrate_own(DM sw, const Local& loc, PetscReal L, Phases& t)
       w++;
     }
   }
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
 
   t.migrate += omp_get_wtime() - t0;
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -891,14 +891,14 @@ PetscErrorCode migrate_own(DM sw, const Local& loc, PetscReal L, Phases& t)
 PetscErrorCode snapshot(DM sw)
 {
   PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
 #pragma omp parallel for
   for (PetscInt i = 0; i < f.np; i++) {
     std::memcpy(&f.rp[3 * i], &f.r[3 * i], 3 * sizeof(PetscReal));
     std::memcpy(&f.vp[3 * i], &f.v[3 * i], 3 * sizeof(PetscReal));
   }
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -917,8 +917,8 @@ PetscErrorCode counting_sort(
   DM sw, const Local& loc, std::vector<PetscInt>& offsets)
 {
   PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
 
   const PetscInt nc = loc.cells();
   offsets.assign(nc + 1, 0);
@@ -943,7 +943,7 @@ PetscErrorCode counting_sort(
       std::memcpy(&scratch[3 * dst[i]], &field[3 * i], 3 * sizeof(PetscReal));
     std::memcpy(field, scratch.data(), 3 * (size_t)f.np * sizeof(PetscReal));
   }
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -953,8 +953,8 @@ PetscErrorCode build_index(DM sw, const Local& loc,
   std::vector<PetscInt>& offsets, std::vector<PetscInt>& perm)
 {
   PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
 
   const PetscInt nc = loc.cells();
   offsets.assign(nc + 1, 0);
@@ -972,7 +972,7 @@ PetscErrorCode build_index(DM sw, const Local& loc,
   for (PetscInt i = 0; i < f.np; i++)
     perm[fill[key[i]]++] = i;
 
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -981,8 +981,8 @@ PetscErrorCode collide_swarm(DM sw, const std::vector<PetscInt>& offsets,
   const PetscInt* perm, PetscInt step)
 {
   PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
 
   Moments before, after;
   for (PetscInt i = 0; i < f.np; i++)
@@ -1008,12 +1008,12 @@ PetscErrorCode collide_swarm(DM sw, const std::vector<PetscInt>& offsets,
 
   for (PetscInt i = 0; i < f.np; i++)
     after.add(&f.v[3 * i]);
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscCall(check_collisions(before, after, changed));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode get_fields(DM sw, Fields& f)
+PetscErrorCode get_attributes(DM sw, Attributes& f)
 {
   PetscFunctionBeginUser;
   PetscCall(DMSwarmGetLocalSize(sw, &f.np));
@@ -1024,7 +1024,7 @@ PetscErrorCode get_fields(DM sw, Fields& f)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode restore_fields(DM sw, Fields& f)
+PetscErrorCode restore_attributes(DM sw, Attributes& f)
 {
   PetscFunctionBeginUser;
   PetscCall(DMSwarmRestoreField(sw, "v_prev", NULL, NULL, (void**)&f.vp));
@@ -1062,8 +1062,8 @@ PetscErrorCode run_blocks(const Config& cfg, const VecP& init)
   for (PetscInt step = 0; step < cfg.steps; step++) {
     PetscReal t0 = omp_get_wtime();
 
-    Fields f;
-    PetscCall(get_fields(sw, f));
+    Attributes f;
+    PetscCall(get_attributes(sw, f));
 
 #pragma omp parallel for
     for (PetscInt c = 0; c < loc.cells(); c++) {
@@ -1090,7 +1090,7 @@ PetscErrorCode run_blocks(const Config& cfg, const VecP& init)
     }
     t.deposit += omp_get_wtime() - t2;
 
-    PetscCall(restore_fields(sw, f));
+    PetscCall(restore_attributes(sw, f));
 
     PetscInt np = 0;
     for (PetscInt c : b.cnt)
@@ -1125,8 +1125,8 @@ PetscErrorCode update_blocks(
   VecP outgoing[slots], incoming[slots];
   VecP arrivals;  // Particles that stay on this rank, with new cells
 
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
 
   const PetscInt nc = loc.cells();
 #pragma omp parallel
@@ -1163,7 +1163,7 @@ PetscErrorCode update_blocks(
     }
   }
 
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscCall(exchange(neighbors, outgoing, incoming));
 
   PetscReal t1 = omp_get_wtime();
@@ -1185,14 +1185,14 @@ PetscErrorCode update_blocks(
     b.rebuilds++;
   }
   else {
-    PetscCall(get_fields(sw, f));
+    PetscCall(get_attributes(sw, f));
     for (const P& p : arrivals) {
       const PetscInt c = loc.cell(p.r);
       const PetscInt i = c * b.cap + b.cnt[c]++;
       std::memcpy(&f.r[3 * i], p.r, 3 * sizeof(PetscReal));
       std::memcpy(&f.v[3 * i], p.v, 3 * sizeof(PetscReal));
     }
-    PetscCall(restore_fields(sw, f));
+    PetscCall(restore_attributes(sw, f));
   }
 
   t.sort += omp_get_wtime() - t1;
@@ -1213,23 +1213,23 @@ PetscErrorCode fill_blocks(
   std::fill(b.cnt.begin(), b.cnt.end(), 0);
 
   PetscCall(DMSwarmSetLocalSizes(sw, nc * cap, 0));
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
   for (const P& p : pts) {
     const PetscInt c = loc.cell(p.r);
     const PetscInt i = c * cap + b.cnt[c]++;
     std::memcpy(&f.r[3 * i], p.r, 3 * sizeof(PetscReal));
     std::memcpy(&f.v[3 * i], p.v, 3 * sizeof(PetscReal));
   }
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode gather_blocks(DM sw, const Blocks& b, VecP& out)
 {
   PetscFunctionBeginUser;
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
   for (size_t c = 0; c < b.cnt.size(); c++) {
     for (PetscInt q = 0; q < b.cnt[c]; q++) {
       const PetscInt i = (PetscInt)c * b.cap + q;
@@ -1239,7 +1239,7 @@ PetscErrorCode gather_blocks(DM sw, const Blocks& b, VecP& out)
       out.push_back(p);
     }
   }
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -1274,8 +1274,8 @@ PetscErrorCode run_flat(const Config& cfg, const VecP& init)
     PetscReal t1 = omp_get_wtime();
     t.prepare += t1 - t0;
 
-    Fields f;
-    PetscCall(get_fields(sw, f));
+    Attributes f;
+    PetscCall(get_attributes(sw, f));
 
 #pragma omp parallel for
     for (PetscInt i = 0; i < f.np; i++) {
@@ -1293,7 +1293,7 @@ PetscErrorCode run_flat(const Config& cfg, const VecP& init)
     t.deposit += omp_get_wtime() - t2;
 
     const PetscInt np = f.np;
-    PetscCall(restore_fields(sw, f));
+    PetscCall(restore_attributes(sw, f));
     PetscCall(check_charge(rho, np));
 
     PetscCall(update_flat(sw, loc, L, t));
@@ -1332,8 +1332,8 @@ PetscErrorCode update_flat(DM sw, const Local& loc, PetscReal L, Phases& t)
   const PetscMPIInt* neighbors;
   PetscCall(DMDAGetNeighbors(loc.da, &neighbors));
 
-  Fields f;
-  PetscCall(get_fields(sw, f));
+  Attributes f;
+  PetscCall(get_attributes(sw, f));
   std::vector<std::vector<PetscInt>> movers(omp_get_max_threads());
 #pragma omp parallel
   {
@@ -1365,7 +1365,7 @@ PetscErrorCode update_flat(DM sw, const Local& loc, PetscReal L, Phases& t)
       }
     }
   }
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
 
   PetscCall(exchange(neighbors, outgoing, incoming));
 
@@ -1374,7 +1374,7 @@ PetscErrorCode update_flat(DM sw, const Local& loc, PetscReal L, Phases& t)
     received += (PetscInt)in.size();
   PetscCall(DMSwarmSetLocalSizes(sw, np + received, -1));
 
-  PetscCall(get_fields(sw, f));
+  PetscCall(get_attributes(sw, f));
   PetscInt w = np;
   for (const auto& in : incoming) {
     for (const P& p : in) {
@@ -1383,7 +1383,7 @@ PetscErrorCode update_flat(DM sw, const Local& loc, PetscReal L, Phases& t)
       w++;
     }
   }
-  PetscCall(restore_fields(sw, f));
+  PetscCall(restore_attributes(sw, f));
 
   t.migrate += omp_get_wtime() - t0;
   PetscFunctionReturn(PETSC_SUCCESS);

@@ -143,8 +143,8 @@ DkDistributionMoment::DkDistributionMoment(const std::string& out_dir,
 PetscErrorCode DkDistributionMoment::collect()
 {
   PetscFunctionBeginUser;
-  ParticleStorage::Fields f;
-  PetscCall(dk_particles.storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(dk_particles.storage.get_attributes(f));
   const DkPointArrays arrays(f);
   const std::vector<PetscInt>& offsets = dk_particles.storage.cell_offsets();
 
@@ -179,7 +179,7 @@ PetscErrorCode DkDistributionMoment::collect()
   if (dk_moment) {
     PetscCall(DMDAVecRestoreArrayRead(sim.da, sim.B_loc, &B_arr_local));
   }
-  PetscCall(dk_particles.storage.restore_fields(f));
+  PetscCall(dk_particles.storage.restore_attributes(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -250,8 +250,8 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
 
   PetscInt included_local = 0;
   PetscInt omitted_local = 0;
-  ParticleStorage::Fields f;
-  PetscCall(particles.storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(particles.storage.get_attributes(f));
   const DkPointArrays arrays(f);
   const std::vector<PetscInt>& offsets = particles.storage.cell_offsets();
 
@@ -274,7 +274,7 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
       histogram[index] += histogram_weight;
     }
   }
-  PetscCall(particles.storage.restore_fields(f));
+  PetscCall(particles.storage.restore_attributes(f));
 
   PetscInt counts[2]{included_local, omitted_local};
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, counts, 2, MPIU_INT, MPI_SUM, comm));

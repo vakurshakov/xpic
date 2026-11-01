@@ -19,15 +19,15 @@ PetscErrorCode Particles::initialize()
   PetscCall(interfaces::Particles::initialize());
 
   PetscCall(storage.initialize());
-  PetscCall(storage.register_field("r", 3));
-  PetscCall(storage.register_field("p", 3));
-  PetscCall(storage.register_field("p_parallel", 1));
-  PetscCall(storage.register_field("mu_p", 1));
+  PetscCall(storage.register_attribute("r", 3));
+  PetscCall(storage.register_attribute("p", 3));
+  PetscCall(storage.register_attribute("p_parallel", 1));
+  PetscCall(storage.register_attribute("mu_p", 1));
   PetscCall(storage.register_previous("r"));
   PetscCall(storage.register_previous("p"));
   PetscCall(storage.register_previous("p_parallel"));
   PetscCall(storage.register_previous("mu_p"));
-  PetscCall(storage.commit_fields());
+  PetscCall(storage.commit_attributes());
 
   PetscCall(DMCreateGlobalVector(da, &M));
   PetscCall(DMCreateLocalVector(da, &M_loc));
@@ -60,8 +60,8 @@ PetscErrorCode Particles::form_iteration()
   const PetscReal m = parameters.m;
   const PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   PetscCall(storage.get_previous(f));
   const DkPointArrays arrays(f);
   const DkPointArrays arrays_prev(f, "_prev");
@@ -123,7 +123,7 @@ PetscErrorCode Particles::form_iteration()
     arrays.store(i, curr);
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
@@ -156,8 +156,8 @@ PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
   PetscInt first;
   PetscCall(storage.grow(n, &first));
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const DkPointArrays arrays(f);
 
   for (PetscInt i = 0; i < n; i++) {
@@ -170,7 +170,7 @@ PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
                   : PointByField::from_particle_position(point, B_p, mp, qm));
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
   PetscCall(DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
   // The guiding center may lie outside of the box of the particle
@@ -197,8 +197,8 @@ PetscReal Particles::kinetic_energy_local() const
 
   DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 
-  ParticleStorage::Fields f;
-  PetscCallAbort(PETSC_COMM_WORLD, storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCallAbort(PETSC_COMM_WORLD, storage.get_attributes(f));
   const DkPointArrays arrays(f);
 
 #pragma omp parallel for reduction(+ : energy)
@@ -212,7 +212,7 @@ PetscReal Particles::kinetic_energy_local() const
       2.0 * point.mu_p * B_p.length() / parameters.m;
   }
 
-  PetscCallAbort(PETSC_COMM_WORLD, storage.restore_fields(f));
+  PetscCallAbort(PETSC_COMM_WORLD, storage.restore_attributes(f));
   PetscCallAbort(PETSC_COMM_WORLD, DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
   return 0.5 * parameters.m * mpw * energy;
 }

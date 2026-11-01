@@ -23,10 +23,10 @@ With `collide` as the 3rd argument, the script runs the collision variants only 
 
 ## Decisions
 
-1. **Per-sort field sets.** A sort registers only what it needs: kinetic `r, p`; DK `r, p, p_parallel, mu_p`. Sorts that need the step-start snapshot also register `*_prev` fields in the same container (alignment by construction). `prepare_storage()` becomes a field copy. The prev fields do not migrate: particles are only moved by `update_cells()` after the solve.
+1. **Per-sort attribute sets.** A sort registers only what it needs: kinetic `r, p`; DK `r, p, p_parallel, mu_p`. Sorts that need the step-start snapshot also register `*_prev` attributes in the same container (alignment by construction). `prepare_storage()` becomes an attribute copy. The prev attributes do not migrate: particles are only moved by `update_cells()` after the solve.
 2. **Cell order** is relaxed and restored by a periodic counting sort (`e`). The remaining per-cell consumers (pushers over `storage[g]`, `DistributionMoment`, `ecsim` `storage[g].empty()`, per-cell `Ng`) are adapted to a sorted view or a resort before them. Cell membership is stale during nonlinear iterations, as today.
-3. **Backend: flat DMSwarm fields with surface-only updates (`e`)**, chosen after the spike. `DMSwarmMigrate` is not usable, our own exchange is used. How collisions are served (grouping by cell on demand) is left open, see "Collisions". Neighbour-only exchange is wanted but not critical.
-4. **Raw `DMSwarmGetField` arrays with our own sort/exchange** are the access path if the swarm is used. `DMSwarmSortGetPointsPerCell` is out: it is a `qsort` of all points and a shared `DMGetWorkArray` list, unusable in OpenMP loops. Rules for `DMSwarmGetField`: call it once on the main thread, pass raw pointers into the parallel region; a second `GetField` on an active field errors; restore every field before anything that reallocates (add/remove point, migrate).
+3. **Backend: flat DMSwarm attributes with surface-only updates (`e`)**, chosen after the spike. `DMSwarmMigrate` is not usable, our own exchange is used. How collisions are served (grouping by cell on demand) is left open, see "Collisions". Neighbour-only exchange is wanted but not critical.
+4. **Raw `DMSwarmGetField` arrays with our own sort/exchange** are the access path if the swarm is used. `DMSwarmSortGetPointsPerCell` is out: it is a `qsort` of all points and a shared `DMGetWorkArray` list, unusable in OpenMP loops. Rules for `DMSwarmGetField`: call it once on the main thread, pass raw pointers into the parallel region; a second `GetField` on an active attribute errors; restore every attribute before anything that reallocates (add/remove point, migrate).
 5. **Pushers load a local `Point` / `PointByField`, compute, store back.** The value types stay for now.
 6. **One ingest/extract path.** Loaders produce kinetic `Point`s. Each sort has `ingest(points)` (DK interpolates B in a batch and applies `from_particle_position` / `from_guiding_center`, i.e. today's `commit_added_particles`) and `extract(predicate)`. `commit_added_particles()` leaves the base interface and DK's staging in base `storage` goes away.
 
@@ -42,9 +42,9 @@ Gate: push + deposit within 10% of `l`, `update_cells` not slower, no loss on se
 | v | `vector<vector<P>>`, swap-with-last removal, serial local moves |
 | a | DMSwarm, `DMSwarmSortGetPointsPerCell`, `DMSwarmMigrate` |
 | b | DMSwarm, own counting sort, `DMSwarmMigrate` |
-| c | DMSwarm fields, own counting sort of all particles each step, own neighbour exchange |
-| d | DMSwarm fields as fixed-capacity per-cell blocks (swap-with-last inside a block, append on arrival), own exchange |
-| e | DMSwarm flat fields, **no per-cell order**: one parallel pass wraps every particle and marks those leaving the rank, only those are processed (swap-with-last removal, arrivals appended), own exchange; `-resort 10` additionally runs the counting sort every 10 steps |
+| c | DMSwarm attributes, own counting sort of all particles each step, own neighbour exchange |
+| d | DMSwarm attributes as fixed-capacity per-cell blocks (swap-with-last inside a block, append on arrival), own exchange |
+| e | DMSwarm flat attributes, **no per-cell order**: one parallel pass wraps every particle and marks those leaving the rank, only those are processed (swap-with-last removal, arrivals appended), own exchange; `-resort 10` additionally runs the counting sort every 10 steps |
 
 Result: `a`, `b` fail (migration, hot loops); `c`, `d`, `e` and `v` pass; **`e` is chosen**. Setup of the tables below: `-n 32 -ppc 16 -vth 0.05` (524288 particles, ~2% change cell per step), Release, 2 OpenMP threads per rank, 16-core machine.
 
@@ -129,7 +129,7 @@ PETSc `DMLocatePoints_DA_Regular` (`dageometry.c`) locates a point inside the lo
 - Stencil width >= 1: ghost cells count as found, so a particle that crossed into the neighbour's cell is "located" locally and is never sent.
 - `DMSwarmSortGetAccess` on a DMDA needs stencil width >= 1 (`DMDAGetElements`).
 
-Unchanged in PETSc v3.26.0 and `main` (checked 2026-10-27; the local checkout is v3.24.3), so an upgrade does not help. A DMSwarm migration would need a different cell DM (e.g. a DMShell) or none. Backends `c`-`e` use the swarm only as a field registry.
+Unchanged in PETSc v3.26.0 and `main` (checked 2026-10-27; the local checkout is v3.24.3), so an upgrade does not help. A DMSwarm migration would need a different cell DM (e.g. a DMShell) or none. Backends `c`-`e` use the swarm only as an attribute registry.
 
 ### Other findings
 
@@ -148,8 +148,8 @@ Same-species binary collisions inside a cell (Takizuka-Abe: random pairing by a 
 | -- | ----- |
 | v | collides `storage[g]` in place, no extra pass |
 | c | sorted every step already (part of `update_cells`), collisions use the offsets |
-| e + sort | cell order of `e` is stale: counting sort (permutes the fields) before the collisions, in `collide` |
-| e + index | counting pass that produces only `perm` (indices by cell), fields stay in place, the kernel gathers through `perm`; in `collide` |
+| e + sort | cell order of `e` is stale: counting sort (permutes the attributes) before the collisions, in `collide` |
+| e + index | counting pass that produces only `perm` (indices by cell), attributes stay in place, the kernel gathers through `perm`; in `collide` |
 
 Options: `-collide k` (every k steps), `-collide_index 1` (`e + index`). `collide` includes the grouping for `e`. Same setup and statistics as above; full tables, also for collisions every 10 steps on 2 and 4 ranks, are in `output/particle_storage_collide.md` after `run.py ... collide`.
 
@@ -185,7 +185,7 @@ Reading (differences below ~2 ms are noise; the 4-rank deposit of `e` is noisy a
 - On the same sorted data the kernel runs 17 ms for `c` (SoA, offsets) against 20.5 ms for `v` (AoS in per-cell vectors): the SoA gain is ~3 ms.
 - Grouping `e` costs 6.6 ms for the index (1 rank, `collide` 23.6 vs 17.0 of `c`) and ~10 ms for the physical sort. Both are paid on top of the kernel, but `e` saves 10-12 ms in `update_cells`, so **collisions every step do not turn the ranking over**: `e + index` / `e + sort` are 2-10% below `v` on 1, 2 and 8 ranks (4 ranks: all within the noise).
 - With collisions every 10 steps the grouping is amortised and `e` leads by ~15 ms on 1 rank and ~3-6 ms on 8 ranks. `c` is the worst: it pays its per-step sort whether collisions run or not.
-- `e + index` is about `e + sort` in total; the index is ~3-4 ms cheaper per collision step but the fields stay unsorted, so later gathers lose locality. Free streaming (`-omega 0`, 100 steps, 1 rank, collisions every step, 3 runs): `v` 113-114, `e + sort` 105-107, `e + index` 104-111 ms; the spread of `e + index` is the deposit/push of an order that decays (74 vs 69 ms in 2 of 3 runs), which `e + sort` avoids by sorting before each collision step. With the index a periodic physical resort stays necessary.
+- `e + index` is about `e + sort` in total; the index is ~3-4 ms cheaper per collision step but the attributes stay unsorted, so later gathers lose locality. Free streaming (`-omega 0`, 100 steps, 1 rank, collisions every step, 3 runs): `v` 113-114, `e + sort` 105-107, `e + index` 104-111 ms; the spread of `e + index` is the deposit/push of an order that decays (74 vs 69 ms in 2 of 3 runs), which `e + sort` avoids by sorting before each collision step. With the index a periodic physical resort stays necessary.
 - Not modelled: weights (the pair scheme needs the weighted-probability variant for unequal weights), inter-species pairs (two index sets per cell, same cost structure), odd-count cells (Takizuka-Abe three-particle treatment), the drift-kinetic operator (pitch-angle scattering of `p_parallel`, `mu_p`), ppc != 16.
 - The kernel is the same in all backends (a loop over cells with a `vel(i)` accessor); `e` additionally needs `build_index()` (30 lines) and the decision when to resort.
 

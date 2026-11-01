@@ -3,7 +3,7 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Testing ParticleStorage: the previous fields, the exchange of particles\n"
+  "Testing ParticleStorage: the previous attributes, the exchange of particles\n"
   "between ranks and the counting sort by cell.\n";
 
 constexpr PetscInt ppc = 8;
@@ -37,8 +37,8 @@ static PetscReal displacement(PetscInt id, PetscInt axis)
 static PetscErrorCode check_particles(ParticleStorage& storage, PetscInt step)
 {
   PetscFunctionBeginUser;
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
 
   PetscReal sum = 0;
   for (PetscInt i = 0; i < f.size; i++) {
@@ -58,7 +58,7 @@ static PetscErrorCode check_particles(ParticleStorage& storage, PetscInt step)
   }
 
   PetscInt n = f.size;
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscReal total_sum;
   PetscInt total;
@@ -86,17 +86,17 @@ int main(int argc, char** argv)
 
   ParticleStorage storage(world);
   PetscCall(storage.initialize());
-  PetscCall(storage.register_field("r", 3));
-  PetscCall(storage.register_field("p", 3));
+  PetscCall(storage.register_attribute("r", 3));
+  PetscCall(storage.register_attribute("p", 3));
   PetscCall(storage.register_previous("r"));
   PetscCall(storage.register_previous("p"));
-  PetscCall(storage.commit_fields());
+  PetscCall(storage.commit_attributes());
 
   PetscInt first;
   PetscCall(storage.grow(ppc * world.size.elements_product(), &first));
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
 
   PetscInt i = 0;
   for (PetscInt z = world.start[Z]; z < world.end[Z]; z++) {
@@ -113,21 +113,21 @@ int main(int argc, char** argv)
       }
     }
   }
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
   PetscCall(check_particles(storage, 0));
 
   // Getters load only what is asked for
-  PetscCall(storage.get_fields(f));
-  PetscCheck(f.data.size() == 2 && !f.data.contains("p_prev"), PETSC_COMM_WORLD, PETSC_ERR_USER, "`get_fields()` must not load the previous arrays");
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.get_attributes(f));
+  PetscCheck(f.data.size() == 2 && !f.data.contains("p_prev"), PETSC_COMM_WORLD, PETSC_ERR_USER, "`get_attributes()` must not load the previous arrays");
+  PetscCall(storage.restore_attributes(f));
 
-  PetscCall(storage.get_field(f, "p_prev"));
-  PetscCheck(f.data.size() == 1 && f.dof.at("p_prev") == 3, PETSC_COMM_WORLD, PETSC_ERR_USER, "`get_field()` must load exactly one array");
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.get_attribute(f, "p_prev"));
+  PetscCheck(f.data.size() == 1 && f.dof.at("p_prev") == 3, PETSC_COMM_WORLD, PETSC_ERR_USER, "`get_attribute()` must load exactly one array");
+  PetscCall(storage.restore_attributes(f));
 
   for (PetscInt step = 1; step <= steps; step++) {
     PetscCall(storage.save_previous());
-    PetscCall(storage.get_fields(f));
+    PetscCall(storage.get_attributes(f));
     PetscCall(storage.get_previous(f));
     for (PetscInt i = 0; i < f.size; i++) {
       const PetscInt id = (PetscInt)std::lround(f["p"][3 * i]);
@@ -141,13 +141,13 @@ int main(int argc, char** argv)
         }
       }
     }
-    PetscCall(storage.restore_fields(f));
+    PetscCall(storage.restore_attributes(f));
 
     PetscCall(storage.update_cells());
     PetscCall(check_particles(storage, step));
   }
 
-  // Sorting permutes all the fields together and gives the order of `World::s_g()`
+  // Sorting permutes all the attributes together and gives the order of `World::s_g()`
   PetscCall(storage.sort());
   PetscCall(check_particles(storage, steps));
 
@@ -157,7 +157,7 @@ int main(int argc, char** argv)
   const std::vector<PetscInt>& offsets = storage.cell_offsets();
   PetscCheck((PetscInt)offsets.size() == world.size.elements_product() + 1 && offsets.back() == size, PETSC_COMM_WORLD, PETSC_ERR_USER, "Cell offsets do not cover the particles");
 
-  PetscCall(storage.get_fields(f));
+  PetscCall(storage.get_attributes(f));
   for (PetscInt g = 0; g < world.size.elements_product(); g++) {
     for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++) {
       const PetscReal* r = &f["r"][3 * i];
@@ -168,7 +168,7 @@ int main(int argc, char** argv)
       PetscCheck(cell == g, PETSC_COMM_WORLD, PETSC_ERR_USER, "Particle %d is in the block of cell %d, but belongs to %d", i, g, cell);
     }
   }
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscCall(storage.finalize());
   PetscCall(world.finalize());

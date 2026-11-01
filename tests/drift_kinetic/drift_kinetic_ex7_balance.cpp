@@ -156,8 +156,8 @@ static PetscErrorCode collect_moments(
   const drift_kinetic::Particles& particles, Moments* m)
 {
   PetscFunctionBeginUser;
-  ParticleStorage::Fields f;
-  PetscCall(particles.storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(particles.storage.get_attributes(f));
   const drift_kinetic::DkPointArrays arrays(f);
 
   for (PetscInt i = 0; i < f.size; i++) {
@@ -169,7 +169,7 @@ static PetscErrorCode collect_moments(
     m->mu_max = std::max(m->mu_max, point.mu());
     m->p_par += point.p_par();
   }
-  PetscCall(particles.storage.restore_fields(f));
+  PetscCall(particles.storage.restore_attributes(f));
 
   PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m->count, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
   PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, &m->mu_sum, 2, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));

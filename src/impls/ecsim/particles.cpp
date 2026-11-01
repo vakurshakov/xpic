@@ -19,9 +19,9 @@ PetscErrorCode Particles::initialize()
   PetscCall(interfaces::Particles::initialize());
 
   PetscCall(storage.initialize());
-  PetscCall(storage.register_field("r", 3));
-  PetscCall(storage.register_field("p", 3));
-  PetscCall(storage.commit_fields());
+  PetscCall(storage.register_attribute("r", 3));
+  PetscCall(storage.register_attribute("p", 3));
+  PetscCall(storage.commit_attributes());
 
   currI = J;
   currI_loc = J_loc;
@@ -37,8 +37,8 @@ PetscErrorCode Particles::first_push()
   PetscFunctionBeginUser;
   PetscLogEventBegin(events[0], 0, 0, 0, 0);
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
 
 #pragma omp parallel for
@@ -48,7 +48,7 @@ PetscErrorCode Particles::first_push()
     arrays.store(i, point);
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscLogEventEnd(events[0], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -59,8 +59,8 @@ PetscErrorCode Particles::fill_ecsim_current(PetscReal* coo_v)
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(da, currI_loc, &currI_arr));
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
   const std::vector<PetscInt>& offsets = storage.cell_offsets();
 
@@ -80,7 +80,7 @@ PetscErrorCode Particles::fill_ecsim_current(PetscReal* coo_v)
       decompose_ecsim_current(arrays.load(i), coo_cv);
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscCall(DMDAVecRestoreArrayWrite(da, currI_loc, &currI_arr));
   PetscCall(DMLocalToGlobal(da, currI_loc, ADD_VALUES, currI));
@@ -210,8 +210,8 @@ PetscErrorCode Particles::second_push()
   PetscReal q = parameters.q;
   PetscReal m = parameters.m;
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
 
 #pragma omp parallel for
@@ -225,7 +225,7 @@ PetscErrorCode Particles::second_push()
     arrays.store(i, point);
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscLogEventBegin(events[2], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);

@@ -15,7 +15,7 @@ struct DkPointArrays {
   PetscReal* mu_p;
 
   /// @param suffix `"_prev"` gives access to the saved states.
-  DkPointArrays(const ParticleStorage::Fields& f, const std::string& suffix = "")
+  DkPointArrays(const ParticleStorage::Attributes& f, const std::string& suffix = "")
     : r(f["r" + suffix]),
       p(f["p" + suffix]),
       p_parallel(f["p_parallel" + suffix]),

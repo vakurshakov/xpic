@@ -12,12 +12,12 @@ ParticleTraceBuilder::ParticleTraceBuilder(
 template<class PointT, class Arrays>
 static std::optional<PointT> first_point(const ParticleStorage& storage)
 {
-  ParticleStorage::Fields f;
-  PetscCallAbort(PETSC_COMM_WORLD, storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCallAbort(PETSC_COMM_WORLD, storage.get_attributes(f));
   std::optional<PointT> point;
   if (f.size > 0)
     point = Arrays(f).load(0);
-  PetscCallAbort(PETSC_COMM_WORLD, storage.restore_fields(f));
+  PetscCallAbort(PETSC_COMM_WORLD, storage.restore_attributes(f));
   return point;
 }
 

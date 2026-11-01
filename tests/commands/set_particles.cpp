@@ -179,8 +179,8 @@ PetscErrorCode check_conversion(  //
 
   const PetscReal expected_mu = m * (p[X] * p[X] + p[Y] * p[Y]) / (2.0 * B_value);
 
-  ParticleStorage::Fields f;
-  PetscCall(particles.storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(particles.storage.get_attributes(f));
   const drift_kinetic::DkPointArrays arrays(f);
 
   for (PetscInt i = 0; i < f.size; i++) {
@@ -194,7 +194,7 @@ PetscErrorCode check_conversion(  //
     PetscCheck(equal_tol(point.mu_p, expected_mu, 1e-12), PETSC_COMM_WORLD, PETSC_ERR_USER,
       "\"%s\": wrong mu %g, expected %g", name, point.mu_p, expected_mu);
   }
-  PetscCall(particles.storage.restore_fields(f));
+  PetscCall(particles.storage.restore_attributes(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

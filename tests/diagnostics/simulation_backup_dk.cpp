@@ -46,8 +46,8 @@ int main(int argc, char** argv)
   auto& storage = particles.storage;
 
   // Making every non-position array distinct, so that no field can be mixed up with another
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   PetscInt k = 1;
   for (const auto& [name, dof] : f.dof) {
     k++;
@@ -61,7 +61,7 @@ int main(int argc, char** argv)
           0.001 * f["r"][3 * i + Y];  //
     }
   }
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   Snapshot before;
   PetscCall(take_snapshot(storage, before));

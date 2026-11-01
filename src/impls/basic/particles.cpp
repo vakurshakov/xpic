@@ -17,9 +17,9 @@ PetscErrorCode Particles::initialize()
   PetscFunctionBeginUser;
   PetscCall(interfaces::Particles::initialize());
   PetscCall(storage.initialize());
-  PetscCall(storage.register_field("r", 3));
-  PetscCall(storage.register_field("p", 3));
-  PetscCall(storage.commit_fields());
+  PetscCall(storage.register_attribute("r", 3));
+  PetscCall(storage.register_attribute("p", 3));
+  PetscCall(storage.commit_attributes());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -28,8 +28,8 @@ PetscErrorCode Particles::push()
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
 
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
 
 #pragma omp parallel for
@@ -61,7 +61,7 @@ PetscErrorCode Particles::push()
     arrays.store(i, point);
   }
 
-  PetscCall(storage.restore_fields(f));
+  PetscCall(storage.restore_attributes(f));
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));

@@ -138,8 +138,8 @@ PetscErrorCode MomentumConservation::calculate()
     auto& qvby = QVB[i][Y] = 0;
     auto& qvbz = QVB[i][Z] = 0;
 
-    ParticleStorage::Fields f;
-    PetscCall(sort->storage.get_fields(f));
+    ParticleStorage::Attributes f;
+    PetscCall(sort->storage.get_attributes(f));
     const PointArrays arrays(f);
 
 #pragma omp parallel for private(shape), \
@@ -183,7 +183,7 @@ PetscErrorCode MomentumConservation::calculate()
       qvbz += FB[Z];
     }
 
-    PetscCall(sort->storage.restore_fields(f));
+    PetscCall(sort->storage.restore_attributes(f));
   }
 
   PetscCall(DMDAVecRestoreArrayDOFRead(da, En0_loc, &Ea));

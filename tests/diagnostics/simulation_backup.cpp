@@ -57,9 +57,9 @@ int main(int argc, char** argv)
     SortParameters{.sort_name = "particles"});
   PetscCall(particles->initialize());
   PetscCall(particles->storage.initialize());
-  PetscCall(particles->storage.register_field("r", 3));
-  PetscCall(particles->storage.register_field("p", 3));
-  PetscCall(particles->storage.commit_fields());
+  PetscCall(particles->storage.register_attribute("r", 3));
+  PetscCall(particles->storage.register_attribute("p", 3));
+  PetscCall(particles->storage.commit_attributes());
 
   std::vector<Point> local_points;
   for (const auto& point : prepared_points) {
@@ -108,8 +108,8 @@ int main(int argc, char** argv)
     PetscCheck(norm < PETSC_MACHINE_EPSILON, PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Field data is loaded incorrectly, norm2 error: %f", norm);
 
-    ParticleStorage::Fields f;
-    PetscCall(particles->storage.get_fields(f));
+    ParticleStorage::Attributes f;
+    PetscCall(particles->storage.get_attributes(f));
     const PointArrays arrays(f);
     const std::vector<PetscInt>& offsets = particles->storage.cell_offsets();
 
@@ -134,7 +134,7 @@ int main(int argc, char** argv)
         "Particles data is incorrect, wrong particle point at g: %" PetscInt_FMT, g);
     }
 
-    PetscCall(particles->storage.restore_fields(f));
+    PetscCall(particles->storage.restore_attributes(f));
     PetscCall(VecDestroy(&tmp));
   }
 

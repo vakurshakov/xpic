@@ -79,8 +79,8 @@ PetscErrorCode Energy::calculate_kinetic()
     vx = vy = vz = w = 0;
     n = 0;
 
-    ParticleStorage::Fields f;
-    PetscCall(sort->storage.get_field(f, "p"));
+    ParticleStorage::Attributes f;
+    PetscCall(sort->storage.get_attribute(f, "p"));
     const PetscReal* p = f["p"];
 
 #pragma omp parallel for reduction(+ : vx, vy, vz, w)
@@ -95,7 +95,7 @@ PetscErrorCode Energy::calculate_kinetic()
     }
 
     n = f.size;
-    PetscCall(sort->storage.restore_fields(f));
+    PetscCall(sort->storage.restore_attributes(f));
 
     K[i] = frac * w;
 

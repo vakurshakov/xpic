@@ -69,8 +69,8 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
     std::string fname =
       std::format("{}/{}/{}", out_dir_, t, sort->parameters.sort_name);
 
-    ParticleStorage::Fields f;
-    PetscCall(sort->storage.get_fields(f));
+    ParticleStorage::Attributes f;
+    PetscCall(sort->storage.get_attributes(f));
 
     PetscInt numparts = f.size;
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &numparts, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
@@ -84,7 +84,7 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
       PetscCall(PetscViewerBinaryWriteAll(viewer, array, f.dof.at(name) * f.size, PETSC_DETERMINE, PETSC_DETERMINE, PETSC_REAL));
       PetscCall(PetscViewerDestroy(&viewer));
     }
-    PetscCall(sort->storage.restore_fields(f));
+    PetscCall(sort->storage.restore_attributes(f));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -153,14 +153,14 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
 
     PetscCall(sort->storage.clear());
 
-    ParticleStorage::Fields f;
-    PetscCall(sort->storage.get_fields(f));
+    ParticleStorage::Attributes f;
+    PetscCall(sort->storage.get_attributes(f));
     std::vector<std::pair<std::string, PetscInt>> names{{"r", 3}};
     for (const auto& [name, dof] : f.dof) {
       if (name != "r")
         names.emplace_back(name, dof);
     }
-    PetscCall(sort->storage.restore_fields(f));
+    PetscCall(sort->storage.restore_attributes(f));
 
     // The position `r` is read first, it defines which particles are local
     PetscInt first = 0;
@@ -183,10 +183,10 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
         PetscCall(sort->storage.grow((PetscInt)local.size(), &first));
       }
 
-      PetscCall(sort->storage.get_fields(f));
+      PetscCall(sort->storage.get_attributes(f));
       for (size_t i = 0; i < local.size(); ++i)
         std::copy_n(&data[dof * local[i]], dof, f[name] + dof * (first + i));
-      PetscCall(sort->storage.restore_fields(f));
+      PetscCall(sort->storage.restore_attributes(f));
     }
     PetscCall(sort->storage.sort());
   }

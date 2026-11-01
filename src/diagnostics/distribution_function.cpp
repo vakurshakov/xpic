@@ -121,8 +121,8 @@ PetscErrorCode DistributionFunction::collect()
   Vector3I start, size;
   PetscCall(DMDAGetCorners(da_glob, REP3_A(&start), REP3_A(&size)));
 
-  ParticleStorage::Fields f;
-  PetscCall(particles.storage.get_fields(f));
+  ParticleStorage::Attributes f;
+  PetscCall(particles.storage.get_attributes(f));
   const PointArrays arrays(f);
   const std::vector<PetscInt>& offsets = particles.storage.cell_offsets();
 
@@ -161,7 +161,7 @@ PetscErrorCode DistributionFunction::collect()
     }
   }
 
-  PetscCall(particles.storage.restore_fields(f));
+  PetscCall(particles.storage.restore_attributes(f));
   PetscCall(VecRestoreArray2dWrite(field_loc, REP2_A(vsize), REP2_A(vstart), &arr));
   PetscCall(VecScatterBegin(ctx, field_loc, field, ADD_VALUES, SCATTER_FORWARD));
   PetscCall(VecScatterEnd(ctx, field_loc, field, ADD_VALUES, SCATTER_FORWARD));
