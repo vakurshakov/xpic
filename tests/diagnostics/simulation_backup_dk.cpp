@@ -1,12 +1,13 @@
 #include "src/diagnostics/simulation_backup.h"
+
 #include "src/impls/drift_kinetic/simulation.h"
 #include "src/utils/configuration.h"
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Testing save and load of simulation backup for drift-kinetic particles.   \n"
-  "All arrays of the storage but `_prev` ones are filled with distinct\n"
-  "values, saved, cleared and loaded back.                                   \n";
+  "Testing save and load of simulation backup for drift-kinetic particles.\n"
+  "All arrays of the storage but `_prev` ones are filled with distinct    \n"
+  "values, saved, cleared and loaded back.                                \n";
 
 static constexpr PetscReal q = -1.0;
 static constexpr PetscReal m = 2.0;
@@ -15,9 +16,18 @@ static constexpr PetscInt Np = 3;
 static constexpr PetscReal B_value = 2.0;
 
 const std::vector<Point> points{
-  Point{.r = Vector3R{2, 3, 4}, .p = Vector3R{0.1, 0.2, 0.3}},
-  Point{.r = Vector3R{5.5, 5, 5}, .p = Vector3R{-0.3, 0.0, 0.4}},
-  Point{.r = Vector3R{7.5, 0.5, 6.5}, .p = Vector3R{0.2, -0.1, -0.4}},
+  Point{
+    .r = Vector3R{2, 3, 4},
+    .p = Vector3R{0.1, 0.2, 0.3},
+  },
+  Point{
+    .r = Vector3R{5.5, 5, 5},
+    .p = Vector3R{-0.3, 0.0, 0.4},
+  },
+  Point{
+    .r = Vector3R{7.5, 0.5, 6.5},
+    .p = Vector3R{0.2, -0.1, -0.4},
+  },
 };
 
 using Snapshot = std::vector<std::vector<PetscReal>>;
@@ -56,21 +66,22 @@ int main(int argc, char** argv)
   auto& storage = particles.storage;
 
   // Making every non-position array distinct, so that no field can be mixed up with another
-  {
-    ParticleStorage::Fields f;
-    PetscCall(storage.get_fields(f));
-    PetscInt k = 1;
-    for (const auto& [name, dof] : f.dof) {
-      k++;
-      if (name == "r")
-        continue;
-      for (PetscInt i = 0; i < f.size; i++) {
-        for (PetscInt c = 0; c < dof; c++)
-          f[name][dof * i + c] = k + 0.01 * c + 0.1 * f["r"][3 * i + X] + 0.001 * f["r"][3 * i + Y];
-      }
+  ParticleStorage::Fields f;
+  PetscCall(storage.get_fields(f));
+  PetscInt k = 1;
+  for (const auto& [name, dof] : f.dof) {
+    k++;
+    if (name == "r")
+      continue;
+    for (PetscInt i = 0; i < f.size; i++) {
+      for (PetscInt c = 0; c < dof; c++)
+        f[name][dof * i + c] =        //
+          k + 0.01 * c +              //
+          0.1 * f["r"][3 * i + X] +   //
+          0.001 * f["r"][3 * i + Y];  //
     }
-    PetscCall(storage.restore_fields(f));
   }
+  PetscCall(storage.restore_fields(f));
 
   Snapshot before;
   PetscCall(take_snapshot(storage, before));
@@ -80,14 +91,12 @@ int main(int argc, char** argv)
   PetscCheck(total == Np * (PetscInt)points.size(), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Unexpected number of loaded particles: %" PetscInt_FMT, total);
 
-  {
-    std::vector<interfaces::Particles*> sorts{&particles};
-    SimulationBackup backup(get_out_dir(__FILE__) / "backup", 1, {}, sorts);
+  std::vector<interfaces::Particles*> sorts{&particles};
+  SimulationBackup backup(get_out_dir(__FILE__) / "backup", 1, {}, sorts);
 
-    PetscCall(backup.save(0));
-    PetscCall(storage.clear());
-    PetscCall(backup.load(0));
-  }
+  PetscCall(backup.save(0));
+  PetscCall(storage.clear());
+  PetscCall(backup.load(0));
 
   Snapshot after;
   PetscCall(take_snapshot(storage, after));
