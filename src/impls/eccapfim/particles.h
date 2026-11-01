@@ -12,6 +12,7 @@ class Simulation;
 class Particles : public interfaces::Particles {
 public:
   Particles(Simulation& simulation, const SortParameters& parameters);
+  PetscErrorCode initialize() override;
 
   PetscErrorCode prepare_storage();
 

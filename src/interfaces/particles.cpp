@@ -19,22 +19,24 @@ Particles::Particles(const World& world, const SortParameters& parameters)
     parameters(with_macro_particle_weight(parameters)),
     storage(world)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, storage.initialize());
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_field("r", 3));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_field("p", 3));
+}
 
-  PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("interfaces::Particles", &classid));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("update_cells", classid, &events[0]));
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(PetscClassIdRegister("interfaces::Particles", &classid));
+  PetscCall(PetscLogEventRegister("update_cells", classid, &events[0]));
 
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &J));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da_rho, &rho[0]));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da_rho, &rho[1]));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da_mflux, &mflux));
+  PetscCall(DMCreateGlobalVector(da, &J));
+  PetscCall(DMCreateGlobalVector(da_rho, &rho[0]));
+  PetscCall(DMCreateGlobalVector(da_rho, &rho[1]));
+  PetscCall(DMCreateGlobalVector(da_mflux, &mflux));
 
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &J_loc));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da_rho, &rho_loc[0]));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da_rho, &rho_loc[1]));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da_mflux, &mflux_loc));
+  PetscCall(DMCreateLocalVector(da, &J_loc));
+  PetscCall(DMCreateLocalVector(da_rho, &rho_loc[0]));
+  PetscCall(DMCreateLocalVector(da_rho, &rho_loc[1]));
+  PetscCall(DMCreateLocalVector(da_mflux, &mflux_loc));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 bool Particles::is_local(const Point& point) const
@@ -64,7 +66,9 @@ PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Particles::extract(const std::function<bool(const Point&)>& predicate, std::vector<Point>* extracted)
+PetscErrorCode Particles::extract(
+  const std::function<bool(const Point&)>& predicate,
+  std::vector<Point>* extracted)
 {
   PetscFunctionBeginUser;
   ParticleStorage::Fields f;

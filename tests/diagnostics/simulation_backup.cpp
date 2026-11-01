@@ -55,6 +55,10 @@ int main(int argc, char** argv)
 
   auto particles = std::make_unique<Particles>(world,  //
     SortParameters{.sort_name = "particles"});
+  PetscCall(particles->initialize());
+  PetscCall(particles->storage.initialize());
+  PetscCall(particles->storage.register_field("r", 3));
+  PetscCall(particles->storage.register_field("p", 3));
   PetscCall(particles->storage.commit_fields());
 
   std::vector<Point> local_points;

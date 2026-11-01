@@ -38,10 +38,18 @@ namespace interfaces {
 
 class Particles {
 public:
-  /// @warning The derived sort registers its own fields of `storage` (if any)
-  /// and must call `storage.commit_fields()` at the end of its constructor.
   Particles(const World& world, const SortParameters& parameters);
   virtual ~Particles() = default;
+
+  /**
+   * @brief Creates the particle resources, the derived sort calls it first.
+   * @warning The derived sort registers `"r"`, `"p"` and its own fields of
+   * `storage` (if any) and calls `storage.commit_fields()` afterwards.
+   */
+  virtual PetscErrorCode initialize();
+
+  /// @brief Releases particle resources, derived sorts release their own first.
+  virtual PetscErrorCode finalize();
 
   /// @brief Reference to outer `interfaces::Simulation::world`.
   const World& world;
@@ -70,9 +78,6 @@ public:
   /// @brief Kinetic points `r` and `p`, grouped by cell by `update_cells()`.
   ParticleStorage storage;
 
-  /// @brief Releases particle resources, derived sorts release their own first.
-  virtual PetscErrorCode finalize();
-
   /// @brief Whether the `point` lies within the local MPI-boundaries.
   bool is_local(const Point& point) const;
 
@@ -88,7 +93,9 @@ public:
 
   /// @brief Removes from `storage` the particles whose kinetic `Point` passes
   /// the `predicate` and appends them to `extracted`.
-  PetscErrorCode extract(const std::function<bool(const Point&)>& predicate, std::vector<Point>* extracted);
+  PetscErrorCode extract(                                //
+    const std::function<bool(const Point&)>& predicate,  //
+    std::vector<Point>* extracted);
 
   /// @brief Hands over the particles that left the local box and sorts the
   /// rest by cell, `storage.cell_offsets()` are valid until the next push.

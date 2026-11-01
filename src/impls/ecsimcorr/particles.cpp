@@ -12,16 +12,24 @@ namespace ecsimcorr {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : ecsim::Particles(simulation, parameters), simulation_(simulation)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &currJe));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &currJe_loc));
+}
+
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(ecsim::Particles::initialize());
+
+  PetscCall(DMCreateGlobalVector(da, &currJe));
+  PetscCall(DMCreateLocalVector(da, &currJe_loc));
 
   J = currJe;
   J_loc = currJe_loc;
 
-  PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("ecsimcorr::Particles", &classid));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("first_push", classid, &events[0]));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("second_push", classid, &events[1]));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("final_update", classid, &events[2]));
+  PetscCall(PetscClassIdRegister("ecsimcorr::Particles", &classid));
+  PetscCall(PetscLogEventRegister("first_push", classid, &events[0]));
+  PetscCall(PetscLogEventRegister("second_push", classid, &events[1]));
+  PetscCall(PetscLogEventRegister("final_update", classid, &events[2]));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::first_push()

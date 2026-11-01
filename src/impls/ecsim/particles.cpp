@@ -11,13 +11,25 @@ namespace ecsim {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, storage.commit_fields());
+}
+
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Particles::initialize());
+
+  PetscCall(storage.initialize());
+  PetscCall(storage.register_field("r", 3));
+  PetscCall(storage.register_field("p", 3));
+  PetscCall(storage.commit_fields());
+
   currI = J;
   currI_loc = J_loc;
 
-  PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("ecsim::Particles", &classid));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("first_push", classid, &events[0]));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("second_push", classid, &events[1]));
+  PetscCall(PetscClassIdRegister("ecsim::Particles", &classid));
+  PetscCall(PetscLogEventRegister("first_push", classid, &events[0]));
+  PetscCall(PetscLogEventRegister("second_push", classid, &events[1]));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::first_push()

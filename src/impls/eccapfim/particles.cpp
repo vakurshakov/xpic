@@ -10,13 +10,24 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters),
     simulation_(simulation)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_previous("r"));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_previous("p"));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.commit_fields());
+}
 
-  PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("eccapfim::Particles", &classid));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("prepare_storage", classid, &events[0]));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("form_iteration", classid, &events[1]));
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Particles::initialize());
+
+  PetscCall(storage.initialize());
+  PetscCall(storage.register_field("r", 3));
+  PetscCall(storage.register_field("p", 3));
+  PetscCall(storage.register_previous("r"));
+  PetscCall(storage.register_previous("p"));
+  PetscCall(storage.commit_fields());
+
+  PetscCall(PetscClassIdRegister("eccapfim::Particles", &classid));
+  PetscCall(PetscLogEventRegister("prepare_storage", classid, &events[0]));
+  PetscCall(PetscLogEventRegister("form_iteration", classid, &events[1]));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscReal Particles::get_interpolate_time() const

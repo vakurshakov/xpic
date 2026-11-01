@@ -10,7 +10,17 @@ namespace basic {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, storage.commit_fields());
+}
+
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Particles::initialize());
+  PetscCall(storage.initialize());
+  PetscCall(storage.register_field("r", 3));
+  PetscCall(storage.register_field("p", 3));
+  PetscCall(storage.commit_fields());
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::push()

@@ -11,15 +11,27 @@ namespace drift_kinetic {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_field("p_parallel", 1));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_field("mu_p", 1));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_previous("r"));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_previous("p"));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_previous("p_parallel"));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.register_previous("mu_p"));
-  PetscCallAbort(PETSC_COMM_WORLD, storage.commit_fields());
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &M));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &M_loc));
+}
+
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Particles::initialize());
+
+  PetscCall(storage.initialize());
+  PetscCall(storage.register_field("r", 3));
+  PetscCall(storage.register_field("p", 3));
+  PetscCall(storage.register_field("p_parallel", 1));
+  PetscCall(storage.register_field("mu_p", 1));
+  PetscCall(storage.register_previous("r"));
+  PetscCall(storage.register_previous("p"));
+  PetscCall(storage.register_previous("p_parallel"));
+  PetscCall(storage.register_previous("mu_p"));
+  PetscCall(storage.commit_fields());
+
+  PetscCall(DMCreateGlobalVector(da, &M));
+  PetscCall(DMCreateLocalVector(da, &M_loc));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::finalize()
