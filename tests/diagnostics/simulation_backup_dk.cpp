@@ -30,27 +30,7 @@ const std::vector<Point> points{
   },
 };
 
-using Snapshot = std::vector<std::vector<PetscReal>>;
-
 void overwrite_config();
-
-/// @brief Particles as rows of all field values, sorted to be independent of the storage order.
-PetscErrorCode take_snapshot(const ParticleStorage& storage, Snapshot& out)
-{
-  PetscFunctionBeginUser;
-  ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
-  out.assign(f.size, {});
-  for (const auto& [name, dof] : f.dof) {
-    if (name.ends_with("_prev"))
-      continue;
-    for (PetscInt i = 0; i < f.size; i++)
-      out[i].insert(out[i].end(), f[name] + dof * i, f[name] + dof * (i + 1));
-  }
-  PetscCall(storage.restore_fields(f));
-  std::ranges::sort(out);
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
 int main(int argc, char** argv)
 {
