@@ -81,6 +81,7 @@ PetscErrorCode check_removal(interfaces::Particles& particles,
 
   PetscInt expected_removed = 0;
   PetscReal expected_energy = 0;
+  std::vector<Point> points;
 
   for (PetscInt z = 0; z < N; z++) {
     for (PetscInt y = 0; y < N; y++) {
@@ -93,7 +94,8 @@ PetscErrorCode check_removal(interfaces::Particles& particles,
         // so all energy sums are exact and independent of the summation order.
         Vector3R p((x + 1) / 8.0, (y + 1) / 16.0, (z + 1) / 32.0);
 
-        PetscCall(particles.add_particle(Point{r, p}));
+        if (particles.is_local(Point{r, p}))
+          points.push_back(Point{r, p});
 
         if (!kept(Vector3R(x * dx, y * dy, z * dz))) {
           expected_removed++;
@@ -102,6 +104,8 @@ PetscErrorCode check_removal(interfaces::Particles& particles,
       }
     }
   }
+
+  PetscCall(particles.ingest(points.data(), (PetscInt)points.size()));
 
   PetscCheck(expected_removed > 0 && expected_removed < POW3(N), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "%s: test is degenerate, %d cells are removed", name, expected_removed);

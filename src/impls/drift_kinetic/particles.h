@@ -46,7 +46,7 @@ public:
 
   PetscErrorCode form_iteration();
 
-  PetscErrorCode commit_added_particles() override;
+  PetscErrorCode ingest(const Point* points, PetscInt n) override;
   PetscErrorCode prepare_storage();
   PetscReal kinetic_energy_local() const;
   PetscReal get_average_iteration_number() const;
@@ -71,9 +71,6 @@ public:
   Arr Bn1_arr;  // Predicted magnetic field array.
 
 protected:
-  // Particles `[committed, size)` of `storage` are still kinetic `Point`s.
-  PetscInt committed = 0;
-
   PetscInt size = 0;    // Local particle count.
   PetscReal avgit = 0;  // Average pusher iteration count.
   PetscInt maxit = 0;   // Largest pusher iteration count.

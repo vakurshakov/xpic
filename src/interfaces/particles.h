@@ -73,19 +73,22 @@ public:
   /// @brief Releases particle resources, derived sorts release their own first.
   virtual PetscErrorCode finalize();
 
-  /**
-   * @brief The added `point` coordinate is first tested against local
-   * MPI-boundaries. If it lies within it, the `point` is added to `storage`
-   * and added `energy` is accumulated.
-   *
-   * @param point The inserted point to be appended to `storage`.
-   * @param is_added Whether the `point` has been added after the MPI-boundaries test.
-   */
-  PetscErrorCode add_particle(const Point& point, bool* is_added = nullptr);
+  /// @brief Whether the `point` lies within the local MPI-boundaries.
+  bool is_local(const Point& point) const;
 
-  /// @brief Called by loaders once a batch of `add_particle()` calls is done.
-  /// Restores the cell order of `storage`.
-  virtual PetscErrorCode commit_added_particles();
+  /**
+   * @brief Adds the kinetic `points` to `storage` and restores its cell order.
+   * Drift-kinetic sorts convert them to their own representation.
+   *
+   * @param points Array of `n` points, all within the local MPI-boundaries
+   * (see `is_local()`).
+   * @note Collective, it is called by all ranks even with `n == 0`.
+   */
+  virtual PetscErrorCode ingest(const Point* points, PetscInt n);
+
+  /// @brief Removes from `storage` the particles whose kinetic `Point` passes
+  /// the `predicate` and appends them to `extracted`.
+  PetscErrorCode extract(const std::function<bool(const Point&)>& predicate, std::vector<Point>* extracted);
 
   /// @brief Hands over the particles that left the local box and sorts the
   /// rest by cell, `storage.cell_offsets()` are valid until the next push.

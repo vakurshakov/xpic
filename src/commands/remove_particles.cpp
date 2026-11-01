@@ -17,33 +17,23 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
   const PetscReal m = particles_.parameters.m;
   const PetscReal mpw = particles_.parameters.n / particles_.parameters.Np;
 
-  ParticleStorage::Fields f;
-  PetscCall(particles_.storage.get_fields(f));
-  const PointArrays arrays(f);
-
-  std::vector<PetscInt> removed;
-  for (PetscInt i = 0; i < f.size; i++) {
-    const Point point = arrays.load(i);
-
-    // The geometry is tested at the corner of the cell of the particle
+  // The geometry is tested at the corner of the cell of the particle
+  auto is_removed = [&](const Point& point)
+  {
     const Vector3R r{
       FLOOR_STEP(point.x(), dx) * dx,
       FLOOR_STEP(point.y(), dy) * dy,
       FLOOR_STEP(point.z(), dz) * dz,
     };
+    return !within_geom_(r);
+  };
 
-    if (within_geom_(r))
-      continue;
+  std::vector<Point> removed;
+  PetscCall(particles_.extract(is_removed, &removed));
 
+  for (const Point& point : removed)
     removed_energy_ += Energy::get_kinetic(point.p, m, mpw);
-    removed.push_back(i);
-  }
-
-  PetscCall(particles_.storage.restore_fields(f));
   removed_particles_ = (PetscInt)removed.size();
-
-  PetscCall(particles_.storage.remove(std::move(removed)));
-  PetscCall(particles_.storage.sort());
 
   PetscCall(log_statistics());
   PetscFunctionReturn(PETSC_SUCCESS);

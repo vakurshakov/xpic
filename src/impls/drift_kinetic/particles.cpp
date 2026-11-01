@@ -128,9 +128,8 @@ PetscErrorCode Particles::form_iteration()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// Converts the points staged in `storage` by `add_particle()` in place
-// to guiding-center form and restores the cell order.
-PetscErrorCode Particles::commit_added_particles()
+// Appends the kinetic points converted to the guiding-center form.
+PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
 {
   PetscFunctionBeginUser;
   const PetscReal qm = parameters.q / parameters.m;
@@ -141,17 +140,19 @@ PetscErrorCode Particles::commit_added_particles()
 
   DriftKineticEsirkepov esirkepov(simulation_.B_arr);
 
+  PetscInt first;
+  PetscCall(storage.grow(n, &first));
+
   ParticleStorage::Fields f;
   PetscCall(storage.get_fields(f));
-  const PointArrays kinetic(f);
   const DkPointArrays arrays(f);
 
-  for (PetscInt i = std::min(committed, f.size); i < f.size; i++) {
-    const Point point = kinetic.load(i);
+  for (PetscInt i = 0; i < n; i++) {
+    const Point& point = points[i];
 
     Vector3R B_p{};
     PetscCall(esirkepov.interpolate_B(B_p, point.r));
-    arrays.store(i,
+    arrays.store(first + i,
       coord_is_gc ? PointByField::from_guiding_center(point, B_p, mp)
                   : PointByField::from_particle_position(point, B_p, mp, qm));
   }
@@ -161,7 +162,6 @@ PetscErrorCode Particles::commit_added_particles()
 
   // The guiding center may lie outside of the box of the particle
   PetscCall(storage.update_cells());
-  PetscCall(storage.get_size(&committed));
   PetscCall(storage.sort());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

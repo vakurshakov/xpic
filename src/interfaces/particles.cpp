@@ -37,34 +37,51 @@ Particles::Particles(const World& world, const SortParameters& parameters)
   PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da_mflux, &mflux_loc));
 }
 
-PetscErrorCode Particles::add_particle(const Point& point, bool* is_added)
+bool Particles::is_local(const Point& point) const
 {
-  PetscFunctionBeginUser;
   Vector3I vg{
     FLOOR_STEP(point.x(), dx) - world.start[X],
     FLOOR_STEP(point.y(), dy) - world.start[Y],
     FLOOR_STEP(point.z(), dz) - world.start[Z],
   };
+  return is_point_within_bounds(vg, 0, world.size);
+}
 
-  if (!is_point_within_bounds(vg, 0, world.size))
-    PetscFunctionReturn(PETSC_SUCCESS);
-
+PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
+{
+  PetscFunctionBeginUser;
   PetscInt first;
-  PetscCall(storage.grow(1, &first));
+  PetscCall(storage.grow(n, &first));
 
   ParticleStorage::Fields f;
   PetscCall(storage.get_fields(f));
-  PointArrays(f).store(first, point);
+  const PointArrays arrays(f);
+  for (PetscInt i = 0; i < n; i++)
+    arrays.store(first + i, points[i]);
   PetscCall(storage.restore_fields(f));
 
-  if (is_added)
-    *is_added = true;
+  PetscCall(storage.sort());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Particles::commit_added_particles()
+PetscErrorCode Particles::extract(const std::function<bool(const Point&)>& predicate, std::vector<Point>* extracted)
 {
   PetscFunctionBeginUser;
+  ParticleStorage::Fields f;
+  PetscCall(storage.get_fields(f));
+  const PointArrays arrays(f);
+
+  std::vector<PetscInt> indices;
+  for (PetscInt i = 0; i < f.size; i++) {
+    const Point point = arrays.load(i);
+    if (!predicate(point))
+      continue;
+    extracted->push_back(point);
+    indices.push_back(i);
+  }
+  PetscCall(storage.restore_fields(f));
+
+  PetscCall(storage.remove(std::move(indices)));
   PetscCall(storage.sort());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

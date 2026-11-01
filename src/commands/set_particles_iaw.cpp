@@ -178,6 +178,8 @@ PetscErrorCode SetParticlesIonAcousticWave::execute(PetscInt /* t */)
   const SortParameters& params = particles.parameters;
   const PetscReal mpw = params.n / params.Np;
 
+  std::vector<Point> points;
+
   for (PetscInt p = 0; p < number_of_pairs; p++) {
     Vector3R coordinate = pair_coordinate(p);
 
@@ -195,17 +197,17 @@ PetscErrorCode SetParticlesIonAcousticWave::execute(PetscInt /* t */)
       PetscCheck(velocity.length() < 1.0 && isfinite(velocity.abs_max()), PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
         "SetParticlesIonAcousticWave could not sample a subluminal velocity");
 
-      bool is_added = false;
-      PetscCall(particles.add_particle(Point(coordinate, velocity), &is_added));
+      const Point point(coordinate, velocity);
 
-      if (is_added) {
+      if (particles.is_local(point)) {
+        points.push_back(point);
         added_energy += Energy::get_kinetic(velocity, params.m, mpw);
         added_particles++;
       }
     }
   }
 
-  PetscCall(particles.commit_added_particles());
+  PetscCall(particles.ingest(points.data(), (PetscInt)points.size()));
   PetscCall(log_statistics());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

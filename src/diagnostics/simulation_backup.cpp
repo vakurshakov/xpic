@@ -150,14 +150,16 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
       "Incorrect number of particles to read is specified");
 
     PetscCall(create_viewer(fname, PETSC_TRUE, FILE_MODE_READ, &viewer));
+    std::vector<Point> points;
     for (PetscInt i = 0; i < numparts; ++i) {
       PetscCall(PetscViewerBinaryRead(viewer, &point, 6, &count, PETSC_REAL));
       PetscCheck(count == 6, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED,
         "Point structure consists of 6 PetscReal values, read: %" PetscInt_FMT, count);
-      PetscCall(sort->add_particle(point));
+      if (sort->is_local(point))
+        points.push_back(point);
     }
     PetscCall(PetscViewerDestroy(&viewer));
-    PetscCall(sort->commit_added_particles());
+    PetscCall(sort->ingest(points.data(), (PetscInt)points.size()));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

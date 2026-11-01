@@ -57,8 +57,12 @@ int main(int argc, char** argv)
     SortParameters{.sort_name = "particles"});
   PetscCall(particles->storage.commit_fields());
 
-  for (const auto& point : prepared_points)
-    PetscCall(particles->add_particle(point));
+  std::vector<Point> local_points;
+  for (const auto& point : prepared_points) {
+    if (particles->is_local(point))
+      local_points.push_back(point);
+  }
+  PetscCall(particles->ingest(local_points.data(), (PetscInt)local_points.size()));
 
   std::filesystem::path out_dir = get_out_dir(__FILE__);
 
