@@ -166,8 +166,8 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
     PetscCall(sort->storage.restore_fields(f));
 
     // The position `r` is read first, it defines which particles are local
-    std::vector<PetscInt> local;
     PetscInt first = 0;
+    std::vector<PetscInt> local;
     std::vector<PetscReal> data;
 
     for (const auto& [name, dof] : names) {
