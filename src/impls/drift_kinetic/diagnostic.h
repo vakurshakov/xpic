@@ -83,7 +83,6 @@ private:
   const Simulation& simulation;
   PetscReal K0 = 0;
   PetscReal K = 0;
-  bool initialized = false;
   DM charge_da = nullptr;
   Mat divE = nullptr;
   Vec E_prev = nullptr;

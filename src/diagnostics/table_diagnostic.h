@@ -41,7 +41,7 @@ public:
 
 protected:
   PetscErrorCode write_formatted(const std::vector<std::string>& container);
-  PetscErrorCode open(const std::string& filename);
+  PetscErrorCode open(std::ios::openmode mode);
   PetscErrorCode flush();
   PetscErrorCode close();
   static bool is_synchronized();
@@ -49,8 +49,9 @@ protected:
   std::vector<std::string> titles;
   std::vector<std::string> values;
 
+  const std::string filename;
   std::ofstream file;
-  const std::ofstream::openmode mode = std::ios::out | std::ios::trunc;
+  bool has_header = false;
 };
 
 #endif  // SRC_DIAGNOSTICS_UTILS_TABLE_DIAGNOSTIC_H

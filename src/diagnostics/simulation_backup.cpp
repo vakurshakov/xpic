@@ -127,6 +127,12 @@ PetscErrorCode SimulationBackup::load_fields(PetscInt t)
     std::filesystem::path fname = std::format("{}/{}/{}", out_dir_, t, name);
     PetscCall(create_viewer(fname, PETSC_FALSE, FILE_MODE_READ, &viewer));
     PetscCall(VecLoad(field, viewer));
+
+    // `VecLoad` keeps the object state, so `VecNorm` would return the
+    // cached pre-load value, `VecAssembly{Begin,End}` prevents it.
+    PetscCall(VecAssemblyBegin(field));
+    PetscCall(VecAssemblyEnd(field));
+
     PetscCall(PetscViewerDestroy(&viewer));
   }
   PetscFunctionReturn(PETSC_SUCCESS);

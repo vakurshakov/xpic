@@ -13,8 +13,9 @@ LogView::LogView(Level level)
 PetscErrorCode LogView::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t == 0)
+  if (!initialized) {
     PetscCall(init());
+  }
 
   switch (level_) {
     case EachTimestep:
@@ -33,9 +34,6 @@ PetscErrorCode LogView::diagnose(PetscInt t)
 PetscErrorCode LogView::level_0_impl(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t == 0)
-    PetscCall(level_0_init());
-
   PetscCall(pop_stack());
   PetscCall(PetscViewerASCIIPrintf(viewer_, "%5d     ", t));
 
@@ -253,10 +251,13 @@ PetscErrorCode LogView::init()
 {
   PetscFunctionBeginUser;
   PetscCall(PetscLogDefaultBegin());
+  initialized = true;
   prev_time_ = petsc_BaseTime;
 
   if (level_ == AllTimestepsSummary)
     PetscFunctionReturn(PETSC_SUCCESS);
+  else if (level_ == EachTimestep)
+    PetscCall(level_0_init());
 
   PetscCall(PetscLogGetDefaultHandler(&handler_));
   PetscFunctionReturn(PETSC_SUCCESS);

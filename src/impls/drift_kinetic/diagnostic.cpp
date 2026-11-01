@@ -348,13 +348,8 @@ void EnergyConservation::calculate_kinetic_energies(
 PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (E_prev == nullptr && t != 0)
-    PetscCall(initialize());
-
-  if (!initialized) {
+  if (!initialized)
     calculate_kinetic_energies(K_by_sort, K);
-    initialized = true;
-  }
 
   K0 = K;
   K0_by_sort = K_by_sort;
@@ -365,9 +360,7 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 PetscErrorCode EnergyConservation::initialize()
 {
   PetscFunctionBeginUser;
-  if (E_prev != nullptr)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
+  initialized = true;
   PetscCall(init_charge_conservation());
   for (PetscInt i = 0; i < (PetscInt)simulation.particles_.size(); ++i)
     PetscCall(collect_charge_density(i));
@@ -376,7 +369,6 @@ PetscErrorCode EnergyConservation::initialize()
   PetscCall(DMCreateGlobalVector(simulation.da, &B_prev));
   PetscCall(VecCopy(simulation.E, E_prev));
   PetscCall(VecCopy(simulation.B, B_prev));
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

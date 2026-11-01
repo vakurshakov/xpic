@@ -48,10 +48,6 @@ PetscErrorCode MomentumConservation::initialize()
 PetscErrorCode MomentumConservation::add_columns(PetscInt t)
 {
   PetscFunctionBeginUser;
-  // A restarted run begins from `t != 0`, `initialize()` has not been called
-  if (En0 == nullptr)
-    PetscCall(initialize());
-
   PetscCall(calculate());
 
   add(6, "Time", "{:d}", t);

@@ -20,7 +20,8 @@ Energy::Energy(const interfaces::Simulation& simulation)
 PetscErrorCode Energy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t == 0) {
+  if (!initialized) {
+    initialized = true;
     PetscCall(calculate_field());
     PetscCall(calculate_kinetic());
   }
