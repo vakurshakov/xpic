@@ -53,7 +53,7 @@ int main(int argc, char** argv)
   PetscReal max_dK, max_err, max_dQ;
   PetscCall(max_abs_column(__FILE__, "dk_diagnostic.txt", "dK", max_dK));
   PetscCall(max_abs_column(__FILE__, "dk_diagnostic.txt", "dE+dB+dK", max_err));
-  PetscCall(max_abs_column(__FILE__, "dk_diagnostic.txt", "N2dQ_tot", max_dQ));
+  PetscCall(max_abs_column(__FILE__, "charge_conservation.txt", "N2dQ_tot", max_dQ));
 
   PetscCheck(max_dK > 1e-6, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Kinetic energy change is too small to be checked: %g", max_dK);

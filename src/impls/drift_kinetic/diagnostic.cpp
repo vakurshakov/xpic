@@ -11,39 +11,6 @@ namespace drift_kinetic {
 
 namespace {
 
-struct ChargeShape {
-  static constexpr PetscReal shr = 1.5;
-  static constexpr PetscInt shw = (PetscInt)(2.0 * shr);
-  static constexpr PetscInt shm = POW3(shw);
-  static constexpr PetscReal (&sfunc)(PetscReal) = spline_of_2nd_order;
-
-  Vector3I start;
-  PetscReal cache[shm];
-
-  void setup(const Vector3R& r)
-  {
-    Vector3R p_r = ::Shape::make_r(r);
-
-    start = Vector3I{
-      (PetscInt)(std::ceil(p_r[X] - shr)),
-      (PetscInt)(std::ceil(p_r[Y] - shr)),
-      (PetscInt)(std::ceil(p_r[Z] - shr)),
-    };
-
-#pragma omp simd
-    for (PetscInt i = 0; i < shm; ++i) {
-      const auto g_x = (PetscReal)(start[X] + i % shw);
-      const auto g_y = (PetscReal)(start[Y] + (i / shw) % shw);
-      const auto g_z = (PetscReal)(start[Z] + (i / shw) / shw);
-      cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
-    }
-  }
-};
-
-}  // namespace
-
-namespace {
-
 // In the drift-kinetic representation, a per-particle "p" stored in
 // `PointByField` carries the gyrocenter velocity components (after
 // `form_iteration` writes Vph = (r_n - r_0)/dt into `point.p`); `p_parallel`
@@ -313,7 +280,7 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, counts, 2, MPIU_INT, MPI_SUM, comm));
 
   PetscInt total = counts[0] + counts[1];
-  PetscReal omitted_fraction = total > 0 ? (PetscReal)counts[1] / total : 0.0;
+  PetscReal omitted_fraction = total > 0 ? (PetscReal)counts[1] / total : 0;
   LOG("  DkDistributionFunction {}:", particles.parameters.sort_name);
   LOG("    included {}, omitted {}, fraction {:.6e}", counts[0], counts[1], omitted_fraction);
 
@@ -333,8 +300,8 @@ EnergyConservation::EnergyConservation(const Simulation& simulation)
 void EnergyConservation::calculate_kinetic_energies(
   std::vector<PetscReal>& per_sort, PetscReal& total) const
 {
-  per_sort.assign(simulation.particles_.size(), 0.0);
-  total = 0.0;
+  per_sort.assign(simulation.particles_.size(), 0);
+  total = 0;
 
   for (PetscInt i = 0; i < (PetscInt)simulation.particles_.size(); ++i)
     per_sort[i] = simulation.particles_[i]->kinetic_energy_local();
@@ -361,10 +328,6 @@ PetscErrorCode EnergyConservation::initialize()
 {
   PetscFunctionBeginUser;
   initialized = true;
-  PetscCall(init_charge_conservation());
-  for (PetscInt i = 0; i < (PetscInt)simulation.particles_.size(); ++i)
-    PetscCall(collect_charge_density(i));
-
   PetscCall(DMCreateGlobalVector(simulation.da, &E_prev));
   PetscCall(DMCreateGlobalVector(simulation.da, &B_prev));
   PetscCall(VecCopy(simulation.E, E_prev));
@@ -375,94 +338,8 @@ PetscErrorCode EnergyConservation::initialize()
 PetscErrorCode EnergyConservation::finalize()
 {
   PetscFunctionBeginUser;
-  for (auto& vec : charge_locals)
-    PetscCall(VecDestroy(&vec));
-  for (auto& vec : charge_fields)
-    PetscCall(VecDestroy(&vec));
-
-  charge_locals.clear();
-  charge_fields.clear();
-
   PetscCall(VecDestroy(&E_prev));
   PetscCall(VecDestroy(&B_prev));
-
-  PetscCall(MatDestroy(&divE));
-  PetscCall(DMDestroy(&charge_da));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode EnergyConservation::init_charge_conservation()
-{
-  PetscFunctionBeginUser;
-  PetscInt g_size[3];
-  PetscInt procs[3];
-  PetscInt s;
-  DMBoundaryType bounds[3];
-  DMDAStencilType st;
-  PetscCall(DMDAGetInfo(simulation.da, nullptr, REP3_A(&g_size), REP3_A(&procs), nullptr, &s, REP3_A(&bounds), &st));
-
-  const PetscInt* ownership[3];
-  PetscCall(DMDAGetOwnershipRanges(simulation.da, REP3_A(&ownership)));
-
-  PetscCall(DMDACreate3d(PETSC_COMM_WORLD, REP3_A(bounds), st, REP3_A(g_size), REP3_A(procs), 1, s, REP3_A(ownership), &charge_da));
-  PetscCall(DMSetUp(charge_da));
-
-  charge_locals.reserve(simulation.particles_.size());
-  charge_fields.reserve(simulation.particles_.size());
-
-  for (std::size_t i = 0; i < simulation.particles_.size(); ++i) {
-    Vec local = nullptr;
-    Vec field = nullptr;
-
-    PetscCall(DMCreateLocalVector(charge_da, &local));
-    PetscCall(DMCreateGlobalVector(charge_da, &field));
-
-    charge_locals.emplace_back(local);
-    charge_fields.emplace_back(field);
-  }
-
-  Divergence divergence(simulation.da);
-  PetscCall(divergence.create_negative(&divE));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode EnergyConservation::collect_charge_density(PetscInt sort_id)
-{
-  PetscFunctionBeginUser;
-  auto& local = charge_locals[sort_id];
-  auto& field = charge_fields[sort_id];
-  const auto& sort = *simulation.particles_[sort_id];
-  ParticleStorage::Fields f;
-  PetscCall(sort.storage.get_fields(f));
-  const DkPointArrays arrays(f);
-  const PetscReal qn_np = sort.parameters.q * sort.parameters.n /
-    static_cast<PetscReal>(sort.parameters.Np);
-
-  PetscCall(VecSet(local, 0.0));
-  PetscCall(VecSet(field, 0.0));
-
-  PetscReal*** arr = nullptr;
-  PetscCall(DMDAVecGetArrayWrite(charge_da, local, &arr));
-
-  ChargeShape shape;
-
-#pragma omp parallel for private(shape)
-  for (PetscInt n = 0; n < f.size; ++n) {
-    shape.setup(Vector3R(arrays.r + 3 * n));
-
-    for (PetscInt i = 0; i < shape.shm; ++i) {
-      const PetscInt g_x = shape.start[X] + i % shape.shw;
-      const PetscInt g_y = shape.start[Y] + (i / shape.shw) % shape.shw;
-      const PetscInt g_z = shape.start[Z] + (i / shape.shw) / shape.shw;
-
-#pragma omp atomic update
-      arr[g_z][g_y][g_x] += qn_np * shape.cache[i];
-    }
-  }
-  PetscCall(sort.storage.restore_fields(f));
-
-  PetscCall(DMDAVecRestoreArrayWrite(charge_da, local, &arr));
-  PetscCall(DMLocalToGlobal(charge_da, local, ADD_VALUES, field));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -482,10 +359,10 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   }
   add(13, "AvgFieldIt", "{:d}", simulation.snes_iteration_number);
 
-  PetscReal w_E = 0.0;
-  PetscReal w_B = 0.0;
-  PetscReal a_EJ = 0.0;
-  PetscReal a_MB = 0.0;
+  PetscReal w_E = 0;
+  PetscReal w_B = 0;
+  PetscReal a_EJ = 0;
+  PetscReal a_MB = 0;
   PetscCall(VecDot(simulation.E, simulation.E, &w_E));
   PetscCall(VecDot(simulation.B, simulation.B, &w_B));
   PetscCall(VecDot(simulation.E_hk, simulation.J, &a_EJ));
@@ -499,15 +376,15 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   PetscCall(DMGetGlobalVector(simulation.da, &fsum));
   PetscCall(DMGetGlobalVector(simulation.da, &fdiff));
 
-  PetscReal dWE = 0.0;
-  PetscReal dWB = 0.0;
-  PetscCall(VecWAXPY(fdiff, -1.0, E_prev, simulation.E));
-  PetscCall(VecWAXPY(fsum, +1.0, E_prev, simulation.E));
+  PetscReal dWE = 0;
+  PetscReal dWB = 0;
+  PetscCall(VecWAXPY(fdiff, -1, E_prev, simulation.E));
+  PetscCall(VecWAXPY(fsum, +1, E_prev, simulation.E));
   PetscCall(VecDot(fsum, fdiff, &dWE));
   dWE *= 0.5;
 
-  PetscCall(VecWAXPY(fdiff, -1.0, B_prev, simulation.B));
-  PetscCall(VecWAXPY(fsum, +1.0, B_prev, simulation.B));
+  PetscCall(VecWAXPY(fdiff, -1, B_prev, simulation.B));
+  PetscCall(VecWAXPY(fsum, +1, B_prev, simulation.B));
   PetscCall(VecDot(fsum, fdiff, &dWB));
   dWB *= 0.5;
 
@@ -536,39 +413,6 @@ PetscErrorCode EnergyConservation::add_columns(PetscInt t)
   add(13, "wE", "{: .6e}", w_E);
   add(13, "wB", "{: .6e}", w_B);
   add(13, "wEB+wK", "{: .6e}", w_E + w_B + K);
-
-  Vec sum = nullptr;
-  Vec diff = nullptr;
-  PetscReal norm[2];
-
-  PetscCall(DMGetGlobalVector(charge_da, &diff));
-  PetscCall(DMGetGlobalVector(charge_da, &sum));
-  PetscCall(VecSet(sum, 0.0));
-
-  PetscInt i = 0;
-  for (; i < (PetscInt)charge_fields.size(); ++i) {
-    PetscCall(VecCopy(charge_fields[i], diff));
-    PetscCall(collect_charge_density(i));
-    PetscCall(VecAYPX(diff, -1.0, charge_fields[i]));
-    PetscCall(VecScale(diff, 1.0 / dt));
-
-    PetscCall(VecAXPY(sum, 1.0, diff));
-
-    PetscCall(MatMultAdd(divE, simulation.particles_[i]->J, diff, diff));
-    PetscCall(VecNorm(diff, NORM_1_AND_2, norm));
-    const auto& name = simulation.particles_[i]->parameters.sort_name;
-    add(13, "N1dQ_" + name, "{: .6e}", norm[0]);
-    add(13, "N2dQ_" + name, "{: .6e}", norm[1]);
-  }
-
-  PetscCall(MatMultAdd(divE, simulation.J, sum, sum));
-  PetscCall(VecNorm(sum, NORM_1_AND_2, norm));
-
-  add(13, "N1dQ_tot", "{: .6e}", norm[0]);
-  add(13, "N2dQ_tot", "{: .6e}", norm[1]);
-
-  PetscCall(DMRestoreGlobalVector(charge_da, &sum));
-  PetscCall(DMRestoreGlobalVector(charge_da, &diff));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
