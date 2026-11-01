@@ -9,16 +9,15 @@
 
 /**
  * @brief `Point` access to the raw `"r"` and `"p"` arrays of `ParticleStorage`.
- * @warning WIP: an intermediate state between diffs 2a and 3. It exists only
- * while the kernels take `Point`; it shrinks as the sorts move to raw fields
- * (2b, 3) and is kept only if `Point` stays as a local value type.
+ * @warning It exists only while the kernels take `Point`; it shrinks as the sorts
+ * move to raw fields and is kept only if `Point` stays as a local value type.
  */
 struct PointArrays {
   PetscReal* r;
   PetscReal* p;
 
-  PointArrays(const ParticleStorage::Fields& f)
-    : r(f["r"]), p(f["p"])
+  PointArrays(const ParticleStorage::Fields& f, const std::string& suffix = "")
+    : r(f["r" + suffix]), p(f["p" + suffix])
   {
   }
 

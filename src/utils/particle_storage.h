@@ -64,10 +64,17 @@ public:
 
   /**
    * @brief Gets the raw arrays. Call it once on the main thread and pass the
-   * pointers to the parallel region. Every `get_fields()` must be paired with
-   * `restore_fields()` before anything that changes `size()`.
+   * pointers to the parallel region. Getters write to different keys of `f`,
+   * so they can be combined; one `restore_fields()` releases all of them and
+   * must be called before anything that changes `size()`.
+   *
+   * `get_fields()` resets `f` and loads the exchanged fields only,
+   * `get_previous()` adds the `"<name>_prev"` arrays,
+   * `get_field()` adds exactly one array by its name (e.g. `"p"` or `"p_prev"`).
    */
   PetscErrorCode get_fields(Fields& f) const;
+  PetscErrorCode get_previous(Fields& f) const;
+  PetscErrorCode get_field(Fields& f, const std::string& name) const;
   PetscErrorCode restore_fields(Fields& f) const;
 
   /**

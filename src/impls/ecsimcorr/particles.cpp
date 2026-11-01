@@ -125,7 +125,7 @@ PetscErrorCode Particles::final_update()
   PetscReal lambda = std::sqrt(lambda2);
 
   ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  PetscCall(storage.get_field(f, "p"));
   PetscReal* p = f["p"];
 
 #pragma omp parallel for
@@ -166,12 +166,12 @@ PetscErrorCode Particles::calculate_energy()
   const PetscReal mpw = parameters.n / parameters.Np;
 
   ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
-  const PointArrays arrays(f);
+  PetscCall(storage.get_field(f, "p"));
+  const PetscReal* p = f["p"];
 
 #pragma omp parallel for reduction(+ : energy)
   for (PetscInt i = 0; i < f.size; i++)
-    energy += Energy::get_kinetic(Vector3R(arrays.p + 3 * i), m, mpw);
+    energy += Energy::get_kinetic(Vector3R(p + 3 * i), m, mpw);
 
   PetscCall(storage.restore_fields(f));
 

@@ -125,10 +125,12 @@ PetscErrorCode Particles::log_distribution() const
   std::ranges::fill(hist[Z], 0);
 
   ParticleStorage::Fields f;
-  PetscCall(storage.get_fields(f));
+  PetscCall(storage.get_field(f, "p"));
+  const PetscReal* p = f["p"];
+
   for (PetscInt i = 0; i < f.size; i++) {
     for (PetscInt a : {X, Y, Z})
-      hist[a][(PetscInt)(f["p"][3 * i + a] * hist_h) + hist_h]++;
+      hist[a][(PetscInt)(p[3 * i + a] * hist_h) + hist_h]++;
   }
   PetscCall(storage.restore_fields(f));
 

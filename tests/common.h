@@ -219,8 +219,6 @@ PetscErrorCode take_snapshot(const ParticleStorage& storage, Snapshot& out)
   PetscCall(storage.get_fields(f));
   out.assign(f.size, {});
   for (const auto& [name, dof] : f.dof) {
-    if (name.ends_with("_prev"))
-      continue;
     for (PetscInt i = 0; i < f.size; i++)
       out[i].insert(out[i].end(), f[name] + dof * i, f[name] + dof * (i + 1));
   }

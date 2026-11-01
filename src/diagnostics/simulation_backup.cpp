@@ -79,10 +79,7 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
     PetscCall(PetscViewerBinaryWrite(viewer, &numparts, 1, PETSC_INT));
     PetscCall(PetscViewerDestroy(&viewer));
 
-    // The `_prev` arrays are restored by the run itself
     for (const auto& [name, array] : f.data) {
-      if (name.ends_with("_prev"))
-        continue;
       PetscCall(create_viewer(fname + "." + name, PETSC_TRUE, FILE_MODE_WRITE, &viewer));
       PetscCall(PetscViewerBinaryWriteAll(viewer, array, f.dof.at(name) * f.size, PETSC_DETERMINE, PETSC_DETERMINE, PETSC_REAL));
       PetscCall(PetscViewerDestroy(&viewer));
@@ -160,7 +157,7 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
     PetscCall(sort->storage.get_fields(f));
     std::vector<std::pair<std::string, PetscInt>> names{{"r", 3}};
     for (const auto& [name, dof] : f.dof) {
-      if (name != "r" && !name.ends_with("_prev"))
+      if (name != "r")
         names.emplace_back(name, dof);
     }
     PetscCall(sort->storage.restore_fields(f));

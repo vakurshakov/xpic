@@ -62,6 +62,7 @@ PetscErrorCode Particles::form_iteration()
 
   ParticleStorage::Fields f;
   PetscCall(storage.get_fields(f));
+  PetscCall(storage.get_previous(f));
   const DkPointArrays arrays(f);
   const DkPointArrays arrays_prev(f, "_prev");
 

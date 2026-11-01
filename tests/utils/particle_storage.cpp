@@ -116,9 +116,19 @@ int main(int argc, char** argv)
   PetscCall(storage.restore_fields(f));
   PetscCall(check_particles(storage, 0));
 
+  // Getters load only what is asked for
+  PetscCall(storage.get_fields(f));
+  PetscCheck(f.data.size() == 2 && !f.data.contains("p_prev"), PETSC_COMM_WORLD, PETSC_ERR_USER, "`get_fields()` must not load the previous arrays");
+  PetscCall(storage.restore_fields(f));
+
+  PetscCall(storage.get_field(f, "p_prev"));
+  PetscCheck(f.data.size() == 1 && f.dof.at("p_prev") == 3, PETSC_COMM_WORLD, PETSC_ERR_USER, "`get_field()` must load exactly one array");
+  PetscCall(storage.restore_fields(f));
+
   for (PetscInt step = 1; step <= steps; step++) {
     PetscCall(storage.save_previous());
     PetscCall(storage.get_fields(f));
+    PetscCall(storage.get_previous(f));
     for (PetscInt i = 0; i < f.size; i++) {
       const PetscInt id = (PetscInt)std::lround(f["p"][3 * i]);
       for (PetscInt a = 0; a < 3; a++) {

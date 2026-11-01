@@ -186,9 +186,9 @@ PetscErrorCode Particles::form_iteration()
 
   ParticleStorage::Fields f;
   PetscCall(storage.get_fields(f));
+  PetscCall(storage.get_previous(f));
   const PointArrays arrays(f);
-  const PetscReal* r_prev = f["r_prev"];
-  const PetscReal* p_prev = f["p_prev"];
+  const PointArrays arrays_prev(f, "_prev");
 
   // `t_cn_push` is the update of a Crank-Nicolson iteration, without `set_fields()`
   PetscReal t_interpolate = 0, t_cn_push = 0, t_decompose = 0;
@@ -199,7 +199,7 @@ PetscErrorCode Particles::form_iteration()
 
 #pragma omp for schedule(static)
     for (PetscInt i = 0; i < f.size; i++) {
-      Point curr{Vector3R(r_prev + 3 * i), Vector3R(p_prev + 3 * i)};
+      Point curr = arrays_prev.load(i);
       Point tmp = curr;
 
       PetscReal tau = 0, dtau = 0, dtx, dty, dtz;

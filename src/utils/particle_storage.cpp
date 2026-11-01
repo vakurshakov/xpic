@@ -111,27 +111,53 @@ PetscErrorCode ParticleStorage::clear()
 PetscErrorCode ParticleStorage::get_fields(Fields& f) const
 {
   PetscFunctionBeginUser;
-  PetscCall(DMSwarmGetLocalSize(swarm, &f.size));
-
   f.data.clear();
-  for (const auto& field : fields) {
-    PetscCall(DMSwarmGetField(swarm, field.name.c_str(), NULL, NULL, (void**)&f.data[field.name]));
-    f.dof[field.name] = field.dof;
+  f.dof.clear();
+  for (const auto& field : fields)
+    PetscCall(get_field(f, field.name));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode ParticleStorage::get_previous(Fields& f) const
+{
+  PetscFunctionBeginUser;
+  for (const auto& field : previous)
+    PetscCall(get_field(f, field.name + "_prev"));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode ParticleStorage::get_field(Fields& f, const std::string& name) const
+{
+  PetscFunctionBeginUser;
+  std::string base;
+  const std::vector<Field>* list;
+
+  if (!name.ends_with("_prev")) {
+    base = name;
+    list = &fields;
   }
-  for (const auto& field : previous) {
-    PetscCall(DMSwarmGetField(swarm, (field.name + "_prev").c_str(), NULL, NULL, (void**)&f.data[field.name + "_prev"]));
-    f.dof[field.name + "_prev"] = field.dof;
+  else {
+    base = name.substr(0, name.size() - 5);
+    list = &previous;
   }
+
+  auto field = std::ranges::find(*list, base, &Field::name);
+  PetscCheck(field != list->end(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+    "Field \"%s\" is not registered", name.c_str());
+
+  PetscCall(DMSwarmGetLocalSize(swarm, &f.size));
+  PetscCall(DMSwarmGetField(swarm, name.c_str(), NULL, NULL, (void**)&f.data[name]));
+  f.dof[name] = field->dof;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode ParticleStorage::restore_fields(Fields& f) const
 {
   PetscFunctionBeginUser;
-  for (const auto& field : previous)
-    PetscCall(DMSwarmRestoreField(swarm, (field.name + "_prev").c_str(), NULL, NULL, (void**)&f.data[field.name + "_prev"]));
-  for (const auto& field : fields)
-    PetscCall(DMSwarmRestoreField(swarm, field.name.c_str(), NULL, NULL, (void**)&f.data[field.name]));
+  for (auto& [name, array] : f.data)
+    PetscCall(DMSwarmRestoreField(swarm, name.c_str(), NULL, NULL, (void**)&array));
+  f.data.clear();
+  f.dof.clear();
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -140,6 +166,7 @@ PetscErrorCode ParticleStorage::save_previous()
   PetscFunctionBeginUser;
   Fields f;
   PetscCall(get_fields(f));
+  PetscCall(get_previous(f));
   for (const auto& [name, dof] : previous) {
     const PetscInt n = dof * f.size;
     const PetscReal* curr = f[name];
