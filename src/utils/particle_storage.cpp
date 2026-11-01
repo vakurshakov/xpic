@@ -114,10 +114,14 @@ PetscErrorCode ParticleStorage::get_fields(Fields& f) const
   PetscCall(DMSwarmGetLocalSize(swarm, &f.size));
 
   f.data.clear();
-  for (const auto& field : fields)
+  for (const auto& field : fields) {
     PetscCall(DMSwarmGetField(swarm, field.name.c_str(), NULL, NULL, (void**)&f.data[field.name]));
-  for (const auto& field : previous)
+    f.dof[field.name] = field.dof;
+  }
+  for (const auto& field : previous) {
     PetscCall(DMSwarmGetField(swarm, (field.name + "_prev").c_str(), NULL, NULL, (void**)&f.data[field.name + "_prev"]));
+    f.dof[field.name + "_prev"] = field.dof;
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -25,6 +25,7 @@ public:
   struct Fields {
     PetscInt size;
     std::map<std::string, PetscReal*> data;
+    std::map<std::string, PetscInt> dof;  // Components of each array
 
     PetscReal* operator[](const std::string& name) const
     {

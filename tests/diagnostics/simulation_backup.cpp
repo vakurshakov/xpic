@@ -81,9 +81,11 @@ int main(int argc, char** argv)
     uintmax_t csize = sizeof(PetscInt) * 2 + sizeof(PetscReal) * 3 * POW3(10);
     PetscCheck(size == csize, PETSC_COMM_WORLD, PETSC_ERR_USER, "Saved fields data is inconsistent");
 
-    size = std::filesystem::file_size(out_dir.string() + "/0/particles");
-    csize = sizeof(PetscReal) * 6 * prepared_points.size();
-    PetscCheck(size == csize, PETSC_COMM_WORLD, PETSC_ERR_USER, "Saved particles data is inconsistent");
+    for (const char* name : {"r", "p"}) {
+      size = std::filesystem::file_size(out_dir.string() + "/0/particles." + name);
+      csize = sizeof(PetscReal) * 3 * prepared_points.size();
+      PetscCheck(size == csize, PETSC_COMM_WORLD, PETSC_ERR_USER, "Saved particles data is inconsistent");
+    }
 
 
     // Clearing up field and particles to load the backup

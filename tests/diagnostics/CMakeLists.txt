@@ -9,6 +9,7 @@ set(tests
   distribution_moment
   distribution_moment_dk
   simulation_backup
+  simulation_backup_dk
 )
 
 # Variants of one test share output files, so they hold a common lock and run one at a time.

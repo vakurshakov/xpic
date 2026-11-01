@@ -66,26 +66,27 @@ PetscErrorCode SimulationBackup::save_particles(PetscInt t) const
   PetscViewer viewer;
 
   for (const auto& sort : particles_) {
-    std::filesystem::path fname =
+    std::string fname =
       std::format("{}/{}/{}", out_dir_, t, sort->parameters.sort_name);
 
     ParticleStorage::Fields f;
     PetscCall(sort->storage.get_fields(f));
-    const PointArrays arrays(f);
 
     PetscInt numparts = f.size;
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &numparts, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
 
-    PetscCall(create_viewer(fname.string() + ".numparts", PETSC_TRUE, FILE_MODE_WRITE, &viewer));
+    PetscCall(create_viewer(fname + ".numparts", PETSC_TRUE, FILE_MODE_WRITE, &viewer));
     PetscCall(PetscViewerBinaryWrite(viewer, &numparts, 1, PETSC_INT));
     PetscCall(PetscViewerDestroy(&viewer));
 
-    PetscCall(create_viewer(fname, PETSC_TRUE, FILE_MODE_WRITE, &viewer));
-    std::vector<Point> points(f.size);
-    for (PetscInt i = 0; i < f.size; i++)
-      points[i] = arrays.load(i);
-    PetscCall(PetscViewerBinaryWriteAll(viewer, points.data(), 6 * f.size, PETSC_DETERMINE, PETSC_DETERMINE, PETSC_REAL));
-    PetscCall(PetscViewerDestroy(&viewer));
+    // The `_prev` arrays are restored by the run itself
+    for (const auto& [name, array] : f.data) {
+      if (name.ends_with("_prev"))
+        continue;
+      PetscCall(create_viewer(fname + "." + name, PETSC_TRUE, FILE_MODE_WRITE, &viewer));
+      PetscCall(PetscViewerBinaryWriteAll(viewer, array, f.dof.at(name) * f.size, PETSC_DETERMINE, PETSC_DETERMINE, PETSC_REAL));
+      PetscCall(PetscViewerDestroy(&viewer));
+    }
     PetscCall(sort->storage.restore_fields(f));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -135,31 +136,56 @@ PetscErrorCode SimulationBackup::load_particles(PetscInt t)
 {
   PetscFunctionBeginUser;
   PetscViewer viewer;
-
-  Point point;
   PetscInt numparts, count;
 
   for (auto& sort : particles_) {
-    std::filesystem::path fname =
+    std::string fname =
       std::format("{}/{}/{}", out_dir_, t, sort->parameters.sort_name);
 
-    PetscCall(create_viewer(fname.string() + ".numparts", PETSC_TRUE, FILE_MODE_READ, &viewer));
+    PetscCall(create_viewer(fname + ".numparts", PETSC_TRUE, FILE_MODE_READ, &viewer));
     PetscCall(PetscViewerBinaryRead(viewer, &numparts, 1, &count, PETSC_INT));
     PetscCall(PetscViewerDestroy(&viewer));
     PetscCheck(count == 1, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED,
       "Incorrect number of particles to read is specified");
 
-    PetscCall(create_viewer(fname, PETSC_TRUE, FILE_MODE_READ, &viewer));
-    std::vector<Point> points;
-    for (PetscInt i = 0; i < numparts; ++i) {
-      PetscCall(PetscViewerBinaryRead(viewer, &point, 6, &count, PETSC_REAL));
-      PetscCheck(count == 6, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED,
-        "Point structure consists of 6 PetscReal values, read: %" PetscInt_FMT, count);
-      if (sort->is_local(point))
-        points.push_back(point);
+    PetscCall(sort->storage.clear());
+
+    ParticleStorage::Fields f;
+    PetscCall(sort->storage.get_fields(f));
+    std::vector<std::pair<std::string, PetscInt>> names{{"r", 3}};
+    for (const auto& [name, dof] : f.dof) {
+      if (name != "r" && !name.ends_with("_prev"))
+        names.emplace_back(name, dof);
     }
-    PetscCall(PetscViewerDestroy(&viewer));
-    PetscCall(sort->ingest(points.data(), (PetscInt)points.size()));
+    PetscCall(sort->storage.restore_fields(f));
+
+    // The position `r` is read first, it defines which particles are local
+    std::vector<PetscInt> local;
+    PetscInt first = 0;
+    std::vector<PetscReal> data;
+
+    for (const auto& [name, dof] : names) {
+      data.resize(dof * numparts);
+      PetscCall(create_viewer(fname + "." + name, PETSC_TRUE, FILE_MODE_READ, &viewer));
+      PetscCall(PetscViewerBinaryRead(viewer, data.data(), dof * numparts, &count, PETSC_REAL));
+      PetscCall(PetscViewerDestroy(&viewer));
+      PetscCheck(count == dof * numparts, PETSC_COMM_WORLD, PETSC_ERR_FILE_UNEXPECTED,
+        "Field \"%s\" has %" PetscInt_FMT " values, expected %" PetscInt_FMT, name.c_str(), count, dof * numparts);
+
+      if (name == "r") {
+        for (PetscInt i = 0; i < numparts; ++i) {
+          if (sort->is_local(Point{Vector3R(&data[3 * i]), Vector3R{}}))
+            local.push_back(i);
+        }
+        PetscCall(sort->storage.grow((PetscInt)local.size(), &first));
+      }
+
+      PetscCall(sort->storage.get_fields(f));
+      for (size_t i = 0; i < local.size(); ++i)
+        std::copy_n(&data[dof * local[i]], dof, f[name] + dof * (first + i));
+      PetscCall(sort->storage.restore_fields(f));
+    }
+    PetscCall(sort->storage.sort());
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
