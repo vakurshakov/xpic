@@ -8,12 +8,10 @@ static constexpr char help[] =
   "continuous one. The simulation (`-restart_simulation`) is run for `N`     \n"
   "steps without a stop, then, for every `k`, it is run for `k` steps with a \n"
   "backup, loaded from it and continued up to `N`. Fields and particles at   \n"
-  "`N` must be the same up to the round-off and the summation order.         "
-  "\n";
+  "`N` must be the same up to the round-off and the summation order.        \n";
 
 static constexpr PetscInt N = 8;
 static constexpr PetscInt k = 2;
-static constexpr PetscReal tolerance = 1e-8;
 
 struct State {
   std::vector<PetscReal> E;
@@ -36,18 +34,18 @@ static PetscErrorCode compare(const State& expected, const State& actual);
 int main(int argc, char** argv)
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
+  PetscCall(PetscInitialize(&argc, &argv, NULL, help));
 
   char name[PETSC_MAX_PATH_LEN] = "";
-  PetscCall(PetscOptionsGetString(nullptr, nullptr, "-restart_simulation", name, sizeof(name), nullptr));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-restart_simulation", name, sizeof(name), NULL));
 
   State continuous;
-  PetscCall(run(name, N, nullptr, "continuous", &continuous));
+  PetscCall(run(name, N, NULL, "continuous", &continuous));
 
   for (PetscInt t = k; t < N; t += k) {
     std::string subdir = std::format("restart_{}", t);
 
-    PetscCall(run(name, t, {{"diagnose_period", (PetscReal)t}}, subdir, nullptr));
+    PetscCall(run(name, t, {{"diagnose_period", (PetscReal)t}}, subdir, NULL));
 
     State restarted;
     PetscCall(run(name, N, {{"diagnose_period", (PetscReal)t}, {"load_from", t}}, subdir, &restarted));
@@ -75,7 +73,11 @@ static PetscErrorCode run(const std::string& simulation_name, PetscInt nt,
   presets.push_back({
     {"command", "SetField"},
     {"field", "B"},
-    {"setter", {{"name", "SetUniformField"}, {"value", {0, 0, 1}}}},
+    {"setter",
+      {
+        {"name", "SetUniformField"},
+        {"value", {0, 0, 1}},
+      }},
   });
 
   for (const Point& point : points) {
@@ -83,11 +85,15 @@ static PetscErrorCode run(const std::string& simulation_name, PetscInt nt,
       {"command", "SetParticles"},
       {"particles", "electrons"},
       {"coordinate",
-        {{"name", "PreciseCoordinate"},
-          {"value", {point.r[X], point.r[Y], point.r[Z]}}}},
+        {
+          {"name", "PreciseCoordinate"},
+          {"value", {point.r[X], point.r[Y], point.r[Z]}},
+        }},
       {"momentum",
-        {{"name", "PreciseMomentum"},
-          {"value", {point.p[X], point.p[Y], point.p[Z]}}}},
+        {
+          {"name", "PreciseMomentum"},
+          {"value", {point.p[X], point.p[Y], point.p[Z]}},
+        }},
     });
   }
 
@@ -135,8 +141,9 @@ static PetscErrorCode run(const std::string& simulation_name, PetscInt nt,
   PetscCall(simulation->calculate());
 
   if (state) {
-    for (auto&& [vec, out] :
-      {std::pair{simulation->E, &state->E}, {simulation->B, &state->B}}) {
+    for (auto&& [vec, out] : {                   //
+           std::pair{simulation->E, &state->E},  //
+           std::pair{simulation->B, &state->B}}) {
       PetscInt size;
       const PetscReal* array;
       PetscCall(VecGetLocalSize(vec, &size));
@@ -159,7 +166,7 @@ static PetscErrorCode compare(const State& expected, const State& actual)
     return std::ranges::equal(a, b,
       [](PetscReal x, PetscReal y)
       {
-        return equal_rel(x, y, tolerance, tolerance);
+        return equal_rel(x, y, PETSC_MACHINE_EPSILON, 0);
       });
   };
 
