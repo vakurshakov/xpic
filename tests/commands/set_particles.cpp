@@ -150,26 +150,11 @@ void overwrite_config(const std::string& simulation_name, bool coord_is_gc)
   });
 }
 
-template<typename PointT>
-static PetscInt count_points(const std::vector<std::list<PointT>>& storage)
-{
-  PetscInt count = 0;
-  for (const auto& cell : storage)
-    count += (PetscInt)cell.size();
-  return count;
-}
-
-static PetscInt count_points(const ParticleStorage& storage)
-{
-  PetscInt count;
-  PetscCallAbort(PETSC_COMM_WORLD, storage.get_size(&count));
-  return count;
-}
-
 PetscErrorCode check_counts(interfaces::Particles& particles, PetscInt expected)
 {
   PetscFunctionBeginUser;
-  PetscInt count = count_points(particles.storage);
+  PetscInt count;
+  PetscCall(particles.storage.get_size(&count));
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &count, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
   const char* name = particles.parameters.sort_name.c_str();
