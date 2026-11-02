@@ -191,29 +191,37 @@ PetscErrorCode ParticleStorage::update_cells()
   PetscCall(get_attributes(f));
   std::vector<PetscReal*> curr = exchanged_arrays(f);
 
+  // The destination is taken before wrapping: the periodic image of a particle
+  // is in the box of the neighbour it crossed the border of, not of the opposite one.
   // Threads own ascending chunks, so the indices are ascending in thread order
-  std::vector<std::vector<PetscInt>> movers(omp_get_max_threads());
+  struct Mover {
+    PetscInt i;
+    PetscInt slot;
+  };
+
+  std::vector<std::vector<Mover>> movers(omp_get_max_threads());
 #pragma omp parallel
   {
-    std::vector<PetscInt>& mine = movers[omp_get_thread_num()];
+    std::vector<Mover>& mine = movers[omp_get_thread_num()];
 
 #pragma omp for schedule(static)
     for (PetscInt i = 0; i < f.size; i++) {
       PetscReal* r = &curr[0][3 * i];
+      const PetscInt slot = neighbor_slot(r);
       wrap(r);
-      if (neighbor_slot(r) != center)
-        mine.push_back(i);
+      if (slot != center)
+        mine.push_back({i, slot});
     }
   }
 
   // Removing from the largest index keeps the last particle a non-mover
-  Packed outgoing[slots];
-  Packed incoming[slots];
+  Packed outgoing[slots]{};
+  Packed incoming[slots]{};
   PetscInt np = f.size;
   for (auto vec = movers.rbegin(); vec != movers.rend(); vec++) {
     for (auto it = vec->rbegin(); it != vec->rend(); it++) {
-      const PetscInt i = *it;
-      Packed& out = outgoing[neighbor_slot(&curr[0][3 * i])];
+      const PetscInt i = it->i;
+      Packed& out = outgoing[it->slot];
 
       np--;
       for (size_t k = 0; k < attributes.size(); k++) {
@@ -228,8 +236,8 @@ PetscErrorCode ParticleStorage::update_cells()
   }
   PetscCall(restore_attributes(f));
 
-  size_t o_num[slots];
-  size_t i_num[slots];
+  size_t o_num[slots]{};
+  size_t i_num[slots]{};
   MPI_Request reqs[2 * slots];
   PetscMPIInt req = 0;
 

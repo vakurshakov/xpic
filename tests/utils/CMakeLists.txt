@@ -18,3 +18,25 @@ foreach(test ${tests})
     set_property(TEST "${name}" PROPERTY LABELS smoke utils mpi)
   endforeach()
 endforeach()
+
+# Edge and corner neighbours. The domain is 16x18x16 cells (y splits unevenly over 4 ranks)
+# and the DMDA needs at least 4 cells per rank, so x4 is the finest split along x.
+add_test(
+  NAME particle_storage_mpi_x2y2z2
+  COMMAND ${MPI_DIR}/bin/mpiexec
+    -np 8 ./particle_storage.out
+    -da_processors_x 2
+    -da_processors_y 2
+    -da_processors_z 2
+)
+add_test(
+  NAME particle_storage_mpi_x4y4z1
+  COMMAND ${MPI_DIR}/bin/mpiexec
+    --oversubscribe -np 16 ./particle_storage.out
+    -da_processors_x 4
+    -da_processors_y 4
+    -da_processors_z 1
+)
+foreach(test particle_storage_mpi_x2y2z2 particle_storage_mpi_x4y4z1)
+  set_property(TEST ${test} PROPERTY LABELS smoke utils mpi)
+endforeach()
