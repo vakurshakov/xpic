@@ -1,0 +1,29 @@
+{
+    "Simulation": "@SIMULATION@",
+    "OutputDirectory": "@OUT@",
+    "Geometry": {
+        "x": "@N@ [dx]",
+        "y": "@N@ [dy]",
+        "z": "@N@ [dz]",
+        "t": "@STEPS@ [dt]",
+        "dx": @DX@,
+        "dy": @DX@,
+        "dz": @DX@,
+        "dt": @DT@,
+        "diagnose_period": "@STEPS@ [dt]",
+        "da_boundary_x": "DM_BOUNDARY_PERIODIC",
+        "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+        "da_boundary_z": "DM_BOUNDARY_PERIODIC"
+    },
+    "Particles": [
+        { "sort_name": "electrons", "Np": @PPC@, "n": 1, "q": -1, "m": 1, "T": 0.1 }
+    ],
+    "Presets": [
+        {
+            "command": "SetParticles",
+            "particles": "electrons",
+            "coordinate": { "name": "CoordinateInBox" },
+            "momentum": { "name": "MaxwellianMomentum", "tov": true }
+        }
+    ]
+}
