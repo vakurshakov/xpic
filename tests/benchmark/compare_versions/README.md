@@ -1,6 +1,6 @@
 # Comparing two xpic versions
 
-Runs the same JSON config through two `xpic.out` builds and prints before/after tables (PETSc `-log_view`, `perf stat`, `perf record`). Used to close the "Still open" item of `.claude/plans/particle-storage-deferred.md`: the real pushers before and after the storage change (results below).
+Runs the same JSON config through two `xpic.out` builds and prints before/after tables (PETSc `-log_view`, `perf stat`, `perf record`). Used to compare the real pushers before and after the storage change (results below).
 
 ## Usage
 
@@ -64,7 +64,7 @@ after/before, 1 rank x 4 threads:
 - ecsim, 2 ranks x 2 threads: wall 1.07 (diagnostics 1.73, First push 0.78, Second push 0.59). ecsimcorr, 2 ranks: wall 0.96 (First push 0.76, Second push 0.78).
 - The biggest single event: `final_update` of ecsimcorr is 25x faster (8.4 -> 0.33 ms/step, 1 rank).
 - Instructions are 15-30% higher after, cycles are lower or equal: the gain is IPC (L1 misses of basic and ecsimcorr drop by 25-55%).
-- eccapfim: `form_iteration` / `prepare_storage` events do not exist in the old code (shown as `-`). The +1.5% is the timer overhead of the new instrumentation (`__vdso_clock_gettime` + `omp_get_wtime` are 5.7% of samples after), which matches the phase-timing driver that was used before (within 0-2.5%, see `.claude/plans/particle-storage-deferred.md`). The `perf record` profile shapes are the same: interpolation and shape functions dominate (> 65%).
+- eccapfim: `form_iteration` / `prepare_storage` events do not exist in the old code (shown as `-`). The +1.5% is the timer overhead of the new instrumentation (`__vdso_clock_gettime` + `omp_get_wtime` are 5.7% of samples after), which matches the phase-timing driver that was used before (within 0-2.5%, see the `eccapfim` phase timings in the PR description of `particle-storage`). The `perf record` profile shapes are the same: interpolation and shape functions dominate (> 65%).
 
 **Regression to look at:** `Diagnostics run` is 1.7-1.8x slower after (basic 67 -> 119 ms/step, about +50 ms/step), 1.5-2.0x for eccapfim. In the profiles `MomentumConservation::calculate` goes from 3.7-9.6% to 8.7-13.4% of the samples. It makes the wall of ecsim +4% (1 rank) and +7% (2 ranks) despite faster pushers. The cause is not investigated; first candidates are the per-cell sort and the access pattern of the moment and momentum loops over the new storage.
 
