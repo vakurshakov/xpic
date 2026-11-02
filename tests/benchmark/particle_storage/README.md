@@ -12,7 +12,7 @@ python3 -I tests/benchmark/particle_storage/run.py 5 20
 Single run (the defaults are exactly this setup; `a`, `b` are skipped on more than one rank):
 
 ```sh
-mpiexec -n R build/Release/tests/benchmark/particle_storage_suite.out -n 32 -ppc 16 -steps 20 -vth 0.05 -backends lvabcde
+mpiexec -np R build/Release/tests/benchmark/particle_storage_suite.out -n 32 -ppc 16 -steps 20 -vth 0.05 -backends lvabcde
 ```
 
 With `collide` as the 3rd argument, the script runs the collision variants only and writes `output/particle_storage_collide.md`.

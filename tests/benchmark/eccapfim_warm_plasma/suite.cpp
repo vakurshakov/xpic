@@ -5,8 +5,8 @@
 static constexpr char help[] =
   " Warm periodic electrons (ions are a background) as in eccapfim_ex4,   \n"
   " timed by phases of a step. Options: -n (cells per axis) -ppc -steps.  \n"
-  " Usage: [mpiexec -n N] ./eccapfim_warm_plasma_suite.out [snes options] \n"
-  "                                                             [options] \n";
+  " Usage: [mpiexec -np N] ./eccapfim_warm_plasma_suite.out [snes options]\n"
+  "                                                              [options]\n";
 
 PetscErrorCode event_time(const char* name, PetscInt* count, PetscReal* time);
 

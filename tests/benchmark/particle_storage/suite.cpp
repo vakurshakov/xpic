@@ -17,7 +17,7 @@ static constexpr char help[] =
   " - optionally binary collisions (-collide k).                 \n"
   " Phases are timed apart. Options: -n -ppc -steps              \n"
   " -vth -omega -backends [lvabcde] -resort -collide.            \n"
-  " Usage: [mpiexec -n N] ./particle_storage_suite.out [options] \n";
+  " Usage: [mpiexec -np N] ./particle_storage_suite.out [options]\n";
 
 int main(int argc, char** argv)
 {
