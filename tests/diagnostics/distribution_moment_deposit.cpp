@@ -187,28 +187,23 @@ void overwrite_config(PetscInt nz, PetscReal shift)
 
   const char* sort_name = "particles";
 
-  Configuration::array_t presets;
+  Configuration::array_t coordinates, momenta;
   for (PetscInt k = 0; k < nz; ++k) {
     for (PetscInt j = 0; j < Nxy; ++j) {
       for (PetscInt i = 0; i < Nxy; ++i) {
         const Vector3R p = momentum(i, j);
-        presets.push_back({
-          {"command", "SetParticles"},
-          {"particles", sort_name},
-          {"coordinate",
-            {
-              {"name", "PreciseCoordinate"},
-              {"value", {i + shift, j + shift, k + shift}},
-            }},
-          {"momentum",
-            {
-              {"name", "PreciseMomentum"},
-              {"value", {p[X], p[Y], p[Z]}},
-            }},
-        });
+        coordinates.push_back({i + shift, j + shift, k + shift});
+        momenta.push_back({p[X], p[Y], p[Z]});
       }
     }
   }
+
+  const Configuration::array_t presets{{
+    {"command", "SetParticles"},
+    {"particles", sort_name},
+    {"coordinate", {{"name", "PreciseCoordinate"}, {"value", coordinates}}},
+    {"momentum", {{"name", "PreciseMomentum"}, {"value", momenta}}},
+  }};
 
   Configuration::overwrite({
     {"Simulation", "basic"},

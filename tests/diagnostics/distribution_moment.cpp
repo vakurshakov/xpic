@@ -13,7 +13,6 @@ static constexpr char help[] =
 constexpr PetscReal q = -1.0;
 constexpr PetscReal m = 2.0;
 constexpr PetscReal n = 1.0;
-constexpr PetscInt Np = 2;
 
 const std::vector<Point> points{
   Point{
@@ -113,7 +112,6 @@ void overwrite_config()
 
   for (const Point& point : points) {
     presets.push_back({
-      // `PreciseCoordinate` loads `Np` copies
       {"command", "SetParticles"},
       {"particles", sort_name},
       {"coordinate",
@@ -153,7 +151,7 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", sort_name},
-        {"Np", Np},
+        {"Np", 1},
         {"n", n},
         {"q", q},
         {"m", m},
