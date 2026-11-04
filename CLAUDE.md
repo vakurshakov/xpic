@@ -46,7 +46,7 @@ Before working on the build system, exploring/placing code, writing or reviewing
 
 ### Issue tracker
 
-Issues live in GitHub Issues (`vakurshakov/xpic`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
