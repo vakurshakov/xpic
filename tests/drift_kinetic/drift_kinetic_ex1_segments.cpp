@@ -1,5 +1,10 @@
 #include "src/impls/drift_kinetic/segments.h"
 
+static constexpr char help[] =
+  "Test of drift-kinetic trajectory segmentation. Checks cell-plane splits,\n"
+  "wrapped and local periodic images, endpoints, cell indices and lengths\n"
+  "for stationary, boundary-crossing and multidimensional trajectories.\n";
+
 namespace {
 
 using namespace drift_kinetic;
@@ -405,7 +410,7 @@ PetscErrorCode run_cases(std::size_t& count)
 int main(int argc, char** argv)
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, nullptr, "Drift-kinetic trajectory segmentation tests.\n"));
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
   std::size_t count = 0;
   PetscCall(run_cases(count));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Checked %zu segmentation cases.\n", count));

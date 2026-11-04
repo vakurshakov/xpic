@@ -3,6 +3,11 @@
 #include "src/utils/shape.h"
 #include "src/utils/world.h"
 
+static constexpr char help[] =
+  "Test of drift-kinetic trajectories at periodic boundaries. Checks field\n"
+  "and current stencil bounds and the discrete charge continuity equation\n"
+  "on serial and MPI-decomposed grids, including crossings along each axis.\n";
+
 using namespace drift_kinetic;
 
 struct Track {
@@ -180,7 +185,7 @@ static PetscErrorCode run()
 
 int main(int argc, char** argv)
 {
-  PetscCall(PetscInitialize(&argc, &argv, nullptr, "DK periodic seam stencil and continuity regression.\n"));
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
   PetscCall(run());
   PetscCall(PetscFinalize());
   return 0;
