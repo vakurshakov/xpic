@@ -6,6 +6,7 @@ set(smoke_tests
   drift_kinetic_ex3_gradb
   drift_kinetic_ex4_curv
   drift_kinetic_ex6_fields
+  drift_kinetic_ex8_periodic_seam
 )
 
 set(sanity_tests
@@ -38,8 +39,9 @@ set(snes_opt
     -snes_ksp_ew_threshold 0.1
 )
 
-# Tests with evolving fields are run on a decomposed domain as well
+# Tests also run on a decomposed domain
 set(mpi_tests
+  drift_kinetic_ex8_periodic_seam
   drift_kinetic_ex6_fields
   drift_kinetic_ex7_balance
 )
@@ -50,7 +52,7 @@ foreach(level smoke sanity regression)
     target_link_libraries(${test}.out ${PROJECT_NAME})
 
     set(opt "")
-    if(${test} IN_LIST mpi_tests)
+    if(${test} IN_LIST mpi_tests AND NOT ${test} STREQUAL "drift_kinetic_ex8_periodic_seam")
       set(opt ${snes_opt})
     endif()
 
@@ -93,3 +95,12 @@ foreach(test ${plot_tests})
 endforeach()
 
 set_property(TEST ${regression_tests} PROPERTY DEPENDS "${smoke_tests};${sanity_tests}")
+
+# The focused seam regression is expected to fail until issue #14 is fixed.
+set_property(
+  TEST
+  drift_kinetic_ex8_periodic_seam_mpi_x2
+  drift_kinetic_ex8_periodic_seam_mpi_y2
+  drift_kinetic_ex8_periodic_seam_mpi_z2
+  PROPERTY WILL_FAIL TRUE
+)
