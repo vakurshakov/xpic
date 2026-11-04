@@ -123,6 +123,9 @@ _Avoid_: Factory
 **Charge conservation**:
 The discrete continuity equation holds between deposited charge and current (Gauss's law stays satisfied).
 
+**Momentum balance**:
+The identity $dP/dt = QE + QVB$ for a sort, exact only for the `basic` Boris centering; for other implementations it holds approximately.
+
 **Energy balance**:
 Field plus particle energy changes only by what the scheme exchanges with an external source.
 _Avoid_: Energy drift (that is the error, not the property)

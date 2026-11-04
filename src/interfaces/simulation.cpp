@@ -4,7 +4,6 @@
 #include "src/diagnostics/builders/diagnostic_builder.h"
 #include "src/diagnostics/charge_conservation.h"
 #include "src/diagnostics/energy.h"
-#include "src/diagnostics/momentum_conservation.h"
 #include "src/impls/basic/simulation.h"
 #include "src/impls/drift_kinetic/simulation.h"
 #include "src/impls/eccapfim/simulation.h"
@@ -96,11 +95,6 @@ PetscErrorCode Simulation::initialize()
 
   PetscCall(initialize_implementation());
 
-  std::vector<const interfaces::Particles*> particles;
-  for (const Particles_sp& sort : particles_) {
-    particles.emplace_back(sort.get());
-  }
-
   /// @todo Use a shared pointers for diagnostics
   /// @todo Or else store the `TableDiagnostics` themselves
   bool append_energy_conservation = true;
@@ -117,9 +111,6 @@ PetscErrorCode Simulation::initialize()
 
   diagnostics_.emplace_back(  //
     std::make_unique<ChargeConservation>(*this));
-
-  diagnostics_.emplace_back(  //
-    std::make_unique<MomentumConservation>(da, E, B, particles));
 
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
