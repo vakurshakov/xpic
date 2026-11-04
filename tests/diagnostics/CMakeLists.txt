@@ -8,6 +8,7 @@ set(tests
   distribution_function_dk
   distribution_moment
   distribution_moment_dk
+  distribution_moment_deposit
   simulation_backup
   simulation_backup_dk
 )
@@ -32,6 +33,12 @@ foreach(test ${tests})
     set_property(TEST "${name}" PROPERTY LABELS smoke diagnostics mpi)
     set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "${test}")
   endforeach()
+endforeach()
+
+# Reproduces the `DistributionMoment` defect (region-gated deposit with its own 1st-order shape).
+# Drop WILL_FAIL when the full-world deposit lands.
+foreach(name distribution_moment_deposit distribution_moment_deposit_mpi_x2 distribution_moment_deposit_mpi_y2 distribution_moment_deposit_mpi_z2)
+  set_property(TEST ${name} PROPERTY WILL_FAIL TRUE)
 endforeach()
 
 # Restart from a backup must reproduce the continuous run, for kinetic and drift-kinetic sorts
