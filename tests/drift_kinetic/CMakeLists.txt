@@ -70,17 +70,6 @@ foreach(level smoke sanity regression)
   endforeach()
 endforeach()
 
-# Known defect of the DK pusher: periodic stencils at the domain seam are indexed
-# outside the local ghosted array on multi-rank runs, breaking charge continuity
-# and energy balance (see the separate issue). Drop WILL_FAIL when it is fixed.
-set_property(
-  TEST
-  drift_kinetic_ex7_balance_mpi_x2
-  drift_kinetic_ex7_balance_mpi_y2
-  drift_kinetic_ex7_balance_mpi_z2
-  PROPERTY WILL_FAIL TRUE
-)
-
 set(plot_tests
   drift_kinetic_ex2_exb
   drift_kinetic_ex3_gradb
