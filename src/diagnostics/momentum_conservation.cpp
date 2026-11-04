@@ -42,6 +42,7 @@ PetscErrorCode MomentumConservation::initialize()
   for (PetscInt i = 0; i < (PetscInt)particles.size(); ++i) {
     P0[i] = P1[i];
   }
+  PetscCall(TableDiagnostic::initialize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
