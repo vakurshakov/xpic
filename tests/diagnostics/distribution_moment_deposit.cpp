@@ -7,7 +7,7 @@
 static constexpr char help[] =
   "Testing \'DistributionMoment\' against the solver deposit. A lattice of  \n"
   "particles, one per cell and uniform in z, is shifted off the grid nodes. \n"
-  "Moments must be the sort's shape deposit (periodic wrap included), \n"
+  "Moments must be the sort's shape deposit (periodic wrap included),       \n"
   "independent of the region and the rank decomposition, also for nz = 1.   \n";
 
 // the local width must not be smaller than the stencil (4)
