@@ -31,8 +31,7 @@ static bool within(const World& world, const Vector3I& start, const Vector3I& si
 static bool safe_track(const World& world, const Track& track, PetscMPIInt rank)
 {
   const auto line = make_track(track.begin, track.end);
-  const auto periodic = periodic_segments(line, CellSplitMode::centers);
-  const auto segments = cell_segments(periodic, CellSplitMode::centers);
+  const auto segments = cell_segments(line, CellSplitMode::centers);
   bool valid = true;
   for (const auto& segment : segments) {
     DriftKineticShapeE e;
@@ -43,7 +42,7 @@ static bool safe_track(const World& world, const Track& track, PetscMPIInt rank)
     // rot(B) reads one extra node in each positive direction.
     valid &= within(world, b.p_g, Vector3I(b.shw + 1), track, "gradB/rotB", rank);
   }
-  for (const Vector3R& p : {make_begin(periodic.front()), make_end(periodic.back())}) {
+  for (const Vector3R& p : {make_begin(segments.front()), make_end(segments.back())}) {
     Shape shape;
     shape.setup(p, 1.5, spline_of_2nd_order);
     valid &= within(world, shape.start, shape.size, track, "endpoint B/M", rank);
