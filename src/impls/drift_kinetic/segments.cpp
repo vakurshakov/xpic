@@ -48,12 +48,13 @@ Vector3R make_end(const DriftKineticSegment& segment)
 // the exact unique. Near-ties of different axes leave slivers, harmless since
 // the shape functions are continuous across cell faces.
 //
-// Each piece takes the cell of its midpoint, wrapped into [0, Geom_n) in
-// integers, and is shifted by the same whole number of periods. The cell is
-// stored, not rederived from the shifted coordinates, which may round onto
-// the opposite box face.
+// Each piece takes the cell of its midpoint. In wrapped mode the cell is
+// reduced into [0, Geom_n) and both endpoints are shifted by the same whole
+// number of periods. In local mode neither the cell nor endpoints are wrapped.
+// The cell is stored rather than rederived from coordinates, which may round
+// onto the opposite box face.
 std::vector<DriftKineticSegment> cell_segments(
-  const DriftKineticSegment& track, CellSplitMode mode)
+  const DriftKineticSegment& track, CellSplitMode mode, SegmentImage image)
 {
   PetscReal offset = ((mode == CellSplitMode::centers) ? 0.5 : 0);
 
@@ -84,7 +85,8 @@ std::vector<DriftKineticSegment> cell_segments(
     Vector3I cell;
     for (Axis axis : {X, Y, Z}) {
       auto c = (PetscInt)std::floor(0.5 * (Rs0[axis] + Rsn[axis]) + offset);
-      cell[axis] = ((c % Geom_n[axis]) + Geom_n[axis]) % Geom_n[axis];
+      cell[axis] = image == SegmentImage::local ? c
+        : ((c % Geom_n[axis]) + Geom_n[axis]) % Geom_n[axis];
 
       auto shift = (PetscReal)(c - cell[axis]);
       shifted_Rs0[axis] -= shift;

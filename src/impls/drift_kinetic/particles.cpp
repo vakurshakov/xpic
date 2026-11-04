@@ -73,7 +73,7 @@ PetscErrorCode Particles::form_iteration()
     PointByField prev = arrays_prev.load(i);
 
     DriftKineticPush push(q / m, m);
-    DriftKineticEsirkepov util(E_arr, Bn0_arr, B_arr, Bn1_arr, J_arr, M_arr);
+    DriftKineticEsirkepov util(world, E_arr, Bn0_arr, B_arr, Bn1_arr, J_arr, M_arr);
 
     push.set_fields_callback(
       [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
@@ -151,7 +151,7 @@ PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
   PetscCall(DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
   PetscCall(DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
-  DriftKineticEsirkepov esirkepov(simulation_.B_arr);
+  DriftKineticEsirkepov esirkepov(world, simulation_.B_arr);
 
   PetscInt first;
   PetscCall(storage.grow(n, &first));
@@ -195,7 +195,7 @@ PetscReal Particles::kinetic_energy_local() const
   PetscCallAbort(PETSC_COMM_WORLD, DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
   PetscCallAbort(PETSC_COMM_WORLD, DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
-  DriftKineticEsirkepov esirkepov(simulation_.B_arr);
+  DriftKineticEsirkepov esirkepov(world, simulation_.B_arr);
 
   ParticleStorage::Attributes f;
   PetscCallAbort(PETSC_COMM_WORLD, storage.get_attributes(f));

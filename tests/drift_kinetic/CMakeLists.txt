@@ -95,12 +95,3 @@ foreach(test ${plot_tests})
 endforeach()
 
 set_property(TEST ${regression_tests} PROPERTY DEPENDS "${smoke_tests};${sanity_tests}")
-
-# The focused seam regression is expected to fail until issue #14 is fixed.
-set_property(
-  TEST
-  drift_kinetic_ex8_periodic_seam_mpi_x2
-  drift_kinetic_ex8_periodic_seam_mpi_y2
-  drift_kinetic_ex8_periodic_seam_mpi_z2
-  PROPERTY WILL_FAIL TRUE
-)

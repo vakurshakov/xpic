@@ -169,7 +169,7 @@ PetscErrorCode DkDistributionMoment::collect()
 
       // Interpolate |B| at the gyrocenter with the 2nd-order spline.
       Vector3R B_p;
-      DriftKineticEsirkepov interp(B_arr_local);
+      DriftKineticEsirkepov interp(dk_particles.world, B_arr_local);
       interp.interpolate_B(B_p, point.r);
 
       deposit(point.r, dk_moment(dk_particles, point, B_p.length()));

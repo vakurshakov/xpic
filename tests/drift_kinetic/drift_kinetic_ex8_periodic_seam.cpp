@@ -31,7 +31,7 @@ static bool within(const World& world, const Vector3I& start, const Vector3I& si
 static bool safe_track(const World& world, const Track& track, PetscMPIInt rank)
 {
   const auto line = make_track(track.begin, track.end);
-  const auto segments = cell_segments(line, CellSplitMode::centers);
+  const auto segments = cell_segments(line, CellSplitMode::centers, SegmentImage::local);
   bool valid = true;
   for (const auto& segment : segments) {
     DriftKineticShapeE e;
@@ -93,6 +93,9 @@ static PetscErrorCode run()
     Vector3R p{8.25, 8.25, 8.25}, q = p;
     q[a] += 0.3;
     tracks.push_back({p, q, a, "interior"});
+    p[a] = 7.85;
+    q[a] = 8.15;
+    tracks.push_back({p, q, a, "rank-boundary"});
   }
 
   Vec E, B, J, M, rho, Jglobal, rhoglobal, residual;
@@ -143,7 +146,7 @@ static PetscErrorCode run()
       PetscCall(DMDAVecGetArray(world.da, B, &bf));
       PetscCall(DMDAVecGetArray(world.da, J, &j));
       PetscCall(DMDAVecGetArray(world.da, M, &m));
-      DriftKineticEsirkepov kernel(e, bf, bf, bf, j, m);
+      DriftKineticEsirkepov kernel(world, e, bf, bf, bf, j, m);
       Vector3R ep, bhat, grad, rot;
       PetscReal len;
       PetscCall(kernel.interpolate(ep, len, bhat, grad, rot, track.end, track.begin));
