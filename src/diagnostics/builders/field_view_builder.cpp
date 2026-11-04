@@ -72,7 +72,6 @@ void FieldViewBuilder::parse_field(const Configuration::json_t& info, DM& da,
 {
   DM da_field = simulation_.da;
   DM da_rho = simulation_.da_rho;
-  DM da_mflux = simulation_.da_mflux;
 
   std::map<std::string, std::pair<DM, Vec>> map{
     {"E", {da_field, simulation_.E}},
@@ -84,10 +83,8 @@ void FieldViewBuilder::parse_field(const Configuration::json_t& info, DM& da,
   for (auto&& sort : simulation_.particles_) {
     std::string J_name = sort->parameters.sort_name + "/J";
     std::string rho_name = sort->parameters.sort_name + "/rho";
-    std::string mflux_name = sort->parameters.sort_name + "/mflux";
     map[J_name] = std::make_pair(da_field, sort->J);
     map[rho_name] = std::make_pair(da_rho, sort->rho[1]);
-    map[mflux_name] = std::make_pair(da_mflux, sort->mflux);
 
     if (auto* dk_sort = dynamic_cast<drift_kinetic::Particles*>(sort.get())) {
       std::string M_name = sort->parameters.sort_name + "/M";

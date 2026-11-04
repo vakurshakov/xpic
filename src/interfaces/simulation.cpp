@@ -55,7 +55,6 @@ PetscErrorCode Simulation::initialize()
 
   da = world.da;
   da_rho = world.da_rho;
-  da_mflux = world.da_mflux;
 
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &B));

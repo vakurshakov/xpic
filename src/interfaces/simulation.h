@@ -30,7 +30,6 @@ public:
 
   DM da;
   DM da_rho;
-  DM da_mflux;
 
   Vec E;
   Vec E_loc;

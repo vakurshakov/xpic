@@ -242,8 +242,7 @@
     "xticks",
     "ylabel",
     "ylim",
-    "yticks",
-    "mflux"
+    "yticks"
   ],
   "cSpell.enabled": true,
 }
