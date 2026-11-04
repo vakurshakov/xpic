@@ -45,29 +45,23 @@ protected:
 
   PetscErrorCode set_data_views(const Region& reg) override;
 
-  struct Shape {
-    static constexpr PetscInt shr = 1;
-    static constexpr PetscInt shw = 2;
-    static constexpr PetscInt shm = shw * shw * shw;
-
-    Vector3I start;
-    PetscReal cache[shm];
-
-    void setup(const Vector3R& r);
-  };
-
   virtual PetscErrorCode collect();
 
   /**
-   * @brief Deposits moments of all particles with a cell-centered shape. The
-   * storage-specific part is `for_each_particle(g, deposit)`: it must call
+   * @brief Deposits moments of all local particles with the sort's shape
+   * into the world-sized scratch field, then copies the `region` out of it.
+   * Ranks outside of the `region` take part in the deposit, but own no output.
+   * The storage-specific part is `for_each_particle(g, deposit)`: it must call
    * `deposit(r, moments)` for every particle of the local cell `g`.
    */
   template<typename ForEachParticle>
   PetscErrorCode collect(ForEachParticle&& for_each_particle);
 
-  DM da_glob;
-  Vec field_loc;
+  DM da_glob = NULL;
+  DM da_scratch = NULL;  // world decomposition, dof of the `region`
+
+  Vec scratch = NULL;
+  Vec scratch_loc = NULL;
 
   const interfaces::Particles& particles;
   Moment moment;

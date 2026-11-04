@@ -35,12 +35,6 @@ foreach(test ${tests})
   endforeach()
 endforeach()
 
-# Reproduces the `DistributionMoment` defect (region-gated deposit with its own 1st-order shape).
-# Drop WILL_FAIL when the full-world deposit lands.
-foreach(name distribution_moment_deposit distribution_moment_deposit_mpi_x2 distribution_moment_deposit_mpi_y2 distribution_moment_deposit_mpi_z2)
-  set_property(TEST ${name} PROPERTY WILL_FAIL TRUE)
-endforeach()
-
 # Restart from a backup must reproduce the continuous run, for kinetic and drift-kinetic sorts
 add_executable(simulation_restart.out simulation_restart.cpp)
 target_link_libraries(simulation_restart.out ${PROJECT_NAME})

@@ -6,9 +6,8 @@
 static constexpr char help[] =
   "Testing \'DkDistributionMoment\' diagnostic for drift-kinetic particles. \n"
   "Two guiding centers in the uniform magnetic field B=2 along z are        \n"
-  "deposited: one exactly at the grid node, which should land entirely in   \n"
-  "a single cell, and another one halfway between two nodes, which should   \n"
-  "be split equally.                                                        \n";
+  "deposited: one exactly at the grid node, another one halfway between     \n"
+  "two nodes. Each is spread by the sort's shape.                     \n";
 
 static constexpr PetscReal q = -1.0;
 static constexpr PetscReal m = 2.0;
@@ -104,17 +103,34 @@ PetscErrorCode check_moment(const drift_kinetic::Particles& particles,
   PetscCall(read_floats(out_dir / "0000", geom_nx * geom_ny * geom_nz * dof, written));
 
   Values expected(written.size(), 0.0);
-  auto deposit = [&](const Vector3I& cell, PetscReal weight, const Values& values)
+  // Each particle is spread over the neighbouring cells by the shape, wrapping periodically
+  const PetscInt R = (PetscInt)std::ceil(shape_radius);
+  auto deposit = [&](const Point& point, const Values& values)
   {
-    for (PetscInt c = 0; c < dof; c++) {
-      PetscInt g = indexing::t_g(cell[X], cell[Y], cell[Z], c, dof);
-      expected[g] += weight * n * values[c];
+    for (PetscInt dk = -R; dk <= R; dk++) {
+      for (PetscInt dj = -R; dj <= R; dj++) {
+        for (PetscInt di = -R; di <= R; di++) {
+          const PetscInt cx = (PetscInt)std::floor(point.r[X]) + di;
+          const PetscInt cy = (PetscInt)std::floor(point.r[Y]) + dj;
+          const PetscInt cz = (PetscInt)std::floor(point.r[Z]) + dk;
+          const PetscReal weight =             //
+            shape_function(point.r[X] - cx) *  //
+            shape_function(point.r[Y] - cy) *  //
+            shape_function(point.r[Z] - cz);
+          for (PetscInt c = 0; c < dof; c++) {
+            PetscInt g = indexing::t_g(  //
+              (cx + geom_nx) % geom_nx,  //
+              (cy + geom_ny) % geom_ny,  //
+              (cz + geom_nz) % geom_nz, c, dof);
+            expected[g] += weight * n * values[c];
+          }
+        }
+      }
     }
   };
 
-  deposit({2, 3, 4}, 1.0, expected_moment(name, points[0]));
-  deposit({5, 5, 5}, 0.5, expected_moment(name, points[1]));
-  deposit({6, 5, 5}, 0.5, expected_moment(name, points[1]));
+  for (const Point& point : points)
+    deposit(point, expected_moment(name, point));
 
   for (std::size_t i = 0; i < written.size(); i++) {
     PetscCheck(equal_tol(written[i], expected[i], 1e-7), PETSC_COMM_WORLD, PETSC_ERR_USER,

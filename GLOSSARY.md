@@ -41,6 +41,10 @@ _Avoid_: Transfer, switching
 One named per-particle quantity of a sort (position `r`, momentum `p`, ...) with a fixed number of components, stored as a flat array in the particle storage.
 _Avoid_: Field (that is the electromagnetic field), property, column
 
+**Shape**:
+The weight with which a macro-particle's quantity is gathered from or scattered onto grid nodes, shared by the solver and the diagnostics. Its profile is `shape_function`, `shape_radius` is its extent to one side; the `Shape` class caches the node weights of a particle.
+_Avoid_: Form-factor, spline, kernel
+
 ### Time and space
 
 **Step**:

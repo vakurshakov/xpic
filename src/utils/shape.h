@@ -93,4 +93,31 @@ private:
   PetscReal shape[shm];
 };
 
+/**
+ * @brief Calls `node(x, y, z, weight)` for every grid node covered by the shape
+ * of a point at `r`, using the compile-time `shape_function`. The
+ * node indices are not wrapped, the caller deposits into a ghosted array.
+ */
+template<typename Node>
+inline void for_each_shape_node(const Vector3R& r, Node&& node)
+{
+  constexpr PetscInt shw = (PetscInt)(2 * shape_radius);
+
+  const Vector3R p_r = Shape::make_r(r);
+  Vector3I start;
+  PetscReal weights[3][shw];
+
+  for (Axis a : {X, Y, Z}) {
+    start[a] = (PetscInt)(std::ceil(p_r[a] - shape_radius));
+    for (PetscInt i = 0; i < shw; i++)
+      weights[a][i] = shape_function(p_r[a] - (PetscReal)(start[a] + i));
+  }
+
+  for (PetscInt k = 0; k < shw; k++)
+    for (PetscInt j = 0; j < shw; j++)
+      for (PetscInt i = 0; i < shw; i++)
+        node(start[X] + i, start[Y] + j, start[Z] + k,
+          weights[Z][k] * weights[Y][j] * weights[X][i]);
+}
+
 #endif  // SRC_UTILS_SHAPE_H

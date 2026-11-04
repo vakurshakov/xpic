@@ -164,37 +164,6 @@ PetscErrorCode Particles::finalize()
 }
 
 
-struct DefaultRhoShape {
-  DefaultRhoShape() = default;
-
-  static constexpr PetscReal shr = shape_radius;
-  static constexpr PetscInt shw = (PetscInt)(2 * shr);
-  static constexpr PetscInt shm = POW3(shw);
-  static constexpr PetscReal (&sfunc)(PetscReal) = shape_function;
-
-  Vector3I start;
-  PetscReal cache[shm];
-
-  void setup(const Vector3R& r)
-  {
-    Vector3R p_r = ::Shape::make_r(r);
-
-    start = Vector3I{
-      (PetscInt)(ceil(p_r[X] - shr)),
-      (PetscInt)(ceil(p_r[Y] - shr)),
-      (PetscInt)(ceil(p_r[Z] - shr)),
-    };
-
-#pragma omp simd
-    for (PetscInt i = 0; i < shm; ++i) {
-      auto x = (PetscReal)(start[X] + i % shw);
-      auto y = (PetscReal)(start[Y] + (i / shw) % shw);
-      auto z = (PetscReal)(start[Z] + (i / shw) / shw);
-      cache[i] = sfunc(p_r[X] - x) * sfunc(p_r[Y] - y) * sfunc(p_r[Z] - z);
-    }
-  }
-};
-
 PetscErrorCode Particles::calculate_moments()
 {
   PetscFunctionBeginUser;
@@ -213,7 +182,6 @@ PetscErrorCode Particles::calculate_moments()
   PetscCall(DMDAVecGetArrayWrite(da_rho, r_loc, &r_arr));
   PetscCall(DMDAVecGetArrayDOFWrite(da_mflux, mflux_loc, &mflux_arr));
 
-  DefaultRhoShape shape;
   const PetscReal q = parameters.q;
   const PetscReal m = parameters.m;
   const PetscReal mpw = parameters.mpw;
@@ -222,12 +190,10 @@ PetscErrorCode Particles::calculate_moments()
   PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
 
-#pragma omp parallel for private(shape)
+#pragma omp parallel for
   for (PetscInt n = 0; n < f.size; n++) {
     const Point point = arrays.load(n);
     const Vector3R& v = point.p;
-
-    shape.setup(point.r);
 
     constexpr PetscInt msize = 6;
     const PetscReal moments[msize] = {
@@ -239,21 +205,17 @@ PetscErrorCode Particles::calculate_moments()
       m * v[Z] * v[Z],
     };
 
-    PetscInt i, j, x, y, z;
-
-    for (i = 0; i < shape.shm; ++i) {
-      x = shape.start[X] + i % shape.shw;
-      y = shape.start[Y] + (i / shape.shw) % shape.shw;
-      z = shape.start[Z] + (i / shape.shw) / shape.shw;
-
+    for_each_shape_node(point.r,
+      [&](PetscInt x, PetscInt y, PetscInt z, PetscReal w)
+      {
 #pragma omp atomic update
-      r_arr[z][y][x] += (q * mpw) * shape.cache[i];
+        r_arr[z][y][x] += (q * mpw) * w;
 
-      for (j = 0; j < msize; ++j) {
+        for (PetscInt j = 0; j < msize; j++) {
 #pragma omp atomic update
-        mflux_arr[z][y][x][j] += (moments[j] * mpw) * shape.cache[i];
-      }
-    }
+          mflux_arr[z][y][x][j] += (moments[j] * mpw) * w;
+        }
+      });
   }
   PetscCall(storage.restore_attributes(f));
 
