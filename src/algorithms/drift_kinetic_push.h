@@ -3,6 +3,12 @@
 
 #include "src/interfaces/point.h"
 
+/// @brief 0 uses plain Picard, 1 uses sequential Picard with safeguarded
+/// dynamic Aitken relaxation.
+#ifndef DRIFT_KINETIC_AITKEN
+#define DRIFT_KINETIC_AITKEN 1
+#endif
+
 /// @brief Fully implicit drift-kinetic guiding-center pusher.
 /// Advances guiding-center position and parallel velocity.
 class DriftKineticPush {
@@ -40,23 +46,29 @@ public:
 
 private:
   void process_picard(PetscReal dt, PointByField& pn, const PointByField& p0);
+  void process_picard_aitken(
+    PetscReal dt, PointByField& pn, const PointByField& p0);
 
-  /// @brief Performs one Picard update.
-  void step(const PetscReal dt, PointByField& pn, const PointByField& p0);
+  /// @brief Increments and residuals scaled as (dr, dt * dv).
+  using State = std::array<PetscReal, 4>;
 
   /// @brief Evaluates drift velocity and acceleration.
   void evaluate_rhs(const PointByField& pn, const PointByField& p0);
 
   void update_fields(const PointByField& pn, const PointByField& p0);
-  void update_V_dgc(const PointByField& pn, const PointByField& p0);
+  void update_effective_field();
+  void update_V_dgc();
   void update_V_par(const PointByField& pn, const PointByField& p0);
-  void update_a_par(const PointByField& pn, const PointByField& p0);
+  void update_a_par();
   void update_r(PetscReal dt, PointByField& pn, const PointByField& p0);
-  void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0);
+  void update_v_parallel(
+    PetscReal dt, PointByField& pn, const PointByField& p0);
 
   /// @brief Checks convergence using both residuals.
   bool check_convergence(
     PetscReal dt, const PointByField& pn, const PointByField& p0);
+
+  bool check_increment_convergence(PetscReal dt, const State& f);
 
   // Particle parameters
   PetscReal qm = 0;
@@ -66,11 +78,21 @@ private:
 
   // Nonlinear iteration state and residuals
   PetscInt it = 0;
+  // Aitken allows up to four times this number of trial updates.
   PetscInt maxit = 100;
-  PetscReal atol = 1e-12;
-  PetscReal rtol = 1e-12;
+  // `atol` is a velocity, the position residual uses `dt * atol`. Both
+  // residuals are also scaled by `rtol` with the step: the displacement and
+  // |V_par| + |dt * a_par|, since the rounding error of the parallel velocity
+  // is relative to it and not to its small increment.
+  PetscReal atol = 1e-16;
+  PetscReal rtol = 1e-13;
   PetscReal FRk, FVk;
   bool converged = false;
+
+  // Right-hand side that built the current `pn`, see `check_convergence()`
+  Vector3R V_dgc_prev;
+  PetscReal a_par_prev;
+  bool has_prev = false;  // False before the first update of `pn`.
 
   // Fields interpolated to the particle (set by `set_fields`), at t=n+1/2
   Vector3R E;      // Midpoint electric field.
@@ -80,7 +102,6 @@ private:
   PetscReal lenB;  // Magnetic field magnitude.
 
   // Quantities derived from the interpolated fields
-  Vector3R rotb;       // Unit magnetic direction curl.
   Vector3R B_eff;      // Effective magnetic field.
   PetscReal lenB_eff;  // Effective field parallel projection.
   Vector3R b_eff;      // Effective field scaled by its parallel projection.
