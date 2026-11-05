@@ -58,14 +58,17 @@ std::vector<DriftKineticSegment> cell_segments(
 {
   PetscReal offset = ((mode == CellSplitMode::centers) ? 0.5 : 0);
 
-  std::vector<PetscReal> t_values{0, 1};
+  std::vector<PetscReal> t_values;
+  t_values.reserve(5);
+  t_values.push_back(0);
+  t_values.push_back(1);
   for (Axis axis : {X, Y, Z}) {
-    auto c0 = (PetscInt)std::floor(track.Rs0[axis] + offset);
-    auto c1 = (PetscInt)std::floor(track.Rsn[axis] + offset);
+    auto n0 = (PetscInt)std::floor(track.Rs0[axis] + offset);
+    auto n1 = (PetscInt)std::floor(track.Rsn[axis] + offset);
 
-    for (PetscInt n = std::min(c0, c1) + 1; n <= std::max(c0, c1); n++) {
+    for (PetscInt n = std::min(n0, n1) + 1; n <= std::max(n0, n1); n++) {
       PetscReal t = ((PetscReal)n - offset - track.Rs0[axis]) / track.dRs[axis];
-      t_values.push_back(std::clamp(t, PetscReal{0}, PetscReal{1}));
+      t_values.push_back(std::clamp(t, 0.0, 1.0));
     }
   }
   std::sort(t_values.begin(), t_values.end());

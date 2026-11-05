@@ -125,7 +125,6 @@ static PetscErrorCode run()
         b[z][y][x] = Vector3R{0, 0, 1};
   PetscCall(DMDAVecRestoreArray(world.da, B, &b));
 
-  PetscInt failures = 0;
   for (const auto& track : tracks) {
     bool owner = true;
     for (PetscInt a = 0; a < 3; ++a) {
@@ -133,13 +132,11 @@ static PetscErrorCode run()
       owner &= world.start[a] <= cell && cell < world.end[a];
     }
     const bool safe = !owner || safe_track(world, track, rank);
-    PetscInt local_bad = !safe, any_bad;
-    PetscCallMPI(MPI_Allreduce(&local_bad, &any_bad, 1, MPIU_INT, MPI_MAX, PETSC_COMM_WORLD));
+    PetscInt local_bad = !safe, global_bad;
+    PetscCallMPI(MPI_Allreduce(&local_bad, &global_bad, 1, MPIU_INT, MPI_MAX, PETSC_COMM_WORLD));
     PetscCall(PetscSynchronizedFlush(PETSC_COMM_WORLD, PETSC_STDOUT));
-    if (any_bad) {
-      ++failures;
-      continue;
-    }
+    PetscCheck(!global_bad, PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Stencil out of bounds for track %s on axis %d", track.name, track.axis);
     PetscCall(VecSet(J, 0));
     PetscCall(VecSet(M, 0));
     PetscCall(VecSet(rho, 0));
@@ -168,18 +165,13 @@ static PetscErrorCode run()
     PetscCall(MatMultAdd(div, Jglobal, rhoglobal, residual));
     PetscReal norm;
     PetscCall(VecNorm(residual, NORM_2, &norm));
-    if (norm >= 1e-10 || !std::isfinite(norm)) {
-      PetscCall(PetscPrintf(PETSC_COMM_WORLD, "track %s axis %d: continuity residual %.16e\n", track.name, track.axis, (double)norm));
-      ++failures;
-    }
+    PetscCheck(std::isfinite(norm) && norm < 1e-10, PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Track %s axis %d: continuity residual %.16e", track.name, track.axis, (double)norm);
   }
   PetscCall(MatDestroy(&div));
   for (Vec* v : {&E, &B, &J, &M, &rho, &Jglobal, &rhoglobal, &residual})
     PetscCall(VecDestroy(v));
-  PetscCall(DMDestroy(&world.da_rho));
-  PetscCall(DMDestroy(&world.da_mflux));
   PetscCall(world.finalize());
-  PetscCheck(failures == 0, PETSC_COMM_WORLD, PETSC_ERR_USER, "%d periodic seam cases failed", failures);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

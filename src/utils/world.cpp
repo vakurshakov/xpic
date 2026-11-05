@@ -69,6 +69,10 @@ PetscErrorCode World::initialize()
 PetscErrorCode World::finalize()
 {
   PetscFunctionBeginUser;
+  if (da_rho)
+    PetscCall(DMDestroy(&da_rho));
+  if (da_mflux)
+    PetscCall(DMDestroy(&da_mflux));
   if (da)
     PetscCall(DMDestroy(&da));
   PetscFunctionReturn(PETSC_SUCCESS);

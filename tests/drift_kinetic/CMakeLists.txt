@@ -41,9 +41,9 @@ set(snes_opt
 
 # Tests also run on a decomposed domain
 set(mpi_tests
-  drift_kinetic_ex8_periodic_seam
   drift_kinetic_ex6_fields
   drift_kinetic_ex7_balance
+  drift_kinetic_ex8_periodic_seam
 )
 
 foreach(level smoke sanity regression)
@@ -52,7 +52,7 @@ foreach(level smoke sanity regression)
     target_link_libraries(${test}.out ${PROJECT_NAME})
 
     set(opt "")
-    if(${test} IN_LIST mpi_tests AND NOT ${test} STREQUAL "drift_kinetic_ex8_periodic_seam")
+    if(${test} IN_LIST mpi_tests)
       set(opt ${snes_opt})
     endif()
 

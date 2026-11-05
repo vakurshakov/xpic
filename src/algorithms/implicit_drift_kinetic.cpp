@@ -76,17 +76,9 @@ DriftKineticEsirkepov::DriftKineticEsirkepov(const World& world, Vector3R*** E_g
 void DriftKineticEsirkepov::check_stencil(
   const Vector3I& start, const Vector3I& size, const char* name) const
 {
-#if defined(PETSC_USE_DEBUG)
   for (PetscInt a = 0; a < 3; ++a)
-    PetscCheckAbort(start[a] >= world.gstart[a] && start[a] + size[a] <= world.gend[a],
-      PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE,
-      "DK %s stencil axis %d: [%d,%d) outside ghost range [%d,%d)",
-      name, a, start[a], start[a] + size[a], world.gstart[a], world.gend[a]);
-#else
-  (void)start;
-  (void)size;
-  (void)name;
-#endif
+    PetscAssertAbort(world.gstart[a] <= start[a] && start[a] + size[a] <= world.gend[a], PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE,
+      "DK %s stencil axis %d: [%d,%d) outside ghost range [%d,%d)", name, a, start[a], start[a] + size[a], world.gstart[a], world.gend[a]);
 }
 
 PetscErrorCode DriftKineticEsirkepov::interpolate(                     //
