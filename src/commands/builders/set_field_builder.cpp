@@ -14,6 +14,7 @@ PetscErrorCode SetFieldBuilder::build(const Configuration::json_t& info)
   std::set<std::string_view> available_setters{
     "SetUniformField",
     "SetGradientField",
+    "SetMirrorField",
     "SetAzimuthalField",
     "SetCoilsField",
     "SetCosineField",
@@ -69,6 +70,15 @@ PetscErrorCode SetFieldBuilder::build(const Configuration::json_t& info)
 
     setup = SetGradientField(value, axis, length, origin);
     LOG("    Field value: {} {} {}, axis: {}, length: {}, origin: {}", REP3_A(value), axis, length, origin);
+  }
+  else if (name == "SetMirrorField") {
+    LOG("  Using SetMirrorField setter");
+    PetscReal value = setter.at("value").get<PetscReal>();
+    PetscReal curvature = setter.at("curvature").get<PetscReal>();
+    Vector3R center = parse_vector(setter, "center");
+
+    setup = SetMirrorField(value, curvature, center);
+    LOG("    Field value: {}, curvature: {}, center: {} {} {}", value, curvature, REP3_A(center));
   }
   else if (name == "SetAzimuthalField") {
     LOG("  Using SetAzimuthalField setter");

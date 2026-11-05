@@ -61,6 +61,19 @@ struct SetGradientField {
 };
 
 /**
+ * @brief Paraxial parabolic mirror along z with s = z - center_z:
+ * B_z = value * (1 + curvature * s^2), B_x,y = -value * curvature * s * (x,y -
+ * center_x,y). The field is divergence-free, also on the Yee grid; on the axis
+ * |B| = B_z, so the bounce frequency is sqrt(2 mu value curvature / m).
+ */
+struct SetMirrorField {
+  PetscErrorCode operator()(Vec vec, const Stagger& stagger);
+  PetscReal value;
+  PetscReal curvature;
+  Vector3R center;
+};
+
+/**
  * @brief Rotational field with circular field lines
  * around an axis parallel to z through (center_x, center_y).
  *  - radius <= 0: B = value * e_phi = value (-(y-cy), x-cx, 0)/r, i.e. constant
