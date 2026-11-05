@@ -164,12 +164,14 @@ PetscErrorCode Particles::form_iteration()
         const PetscReal a0 = q * mpw;
         const PetscReal alpha = 0.5 * dtau * (q / m);
 
-        const PetscInt cn_maxit = 30;
-        const PetscReal cn_atol = 0.5 * atol;
-        const PetscReal cn_rtol = 0.5 * atol;
+        const PetscInt cn_maxit = 100;
+        // `cn_rtol` is the relative accuracy of the mid-step velocity `vh`,
+        // `cn_atol` is the rounding error of |v| ~ c.
+        const PetscReal cn_atol = 1e-16;
+        const PetscReal cn_rtol = 1e-13;
 
         PetscInt it = 0, s;
-        PetscReal rn, r0, d, ds, bs;
+        PetscReal rn, d, ds, bs;
 
         Vector3R E_p, B_p, rsn, rs0;
         std::vector<Vector3R> coords;
@@ -200,9 +202,11 @@ PetscErrorCode Particles::form_iteration()
         };
 
         set_fields();
-        rn = r0 = get_residue();
+        // rn = r0 = get_residue();
+        rn = get_residue();
 
-        for (; rn > cn_atol + cn_rtol * r0 && it < cn_maxit; it++) {
+        // for (; rn > cn_atol + cn_rtol * r0 && it < cn_maxit; it++) {
+        for (; rn > cn_atol + cn_rtol * vh.length() && it < cn_maxit; it++) {
           Vector3R a, b, w;
           a = alpha * E_p;
           b = alpha * B_p;
