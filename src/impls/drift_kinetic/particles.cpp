@@ -93,14 +93,6 @@ PetscErrorCode Particles::form_iteration()
       };
     };
 
-    auto midpoint = [](const PointByField& p0, const PointByField& pn)
-    {
-      PointByField mid(p0);
-      mid.r = 0.5 * (p0.r + pn.r);
-      mid.p_parallel = 0.5 * (p0.p_parallel + pn.p_parallel);
-      return mid;
-    };
-
     auto accept = [&](PetscReal dtau, PointByField& pn, const PointByField& p0)
     {
       const PetscReal a0 = q * mpw * (dtau / dt);
@@ -109,8 +101,24 @@ PetscErrorCode Particles::form_iteration()
       util.decomposition(pn.r, p0.r, Vh_sub, a0, b0);
     };
 
+    // Halving does not conserve energy: every substep is pushed and
+    // deposited with the whole-step layers B^n, B^{n+1}, so the mu B terms
+    // of the substeps do not telescope. The whole step is accepted instead,
+    // a non-converged push is counted as a leaf failure.
     AdaptiveSubstepStats stats;
-    adaptive_substep(dt, curr, prev, attempt, midpoint, accept, stats);
+    const AdaptiveSubstepAttempt result = attempt(dt, curr, prev);
+    accept(dt, curr, prev);
+
+    stats.iteration_sum = result.iterations;
+    stats.max_iterations = result.iterations;
+
+    if (!result.converged) {
+      stats.leaf_failures = 1;
+      stats.max_leaf_residue_r =
+        isfinite(result.residue_r) ? result.residue_r : PETSC_MAX_REAL;
+      stats.max_leaf_residue_v =
+        isfinite(result.residue_v) ? result.residue_v : PETSC_MAX_REAL;
+    }
 
     avgit += (PetscReal)stats.iteration_sum / (PetscReal)size;
     maxit = std::max(maxit, stats.max_iterations);
