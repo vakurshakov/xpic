@@ -46,7 +46,7 @@ PetscErrorCode SetAzimuthalField::operator()(Vec vec, const Stagger& stagger)
   const auto& off = stagger.offset;
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -86,7 +86,7 @@ PetscErrorCode SetGradientField::operator()(Vec vec, const Stagger& stagger)
 
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -101,6 +101,42 @@ PetscErrorCode SetGradientField::operator()(Vec vec, const Stagger& stagger)
 
   PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
   LOG("  Gradient field is set, value ({} {} {}), axis {}, length {}, origin {}", REP3_A(value), axis, length, origin);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode SetMirrorField::operator()(Vec vec, const Stagger& stagger)
+{
+  PetscFunctionBeginUser;
+  DM da;
+  PetscCall(VecGetDM(vec, &da));
+
+  Vector3I start, size;
+  PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
+
+  Arr arr;
+  PetscCall(DMDAVecGetArrayWrite(da, vec, &arr));
+
+  const auto& off = stagger.offset;
+
+#pragma omp parallel for
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
+    PetscInt x = start[X] + g % size[X];
+    PetscInt y = start[Y] + (g / size[X]) % size[Y];
+    PetscInt z = start[Z] + (g / size[X]) / size[Y];
+
+    const PetscReal rx_x = (x + off[X][X]) * dx - center[X];
+    const PetscReal sz_x = (z + off[X][Z]) * dz - center[Z];
+    const PetscReal ry_y = (y + off[Y][Y]) * dy - center[Y];
+    const PetscReal sz_y = (z + off[Y][Z]) * dz - center[Z];
+    const PetscReal sz_z = (z + off[Z][Z]) * dz - center[Z];
+
+    arr[z][y][x][X] = -value * curvature * sz_x * rx_x;
+    arr[z][y][x][Y] = -value * curvature * sz_y * ry_y;
+    arr[z][y][x][Z] = value * (1.0 + curvature * sz_z * sz_z);
+  }
+
+  PetscCall(DMDAVecRestoreArrayWrite(da, vec, &arr));
+  LOG("  Mirror field is set, value {}, curvature {}, center ({} {} {})", value, curvature, REP3_A(center));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -125,7 +161,7 @@ PetscErrorCode SetCosineField::operator()(Vec vec, const Stagger& stagger)
   };
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -164,7 +200,7 @@ PetscErrorCode SetGeneralCosineField::operator()(Vec vec, const Stagger& stagger
   };
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -213,7 +249,7 @@ PetscErrorCode SetCoilsField::operator()(Vec vec, const Stagger& stagger)
   PetscReal sx, sy, sz, r;
 
 #pragma omp parallel for private(sx, sy, sz, r)
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
