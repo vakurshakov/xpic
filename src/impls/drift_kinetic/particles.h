@@ -7,15 +7,47 @@ namespace drift_kinetic {
 
 class Simulation;
 
-/// @brief Stores, advances and redistributes drift-kinetic particles.
+/// @brief `PointByField` access to the raw arrays of `Particles::storage`.
+struct DkPointArrays {
+  PetscReal* r;
+  PetscReal* p;
+  PetscReal* p_parallel;
+  PetscReal* mu_p;
+
+  /// @param suffix `"_prev"` gives access to the saved states.
+  DkPointArrays(const ParticleStorage::Attributes& f, const std::string& suffix = "")
+    : r(f["r" + suffix]),
+      p(f["p" + suffix]),
+      p_parallel(f["p_parallel" + suffix]),
+      mu_p(f["mu_p" + suffix])
+  {
+  }
+
+  PointByField load(PetscInt i) const
+  {
+    return {Vector3R(r + 3 * i), Vector3R(p + 3 * i), p_parallel[i], mu_p[i]};
+  }
+
+  void store(PetscInt i, const PointByField& point) const
+  {
+    std::copy_n(point.r.data, 3, r + 3 * i);
+    std::copy_n(point.p.data, 3, p + 3 * i);
+    p_parallel[i] = point.p_parallel;
+    mu_p[i] = point.mu_p;
+  }
+};
+
+/// @brief Advances drift-kinetic particles, `storage` holds `r`, `p` (the
+/// momentum of the guiding center step), `p_parallel` and `mu_p`.
 class Particles : public interfaces::Particles {
 public:
   Particles(Simulation& simulation, const SortParameters& parameters);
+  PetscErrorCode initialize() override;
   PetscErrorCode finalize() override;
 
   PetscErrorCode form_iteration();
 
-  PetscErrorCode commit_added_particles() override;
+  PetscErrorCode ingest(const Point* points, PetscInt n) override;
   PetscErrorCode prepare_storage();
   PetscReal kinetic_energy_local() const;
   PetscReal get_average_iteration_number() const;
@@ -27,7 +59,6 @@ public:
 
   void set_fail_on_terminal_nonconvergence(bool value);
   bool get_fail_on_terminal_nonconvergence() const;
-  const std::vector<std::list<PointByField>>& get_dk_curr_storage() const;
 
   const Simulation& simulation() const;
 
@@ -41,13 +72,6 @@ public:
   Arr Bn1_arr;  // Predicted magnetic field array.
 
 protected:
-  PetscErrorCode update_cells_seq();
-  PetscErrorCode update_cells_mpi();
-  PetscErrorCode correct_coordinates(PointByField& point);
-
-  std::vector<std::list<PointByField>> dk_curr_storage;  // Current states by cell.
-  std::vector<std::vector<PointByField>> dk_prev_storage;  // Saved states by cell.
-
   PetscInt size = 0;    // Local particle count.
   PetscReal avgit = 0;  // Average pusher iteration count.
   PetscInt maxit = 0;   // Largest pusher iteration count.

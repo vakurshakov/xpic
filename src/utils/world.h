@@ -24,6 +24,7 @@ struct World {
 
   DM da = NULL;
   DM da_rho = NULL;
+  DM da_mflux = NULL;
 
   PetscInt procs[3];
   DMBoundaryType bounds[3];

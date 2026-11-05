@@ -2,38 +2,51 @@
 
 from collect import *
 
-arrays: CollectionArrays = {
-    "b": [[], gen_view("B_PlaneZ_05", 'z', 3)],
-    "ni": [[], gen_view("ions/Density_PlaneZ_05")],
-    "ne": [[], gen_view("electrons/Density_PlaneZ_05")],
+config = select_subdirectory() if len(sys.argv) == 1 else sys.argv[1]
 
-    "pri": [[], gen_view("ions/mVrVr_PlaneZ_05")],
-    "pai": [[], gen_view("ions/mVphiVphi_PlaneZ_05")],
-    "pre": [[], gen_view("electrons/mVrVr_PlaneZ_05")],
-    "pae": [[], gen_view("electrons/mVphiVphi_PlaneZ_05")],
+init_constants(f"results/{config}/{config}.json")
+const.tau = read_scalar(const.config["StepPresets"][3]["tau"])
+const.pts = 0
+const.pte = int(6 * const.tau / const.dt)
+const.pto = const.Ndts
 
-    "pd": [[], None],
+arrays = {
+    "ex": [],
+    "ey": [],
+    "ez": [],
+    "bx": [],
+    "by": [],
+    "bz": [],
+    "ni": [],
+    "ne": [],
+    "pxi": [],
+    "pxe": [],
 }
 
+def avg(d, w=3): 
+    c1 = d.shape[1] // 2
+    return d.mean(axis=0)[c1-w:c1+w].mean()
+
 def parse(t):
-    b = center_avg(read(t, arrays, "b"))
-    ni = center_avg(read(t, arrays, "ni"))
-    ne = center_avg(read(t, arrays, "ne"))
-
-    pri = phi_avg(read(t, arrays, "pri"))
-    pai = phi_avg(read(t, arrays, "pai"))
-    pre = phi_avg(read(t, arrays, "pre"))
-    pae = phi_avg(read(t, arrays, "pae"))
-
-    pr = pri + pre
-    pa = pai + pae
-
-    rs = np.arange(0, const.data_shape["Z"][0] // 2) * const.dx
-    pd = cumulative_trapezoid((pr - pa) / (rs + 0.1), dx=const.dx, initial=0)
-    pd = -(pd - pd[-1])
-    return b, ni, ne, pri[0], pai[0], pre[0], pae[0], pd[0]
+    de = read_E(None)(t)
+    db = read_B(None)(t)
+    dni = read_n("ions")(t)
+    dne = read_n("electrons")(t)
+    dpxi = read_P("ions", 0)(t)
+    dpxe = read_P("electrons", 0)(t)
+    ex = avg(de[:,:,0,0])
+    ey = avg(de[:,:,0,1])
+    ez = avg(de[:,:,0,2])
+    bx = avg(db[:,:,0,0])
+    by = avg(db[:,:,0,1])
+    bz = avg(db[:,:,0,2])
+    ni = avg(dni)
+    ne = avg(dne)
+    pxi = avg(dpxi)
+    pxe = avg(dpxe)
+    return ex, ey, ez, bx, by, bz, ni, ne, pxi, pxe
 
 def output(name):
-    return f"{res_dir}/{name}_t"
+    return f"{const.out_dir}/collections/{name}_t"
 
 process_collection(arrays, parse, output)

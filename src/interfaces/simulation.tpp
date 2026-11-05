@@ -80,6 +80,8 @@ PetscErrorCode Simulation::init_particles(
       info.at("pz").get_to(params.pz);
 
     auto&& sort = std::make_shared<PartSpec>(that, params);
+    PetscCall(sort->initialize());
+
     container.emplace_back(sort);
     particles_.emplace_back(sort);
 

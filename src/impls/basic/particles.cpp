@@ -12,38 +12,56 @@ Particles::Particles(Simulation& simulation, const SortParameters& parameters)
 {
 }
 
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Particles::initialize());
+  PetscCall(storage.initialize());
+  PetscCall(storage.register_attribute("r", 3));
+  PetscCall(storage.register_attribute("p", 3));
+  PetscCall(storage.commit_attributes());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Particles::push()
 {
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
 
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      const Vector3R old_r = point.r;
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
+  const PointArrays arrays(f);
 
-      BorisPush push;
-      push.set_qm(parameters.q / parameters.m);
+#pragma omp parallel for
+  for (PetscInt i = 0; i < f.size; i++) {
+    Point point = arrays.load(i);
+    const Vector3R old_r = point.r;
 
-      push.update_r(dt / 2.0, point);
+    BorisPush push;
+    push.set_qm(parameters.q / parameters.m);
 
-      Shape shape;
-      shape.setup(point.r, shr, sfunc);
+    push.update_r(dt / 2.0, point);
 
-      Vector3R E_p, B_p;
-      SimpleInterpolation interpolation(shape);
-      interpolation.process({{E_p, E_arr}}, {{B_p, B_arr}});
+    Shape shape;
+    shape.setup(point.r, shr, sfunc);
 
-      push.set_fields(E_p, B_p);
-      push.update_vEB(dt, point);
-      push.update_r(dt / 2.0, point);
+    Vector3R E_p, B_p;
+    SimpleInterpolation interpolation(shape);
+    interpolation.process({{E_p, E_arr}}, {{B_p, B_arr}});
 
-      shape.setup(old_r, point.r, shr, sfunc);
-      EsirkepovDecomposition decomposition(
-        shape, parameters.q * parameters.mpw / (6.0 * dt));
-      decomposition.process(J_arr);
-    }
+    push.set_fields(E_p, B_p);
+    push.update_vEB(dt, point);
+    push.update_r(dt / 2.0, point);
+
+    shape.setup(old_r, point.r, shr, sfunc);
+    EsirkepovDecomposition decomposition(
+      shape, parameters.q * parameters.mpw / (6.0 * dt));
+    decomposition.process(J_arr);
+
+    arrays.store(i, point);
   }
+
+  PetscCall(storage.restore_attributes(f));
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));

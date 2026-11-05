@@ -12,11 +12,17 @@ class Simulation;
 class Particles : public interfaces::Particles {
 public:
   Particles(Simulation& simulation, const SortParameters& parameters);
+  PetscErrorCode initialize() override;
 
   PetscErrorCode prepare_storage();
 
   PetscErrorCode form_prediction(PetscReal**** I_arr, PetscReal**** L_arr);
   PetscErrorCode form_iteration();
+
+  /// @brief Seconds per thread, summed over all `form_iteration()` calls.
+  PetscReal get_interpolate_time() const;
+  PetscReal get_cn_push_time() const;
+  PetscReal get_decompose_time() const;
 
   PetscReal get_average_iteration_number() const;
   PetscReal get_average_number_of_traversed_cells() const;
@@ -27,15 +33,19 @@ protected:
   static constexpr const auto& shape_radius = 1.5;
 
   // We should iterate the `Point` ~ (x^{n+1,k}, v^{n+1,k}) from _previous_
-  // timestep, meaning that we have to store copy of `Particles::storage`.
-  std::vector<std::vector<Point>> previous_storage;
-
+  // timestep, they are the `r_prev` and `p_prev` fields of `storage`.
   PetscInt size = 0;
+  PetscReal interpolate_time = 0;
+  PetscReal cn_push_time = 0;
+  PetscReal decompose_time = 0;
   PetscReal avgit = 0;
   PetscReal avgcell = 0;
   PetscInt maxcell = 0;
 
   Simulation& simulation_;
+
+  PetscClassId classid;
+  PetscLogEvent events[2];
 };
 
 

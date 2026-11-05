@@ -32,7 +32,6 @@ set(PETSC_ARCH_DEBUG linux-mpi-debug)
 
 set(interfaces
   src/interfaces/simulation.cpp
-  src/interfaces/point.cpp
   src/interfaces/sort_parameters.cpp
   src/interfaces/particles.cpp
   src/interfaces/builder.cpp
@@ -98,6 +97,7 @@ set(utils
   src/utils/sync_clock.cpp
   src/utils/operators.cpp
   src/utils/shape.cpp
+  src/utils/particle_storage.cpp
   src/utils/particles_load.cpp
   src/utils/geometries.cpp
   src/utils/world.cpp

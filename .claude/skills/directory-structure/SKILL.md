@@ -28,7 +28,7 @@ tests/             - Test executables, one CMakeLists.txt per area, mirroring sr
 
 tools/             - Standalone Python scripts (not part of the C++ build): batch runs, plotting/post-processing
 
-doc/               - Sphinx docs (Russian); structure.rst and commands.rst are the key references
+docs/              - Sphinx docs (Russian); structure.rst and commands.rst are the key references
 
 CMakeLists.txt, build.sh, header.sh, run.sh, run-tests.sh, run-format-all.sh, .clang-format - Project config/scripts
 ```

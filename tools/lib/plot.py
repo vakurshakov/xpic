@@ -1,28 +1,14 @@
 from lib.plot_utils import *
-from lib.data_format import FieldView
 
 from typing import Any
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-# Font sizes
-titlesize = 24
-labelsize = 22
-ticksize  = 18
+class FontSize:
+    title = 24
+    label = 22
+    ticks = 18
 
-# Utilities to set font sizes externally
-def set_titlesize(new_titlesize):
-    global titlesize
-    titlesize = new_titlesize
-
-def set_labelsize(new_labelsize):
-    global labelsize
-    labelsize = new_labelsize
-
-def set_ticksize(new_ticksize):
-    global ticksize
-    ticksize = new_ticksize
-
-def annotate_x(axis, annotation, x=0.5, y=1, size=titlesize, ha="center", bbox=bbox):
+def annotate_x(axis, annotation, x=0.5, y=1, size=FontSize.title, ha="center", bbox=bbox):
     axis.annotate(
         annotation,
         xy=(x, y),
@@ -45,7 +31,7 @@ def annotate_y(axis, annotation):
         ha="right",
         va="center",
         rotation=90,
-        size=titlesize,
+        size=FontSize.title,
     )
 
 # Main classes for plotting
@@ -71,7 +57,7 @@ class PlotAxisInfo:
 
     def draw(self):
         ax = self.axis
-        ax.tick_params(labelsize=ticksize, pad=8)
+        ax.tick_params(labelsize=FontSize.ticks, pad=8)
 
         # TODO: Try to understand how to:
         # 1) Set these parameters common to each plot
@@ -79,15 +65,15 @@ class PlotAxisInfo:
 
         for name, arg in self.args.items():
             if name == "title":
-                ax.set_title(arg, fontsize=titlesize, pad=0, y=1.05)
+                ax.set_title(arg, fontsize=FontSize.title, pad=0, y=1.03)
             elif name == "xlabel":
-                ax.set_xlabel(arg, fontsize=labelsize, labelpad=12)
+                ax.set_xlabel(arg, fontsize=FontSize.label, labelpad=12)
             elif name == "ylabel":
-                ax.set_ylabel(arg, fontsize=labelsize, labelpad=10)
+                ax.set_ylabel(arg, fontsize=FontSize.label, labelpad=10)
             elif name == "xticklabels":
-                ax.set_xticklabels(arg, fontsize=labelsize)
+                ax.set_xticklabels(arg, fontsize=FontSize.label)
             elif name == "yticklabels":
-                ax.set_yticklabels(arg, fontsize=labelsize)
+                ax.set_yticklabels(arg, fontsize=FontSize.label)
             else:
                 # These parameters are passed as is, e.g. xlim, xticks
                 ax.set(**{name: arg})
@@ -96,7 +82,7 @@ class PlotIm:
     def __init__(self, axis = None, vmap = (None, None), cmap = "plasma", bounds = None):
         self.data = None
         self.bounds = bounds
-        self.axis = axis
+        self.axis: plt.Axes = axis
         self.info = PlotAxisInfo(axis)
         self.im = None
         self.cbar = None
@@ -146,7 +132,7 @@ class PlotIm:
 
         side = "right" if (args["orientation"] == "vertical") else "bottom"
         cax = divider.append_axes(side, size="5%", pad=args["pad"])
-        cax.tick_params(labelsize=ticksize, pad=10)
+        cax.tick_params(labelsize=FontSize.ticks, pad=10)
 
         self.cbar = fig.colorbar(
             self.im, orientation=args["orientation"], cax=cax,
@@ -160,14 +146,14 @@ class PlotIm:
 
         yax = self.cbar.ax.yaxis
         yax.OFFSETTEXTPAD = 8
-        yax.get_offset_text().set_size(0.82 * ticksize)
+        yax.get_offset_text().set_size(0.82 * FontSize.ticks)
 
     def clear(self):
         self.axis.clear()
 
 class PlotLinear:
     def __init__(self, axis = None, vmap = None):
-        self.axis = axis
+        self.axis: plt.Axes = axis
         self.info = PlotAxisInfo(axis)
 
     def draw_info(self):
@@ -175,7 +161,7 @@ class PlotLinear:
 
         yax = self.axis.yaxis
         yax.OFFSETTEXTPAD = 8
-        yax.get_offset_text().set_size(0.82 * ticksize)
+        yax.get_offset_text().set_size(0.82 * FontSize.ticks)
 
     def clear(self):
         self.axis.clear()

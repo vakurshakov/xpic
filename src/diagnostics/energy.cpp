@@ -20,7 +20,8 @@ Energy::Energy(const interfaces::Simulation& simulation)
 PetscErrorCode Energy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t == 0) {
+  if (!initialized) {
+    initialized = true;
     PetscCall(calculate_field());
     PetscCall(calculate_kinetic());
   }
@@ -78,17 +79,23 @@ PetscErrorCode Energy::calculate_kinetic()
     vx = vy = vz = w = 0;
     n = 0;
 
-#pragma omp parallel for reduction(+ : vx, vy, vz, w, n)
-    for (auto&& cell : sort->storage) {
-      for (auto&& point : cell) {
-        vx += point.px();
-        vy += point.py();
-        vz += point.pz();
+    ParticleStorage::Attributes f;
+    PetscCall(sort->storage.get_attribute(f, "p"));
+    const PetscReal* p = f["p"];
 
-        w += point.p.squared();
-        n++;
-      }
+#pragma omp parallel for reduction(+ : vx, vy, vz, w)
+    for (PetscInt j = 0; j < f.size; j++) {
+      vx += p[3 * j + X];
+      vy += p[3 * j + Y];
+      vz += p[3 * j + Z];
+      w +=                    //
+        POW2(p[3 * j + X]) +  //
+        POW2(p[3 * j + Y]) +  //
+        POW2(p[3 * j + Z]);
     }
+
+    n = f.size;
+    PetscCall(sort->storage.restore_attributes(f));
 
     K[i] = frac * w;
 

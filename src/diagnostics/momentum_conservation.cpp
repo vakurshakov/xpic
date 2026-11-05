@@ -138,46 +138,52 @@ PetscErrorCode MomentumConservation::calculate()
     auto& qvby = QVB[i][Y] = 0;
     auto& qvbz = QVB[i][Z] = 0;
 
+    ParticleStorage::Attributes f;
+    PetscCall(sort->storage.get_attributes(f));
+    const PointArrays arrays(f);
+
 #pragma omp parallel for private(shape), \
   reduction(+ : px, py, pz, qex, qey, qez, qvbx, qvby, qvbz)
-    for (auto&& cell : sort->storage) {
-      for (auto&& point : cell) {
-        px += m * point.px();
-        py += m * point.py();
-        pz += m * point.pz();
+    for (PetscInt n = 0; n < f.size; n++) {
+      const Point point = arrays.load(n);
 
-        shape.setup(BorisPush::updated_r(-0.5 * dt, point));
+      px += m * point.px();
+      py += m * point.py();
+      pz += m * point.pz();
 
-        PetscInt i, gx, gy, gz;
-        Vector3R E_p, B_p;
+      shape.setup(BorisPush::updated_r(-0.5 * dt, point));
 
-        for (i = 0; i < shape.size.elements_product(); ++i) {
-          gx = shape.start[X] + i % shape.size[X];
-          gy = shape.start[Y] + (i / shape.size[X]) % shape.size[Y];
-          gz = shape.start[Z] + (i / shape.size[X]) / shape.size[Y];
+      PetscInt i, gx, gy, gz;
+      Vector3R E_p, B_p;
 
-          const auto Es = shape.electric(i);
-          const auto Bs = shape.magnetic(i);
+      for (i = 0; i < shape.size.elements_product(); ++i) {
+        gx = shape.start[X] + i % shape.size[X];
+        gy = shape.start[Y] + (i / shape.size[X]) % shape.size[Y];
+        gz = shape.start[Z] + (i / shape.size[X]) / shape.size[Y];
 
-          for (PetscInt c = 0; c < 3; ++c) {
-            E_p[c] += Ea[gz][gy][gx][c] * Es[c];
-            B_p[c] += Ba[gz][gy][gx][c] * Bs[c];
-          }
+        const auto Es = shape.electric(i);
+        const auto Bs = shape.magnetic(i);
+
+        for (PetscInt c = 0; c < 3; ++c) {
+          E_p[c] += Ea[gz][gy][gx][c] * Es[c];
+          B_p[c] += Ba[gz][gy][gx][c] * Bs[c];
         }
-
-        const BorisPush push(qm, E_p, B_p);
-        const Vector3R vh = push.mean_vEB(dt, point.p);
-        const Vector3R FE = q * E_p;
-        const Vector3R FB = q * vh.cross(B_p);
-
-        qex += FE[X];
-        qey += FE[Y];
-        qez += FE[Z];
-        qvbx += FB[X];
-        qvby += FB[Y];
-        qvbz += FB[Z];
       }
+
+      const BorisPush push(qm, E_p, B_p);
+      const Vector3R vh = push.mean_vEB(dt, point.p);
+      const Vector3R FE = q * E_p;
+      const Vector3R FB = q * vh.cross(B_p);
+
+      qex += FE[X];
+      qey += FE[Y];
+      qez += FE[Z];
+      qvbx += FB[X];
+      qvby += FB[Y];
+      qvbz += FB[Z];
     }
+
+    PetscCall(sort->storage.restore_attributes(f));
   }
 
   PetscCall(DMDAVecRestoreArrayDOFRead(da, En0_loc, &Ea));

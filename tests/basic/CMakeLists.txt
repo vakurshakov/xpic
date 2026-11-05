@@ -28,5 +28,4 @@ foreach(level smoke sanity regression)
   endforeach()
 endforeach()
 
-set_property(TEST ${sanity_tests} PROPERTY DEPENDS "${smoke_tests}")
 set_property(TEST ${regression_tests} PROPERTY DEPENDS "${smoke_tests};${sanity_tests}")

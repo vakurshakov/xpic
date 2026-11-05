@@ -18,8 +18,8 @@ private:
   DM da;
   Vec E;
   Vec B;
-  Vec En0;
-  Vec Bn0;
+  Vec En0 = nullptr;
+  Vec Bn0 = nullptr;
   std::vector<const interfaces::Particles*> particles;
   std::vector<Vector3R> P0, P1, QE, QVB;
 };

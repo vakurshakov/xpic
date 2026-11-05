@@ -242,7 +242,6 @@ PetscErrorCode Simulation::second_push()
     sort->E_arr = E_arr;
     sort->B_arr = B_arr;
     PetscCall(sort->second_push());
-    PetscCall(sort->correct_coordinates());
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
@@ -315,13 +314,15 @@ PetscErrorCode Simulation::update_cells_with_assembly()
     sort->update_cells();
 
   for (const auto& sort : particles_) {
+    const std::vector<PetscInt>& offsets = sort->storage.cell_offsets();
+
     for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
       if (assembly_radius < 0) {
         assembly_map[g] = false;
         indices_assembled = false;
       }
 
-      if (sort->storage[g].empty() || (indices_assembled && assembly_map[g]))
+      if (offsets[g] == offsets[g + 1] || (indices_assembled && assembly_map[g]))
         continue;
 
       if (indices_assembled) {

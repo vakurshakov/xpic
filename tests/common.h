@@ -1,6 +1,7 @@
 #include "src/pch.h"
 #include "src/interfaces/point.h"
 #include "src/diagnostics/particle_trace.h"
+#include "src/utils/particle_storage.h"
 
 /// @todo There would be probably lots of utilities, they should be placed to some static library
 
@@ -192,7 +193,7 @@ public:
         std::format("{}/temporal/{}.txt", get_out_dir(file).c_str(), id),
         [&point]
         {
-          return &point;
+          return point;
         },
         skip)
   {
@@ -206,4 +207,22 @@ void update_counter_clockwise(                   //
   Vector3R or_t = old_r.transverse_to(B_p);
   Vector3R nr_t = new_r.transverse_to(B_p);
   counter_clockwise += or_t.cross(nr_t).dot(B_p) / B_p.length();
+}
+
+using Snapshot = std::vector<std::vector<PetscReal>>;
+
+/// @brief Particles as rows of all field values, sorted to be independent of the storage order.
+PetscErrorCode take_snapshot(const ParticleStorage& storage, Snapshot& out)
+{
+  PetscFunctionBeginUser;
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
+  out.assign(f.size, {});
+  for (const auto& [name, dof] : f.dof) {
+    for (PetscInt i = 0; i < f.size; i++)
+      out[i].insert(out[i].end(), f[name] + dof * i, f[name] + dof * (i + 1));
+  }
+  PetscCall(storage.restore_attributes(f));
+  std::ranges::sort(out);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }

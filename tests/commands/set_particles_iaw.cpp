@@ -1,3 +1,4 @@
+#include "src/constants.h"
 #include "src/interfaces/simulation.h"
 #include "src/utils/configuration.h"
 #include "tests/common.h"
@@ -7,7 +8,6 @@ static constexpr char help[] =
   "its coordinate and have mirrored thermal velocities.                \n";
 
 static constexpr PetscInt Np = 4;
-static constexpr PetscReal volume = 4.0 * 4.0 * 8.0;
 
 using json_t = Configuration::json_t;
 
@@ -38,10 +38,12 @@ json_t ion_acoustic_wave(const std::string& sort)
 void overwrite_config()
 {
   dx = dy = dz = 1.0;
-  geom_nx = geom_ny = 4;
+  geom_nx = 10;
+  geom_ny = 9;
   geom_nz = 8;
-  geom_x = geom_y = 4.0;
-  geom_z = 8.0;
+  geom_x = geom_nx * dx;
+  geom_y = geom_ny * dy;
+  geom_z = geom_nz * dz;
 
   dt = 0.1;
   geom_nt = 1;
@@ -107,14 +109,18 @@ PetscErrorCode check_pairs(const interfaces::Particles& particles)
   PetscReal sum_px = 0;
   PetscReal sum_py = 0;
 
-  for (const auto& cell : particles.storage) {
-    for (const Point& point : cell) {
-      multiplicity[{point.x(), point.y(), point.z()}]++;
-      sum_px += point.px();
-      sum_py += point.py();
-      count++;
-    }
+  ParticleStorage::Attributes f;
+  PetscCall(particles.storage.get_attributes(f));
+  const PointArrays arrays(f);
+
+  for (PetscInt i = 0; i < f.size; i++) {
+    const Point point = arrays.load(i);
+    multiplicity[{point.x(), point.y(), point.z()}]++;
+    sum_px += point.px();
+    sum_py += point.py();
+    count++;
   }
+  PetscCall(particles.storage.restore_attributes(f));
 
   // Pairs are never split between ranks: they share the coordinate
   for (const auto& [coordinate, number] : multiplicity)
@@ -125,7 +131,7 @@ PetscErrorCode check_pairs(const interfaces::Particles& particles)
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &sum_py, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
 
   const char* name = particles.parameters.sort_name.c_str();
-  const PetscInt expected = (PetscInt)(volume * 2 * Np);
+  const PetscInt expected = (PetscInt)(geom_nx * geom_ny * geom_nz * 2 * Np);
 
   PetscCheck(count == expected, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "\"%s\": %d particles, expected %d", name, count, expected);

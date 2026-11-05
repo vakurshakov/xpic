@@ -75,23 +75,16 @@ public:
   PetscErrorCode add_columns(PetscInt t) override;
 
 private:
-  PetscErrorCode init_charge_conservation();
-  PetscErrorCode collect_charge_density(PetscInt sort_id);
   void calculate_kinetic_energies(
     std::vector<PetscReal>& per_sort, PetscReal& total) const;
 
   const Simulation& simulation;
   PetscReal K0 = 0;
   PetscReal K = 0;
-  bool initialized = false;
-  DM charge_da = nullptr;
-  Mat divE = nullptr;
   Vec E_prev = nullptr;
   Vec B_prev = nullptr;
   std::vector<PetscReal> K0_by_sort;
   std::vector<PetscReal> K_by_sort;
-  std::vector<Vec> charge_locals;
-  std::vector<Vec> charge_fields;
 };
 
 }  // namespace drift_kinetic
