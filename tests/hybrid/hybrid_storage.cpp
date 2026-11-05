@@ -7,6 +7,20 @@ namespace {
 constexpr PetscReal positions[] = {3.9, 5.9, 7.9, 11.9};
 constexpr PetscReal tolerance = 1e-9;
 
+class TestSimulation : public hybrid_kinetic::Simulation {
+public:
+  PetscErrorCode check_mass_matrix()
+  {
+    PetscFunctionBeginUser;
+    PetscCall(form_mass_matrix());
+    PetscReal norm;
+    PetscCall(MatNorm(matL, NORM_FROBENIUS, &norm));
+    PetscCheck(std::isfinite(norm) && norm > 0, PETSC_COMM_WORLD,
+      PETSC_ERR_PLIB, "Particle mass matrix is empty or invalid");
+    PetscFunctionReturn(PETSC_SUCCESS);
+  }
+};
+
 PetscErrorCode check(const interfaces::Particles& sort)
 {
   PetscFunctionBeginUser;
@@ -47,8 +61,10 @@ int main(int argc, char** argv)
 {
   PetscFunctionBeginUser;
   PetscCall(PetscInitialize(&argc, &argv, nullptr, nullptr));
-  PetscBool frozen = PETSC_FALSE;
+  PetscBool frozen = PETSC_FALSE, preconditioner = PETSC_FALSE;
   PetscCall(PetscOptionsGetBool(nullptr, nullptr, "-hybrid_frozen", &frozen, nullptr));
+
+  PetscCall(PetscOptionsGetBool(nullptr, nullptr, "-hybrid_preconditioner", &preconditioner, nullptr));
 
   World::set_geometry(12.0, 12.0, 12.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0);
   Configuration::array_t presets{
@@ -71,6 +87,7 @@ int main(int argc, char** argv)
   }
   Configuration::overwrite({
     {"Simulation", "hybrid_kinetic"},
+    {"FieldPreconditioner", preconditioner ? "mass_matrix" : "none"},
     {"OutputDirectory", get_out_dir(__FILE__)},
     {"Fields", {{"evolve", !frozen}}},
     {"DriftKineticPush", {{"coord_is_gc", true}}},
@@ -86,7 +103,7 @@ int main(int argc, char** argv)
     {"Presets", presets},
   });
   Configuration::save(get_out_dir(__FILE__));
-  hybrid_kinetic::Simulation simulation;
+  TestSimulation simulation;
   PetscCall(simulation.initialize());
   PetscCall(simulation.calculate());
   PetscCall(check(*simulation.particles_.at(0)));
@@ -95,6 +112,8 @@ int main(int argc, char** argv)
   PetscCall(VecNorm(simulation.E, NORM_INFINITY, &norm));
   PetscCheck(norm < tolerance, PETSC_COMM_WORLD, PETSC_ERR_PLIB,
     "Opposite currents did not cancel");
+  if (preconditioner)
+    PetscCall(simulation.check_mass_matrix());
   PetscCall(simulation.finalize());
   PetscCall(PetscFinalize());
   return 0;
