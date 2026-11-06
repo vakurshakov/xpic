@@ -7,7 +7,7 @@ plots (a) the field iterations per step and (b) the wall time against the
 tolerance for all models, (c) the energy error |W - W0| / W_K0 of the hybrid
 model for all tolerances, dotted with the preconditioner.
 
-Usage: hybrid_ex1_tolerance.py [output_directory ...]
+Usage: hybrid_ex1_tolerance_comparision.py [output_directory ...]
 """
 
 import argparse
