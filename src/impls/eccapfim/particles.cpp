@@ -7,8 +7,7 @@
 namespace eccapfim {
 
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
-  : interfaces::Particles(simulation.world, parameters),
-    simulation_(simulation)
+  : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
 }
 
@@ -193,7 +192,9 @@ PetscErrorCode Particles::form_iteration()
   // `t_cn_push` is the update of a Crank-Nicolson iteration, without `set_fields()`
   PetscReal t_interpolate = 0, t_cn_push = 0, t_decompose = 0;
 
-#pragma omp parallel reduction(+ : avgit, avgcell, t_interpolate, t_cn_push, t_decompose), reduction(max : maxcell)
+#pragma omp parallel reduction(                                 \
+    + : avgit, avgcell, t_interpolate, t_cn_push, t_decompose), \
+  reduction(max : maxcell)
   {
     ImplicitEsirkepov util(E_arr, B_arr, J_arr);
 

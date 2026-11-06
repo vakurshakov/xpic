@@ -82,7 +82,7 @@ def run_cases():
     for name, mode, _ in CASES:
         tag = f"{RUN_PREFIX}_{name}_mi1836_dt100_t100000"
         command = ["taskset", "-c", ",".join(map(str, cpus)),
-                   str(BUILD / "tests/hybrid/hybrid_ex1_hybrid_kinetic.out"),
+                   str(BUILD / "tests/hybrid/hybrid_ex1.out"),
                    "-mi", "1836", "-npc", "50", "-dx", "10",
                    "-tau", "100", "-time", "100000", "-precond", "mass_matrix",
                    "-snes_atol", "1e-13", "-snes_rtol", "1e-13", "-snes_stol", "0",

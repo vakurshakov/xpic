@@ -23,6 +23,7 @@ foreach(mode evolving frozen preconditioned)
     set_property(TEST ${test} PROPERTY TIMEOUT 30)
   endforeach()
 endforeach()
+
 set(comparison_tests
   hybrid_ex1_drift_kinetic
   hybrid_ex1_eccapfim
@@ -30,14 +31,21 @@ set(comparison_tests
   hybrid_ex1_hybrid_kinetic
 )
 
-foreach(test ${comparison_tests} hybrid_ex2_fms)
-  add_executable(${test}.out ${test}.cpp)
-  target_link_libraries(${test}.out ${PROJECT_NAME})
+add_executable(hybrid_ex1.out hybrid_ex1.cpp)
+target_link_libraries(hybrid_ex1.out ${PROJECT_NAME})
 
-  add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./${test}.out)
+foreach(test ${comparison_tests})
+  string(REPLACE "hybrid_ex1_" "" model ${test})
+  add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./hybrid_ex1.out -ex1_model ${model})
   set_property(TEST "${test}" PROPERTY LABELS regression impls hybrid)
   set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "hybrid")
 endforeach()
+
+add_executable(hybrid_ex2_fms.out hybrid_ex2_fms.cpp)
+target_link_libraries(hybrid_ex2_fms.out ${PROJECT_NAME})
+add_test(NAME hybrid_ex2_fms COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./hybrid_ex2_fms.out)
+set_property(TEST hybrid_ex2_fms PROPERTY LABELS regression impls hybrid)
+set_property(TEST hybrid_ex2_fms PROPERTY RESOURCE_LOCK "hybrid")
 
 # Serialize comparisons so timing.txt measures one run at a time.
 foreach(test ${comparison_tests})
