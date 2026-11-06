@@ -26,6 +26,7 @@ protected:
   static PetscErrorCode form_iteration(SNES snes, Vec vx, Vec vf, void* ctx);
 
   PetscErrorCode form_current();
+  PetscErrorCode accept_push(PetscInt step);
   PetscErrorCode form_function(Vec vf);
 
   PetscErrorCode from_snes(Vec v, Vec vE, Vec vB);
@@ -42,6 +43,10 @@ protected:
   Arr Bn1_arr;  // Predicted magnetic field array.
 
   DM da_EB;  // Combined electric and magnetic field grid.
+
+  Vec last_push_fields = nullptr;
+  PetscInt push_evaluation = 0;
+  bool fail_on_final_nonconvergence = false;
 
   Vec sol;                             // Combined field solution.
   SNES snes;                           // Nonlinear field solver.

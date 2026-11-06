@@ -31,26 +31,28 @@ public:
   PetscReal get_FVk() const;
 
   /// @brief Callback for interpolating particle fields.
-  using SetFields = std::function<void(const Vector3R&, const Vector3R&,
+  using SetFields = std::function<PetscErrorCode(const Vector3R&, const Vector3R&,
     Vector3R&, PetscReal&, Vector3R&, Vector3R&, Vector3R&)>;
 
   void set_fields_callback(SetFields&& callback);
 
   /// @warning `pn` and `p0` must be distinct objects.
-  void process(PetscReal dt, PointByField& pn, const PointByField& p0);
+  /// Interpolation errors are returned; nonlinear convergence is reported
+  /// separately by `has_converged()`.
+  PetscErrorCode process(PetscReal dt, PointByField& pn, const PointByField& p0);
 
 private:
-  void process_picard(PetscReal dt, PointByField& pn, const PointByField& p0);
-  void process_picard_aitken(
+  PetscErrorCode process_picard(PetscReal dt, PointByField& pn, const PointByField& p0);
+  PetscErrorCode process_picard_aitken(
     PetscReal dt, PointByField& pn, const PointByField& p0);
 
   /// @brief Increments and residuals scaled as (dr, dt * dv).
   using State = std::array<PetscReal, 4>;
 
   /// @brief Evaluates drift velocity and acceleration.
-  void evaluate_rhs(const PointByField& pn, const PointByField& p0);
+  PetscErrorCode evaluate_rhs(const PointByField& pn, const PointByField& p0);
 
-  void update_fields(const PointByField& pn, const PointByField& p0);
+  PetscErrorCode update_fields(const PointByField& pn, const PointByField& p0);
   void update_effective_field();
   void update_V_dgc();
   void update_V_par(const PointByField& pn, const PointByField& p0);

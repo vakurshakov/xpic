@@ -38,6 +38,8 @@ PetscErrorCode Simulation::initialize_implementation()
   };
   PetscCall(World::create_local_dm(da, region, PETSC_COMM_WORLD, &da_EB));
   PetscCall(DMCreateGlobalVector(da_EB, &sol));
+  if (evolve_fields)
+    PetscCall(VecDuplicate(sol, &last_push_fields));
 
   PetscCall(init_particles(*this, particles_));
 
@@ -45,13 +47,22 @@ PetscErrorCode Simulation::initialize_implementation()
 
   bool is_gc_coord = false;
   bool is_fail_terminal = false;
+  bool substepping = false;
+  PetscInt max_depth = 4;
 
   if (auto it = json.find("DriftKineticPush"); it != json.end()) {
     is_gc_coord = it->value("coord_is_gc", false);
     is_fail_terminal = it->value("fail_on_terminal_nonconvergence", false);
+    substepping = it->value("substepping", false);
+    max_depth = it->value("max_substep_depth", 4);
+    fail_on_final_nonconvergence =
+      it->value("fail_on_final_nonconvergence", false);
   }
 
+  PetscCheck(max_depth >= 0 && max_depth <= 30, PETSC_COMM_WORLD,
+    PETSC_ERR_ARG_OUTOFRANGE, "max_substep_depth must be between 0 and 30");
   for (auto& sort : particles_) {
+    sort->set_substepping(substepping, max_depth);
     sort->set_coord_is_gc(is_gc_coord);
     sort->set_fail_on_terminal_nonconvergence(is_fail_terminal);
   }
@@ -59,6 +70,9 @@ PetscErrorCode Simulation::initialize_implementation()
   LOG("  Additional settings for drift_kinetic:");
   LOG("    Use gyro-centers to set coordinates (coord_is_gc): {}", is_gc_coord);
   LOG("    Terminate on particles non-convergence (fail_on_terminal_nonconvergence): {}", is_fail_terminal);
+
+  LOG("    Substepping: {}, max depth: {}, fail on final nonconvergence: {}",
+    substepping, max_depth, fail_on_final_nonconvergence);
 
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -78,6 +92,7 @@ PetscErrorCode Simulation::finalize()
 
   PetscCall(SNESDestroy(&snes));
   PetscCall(VecDestroy(&sol));
+  PetscCall(VecDestroy(&last_push_fields));
   PetscCall(DMDestroy(&da_EB));
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -93,6 +108,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
     PetscCall(VecCopy(E, E_hk));
     PetscCall(VecCopy(B, B_hk));
     PetscCall(form_current());
+    PetscCall(accept_push(t));
 
     for (auto& sort : particles_)
       PetscCall(sort->update_cells());
@@ -109,8 +125,17 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
   LOG("SNESSolve() has finished, SNESConvergedReasonView():");
   PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
 
+  SNESConvergedReason reason;
+  PetscCall(SNESGetConvergedReason(snes, &reason));
+  PetscCheck(reason >= 0, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
+    "Field solver did not converge");
   PetscCall(SNESGetSolution(snes, &sol));
   PetscCall(from_snes(sol, E_hk, B_hk));
+  PetscBool is_last;
+  PetscCall(VecEqual(sol, last_push_fields, &is_last));
+  if (!is_last)
+    PetscCall(form_current());
+  PetscCall(accept_push(t));
 
   PetscCall(VecAXPBY(E, 2, -1, E_hk));
   PetscCall(VecAXPBY(B, 2, -1, B_hk));
@@ -136,6 +161,9 @@ PetscErrorCode Simulation::form_iteration(SNES, Vec vx, Vec vf, void* ctx)
 PetscErrorCode Simulation::form_current()
 {
   PetscFunctionBeginUser;
+  push_evaluation++;
+  if (evolve_fields)
+    PetscCall(to_snes(E_hk, B_hk, last_push_fields));
   PetscCall(VecSet(J, 0));
   PetscCall(VecSet(M, 0));
 
@@ -169,14 +197,17 @@ PetscErrorCode Simulation::form_current()
     PetscCall(VecAXPY(J, 1, sort->J));
     PetscCall(VecAXPY(M, 1, sort->M));
 
-    LOG("Push \"{}\": avg it={}, max it={}, retries={}, leaf failures={}, max leaf FRk={: .4e}, max leaf FVk={: .4e}",
+    const auto& stats = sort->get_push_stats();
+    LOG("Push \"{}\": avg it={}, max it={}, retries={}, leaf failures={}, max leaf FRk={: .4e}, max leaf FVk={: .4e}, eval={}, particles={}, root failures={}, failed particles={}, leaves={}, depth={}, iterations={}",
       sort->parameters.sort_name,
       sort->get_average_iteration_number(),
       sort->get_max_iteration_number(),
       sort->get_push_retries(),
       sort->get_push_leaf_failures(),
       sort->get_max_push_leaf_residue_r(),
-      sort->get_max_push_leaf_residue_v());
+      sort->get_max_push_leaf_residue_v(),
+      push_evaluation, stats.particles,
+      stats.root_failures, stats.failed_particles, stats.leaves, stats.depth, stats.iteration_sum);
 
     if (failed_sort == nullptr &&  //
       sort->get_fail_on_terminal_nonconvergence() &&
@@ -199,6 +230,20 @@ PetscErrorCode Simulation::form_current()
     failed_sort->get_push_leaf_failures(),
     failed_sort->get_max_push_leaf_residue_r(),
     failed_sort->get_max_push_leaf_residue_v());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::accept_push(PetscInt step)
+{
+  PetscFunctionBeginUser;
+  PetscInt failures = 0;
+  for (const auto& sort : particles_)
+    failures += sort->get_push_stats().failed_particles;
+  LOG("DKFinal step={} eval={} failed_particles={}", step, push_evaluation, failures);
+  PetscCheck(!fail_on_final_nonconvergence || failures == 0,
+    PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
+    "Final particle push has %d non-converged particles at step %d",
+    (int)failures, (int)step);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

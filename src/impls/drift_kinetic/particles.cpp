@@ -2,7 +2,6 @@
 
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/implicit_drift_kinetic.h"
-#include "src/impls/drift_kinetic/adaptive_substepping.h"
 #include "src/impls/drift_kinetic/simulation.h"
 #include "src/utils/geometries.h"
 #include "src/utils/utils.h"
@@ -37,97 +36,33 @@ PetscErrorCode Particles::finalize()
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
-  if (size == 0)
-    PetscFunctionReturn(PETSC_SUCCESS);
 
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecGetArrayWrite(da, M_loc, &M_arr));
 
-  avgit = 0;
-  maxit = 0;
-  retries = 0;
-  leaf_failures = 0;
-  max_leaf_residue_r = 0;
-  max_leaf_residue_v = 0;
-
   const PetscReal q = parameters.q;
   const PetscReal m = parameters.m;
   const PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
+  PushStatistics stats;
 
-#pragma omp parallel for reduction(+ : avgit, retries, leaf_failures) \
-  reduction(max : maxit, max_leaf_residue_r, max_leaf_residue_v)
+#pragma omp parallel for reduction(drift_kinetic_stats : stats)
   for (PetscInt g = 0; g < (PetscInt)dk_curr_storage.size(); g++) {
-    for (PetscInt i = 0; auto& curr : dk_curr_storage[g]) {
-      auto prev(dk_prev_storage[g][i]);
-
-      DriftKineticPush push(q / m, m);
-      DriftKineticEsirkepov util(E_arr, Bn0_arr, B_arr, Bn1_arr, J_arr, M_arr);
-
-      push.set_fields_callback(
-        [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
-          PetscReal& lenB_p, Vector3R& b_p, Vector3R& gradB_p, Vector3R& rotB_p)
-        {
-          util.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
-        });
-
-      auto attempt = [&](PetscReal dtau, PointByField& pn, const PointByField& p0)
+    if (dk_curr_storage[g].empty())
+      continue;
+    DriftKineticPush push(q / m, m);
+    DriftKineticEsirkepov util(E_arr, Bn0_arr, B_arr, Bn1_arr, J_arr, M_arr);
+    util.set_grid_bounds(world.gstart, world.gend);
+    push.set_fields_callback(
+      [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
+        PetscReal& lenB_p, Vector3R& b_p, Vector3R& gradB_p, Vector3R& rotB_p)
       {
-        push.process(dtau, pn, p0);
-        return AdaptiveSubstepAttempt{
-          push.has_converged(),
-          push.get_iteration_number(),
-          push.get_FRk(),
-          push.get_FVk(),
-        };
-      };
+        return util.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
+      });
 
-      // auto midpoint = [](const PointByField& p0, const PointByField& pn)
-      // {
-      //   PointByField mid(p0);
-      //   mid.r = 0.5 * (p0.r + pn.r);
-      //   mid.p_parallel = 0.5 * (p0.p_parallel + pn.p_parallel);
-      //   return mid;
-      // };
-
-      auto accept = [&](PetscReal dtau, PointByField& pn, const PointByField& p0)
-      {
-        const PetscReal a0 = q * mpw * (dtau / dt);
-        const PetscReal b0 = pn.mu_p * mpw * (dtau / dt);
-        const Vector3R Vh_sub = (pn.r - p0.r) / dtau;
-        util.decomposition(pn.r, p0.r, Vh_sub, a0, b0);
-      };
-
-      // Halving does not conserve energy: every substep is pushed and
-      // deposited with the whole-step layers B^n, B^{n+1}, so the mu B terms
-      // of the substeps do not telescope. The whole step is accepted instead,
-      // a non-converged push is counted as a leaf failure.
-      AdaptiveSubstepStats stats;
-      // adaptive_substep(dt, curr, prev, attempt, midpoint, accept, stats);
-      const AdaptiveSubstepAttempt result = attempt(dt, curr, prev);
-      accept(dt, curr, prev);
-
-      stats.iteration_sum = result.iterations;
-      stats.max_iterations = result.iterations;
-
-      if (!result.converged) {
-        stats.leaf_failures = 1;
-        stats.max_leaf_residue_r =
-          isfinite(result.residue_r) ? result.residue_r : PETSC_MAX_REAL;
-        stats.max_leaf_residue_v =
-          isfinite(result.residue_v) ? result.residue_v : PETSC_MAX_REAL;
-      }
-
-      avgit += (PetscReal)stats.iteration_sum / (PetscReal)size;
-      maxit = std::max(maxit, stats.max_iterations);
-      retries += stats.retries;
-      leaf_failures += stats.leaf_failures;
-      max_leaf_residue_r = std::max(max_leaf_residue_r, stats.max_leaf_residue_r);
-      max_leaf_residue_v = std::max(max_leaf_residue_v, stats.max_leaf_residue_v);
-
-      curr.p = (curr.r - prev.r) / dt;
-
-      i++;
-    }
+    AdaptiveSubstepping substeps(
+      dt, q * mpw, mpw, substepping ? max_substep_depth : 0, stats);
+    for (PetscInt i = 0; auto& curr : dk_curr_storage[g])
+      substeps.process(curr, dk_prev_storage[g][i++], push, util);
   }
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
@@ -135,15 +70,8 @@ PetscErrorCode Particles::form_iteration()
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
 
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &retries, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &leaf_failures, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_leaf_residue_r, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &max_leaf_residue_v, 1, MPIU_REAL, MPI_MAX, PETSC_COMM_WORLD));
-
-  if (leaf_failures > 0 && !fail_on_terminal_nonconvergence) {
-    LOG("WARNING: DK Push terminal non-convergence for sort={}:", parameters.sort_name);
-    LOG("  leaf_failures={}, max FRk={: .4e}, max FVk={: .4e}", leaf_failures, max_leaf_residue_r, max_leaf_residue_v);
-  }
+  PetscCall(push_stats.finish(stats, PETSC_COMM_WORLD,
+    parameters.sort_name, fail_on_terminal_nonconvergence));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -183,15 +111,11 @@ PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
 
-  size = 0;
-
   for (PetscInt g = 0; g < static_cast<PetscInt>(dk_curr_storage.size()); g++) {
     const auto& curr = dk_curr_storage[g];
     auto& prev = dk_prev_storage[g];
 
     prev.assign(curr.begin(), curr.end());
-
-    size += static_cast<PetscInt>(curr.size());
   }
 
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -221,32 +145,43 @@ PetscReal Particles::kinetic_energy_local() const
 
 PetscReal Particles::get_average_iteration_number() const
 {
-  return avgit;
+  return push_stats.average_iterations();
 }
 
 PetscInt Particles::get_max_iteration_number() const
 {
-  return maxit;
+  return push_stats.max_iterations;
 }
 
 PetscInt Particles::get_push_retries() const
 {
-  return retries;
+  return push_stats.retries;
 }
 
 PetscInt Particles::get_push_leaf_failures() const
 {
-  return leaf_failures;
+  return push_stats.leaf_failures;
 }
 
 PetscReal Particles::get_max_push_leaf_residue_r() const
 {
-  return max_leaf_residue_r;
+  return push_stats.max_leaf_residue_r;
 }
 
 PetscReal Particles::get_max_push_leaf_residue_v() const
 {
-  return max_leaf_residue_v;
+  return push_stats.max_leaf_residue_v;
+}
+
+const PushStatistics& Particles::get_push_stats() const
+{
+  return push_stats;
+}
+
+void Particles::set_substepping(bool enabled, PetscInt depth)
+{
+  substepping = enabled;
+  max_substep_depth = depth;
 }
 
 void Particles::set_fail_on_terminal_nonconvergence(bool value)

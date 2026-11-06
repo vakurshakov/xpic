@@ -51,3 +51,17 @@ foreach(case aligned oblique)
   set_property(TEST "${test}_plot" PROPERTY LABELS impls drift_kinetic)
   set_property(TEST "${test}_plot" PROPERTY ENVIRONMENT "MPLBACKEND=Agg")
 endforeach()
+
+add_executable(drift_kinetic_ex12_substeping.out drift_kinetic_ex12_substeping.cpp)
+target_link_libraries(drift_kinetic_ex12_substeping.out ${PROJECT_NAME})
+add_test(NAME drift_kinetic_ex12_substeping COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -n 1 ./drift_kinetic_ex12_substeping.out)
+set_property(TEST drift_kinetic_ex12_substeping PROPERTY LABELS impls drift_kinetic)
+
+# Compile the pusher into this executable to exercise ordinary Picard without
+# changing the solver used by the shared library and other tests.
+add_executable(drift_kinetic_ex12_substeping_picard.out
+  drift_kinetic_ex12_substeping.cpp ../../src/algorithms/drift_kinetic_push.cpp)
+target_compile_definitions(drift_kinetic_ex12_substeping_picard.out PRIVATE DRIFT_KINETIC_AITKEN=0)
+target_link_libraries(drift_kinetic_ex12_substeping_picard.out ${PROJECT_NAME})
+add_test(NAME drift_kinetic_ex12_substeping_picard COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -n 1 ./drift_kinetic_ex12_substeping_picard.out)
+set_property(TEST drift_kinetic_ex12_substeping_picard PROPERTY LABELS impls drift_kinetic)

@@ -30,8 +30,6 @@ protected:
   PetscErrorCode form_mass_matrix();
   PetscErrorCode check_response();
 
-  Vec x_last;  // Fields of the last push, see `timestep_implementation()`.
-
   // `"FieldPreconditioner": "mass_matrix"`, see field_preconditioner.md
   bool use_mass_matrix = false;
   PetscBool mass_matrix_every_iteration = PETSC_FALSE;  // `-npc_mass_matrix_every_iteration`.

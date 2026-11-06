@@ -50,33 +50,36 @@ void DriftKineticPush::set_fields_callback(SetFields&& callback)
   this->set_fields = std::move(callback);
 }
 
-void DriftKineticPush::process(
+PetscErrorCode DriftKineticPush::process(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
+  PetscFunctionBeginHot;
   converged = false;
   FRk = PETSC_MAX_REAL;
   FVk = PETSC_MAX_REAL;
 
 #if DRIFT_KINETIC_AITKEN == 0
-  process_picard(dt, pn, p0);
+  PetscCall(process_picard(dt, pn, p0));
 #elif DRIFT_KINETIC_AITKEN == 1
-  process_picard_aitken(dt, pn, p0);
+  PetscCall(process_picard_aitken(dt, pn, p0));
 #else
 #error "DRIFT_KINETIC_AITKEN must be 0 or 1"
 #endif
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void DriftKineticPush::process_picard(
+PetscErrorCode DriftKineticPush::process_picard(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
+  PetscFunctionBeginHot;
   has_prev = false;
 
   for (it = 0; it < maxit; it++) {
-    evaluate_rhs(pn, p0);
+    PetscCall(evaluate_rhs(pn, p0));
 
     if (check_convergence(dt, pn, p0)) {
       converged = true;
-      return;
+      PetscFunctionReturn(PETSC_SUCCESS);
     }
 
     update_r(dt, pn, p0);
@@ -87,35 +90,37 @@ void DriftKineticPush::process_picard(
     has_prev = true;
   }
 
-  evaluate_rhs(pn, p0);
+  PetscCall(evaluate_rhs(pn, p0));
   converged = check_convergence(dt, pn, p0);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // Aitken uses the sequential map increment; acceptance and convergence use
 // the original equations. Rejected trials reduce omega from the same point.
-void DriftKineticPush::process_picard_aitken(
+PetscErrorCode DriftKineticPush::process_picard_aitken(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
+  PetscFunctionBeginHot;
   Vector3R dr = pn.r - p0.r;
   PetscReal dv = pn.p_parallel - p0.p_parallel;
   State previous{};
   PetscReal omega = 1;
   bool has_history = false;
   it = 0;
-  evaluate_rhs(pn, p0);
+  PetscCall(evaluate_rhs(pn, p0));
 
   for (;;) {
     const Vector3R rr = dt * V_dgc - dr;
     const State residual{rr[X], rr[Y], rr[Z], dt * (dt * a_par - dv)};
     converged = check_increment_convergence(dt, residual);
     if (converged || it >= 4 * maxit)
-      return;
+      PetscFunctionReturn(PETSC_SUCCESS);
 
     PetscReal norm2 = 0;
     for (PetscReal value : residual)
       norm2 += value * value;
     if (!std::isfinite(norm2))
-      return;
+      PetscFunctionReturn(PETSC_SUCCESS);
 
     const PetscReal dv_next = dt * a_par;
     V_par = 0.5 * (p0.p_parallel + (p0.p_parallel + dv_next));
@@ -149,7 +154,7 @@ void DriftKineticPush::process_picard_aitken(
       PetscReal trial_norm2 = PETSC_MAX_REAL;
       if (std::isfinite(pn.p_parallel) && std::isfinite(pn.r[X]) &&
           std::isfinite(pn.r[Y]) && std::isfinite(pn.r[Z])) {
-        evaluate_rhs(pn, p0);
+        PetscCall(evaluate_rhs(pn, p0));
         const Vector3R trial_rr = dt * V_dgc - trial_dr;
         const PetscReal trial_rv = dt * (dt * a_par - trial_dv);
         trial_norm2 = trial_rr.squared() + trial_rv * trial_rv;
@@ -167,12 +172,12 @@ void DriftKineticPush::process_picard_aitken(
       }
       if (omega <= 0.05 || it >= 4 * maxit) {
         pn = current;
-        evaluate_rhs(pn, p0);
+        PetscCall(evaluate_rhs(pn, p0));
         const Vector3R restore_rr = dt * V_dgc - dr;
         const State restore_residual{restore_rr[X], restore_rr[Y],
           restore_rr[Z], dt * (dt * a_par - dv)};
         converged = check_increment_convergence(dt, restore_residual);
-        return;
+        PetscFunctionReturn(PETSC_SUCCESS);
       }
       omega = std::max(0.05, 0.5 * omega);
     }
@@ -180,25 +185,29 @@ void DriftKineticPush::process_picard_aitken(
 }
 
 // Evaluates drift velocity and acceleration.
-void DriftKineticPush::evaluate_rhs(
+PetscErrorCode DriftKineticPush::evaluate_rhs(
   const PointByField& pn, const PointByField& p0)
 {
+  PetscFunctionBeginHot;
   update_V_par(pn, p0);
-  update_fields(pn, p0);
+  PetscCall(update_fields(pn, p0));
   update_V_dgc();
   update_a_par();
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void DriftKineticPush::update_fields(
+PetscErrorCode DriftKineticPush::update_fields(
   const PointByField& pn, const PointByField& p0)
 {
-  set_fields(p0.r, pn.r, E, lenB, b, gradB, rotB);
+  PetscFunctionBeginHot;
+  PetscCall(set_fields(p0.r, pn.r, E, lenB, b, gradB, rotB));
 
   rotB = (b.cross(gradB) + rotB) / lenB;
 
   update_effective_field();
 
   F_eff = qm * mp * E - p0.mu_p * gradB;
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 void DriftKineticPush::update_effective_field()

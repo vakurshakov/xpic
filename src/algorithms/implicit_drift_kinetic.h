@@ -59,6 +59,10 @@ public:
   DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn0_g, Vector3R*** Bnh_g,
     Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g);
 
+  /// @brief Selects the time interval within the field step.
+  void set_interval(PetscReal begin, PetscReal end);
+  void set_grid_bounds(const Vector3I& begin, const Vector3I& end);
+
   PetscErrorCode interpolate(Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
     Vector3R& gradB_p, Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0);
 
@@ -68,6 +72,15 @@ public:
   PetscErrorCode interpolate_B(Vector3R& B_p, const Vector3R& Rp);
 
 private:
+  Vector3R magnetic(PetscInt x, PetscInt y, PetscInt z, PetscReal theta) const;
+  PetscErrorCode interpolate_B_at(Vector3R& B_p, const Vector3R& Rp, PetscReal theta);
+  PetscErrorCode check_track(const Vector3R& R0, const Vector3R& Rn) const;
+  PetscErrorCode check_stencil(const Vector3I& begin, const Vector3I& end) const;
+
+  PetscReal theta_begin = 0, theta_end = 1;
+  bool bounded = false;
+  Vector3I grid_begin, grid_end;
+
   PetscErrorCode interpolate_B(  //
     Vector3R& B_p, Vector3R*** B_g, const Vector3R& Rp);
 

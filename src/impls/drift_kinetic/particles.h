@@ -2,6 +2,7 @@
 #define SRC_DRIFT_KINETIC_PARTICLES_H
 
 #include "src/interfaces/particles.h"
+#include "src/impls/drift_kinetic/adaptive_substepping.h"
 
 namespace drift_kinetic {
 
@@ -24,6 +25,9 @@ public:
   PetscInt get_push_leaf_failures() const;
   PetscReal get_max_push_leaf_residue_r() const;
   PetscReal get_max_push_leaf_residue_v() const;
+
+  const PushStatistics& get_push_stats() const;
+  void set_substepping(bool enabled, PetscInt depth);
 
   void set_fail_on_terminal_nonconvergence(bool value);
   bool get_fail_on_terminal_nonconvergence() const;
@@ -48,14 +52,9 @@ protected:
   std::vector<std::list<PointByField>> dk_curr_storage;  // Current states by cell.
   std::vector<std::vector<PointByField>> dk_prev_storage;  // Saved states by cell.
 
-  PetscInt size = 0;    // Local particle count.
-  PetscReal avgit = 0;  // Average pusher iteration count.
-  PetscInt maxit = 0;   // Largest pusher iteration count.
-  PetscInt retries = 0;
-  PetscInt leaf_failures = 0;
-  PetscReal max_leaf_residue_r = 0;
-  PetscReal max_leaf_residue_v = 0;
-
+  PushStatistics push_stats;
+  bool substepping = false;
+  PetscInt max_substep_depth = 4;
   bool coord_is_gc = false;
   bool fail_on_terminal_nonconvergence = false;
 

@@ -81,7 +81,6 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
   PetscCall(init_kinetic_particles());
   PetscCall(init_preconditioner());
-  PetscCall(DMCreateGlobalVector(da_EB, &x_last));
 
   // The base adds the drift-kinetic `EnergyConservation` last,
   // it misses the kinetic sorts.
@@ -95,7 +94,6 @@ PetscErrorCode Simulation::initialize_implementation()
 PetscErrorCode Simulation::finalize()
 {
   PetscFunctionBeginUser;
-  PetscCall(VecDestroy(&x_last));
   if (use_mass_matrix) {
     PetscCall(KSPDestroy(&ksp));
     PetscCall(MatDestroy(&matL));
@@ -105,7 +103,7 @@ PetscErrorCode Simulation::finalize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
+PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 {
   PetscFunctionBeginUser;
   for (auto& sort : particles_)
@@ -119,6 +117,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
     PetscCall(VecCopy(E, E_hk));
     PetscCall(VecCopy(B, B_hk));
     PetscCall(form_current());
+    PetscCall(accept_push(t));
   }
   else {
     PetscCall(to_snes(E, B, sol));
@@ -141,13 +140,14 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
     // `SNESNGMRES` may return a point other than the last pushed one,
     // then the particles and sources are made consistent with it.
     PetscBool is_last;
-    PetscCall(VecEqual(sol, x_last, &is_last));
+    PetscCall(VecEqual(sol, last_push_fields, &is_last));
 
     if (!is_last) {
       LOG("The returned solution is not the last pushed point, pushing again");
       PetscCall(form_current());
     }
 
+    PetscCall(accept_push(t));
     PetscCall(VecAXPBY(E, 2, -1, E_hk));
     PetscCall(VecAXPBY(B, 2, -1, B_hk));
   }
@@ -163,7 +163,6 @@ PetscErrorCode Simulation::form_iteration(SNES, Vec vx, Vec vf, void* ctx)
 {
   PetscFunctionBeginUser;
   auto* simulation = (Simulation*)ctx;
-  PetscCall(VecCopy(vx, simulation->x_last));
   PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
   PetscCall(simulation->form_current());
   PetscCall(simulation->form_function(vf));
