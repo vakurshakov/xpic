@@ -42,7 +42,7 @@ PetscErrorCode KineticParticles::prepare_storage()
 
 // Restarts each particle from layer n and pushes it through the current field
 // iterate. The step is split at the ghost-region boundary of the subdomain,
-// substeps are chained, the particle is wrapped by the periodic boundaries.
+// substeps are chained; ParticleStorage wraps and migrates the accepted state.
 PetscErrorCode KineticParticles::form_iteration()
 {
   PetscFunctionBeginUser;
@@ -73,14 +73,6 @@ PetscErrorCode KineticParticles::form_iteration()
     if (vh < 0 && std::abs(rb[a] - x) > 1e-7)
       return (rb[a] - x) / vh;
     return std::numeric_limits<PetscReal>::max();
-  };
-
-  auto bound_periodic = [&](PetscReal& s, Axis a)
-  {
-    if (s < 0)
-      s += Geom[a];
-    else if (s > Geom[a])
-      s -= Geom[a];
   };
 
   ParticleStorage::Attributes f;
@@ -121,7 +113,7 @@ PetscErrorCode KineticParticles::form_iteration()
 
           for (PetscInt s = 1; s < (PetscInt)coords.size(); s++) {
             const PetscReal ds = (coords[s] - coords[s - 1]).length();
-            callback(coords[s], coords[s - 1], (d > 0 ? ds / d : 1.0));
+            callback(coords[s], coords[s - 1], d > 0 ? ds / d : 1.0);
           }
         };
 
@@ -142,8 +134,7 @@ PetscErrorCode KineticParticles::form_iteration()
 
         auto get_residue = [&]
         {
-          return ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p)))
-            .length();
+          return ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p))).length();
         };
 
         set_fields();
@@ -164,7 +155,8 @@ PetscErrorCode KineticParticles::form_iteration()
           set_fields();
           rn = get_residue();
           it++;
-        } while (rn > cn_atol + cn_rtol * vh.length() && it < cn_maxit);
+        }
+        while (rn > cn_atol + cn_rtol * vh.length() && it < cn_maxit);
 
         avgit += (PetscReal)it / (PetscReal)size;
 
@@ -173,9 +165,6 @@ PetscErrorCode KineticParticles::form_iteration()
           {
             util.decompose(q * mpw * bs * (dtau / dt), vh, rsn, rs0);
           });
-
-        for (Axis a : {X, Y, Z})
-          bound_periodic(pn.r[a], a);
 
         p0 = pn;
       }

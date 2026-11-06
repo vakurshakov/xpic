@@ -4,7 +4,7 @@
 #include "tests/common.h"
 
 #if defined(NONLIN_GRADB_ALIGNED) == defined(NONLIN_GRADB_OBLIQUE)
-#error "Define exactly one of NONLIN_GRADB_ALIGNED or NONLIN_GRADB_OBLIQUE"
+  #error "Define exactly one of NONLIN_GRADB_ALIGNED or NONLIN_GRADB_OBLIQUE"
 #endif
 
 static constexpr char help[] =
@@ -37,8 +37,8 @@ static const Vector3R r0(length / 12, length / 12, 0.75);
 static const Vector3R p0(0.5 * M_SQRT1_2, 0.5 * M_SQRT1_2, 0.0);
 #endif
 
-void overwrite_config(const std::string& simulation,
-  const std::string& out_dir, PetscReal step, PetscInt n);
+void overwrite_config(const std::string& simulation, const std::string& out_dir,
+  PetscReal step, PetscInt n);
 
 int main(int argc, char** argv)
 {
@@ -75,8 +75,8 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-void overwrite_config(const std::string& simulation,
-  const std::string& out_dir, PetscReal step, PetscInt n)
+void overwrite_config(const std::string& simulation, const std::string& out_dir,
+  PetscReal step, PetscInt n)
 {
   dx = length / n;
 #if defined(NONLIN_GRADB_ALIGNED)

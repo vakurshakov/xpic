@@ -32,8 +32,7 @@ static const Vector3R center(2.0, 2.0, 6.0);
 static const Vector3R p0(0.4 / 3.0, 0.0, 0.1);
 
 static constexpr PetscReal s0 = 0.4;
-static const PetscReal rho0 =
-  p0[X] / (B0_value * (1.0 + curvature * s0 * s0));
+static const PetscReal rho0 = p0[X] / (B0_value * (1.0 + curvature * s0 * s0));
 static const Vector3R r0(center[X], center[Y] - rho0, center[Z] + s0);
 
 void overwrite_config(

@@ -10,7 +10,7 @@
 /// (`DriftKineticSplineTables`), 0 evaluates the splines at every stencil node.
 /// Both give bitwise identical results.
 #ifndef DRIFT_KINETIC_SPLINE_TABLES
-#define DRIFT_KINETIC_SPLINE_TABLES 1
+  #define DRIFT_KINETIC_SPLINE_TABLES 1
 #endif
 
 namespace drift_kinetic {
@@ -59,8 +59,11 @@ public:
   DriftKineticEsirkepov(const World& world, Vector3R*** B_g);
 
   /// @brief Binds field layers and deposition arrays.
-  DriftKineticEsirkepov(const World& world, Vector3R*** E_g, Vector3R*** Bn0_g, Vector3R*** Bnh_g,
-    Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g);
+  DriftKineticEsirkepov(const World& world, Vector3R*** E_g, Vector3R*** Bn0_g,
+    Vector3R*** Bnh_g, Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g);
+
+  /// @brief Selects the time interval within the field step.
+  void set_interval(PetscReal begin, PetscReal end);
 
   PetscErrorCode interpolate(Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
     Vector3R& gradB_p, Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0);
@@ -71,7 +74,12 @@ public:
   PetscErrorCode interpolate_B(Vector3R& B_p, const Vector3R& Rp);
 
 private:
-  void check_stencil(const Vector3I& start, const Vector3I& size, const char* name) const;
+  Vector3R magnetic(PetscInt x, PetscInt y, PetscInt z, PetscReal theta) const;
+  PetscErrorCode check_stencil(const Vector3I& begin, const Vector3I& end) const;
+  PetscErrorCode check_track(const Vector3R& R0, const Vector3R& Rn) const;
+  PetscErrorCode interpolate_B_at(
+    Vector3R& B_p, const Vector3R& Rp, PetscReal theta);
+
   PetscErrorCode interpolate_B(  //
     Vector3R& B_p, Vector3R*** B_g, const Vector3R& Rp);
 
@@ -94,6 +102,8 @@ private:
 
   PetscErrorCode decomposition_J(  //
     const DriftKineticSegment& s, const Vector3R& Vh, PetscReal q_p);
+
+  PetscReal theta_begin = 0, theta_end = 1;
 
   const World& world;
   Vector3R*** E_g = nullptr;  // Midpoint electric field.

@@ -51,3 +51,9 @@ add_test(NAME hybrid_ex2_fms_plot COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tools/hybr
 set_property(TEST hybrid_ex2_fms_plot PROPERTY DEPENDS hybrid_ex2_fms)
 set_property(TEST hybrid_ex2_fms_plot PROPERTY LABELS regression impls hybrid)
 set_property(TEST hybrid_ex2_fms_plot PROPERTY ENVIRONMENT "MPLBACKEND=Agg")
+
+add_test(NAME hybrid_storage_evolving_mpi_x3
+  COMMAND ${MPI_DIR}/bin/mpiexec -np 3 ./hybrid_storage.out -da_processors_x 3)
+set_property(TEST hybrid_storage_evolving_mpi_x3 PROPERTY LABELS smoke impls hybrid mpi)
+set_property(TEST hybrid_storage_evolving_mpi_x3 PROPERTY RESOURCE_LOCK hybrid_storage)
+set_property(TEST hybrid_storage_evolving_mpi_x3 PROPERTY TIMEOUT 30)

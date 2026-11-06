@@ -30,17 +30,16 @@ protected:
   PetscErrorCode form_mass_matrix();
   PetscErrorCode check_response();
 
-  Vec x_last;  // Fields of the last push, see `timestep_implementation()`.
-
   // `"FieldPreconditioner": "mass_matrix"`, see field_preconditioner.md
   bool use_mass_matrix = false;
-  PetscBool mass_matrix_every_iteration = PETSC_FALSE;  // `-npc_mass_matrix_every_iteration`.
-  PetscBool mass_matrix_check = PETSC_FALSE;            // `-npc_mass_matrix_check`.
-  bool mass_matrix_is_current = false;       // Assembled at this time step.
-  SNES npc;  // Shell right preconditioner of `snes`.
-  KSP ksp;   // Solver of the linearized Maxwell equations.
-  Mat matL;  // Mass matrix dt/2 dJ/dE.
-  Mat matA = nullptr;  // matM + matL.
+  PetscBool mass_matrix_every_iteration =
+    PETSC_FALSE;  // `-npc_mass_matrix_every_iteration`.
+  PetscBool mass_matrix_check = PETSC_FALSE;  // `-npc_mass_matrix_check`.
+  bool mass_matrix_is_current = false;        // Assembled at this time step.
+  SNES npc;                      // Shell right preconditioner of `snes`.
+  KSP ksp;                       // Solver of the linearized Maxwell equations.
+  Mat matL;                      // Mass matrix dt/2 dJ/dE.
+  Mat matA = nullptr;            // matM + matL.
   std::vector<PetscReal> coo_v;  // Values of `matL`, blocks by cells.
 
   friend class EnergyConservation;

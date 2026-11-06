@@ -19,7 +19,7 @@ constexpr PetscReal B_value = 1.0;  // Omega_e = 1, so dt is in 1/Omega_e.
 constexpr PetscReal total_time = 10000.0;
 constexpr PetscInt particles_per_cell = 50;
 constexpr PetscReal ion_mass = 100.0;
-constexpr PetscReal temperature = 0.1;  // [keV], both sorts.
+constexpr PetscReal temperature = 0.1;            // [keV], both sorts.
 constexpr const char* field_tolerance = "1e-13";  // SNES atol and rtol.
 
 /// @brief Output directory, suffixed with `_<tag>` if `-tag` is set.

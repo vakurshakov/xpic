@@ -119,3 +119,17 @@ foreach(axis x y z)
   add_test(NAME ${test} COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./drift_kinetic_seam_raw.out -da_processors_${axis} 2)
   set_property(TEST ${test} PROPERTY LABELS smoke impls drift_kinetic mpi)
 endforeach()
+
+add_executable(drift_kinetic_ex12_substeping.out drift_kinetic_ex12_substeping.cpp)
+target_link_libraries(drift_kinetic_ex12_substeping.out ${PROJECT_NAME})
+add_test(NAME drift_kinetic_ex12_substeping COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./drift_kinetic_ex12_substeping.out)
+set_property(TEST drift_kinetic_ex12_substeping PROPERTY LABELS smoke impls drift_kinetic)
+
+# Compile the pusher into this executable to exercise ordinary Picard without
+# changing the solver used by the shared library and other tests.
+add_executable(drift_kinetic_ex12_substeping_picard.out
+  drift_kinetic_ex12_substeping.cpp ../../src/algorithms/drift_kinetic_push.cpp)
+target_compile_definitions(drift_kinetic_ex12_substeping_picard.out PRIVATE DRIFT_KINETIC_AITKEN=0)
+target_link_libraries(drift_kinetic_ex12_substeping_picard.out ${PROJECT_NAME})
+add_test(NAME drift_kinetic_ex12_substeping_picard COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./drift_kinetic_ex12_substeping_picard.out)
+set_property(TEST drift_kinetic_ex12_substeping_picard PROPERTY LABELS smoke impls drift_kinetic)

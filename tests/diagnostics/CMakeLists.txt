@@ -38,7 +38,7 @@ endforeach()
 add_executable(simulation_restart.out simulation_restart.cpp)
 target_link_libraries(simulation_restart.out ${PROJECT_NAME})
 
-foreach(simulation eccapfim drift_kinetic)
+foreach(simulation eccapfim drift_kinetic hybrid_kinetic)
   set(test "simulation_restart_${simulation}")
   add_test(NAME "${test}" COMMAND ./simulation_restart.out -restart_simulation ${simulation})
   set_property(TEST "${test}" PROPERTY LABELS sanity diagnostics)

@@ -40,3 +40,7 @@ add_test(
 foreach(test particle_storage_mpi_x2y2z2 particle_storage_mpi_x4y4z1)
   set_property(TEST ${test} PROPERTY LABELS smoke utils mpi)
 endforeach()
+
+add_test(NAME particle_storage_mpi_x3
+  COMMAND ${MPI_DIR}/bin/mpiexec -np 3 ./particle_storage.out -da_processors_x 3)
+set_property(TEST particle_storage_mpi_x3 PROPERTY LABELS smoke utils mpi)

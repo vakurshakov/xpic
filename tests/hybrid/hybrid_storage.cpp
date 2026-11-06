@@ -77,11 +77,12 @@ int main(int argc, char** argv)
       {"n", 1}, {"q", model == "kinetic" ? 1 : -1}, {"m", 1}});
     for (PetscInt i = 0; i < 4; i++) {
       presets.push_back({
-        {"command", "SetParticles"}, {"particles", model},
-        {"coordinate", {{"name", "PreciseCoordinate"},
-          {"value", {positions[i], 1.5, 1.5}}}},
-        {"momentum", {{"name", "PreciseMomentum"},
-          {"value", {0.2 + 0.1 * i, 0, 0}}}},
+        {"command", "SetParticles"},
+        {"particles", model},
+        {"coordinate",
+          {{"name", "PreciseCoordinate"}, {"value", {positions[i], 1.5, 1.5}}}},
+        {"momentum",
+          {{"name", "PreciseMomentum"}, {"value", {0.2 + 0.1 * i, 0, 0}}}},
       });
     }
   }
@@ -91,14 +92,21 @@ int main(int argc, char** argv)
     {"OutputDirectory", get_out_dir(__FILE__)},
     {"Fields", {{"evolve", !frozen}}},
     {"DriftKineticPush", {{"coord_is_gc", true}}},
-    {"Geometry", {
-      {"x", 12}, {"y", 12}, {"z", 12}, {"t", 2},
-      {"dx", 1}, {"dy", 1}, {"dz", 1}, {"dt", 1},
-      {"diagnose_period", 1},
-      {"da_boundary_x", "DM_BOUNDARY_PERIODIC"},
-      {"da_boundary_y", "DM_BOUNDARY_PERIODIC"},
-      {"da_boundary_z", "DM_BOUNDARY_PERIODIC"},
-    }},
+    {"Geometry",
+      {
+        {"x", 12},
+        {"y", 12},
+        {"z", 12},
+        {"t", 2},
+        {"dx", 1},
+        {"dy", 1},
+        {"dz", 1},
+        {"dt", 1},
+        {"diagnose_period", 1},
+        {"da_boundary_x", "DM_BOUNDARY_PERIODIC"},
+        {"da_boundary_y", "DM_BOUNDARY_PERIODIC"},
+        {"da_boundary_z", "DM_BOUNDARY_PERIODIC"},
+      }},
     {"Particles", sorts},
     {"Presets", presets},
   });
