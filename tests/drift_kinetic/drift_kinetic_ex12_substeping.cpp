@@ -29,15 +29,16 @@ struct Grid {
 PetscReal shape(PetscReal x)
 {
   x = std::abs(x);
-  if (x <= 0.5) return 0.75 - x * x;
-  if (x < 1.5) return 0.5 * (1.5 - x) * (1.5 - x);
+  if (x <= 0.5)
+    return 0.75 - x * x;
+  if (x < 1.5)
+    return 0.5 * (1.5 - x) * (1.5 - x);
   return 0;
 }
 
 PetscReal density(const PointByField& point, PetscInt x, PetscInt y, PetscInt z)
 {
-  return shape(x - point.r[X]) * shape(y - point.r[Y]) *
-    shape(z - point.r[Z]);
+  return shape(x - point.r[X]) * shape(y - point.r[Y]) * shape(z - point.r[Z]);
 }
 #endif
 
@@ -52,14 +53,18 @@ PetscErrorCode run_case(bool oscillator, PetscInt depth)
         magnetic.values[z][y][x][Z] = 1;
       }
 
-  DriftKineticEsirkepov util(electric.planes, magnetic.planes, magnetic.planes,
-    magnetic.planes, current.planes, magnetization.planes);
+  World world;
+  world.gstart = Vector3I(0);
+  world.gend = Vector3I(n);
+  DriftKineticEsirkepov util(world, electric.planes, magnetic.planes,
+    magnetic.planes, magnetic.planes, current.planes, magnetization.planes);
   DriftKineticPush push(1, 1);
-  push.set_fields_callback([&](const Vector3R& start, const Vector3R& finish,
-                             Vector3R& E, PetscReal& B, Vector3R& b,
-                             Vector3R& grad, Vector3R& rot) {
-    return util.interpolate(E, B, b, grad, rot, finish, start);
-  });
+  push.set_fields_callback(
+    [&](const Vector3R& start, const Vector3R& finish, Vector3R& E,
+      PetscReal& B, Vector3R& b, Vector3R& grad, Vector3R& rot)
+    {
+      return util.interpolate(E, B, b, grad, rot, finish, start);
+    });
 
   PointByField initial{};
   initial.r = {7.1, 7.2, 7.1};
@@ -104,7 +109,7 @@ PetscErrorCode run_case(bool oscillator, PetscInt depth)
     (int)stats.root_failures, (int)stats.retries, (int)stats.leaves,
     (int)stats.leaf_failures, (int)stats.depth);
 
-  DriftKineticEsirkepov reference(electric.planes, magnetic.planes,
+  DriftKineticEsirkepov reference(world, electric.planes, magnetic.planes,
     magnetic.planes, magnetic.planes, expected_j.planes, expected_m.planes);
   PointByField previous = initial;
   PetscReal position = initial.r[Z] - center;
@@ -135,9 +140,10 @@ PetscErrorCode run_case(bool oscillator, PetscInt depth)
           (current.values[z][y][x] - expected_j.values[z][y][x]).abs_max());
         source_error = std::max(source_error,
           (magnetization.values[z][y][x] - expected_m.values[z][y][x]).abs_max());
-        const PetscReal div_j = current.values[z][y][x][X] - current.values[z][y][x - 1][X] +
-          current.values[z][y][x][Y] - current.values[z][y - 1][x][Y] +
-          current.values[z][y][x][Z] - current.values[z - 1][y][x][Z];
+        const PetscReal div_j = current.values[z][y][x][X] -
+          current.values[z][y][x - 1][X] + current.values[z][y][x][Y] -
+          current.values[z][y - 1][x][Y] + current.values[z][y][x][Z] -
+          current.values[z - 1][y][x][Z];
         continuity_error = std::max(continuity_error,
           std::abs(density(result, x, y, z) - density(initial, x, y, z) + div_j));
       }

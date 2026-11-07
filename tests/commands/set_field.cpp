@@ -49,7 +49,7 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
 
   // dx != dy != dz to catch axis mix-ups
-  World::set_geometry(6.0, 4.0, 3.0, 1.0, 1.0, 0.5, 0.25, 1.0, 1.0);
+  World::set_geometry(8.0, 7.0, 6.0, 1.0, 1.0, 0.5, 0.25, 1.0, 1.0);
 
   World world;
   PetscCall(world.initialize());
@@ -98,6 +98,17 @@ int main(int argc, char** argv)
       PetscCall(SetGradientField{value, axis, length, origin}(vec, stagger));
       PetscCall(check(tag, vec, stagger, [&](PetscInt c, const PetscReal r[3]) {
         return value[c] * (1.0 + (r[axis] - origin) / length);
+      }));
+    }
+
+    {
+      const PetscReal value = 2, curvature = 0.125;
+      const Vector3R center{3, 2, 1};
+      PetscCall(SetMirrorField{value, curvature, center}(vec, stagger));
+      PetscCall(check(tag, vec, stagger, [&](PetscInt c, const PetscReal r[3]) {
+        const PetscReal z = r[Z] - center[Z];
+        return c == Z ? value * (1 + curvature * z * z)
+                      : -value * curvature * z * (r[c] - center[c]);
       }));
     }
 

@@ -45,4 +45,4 @@ private:
   static constexpr PetscReal r = 3.6541528853610088;
 };
 
-#endif // SRC_COMMANDS_K_EQ_ZIGGURAT_GAUSSIAN_H
+#endif  // SRC_COMMANDS_K_EQ_ZIGGURAT_GAUSSIAN_H

@@ -7,10 +7,41 @@
 namespace eccapfim {
 
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
-  : interfaces::Particles(simulation.world, parameters),
-    previous_storage(world.size.elements_product()),
-    simulation_(simulation)
+  : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
+}
+
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Particles::initialize());
+
+  PetscCall(storage.initialize());
+  PetscCall(storage.register_attribute("r", 3));
+  PetscCall(storage.register_attribute("p", 3));
+  PetscCall(storage.register_previous("r"));
+  PetscCall(storage.register_previous("p"));
+  PetscCall(storage.commit_attributes());
+
+  PetscCall(PetscClassIdRegister("eccapfim::Particles", &classid));
+  PetscCall(PetscLogEventRegister("prepare_storage", classid, &events[0]));
+  PetscCall(PetscLogEventRegister("form_iteration", classid, &events[1]));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscReal Particles::get_interpolate_time() const
+{
+  return interpolate_time;
+}
+
+PetscReal Particles::get_cn_push_time() const
+{
+  return cn_push_time;
+}
+
+PetscReal Particles::get_decompose_time() const
+{
+  return decompose_time;
 }
 
 PetscReal Particles::get_average_iteration_number() const
@@ -36,9 +67,14 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
   PetscReal m = parameters.m;
   PetscReal mpw = parameters.n / (PetscReal)parameters.Np;
 
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
+  const PointArrays arrays(f);
+  const std::vector<PetscInt>& offsets = storage.cell_offsets();
+
   // #pragma omp parallel for
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    if (storage[g].empty())
+    if (offsets[g] == offsets[g + 1])
       continue;
 
     PetscInt x, y, z;
@@ -47,7 +83,7 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
     z = world.start[Z] + (g / world.size[X]) / world.size[Y];
 
     Vector3R b = B_arr[z][y][x] * ((0.5 * dt) * q / m);
-    PetscInt Ng = storage[g].size();
+    PetscInt Ng = offsets[g + 1] - offsets[g];
     PetscReal A_p = 0.25 * dt * dt * mpw * Ng * q * q / m / (1 + b.squared());
 
     PetscReal matB[3][3]{
@@ -67,7 +103,9 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
         L_v[c1 * 3 + c2] += A_p * matB[c1][c2];
     }
 
-    for (const auto& [r, v] : storage[g]) {
+    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++) {
+      const auto& [r, v] = arrays.load(i);
+
       Vector3R I_p =
         q * mpw / (1. + b.squared()) * (v + v.cross(b) + v.dot(b) * b);
 
@@ -90,6 +128,8 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
       I_v[Z] += I_p[Z];
     }
   }
+
+  PetscCall(storage.restore_attributes(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -97,6 +137,7 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
+  PetscLogEventBegin(events[1], 0, 0, 0, 0);
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
 
   avgit = 0;
@@ -117,7 +158,10 @@ PetscErrorCode Particles::form_iteration()
 
   PetscReal max = std::numeric_limits<double>::max();
 
-  auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe) {
+  const PetscReal atol = simulation_.atol;
+
+  auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe)
+  {
     if (vh > 0 && abs(xe - x) > 1e-7)
       return (xe - x) / vh;
     else if (vh < 0 && abs(xb - x) > 1e-7)
@@ -126,7 +170,8 @@ PetscErrorCode Particles::form_iteration()
       return max;
   };
 
-  auto bound_periodic = [&](PetscReal& s, Axis axis) {
+  auto bound_periodic = [&](PetscReal& s, Axis axis)
+  {
     if (s < 0.0) {
       s = Geom[axis] - (0.0 - s);
       return true;
@@ -138,13 +183,24 @@ PetscErrorCode Particles::form_iteration()
     return false;
   };
 
-  /// @todo(2) Measure the time to interpolate / push / decompose separately
-#pragma omp parallel for reduction(+ : avgit, avgcell), reduction(max : maxcell)
-  for (PetscInt g = 0; g < (PetscInt)storage.size(); ++g) {
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
+  PetscCall(storage.get_previous(f));
+  const PointArrays arrays(f);
+  const PointArrays arrays_prev(f, "_prev");
+
+  // `t_cn_push` is the update of a Crank-Nicolson iteration, without `set_fields()`
+  PetscReal t_interpolate = 0, t_cn_push = 0, t_decompose = 0;
+
+#pragma omp parallel reduction(                                 \
+    + : avgit, avgcell, t_interpolate, t_cn_push, t_decompose), \
+  reduction(max : maxcell)
+  {
     ImplicitEsirkepov util(E_arr, B_arr, J_arr);
 
-    for (PetscInt i = 0; auto& curr : storage[g]) {
-      curr = previous_storage[g][i];
+#pragma omp for schedule(static)
+    for (PetscInt i = 0; i < f.size; i++) {
+      Point curr = arrays_prev.load(i);
       Point tmp = curr;
 
       PetscReal tau = 0, dtau = 0, dtx, dty, dtz;
@@ -176,7 +232,9 @@ PetscErrorCode Particles::form_iteration()
         Vector3R E_p, B_p, rsn, rs0;
         std::vector<Vector3R> coords;
 
-        auto set_fields = [&] {
+        auto set_fields = [&]
+        {
+          const PetscReal t0 = omp_get_wtime();
           E_p = Vector3R{};
           B_p = Vector3R{};
 
@@ -195,18 +253,19 @@ PetscErrorCode Particles::form_iteration()
             E_p += Es_p * bs;
             B_p += Bs_p * bs;
           }
+          t_interpolate += omp_get_wtime() - t0;
         };
 
-        auto get_residue = [&] {
+        auto get_residue = [&]
+        {
           return ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p))).length();
         };
 
         set_fields();
-        // rn = r0 = get_residue();
         rn = get_residue();
 
-        // for (; rn > cn_atol + cn_rtol * r0 && it < cn_maxit; it++) {
         for (; rn > cn_atol + cn_rtol * vh.length() && it < cn_maxit; it++) {
+          const PetscReal t0 = omp_get_wtime();
           Vector3R a, b, w;
           a = alpha * E_p;
           b = alpha * B_p;
@@ -215,6 +274,7 @@ PetscErrorCode Particles::form_iteration()
 
           pn.r = p0.r + dtau * vh;
           pn.p = 2.0 * vh - p0.p;
+          t_cn_push += omp_get_wtime() - t0;
 
           set_fields();
           rn = get_residue();
@@ -224,6 +284,7 @@ PetscErrorCode Particles::form_iteration()
         avgcell += (PetscReal)(coords.size() - 1) / size;
         maxcell = std::max(maxcell, (PetscInt)(coords.size() - 1));
 
+        const PetscReal t0 = omp_get_wtime();
         d = (pn.r - p0.r).length();
         coords = cell_traversal(pn.r, p0.r);
 
@@ -235,6 +296,7 @@ PetscErrorCode Particles::form_iteration()
 
           util.decompose(a0 * bs * (dtau / dt), vh, rsn, rs0);
         }
+        t_decompose += omp_get_wtime() - t0;
 
         bool reset = false;
         reset |= bound_periodic(pn.r[X], X);
@@ -245,9 +307,15 @@ PetscErrorCode Particles::form_iteration()
           p0 = pn;
       }
 
-      i++;
+      arrays.store(i, curr);
     }
   }
+
+  PetscCall(storage.restore_attributes(f));
+
+  interpolate_time += t_interpolate / omp_get_max_threads();
+  cn_push_time += t_cn_push / omp_get_max_threads();
+  decompose_time += t_decompose / omp_get_max_threads();
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
@@ -261,24 +329,17 @@ PetscErrorCode Particles::form_iteration()
 
   avgit /= (PetscReal)size;
   avgcell /= (PetscReal)size;
+  PetscLogEventEnd(events[1], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::prepare_storage()
 {
   PetscFunctionBeginUser;
-  size = 0;
-
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    auto&& curr = storage[g];
-    if (curr.empty())
-      continue;
-
-    auto&& prev = previous_storage[g];
-    prev = std::vector(curr.begin(), curr.end());
-
-    size += (PetscInt)curr.size();
-  }
+  PetscLogEventBegin(events[0], 0, 0, 0, 0);
+  PetscCall(storage.get_size(&size));
+  PetscCall(storage.save_previous());
+  PetscLogEventEnd(events[0], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

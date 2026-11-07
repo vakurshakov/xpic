@@ -15,7 +15,8 @@ public:
     std::string_view help =
       "\nStructure of the FieldViewZAvg diagnostic description:\n"
       "{\n"
-      "  \"diagnostic\": \"FieldViewZAvg\", -- Name of the diagnostic, constant.\n"
+      "  \"diagnostic\": \"FieldViewZAvg\", -- Name of the diagnostic, "
+      "                                        constant.\n"
       "  \"field\": \"E\", -- Field name set by `PetscObjectSetName()`.\n"
       "  \"start\": [ox, oy, -1], -- Starting point of a diagnosed region, in\n"
       "                              global coordinates of c/w_pe units.\n"

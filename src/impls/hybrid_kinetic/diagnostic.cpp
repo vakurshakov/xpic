@@ -33,15 +33,13 @@ struct ChargeShape {
       const auto g_x = (PetscReal)(start[X] + i % shw);
       const auto g_y = (PetscReal)(start[Y] + (i / shw) % shw);
       const auto g_z = (PetscReal)(start[Z] + (i / shw) / shw);
-      cache[i] =
-        sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
+      cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
     }
   }
 };
 
-template<class Storage>
 PetscErrorCode collect_charge_density(
-  DM da, const Storage& storage, PetscReal q_mpw, Vec rho)
+  DM da, const ParticleStorage& storage, PetscReal q_mpw, Vec rho)
 {
   PetscFunctionBeginUser;
   Vec local;
@@ -52,24 +50,26 @@ PetscErrorCode collect_charge_density(
   PetscReal*** arr;
   PetscCall(DMDAVecGetArrayWrite(da, local, &arr));
 
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attribute(f, "r"));
+  const PetscReal* r = f["r"];
   ChargeShape shape;
 
 #pragma omp parallel for private(shape)
-  for (PetscInt g = 0; g < (PetscInt)storage.size(); g++) {
-    for (const auto& point : storage[g]) {
-      shape.setup(point.r);
+  for (PetscInt p = 0; p < f.size; p++) {
+    shape.setup(Vector3R(r + 3 * p));
 
-      for (PetscInt i = 0; i < shape.shm; i++) {
-        const PetscInt x = shape.start[X] + i % shape.shw;
-        const PetscInt y = shape.start[Y] + (i / shape.shw) % shape.shw;
-        const PetscInt z = shape.start[Z] + (i / shape.shw) / shape.shw;
+    for (PetscInt i = 0; i < shape.shm; i++) {
+      const PetscInt x = shape.start[X] + i % shape.shw;
+      const PetscInt y = shape.start[Y] + (i / shape.shw) % shape.shw;
+      const PetscInt z = shape.start[Z] + (i / shape.shw) / shape.shw;
 
 #pragma omp atomic update
-        arr[z][y][x] += q_mpw * shape.cache[i];
-      }
+      arr[z][y][x] += q_mpw * shape.cache[i];
     }
   }
 
+  PetscCall(storage.restore_attributes(f));
   PetscCall(DMDAVecRestoreArrayWrite(da, local, &arr));
   PetscCall(DMLocalToGlobal(da, local, ADD_VALUES, rho));
   PetscCall(DMRestoreLocalVector(da, &local));
@@ -102,11 +102,14 @@ PetscErrorCode EnergyConservation::initialize()
     const drift_kinetic::Particles& sort = *ptr;
     sorts.emplace_back(SortView{
       sort,
-      [&sort] { return sort.kinetic_energy_local(); },
+      [&sort]
+      {
+        return sort.kinetic_energy_local();
+      },
       [&sort, da](Vec rho)
       {
-        return collect_charge_density(da, sort.get_dk_curr_storage(),
-          sort.parameters.q * sort.parameters.mpw, rho);
+        return collect_charge_density(
+          da, sort.storage, sort.parameters.q * sort.parameters.mpw, rho);
       },
     });
   }
@@ -115,11 +118,14 @@ PetscErrorCode EnergyConservation::initialize()
     const KineticParticles& sort = *ptr;
     sorts.emplace_back(SortView{
       sort,
-      [&sort] { return sort.kinetic_energy_local(); },
+      [&sort]
+      {
+        return sort.kinetic_energy_local();
+      },
       [&sort, da](Vec rho)
       {
-        return collect_charge_density(da, sort.storage,
-          sort.parameters.q * sort.parameters.mpw, rho);
+        return collect_charge_density(
+          da, sort.storage, sort.parameters.q * sort.parameters.mpw, rho);
       },
     });
   }

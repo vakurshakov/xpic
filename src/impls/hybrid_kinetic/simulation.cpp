@@ -202,6 +202,7 @@ PetscErrorCode Simulation::init_kinetic_particles()
       std::find_if(all_particles.begin(), all_particles.end(), is_named);
 
     auto sort = std::make_shared<KineticParticles>(world, (*dk)->parameters);
+    PetscCall(sort->initialize());
     PetscCall((*dk)->finalize());
     particles_.erase(dk);
     *base = sort;
@@ -239,8 +240,7 @@ PetscErrorCode Simulation::form_current()
 }
 
 // The field iteration is preconditioned by the linearized Maxwell equations
-// with the mass matrix of the particles, see
-// tests/drift_kinetic/field_preconditioner.md for the derivation.
+// with the mass matrix of the particles.
 PetscErrorCode Simulation::init_preconditioner()
 {
   PetscFunctionBeginUser;
@@ -388,6 +388,14 @@ PetscErrorCode Simulation::form_mass_matrix()
   PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
+  std::vector<ParticleStorage::Attributes> dk_arrays(particles_.size());
+  std::vector<ParticleStorage::Attributes> kinetic_arrays(
+    kinetic_particles_.size());
+  for (std::size_t s = 0; s < particles_.size(); s++)
+    PetscCall(particles_[s]->storage.get_attribute(dk_arrays[s], "r"));
+  for (std::size_t s = 0; s < kinetic_particles_.size(); s++)
+    PetscCall(kinetic_particles_[s]->storage.get_attribute(kinetic_arrays[s], "r"));
+
 #pragma omp parallel for schedule(dynamic)
   for (PetscInt g = 0; g < world.size.elements_product(); g++) {
     const Vector3I vg{
@@ -400,9 +408,10 @@ PetscErrorCode Simulation::form_mass_matrix()
     const Vector3R& B = B_arr[vg[Z]][vg[Y]][vg[X]];
     const PetscReal lenB = B.length();
 
-    for (const auto& sort : particles_) {
-      const auto& cell = sort->get_dk_curr_storage()[g];
-      if (cell.empty() || lenB == 0)
+    for (std::size_t s = 0; s < particles_.size(); s++) {
+      const auto& sort = particles_[s];
+      const auto& offsets = sort->storage.cell_offsets();
+      if (offsets[g] == offsets[g + 1] || lenB == 0)
         continue;
 
       const PetscReal q = sort->parameters.q;
@@ -418,30 +427,42 @@ PetscErrorCode Simulation::form_mass_matrix()
         {a * b[Z] * b[X] + c * b[Y], a * b[Z] * b[Y] - c * b[X], a * b[Z] * b[Z]},
       };
 
-      for (const auto& point : cell)
-        add_to_mass_block(block, vg, point.r, T);
+      const PetscReal* r = dk_arrays[s]["r"];
+      for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++)
+        add_to_mass_block(block, vg, Vector3R(r + 3 * i), T);
     }
 
-    for (const auto& sort : kinetic_particles_) {
-      const auto& cell = sort->storage[g];
-      if (cell.empty())
+    for (std::size_t s = 0; s < kinetic_particles_.size(); s++) {
+      const auto& sort = kinetic_particles_[s];
+      const auto& offsets = sort->storage.cell_offsets();
+      if (offsets[g] == offsets[g + 1])
         continue;
 
       const PetscReal q = sort->parameters.q;
       const PetscReal m = sort->parameters.m;
       const Vector3R beta = B * (0.5 * dt * q / m);
-      const PetscReal a = 0.25 * dt * dt * q * q * sort->parameters.mpw / m / (1 + beta.squared());
+      const PetscReal a = 0.25 * dt * dt * q * q * sort->parameters.mpw / m /
+        (1 + beta.squared());
 
       const PetscReal T[3][3]{
-        {a * (1 + beta[X] * beta[X]), a * (+beta[Z] + beta[X] * beta[Y]), a * (-beta[Y] + beta[X] * beta[Z])},
-        {a * (-beta[Z] + beta[Y] * beta[X]), a * (1 + beta[Y] * beta[Y]), a * (+beta[X] + beta[Y] * beta[Z])},
-        {a * (+beta[Y] + beta[Z] * beta[X]), a * (-beta[X] + beta[Z] * beta[Y]), a * (1 + beta[Z] * beta[Z])},
+        {a * (1 + beta[X] * beta[X]), a * (+beta[Z] + beta[X] * beta[Y]),
+          a * (-beta[Y] + beta[X] * beta[Z])},
+        {a * (-beta[Z] + beta[Y] * beta[X]), a * (1 + beta[Y] * beta[Y]),
+          a * (+beta[X] + beta[Y] * beta[Z])},
+        {a * (+beta[Y] + beta[Z] * beta[X]), a * (-beta[X] + beta[Z] * beta[Y]),
+          a * (1 + beta[Z] * beta[Z])},
       };
 
-      for (const auto& point : cell)
-        add_to_mass_block(block, vg, point.r, T);
+      const PetscReal* r = kinetic_arrays[s]["r"];
+      for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++)
+        add_to_mass_block(block, vg, Vector3R(r + 3 * i), T);
     }
   }
+
+  for (std::size_t s = 0; s < particles_.size(); s++)
+    PetscCall(particles_[s]->storage.restore_attributes(dk_arrays[s]));
+  for (std::size_t s = 0; s < kinetic_particles_.size(); s++)
+    PetscCall(kinetic_particles_[s]->storage.restore_attributes(kinetic_arrays[s]));
 
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
   PetscCall(MatSetValuesCOO(matL, coo_v.data(), INSERT_VALUES));

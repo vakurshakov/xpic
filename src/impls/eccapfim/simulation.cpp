@@ -1,7 +1,5 @@
 #include "simulation.h"
 
-#include "src/utils/geometries.h"
-#include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
 
@@ -34,19 +32,25 @@ PetscErrorCode Simulation::init_snes()
 
   /// @note `SNESANDERSON` can be more effective: -snes_type anderson -snes_anderson_beta 0.4
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
-  PetscCall(SNESSetType(snes, SNESNGMRES));
+  PetscCall(SNESSetType(snes, snes_type));
   PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
   PetscCall(SNESSetConvergenceHistory(snes, conv_hist.data(), NULL, maxit, PETSC_TRUE));
   PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
   PetscCall(SNESKSPSetUseEW(snes, PETSC_TRUE));
   PetscCall(SNESKSPSetParametersEW(snes, ew_version, ew_rtol_0, ew_rtol_0, ew_gamma, ew_alpha, PETSC_CURRENT, PETSC_CURRENT));
+
   PetscCall(SNESSetFromOptions(snes));
+
+  PetscCall(SNESGetType(snes, &snes_type));
+  PetscCall(SNESGetTolerances(snes, &atol, &rtol, &stol, &maxit, &maxf));
+  PetscCall(SNESGetDivergenceTolerance(snes, &divtol));
 
   PetscCall(DMCreateGlobalVector(da, &E_hk));
 
 #if SNES_ITERATE_B || SNES_PRECONDITIONING
-  auto create_dm = [&](PetscInt dim, DM* local_dm) {
+  auto create_dm = [&](PetscInt dim, DM* local_dm)
+  {
     Region region{
       .dim = 4,
       .dof = dim,
@@ -386,6 +390,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(DMGetGlobalVector(da, &B_f));
 
   PetscLogEventBegin(events[2], f, E_f, B_f, J);
+  PetscCall(VecAXPY(B, -1, B0));
 
   // F(E) = (E^{n+1/2,k} - E^{n}) + (0.5 * dt) * (J^{n+1/2,k} - rot(B^{n+1/2,k}))
   PetscCall(MatMult(rotB, B_hk, rB));
@@ -400,6 +405,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(B_f, -1, B));
   PetscCall(VecAXPY(B_f, +0.5 * dt, rE));
 
+  PetscCall(VecAXPY(B, +1, B0));
   PetscLogEventEnd(events[2], f, E_f, B_f, J);
 
   PetscCall(comp_snes(E_f, B_f, f));
@@ -408,6 +414,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(DMRestoreGlobalVector(da, &B_f));
 #else
   PetscLogEventBegin(events[2], f, E_hk, B, J);
+  PetscCall(VecAXPY(B, -1, B0));
 
   PetscCall(MatMult(rotB, B, rB));
   PetscCall(MatMult(matM, E_hk, f));
@@ -415,6 +422,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(f, +0.5 * dt, J));
   PetscCall(VecAXPY(f, -0.5 * dt, rB));
 
+  PetscCall(VecAXPY(B, +1, B0));
   PetscLogEventEnd(events[2], f, E_hk, B, J);
 #endif
   PetscCall(clock.pop());
@@ -439,6 +447,7 @@ PetscErrorCode Simulation::after_iteration()
   PetscCall(VecAXPY(B, -dt, rE));
 #endif
 
+  /// @note The same crash can happen here...
   for (auto& sort : particles_)
     PetscCall(sort->update_cells());
 

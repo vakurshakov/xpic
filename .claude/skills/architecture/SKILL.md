@@ -45,7 +45,7 @@ Numerical building blocks shared across `src/impls/` schemes, with no config-dis
 
 ## `src/commands/` + `src/commands/builders/`
 
-Actions that modify the simulation outside the main physics step: `InjectParticles`, `SetParticles`, `RemoveParticles`, `SetField` (`"field": "E"|"B"`), `FieldsDamping`. Config `"Presets"` run once at init; `"StepPresets"` run once per timestep. Each command has a matching builder in `builders/` (`command_builder.h`/`.cpp` holds the dispatch chain). See `doc/src/commands.rst` for the full JSON schema of each command, including shared `"coordinate"`/`"momentum"`/`"geometry"` sub-config formats (`PreciseCoordinate`/`CoordinateInBox`/`CoordinateInCylinder`, `PreciseMomentum`/`MaxwellianMomentum`, `BoxGeometry`/`CylinderGeometry`).
+Actions that modify the simulation outside the main physics step: `InjectParticles`, `SetParticles`, `RemoveParticles`, `SetField` (`"field": "E"|"B"`), `DampenFields`. Config `"Presets"` run once at init; `"StepPresets"` run once per timestep. Each command has a matching builder in `builders/` (`command_builder.h`/`.cpp` holds the dispatch chain). See `docs/src/commands.rst` for the full JSON schema of each command, including shared `"coordinate"`/`"momentum"`/`"geometry"` sub-config formats (`PreciseCoordinate`/`CoordinateInBox`/`CoordinateInCylinder`, `PreciseMomentum`/`MaxwellianMomentum`, `BoxGeometry`/`CylinderGeometry`).
 
 ## `src/diagnostics/` + `src/diagnostics/builders/`
 
@@ -75,9 +75,9 @@ Cross-cutting infrastructure with no config-dispatch layer:
 - `SyncClock` (`sync_clock.h`/`.cpp`) — timing/profiling instrumentation.
 - `utils.h`/`.cpp` — the `LOG(...)`, `LOG_IMPL(...)`, `LOG_FLUSH()` logging macros (format-string style, similar to `std::format`) and other small helpers.
 
-## `doc/`
+## `docs/`
 
-Sphinx docs (Russian). `doc/src/structure.rst` covers the architecture in more depth; `doc/src/commands.rst` documents command JSON schemas; `doc/src/installation.rst` covers build/install.
+Sphinx docs (Russian). `docs/src/structure.rst` covers the architecture in more depth; `docs/src/commands.rst` documents command JSON schemas; `docs/src/installation.rst` covers build/install.
 
 ## `tools/`
 

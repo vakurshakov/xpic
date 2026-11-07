@@ -46,7 +46,7 @@ PetscErrorCode SetAzimuthalField::operator()(Vec vec, const Stagger& stagger)
   const auto& off = stagger.offset;
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -86,7 +86,7 @@ PetscErrorCode SetGradientField::operator()(Vec vec, const Stagger& stagger)
 
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -119,7 +119,7 @@ PetscErrorCode SetMirrorField::operator()(Vec vec, const Stagger& stagger)
   const auto& off = stagger.offset;
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -161,7 +161,7 @@ PetscErrorCode SetCosineField::operator()(Vec vec, const Stagger& stagger)
   };
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -200,7 +200,7 @@ PetscErrorCode SetGeneralCosineField::operator()(Vec vec, const Stagger& stagger
   };
 
 #pragma omp parallel for
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];
@@ -249,7 +249,7 @@ PetscErrorCode SetCoilsField::operator()(Vec vec, const Stagger& stagger)
   PetscReal sx, sy, sz, r;
 
 #pragma omp parallel for private(sx, sy, sz, r)
-  for (PetscInt g = 0; g < size.elements_product(); ++g) {
+  for (PetscInt g = 0; g < size.elements_product(); g++) {
     PetscInt x = start[X] + g % size[X];
     PetscInt y = start[Y] + (g / size[X]) % size[Y];
     PetscInt z = start[Z] + (g / size[X]) / size[Y];

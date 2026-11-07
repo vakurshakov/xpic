@@ -4,11 +4,14 @@
 /// @brief Drift-kinetic field interpolation and deposition.
 
 #include "src/impls/drift_kinetic/segments.h"
+#include "src/utils/world.h"
 
 /// @brief 1 builds the segment weights from one-dimensional spline tables
 /// (`DriftKineticSplineTables`), 0 evaluates the splines at every stencil node.
 /// Both give bitwise identical results.
-#define DRIFT_KINETIC_SPLINE_TABLES 1
+#ifndef DRIFT_KINETIC_SPLINE_TABLES
+  #define DRIFT_KINETIC_SPLINE_TABLES 1
+#endif
 
 namespace drift_kinetic {
 
@@ -53,15 +56,14 @@ struct DriftKineticSplineTables {
 class DriftKineticEsirkepov {
 public:
   /// @brief Binds a magnetic field for point interpolation.
-  DriftKineticEsirkepov(Vector3R*** B_g);
+  DriftKineticEsirkepov(const World& world, Vector3R*** B_g);
 
   /// @brief Binds field layers and deposition arrays.
-  DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn0_g, Vector3R*** Bnh_g,
-    Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g);
+  DriftKineticEsirkepov(const World& world, Vector3R*** E_g, Vector3R*** Bn0_g,
+    Vector3R*** Bnh_g, Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g);
 
   /// @brief Selects the time interval within the field step.
   void set_interval(PetscReal begin, PetscReal end);
-  void set_grid_bounds(const Vector3I& begin, const Vector3I& end);
 
   PetscErrorCode interpolate(Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
     Vector3R& gradB_p, Vector3R& rotB_p, const Vector3R& Rn, const Vector3R& R0);
@@ -73,13 +75,10 @@ public:
 
 private:
   Vector3R magnetic(PetscInt x, PetscInt y, PetscInt z, PetscReal theta) const;
-  PetscErrorCode interpolate_B_at(Vector3R& B_p, const Vector3R& Rp, PetscReal theta);
-  PetscErrorCode check_track(const Vector3R& R0, const Vector3R& Rn) const;
   PetscErrorCode check_stencil(const Vector3I& begin, const Vector3I& end) const;
-
-  PetscReal theta_begin = 0, theta_end = 1;
-  bool bounded = false;
-  Vector3I grid_begin, grid_end;
+  PetscErrorCode check_track(const Vector3R& R0, const Vector3R& Rn) const;
+  PetscErrorCode interpolate_B_at(
+    Vector3R& B_p, const Vector3R& Rp, PetscReal theta);
 
   PetscErrorCode interpolate_B(  //
     Vector3R& B_p, Vector3R*** B_g, const Vector3R& Rp);
@@ -104,6 +103,9 @@ private:
   PetscErrorCode decomposition_J(  //
     const DriftKineticSegment& s, const Vector3R& Vh, PetscReal q_p);
 
+  PetscReal theta_begin = 0, theta_end = 1;
+
+  const World& world;
   Vector3R*** E_g = nullptr;  // Midpoint electric field.
 
   Vector3R*** Bn0_g = nullptr;  // Previous magnetic field.

@@ -1,5 +1,10 @@
 #include "src/impls/drift_kinetic/segments.h"
 
+static constexpr char help[] =
+  "Test of drift-kinetic trajectory segmentation. Checks cell-plane splits,\n"
+  "wrapped and local periodic images, endpoints, cell indices and lengths\n"
+  "for stationary, boundary-crossing and multidimensional trajectories.\n";
+
 namespace {
 
 using namespace drift_kinetic;
@@ -135,6 +140,40 @@ PetscErrorCode run_cases(std::size_t& count)
   Geom_n[X] = 4;
   Geom_n[Y] = 6;
   Geom_n[Z] = 8;
+
+  // Local segments must retain the original image and cell indices, even
+  // when the trajectory crosses either periodic face in either direction.
+  for (Axis axis : {X, Y, Z}) {
+    for (PetscInt side = 0; side < 2; ++side) {
+      for (PetscInt reverse = 0; reverse < 2; ++reverse) {
+        Vector3R begin{1, 1, 1}, end = begin;
+        const PetscReal face = side ? (PetscReal)Geom_n[axis] - 0.5 : -0.5;
+        begin[axis] = face + (reverse ? 0.25 : -0.25);
+        end[axis] = face + (reverse ? -0.25 : 0.25);
+        const auto track = make_track(physical(begin), physical(end));
+        const auto segments = cell_segments(track, CellSplitMode::centers, SegmentImage::local);
+        PetscCheck(segments.size() == 2 && close(segments.front().Rs0, begin) &&
+            close(segments.back().Rsn, end) && close(segments[0].Rsn, segments[1].Rs0),
+          PETSC_COMM_WORLD, PETSC_ERR_USER, "Local seam track is discontinuous");
+        Vector3R sum;
+        PetscReal length = 0;
+        for (const auto& segment : segments) {
+          PetscCheck(close(segment.dRs, segment.Rsn - segment.Rs0) &&
+              std::abs(segment.dRs_len - segment.dRs.length()) <= tolerance,
+            PETSC_COMM_WORLD, PETSC_ERR_USER, "Local segment geometry is inconsistent");
+          sum += segment.dRs;
+          length += segment.dRs_len;
+          for (Axis a : {X, Y, Z})
+            PetscCheck(segment.cell[a] == (PetscInt)std::floor(segment.Rsh[a] + 0.5),
+              PETSC_COMM_WORLD, PETSC_ERR_USER, "Local cell does not match segment midpoint");
+        }
+        PetscCheck(close(sum, end - begin) && std::abs(length - (end - begin).length()) <= tolerance,
+          PETSC_COMM_WORLD, PETSC_ERR_USER,
+          "Local segment displacement changed");
+        ++count;
+      }
+    }
+  }
 
   struct LineCase {
     const char* name;
@@ -371,7 +410,7 @@ PetscErrorCode run_cases(std::size_t& count)
 int main(int argc, char** argv)
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, nullptr, "Drift-kinetic trajectory segmentation tests.\n"));
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
   std::size_t count = 0;
   PetscCall(run_cases(count));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Checked %zu segmentation cases.\n", count));

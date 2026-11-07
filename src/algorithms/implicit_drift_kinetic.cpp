@@ -118,14 +118,21 @@ void DriftKineticSplineTables::setup(const DriftKineticSegment& s)
 }
 #endif
 
-DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** B_g)
-  : Bn0_g(B_g)
+DriftKineticEsirkepov::DriftKineticEsirkepov(const World& world, Vector3R*** B_g)
+  : world(world), Bn0_g(B_g)
 {
 }
 
-DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn0_g,
-  Vector3R*** Bnh_g, Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g)
-  : E_g(E_g), Bn0_g(Bn0_g), Bnh_g(Bnh_g), Bn1_g(Bn1_g), J_g(J_g), M_g(M_g)
+DriftKineticEsirkepov::DriftKineticEsirkepov(const World& world,
+  Vector3R*** E_g, Vector3R*** Bn0_g, Vector3R*** Bnh_g, Vector3R*** Bn1_g,
+  Vector3R*** J_g, Vector3R*** M_g)
+  : world(world),
+    E_g(E_g),
+    Bn0_g(Bn0_g),
+    Bnh_g(Bnh_g),
+    Bn1_g(Bn1_g),
+    J_g(J_g),
+    M_g(M_g)
 {
 }
 
@@ -135,19 +142,15 @@ void DriftKineticEsirkepov::set_interval(PetscReal begin, PetscReal end)
   theta_end = end;
 }
 
-void DriftKineticEsirkepov::set_grid_bounds(const Vector3I& begin, const Vector3I& end)
-{
-  bounded = true;
-  grid_begin = begin;
-  grid_end = end;
-}
-
 Vector3R DriftKineticEsirkepov::magnetic(
   PetscInt x, PetscInt y, PetscInt z, PetscReal theta) const
 {
-  if (theta == 0) return Bn0_g[z][y][x];
-  if (theta == 1) return Bn1_g[z][y][x];
-  if (theta == 0.5) return Bnh_g[z][y][x];
+  if (theta == 0)
+    return Bn0_g[z][y][x];
+  if (theta == 1)
+    return Bn1_g[z][y][x];
+  if (theta == 0.5)
+    return Bnh_g[z][y][x];
   return (1 - theta) * Bn0_g[z][y][x] + theta * Bn1_g[z][y][x];
 }
 
@@ -155,11 +158,10 @@ PetscErrorCode DriftKineticEsirkepov::check_stencil(
   const Vector3I& begin, const Vector3I& end) const
 {
   PetscFunctionBeginHot;
-  if (bounded) {
-    for (Axis a : {X, Y, Z})
-      PetscCheck(begin[a] >= grid_begin[a] && end[a] <= grid_end[a],
-        PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE,
-        "Drift-kinetic stencil outside local ghost grid on axis %d", (int)a);
+  for (Axis a : {X, Y, Z}) {
+    PetscCheck(begin[a] >= world.gstart[a] && end[a] <= world.gend[a],
+      PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE,
+      "Drift-kinetic stencil outside local ghost grid on axis %d", (int)a);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -209,7 +211,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate(                     //
   DriftKineticSegment track = make_track(R0, Rn);
 
   std::vector<DriftKineticSegment> segmented_track =
-    cell_segments(track, CellSplitMode::centers);
+    cell_segments(track, CellSplitMode::centers, SegmentImage::local);
 
   Vector3R pR0 = make_begin(segmented_track.front());
   Vector3R pRn = make_end(segmented_track.back());
@@ -259,7 +261,7 @@ PetscErrorCode DriftKineticEsirkepov::decomposition(const Vector3R& Rn,
   DriftKineticSegment track = make_track(R0, Rn);
 
   std::vector<DriftKineticSegment> segmented_track =
-    cell_segments(track, CellSplitMode::centers);
+    cell_segments(track, CellSplitMode::centers, SegmentImage::local);
 
   Vector3R pR0 = make_begin(segmented_track.front());
   Vector3R pRn = make_end(segmented_track.back());
@@ -318,6 +320,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_E(
 {
   DriftKineticShapeE sh;
   sh.setup(s);
+  PetscCall(check_stencil(sh.p_g, sh.p_g + Vector3I(sh.shw)));
 
   PetscFunctionBeginHot;
   for (PetscInt i = 0; i < POW3(sh.shw); ++i) {
@@ -348,6 +351,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB_rotB(Vector3R& gradB_p,
 {
   DriftKineticShapeGradB sh;
   sh.setup(s);
+  PetscCall(check_stencil(sh.p_g, sh.p_g + Vector3I(sh.shw + 1)));
 
   const auto& t = tables;
 
@@ -386,7 +390,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB_rotB(Vector3R& gradB_p,
 
       rotB_p[a] += dB[b][c] * W[b][c] - dB[c][b] * W[c][b];
 
-      gradB_p[a] +=                       //
+      gradB_p[a] +=                    //
         b_p[X] * dB[a][X] * W[a][X] +  //
         b_p[Y] * dB[a][Y] * W[a][Y] +  //
         b_p[Z] * dB[a][Z] * W[a][Z];
@@ -400,6 +404,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_E(
 {
   DriftKineticShapeE sh;
   sh.setup(s);
+  PetscCall(check_stencil(sh.p_g, sh.p_g + Vector3I(sh.shw)));
 
   PetscFunctionBeginHot;
   for (PetscInt i = 0; i < POW3(sh.shw); ++i) {
@@ -426,6 +431,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_rotB(
 {
   DriftKineticShapeGradB sh;
   sh.setup(s);
+  PetscCall(check_stencil(sh.p_g, sh.p_g + Vector3I(sh.shw + 1)));
 
   Vector3R dBdx, dBdy, dBdz;
 
@@ -442,9 +448,12 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_rotB(
 
     const Vector3R B = magnetic(g_x, g_y, g_z, 0.5 * (theta_begin + theta_end));
 
-    dBdx = (magnetic(g_x + 1, g_y, g_z, 0.5 * (theta_begin + theta_end)) - B) / dx;
-    dBdy = (magnetic(g_x, g_y + 1, g_z, 0.5 * (theta_begin + theta_end)) - B) / dy;
-    dBdz = (magnetic(g_x, g_y, g_z + 1, 0.5 * (theta_begin + theta_end)) - B) / dz;
+    dBdx =
+      (magnetic(g_x + 1, g_y, g_z, 0.5 * (theta_begin + theta_end)) - B) / dx;
+    dBdy =
+      (magnetic(g_x, g_y + 1, g_z, 0.5 * (theta_begin + theta_end)) - B) / dy;
+    dBdz =
+      (magnetic(g_x, g_y, g_z + 1, 0.5 * (theta_begin + theta_end)) - B) / dz;
 
 
     // X - COMPONENT
@@ -513,6 +522,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
 {
   DriftKineticShapeGradB sh;
   sh.setup(s);
+  PetscCall(check_stencil(sh.p_g, sh.p_g + Vector3I(sh.shw + 1)));
 
   Vector3R dBdx, dBdy, dBdz;
 
@@ -530,9 +540,12 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
 
     const Vector3R B = magnetic(g_x, g_y, g_z, 0.5 * (theta_begin + theta_end));
 
-    dBdx = (magnetic(g_x + 1, g_y, g_z, 0.5 * (theta_begin + theta_end)) - B) / dx;
-    dBdy = (magnetic(g_x, g_y + 1, g_z, 0.5 * (theta_begin + theta_end)) - B) / dy;
-    dBdz = (magnetic(g_x, g_y, g_z + 1, 0.5 * (theta_begin + theta_end)) - B) / dz;
+    dBdx =
+      (magnetic(g_x + 1, g_y, g_z, 0.5 * (theta_begin + theta_end)) - B) / dx;
+    dBdy =
+      (magnetic(g_x, g_y + 1, g_z, 0.5 * (theta_begin + theta_end)) - B) / dy;
+    dBdz =
+      (magnetic(g_x, g_y, g_z + 1, 0.5 * (theta_begin + theta_end)) - B) / dz;
 
 
     // X - COMPONENT
@@ -663,6 +676,7 @@ PetscErrorCode DriftKineticEsirkepov::decomposition_J(
 {
   DriftKineticShapeE sh;
   sh.setup(s);
+  PetscCall(check_stencil(sh.p_g, sh.p_g + Vector3I(sh.shw)));
 
   PetscFunctionBeginHot;
   for (PetscInt i = 0; i < POW3(sh.shw); ++i) {
@@ -683,13 +697,13 @@ PetscErrorCode DriftKineticEsirkepov::decomposition_J(
     J_p[Y] = q_p * Vh[Y] * t.along_ii[Y][k[Y]] * t.across[Y][0][k[Z]][k[X]];
     J_p[Z] = q_p * Vh[Z] * t.along_ii[Z][k[Z]] * t.across[Z][0][k[X]][k[Y]];
 
-#pragma omp atomic
+  #pragma omp atomic
     J_g[g_z][g_y][g_x][X] += J_p[X];
 
-#pragma omp atomic
+  #pragma omp atomic
     J_g[g_z][g_y][g_x][Y] += J_p[Y];
 
-#pragma omp atomic
+  #pragma omp atomic
     J_g[g_z][g_y][g_x][Z] += J_p[Z];
   }
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -700,6 +714,7 @@ PetscErrorCode DriftKineticEsirkepov::decomposition_J(
 {
   DriftKineticShapeE sh;
   sh.setup(s);
+  PetscCall(check_stencil(sh.p_g, sh.p_g + Vector3I(sh.shw)));
 
   PetscFunctionBeginHot;
   for (PetscInt i = 0; i < POW3(sh.shw); ++i) {
@@ -718,13 +733,13 @@ PetscErrorCode DriftKineticEsirkepov::decomposition_J(
     J_p[Z] = q_p * Vh[Z] * alongS1(g_z + 0.5 - s.Rsh[Z]) *
       acrossS2(g_x - s.Rs0[X], g_x - s.Rsn[X], g_y - s.Rs0[Y], g_y - s.Rsn[Y]);
 
-#pragma omp atomic
+  #pragma omp atomic
     J_g[g_z][g_y][g_x][X] += J_p[X];
 
-#pragma omp atomic
+  #pragma omp atomic
     J_g[g_z][g_y][g_x][Y] += J_p[Y];
 
-#pragma omp atomic
+  #pragma omp atomic
     J_g[g_z][g_y][g_x][Z] += J_p[Z];
   }
   PetscFunctionReturn(PETSC_SUCCESS);

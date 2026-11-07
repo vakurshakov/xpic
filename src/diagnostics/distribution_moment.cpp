@@ -97,11 +97,20 @@ void DistributionMoment::Shape::setup(const Vector3R& r)
 PetscErrorCode DistributionMoment::collect()
 {
   PetscFunctionBeginUser;
+  ParticleStorage::Attributes f;
+  PetscCall(particles.storage.get_attributes(f));
+  const PointArrays arrays(f);
+  const std::vector<PetscInt>& offsets = particles.storage.cell_offsets();
+
   PetscCall(collect([&](PetscInt g, auto&& deposit)
   {
-    for (auto&& point : particles.storage[g])
+    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++) {
+      const Point point = arrays.load(i);
       deposit(point.r, moment(particles, point));
+    }
   }));
+
+  PetscCall(particles.storage.restore_attributes(f));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

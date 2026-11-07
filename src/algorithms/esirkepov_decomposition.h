@@ -4,7 +4,7 @@
 #include "src/utils/shape.h"
 
 /// @brief Charge-conserving Esirkepov density decomposition.
-/// @note A temporary buffer is allocated with the size of `shape_width`.
+/// @note A temporary buffer is allocated with the size of `shape_moving_width`.
 class EsirkepovDecomposition {
 public:
   EsirkepovDecomposition() = delete;

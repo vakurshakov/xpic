@@ -20,7 +20,7 @@ public:
       "                       Setters are sampled at its Yee positions.\n"
       "  \"setter\": { -- Field setter description.\n"
       "    \"name\": \"Name\", -- Setter name, one of the following:\n"
-      "                        SetUniformField, SetCoilsField, SetCosineField.\n"
+      "                    SetUniformField, SetCoilsField, SetCosineField.\n"
       "    Specific description of a setter chosen by \"Name\"...\n"
       "  }\n"
       "}\n";

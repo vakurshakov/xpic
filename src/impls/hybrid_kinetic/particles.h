@@ -11,6 +11,7 @@ class KineticParticles : public interfaces::Particles {
 public:
   KineticParticles(const World& world, const SortParameters& parameters);
 
+  PetscErrorCode initialize() override;
   PetscErrorCode prepare_storage();
   PetscErrorCode form_iteration();
 
@@ -18,8 +19,6 @@ public:
   PetscReal get_average_iteration_number() const;
 
 private:
-  std::vector<std::vector<Point>> previous_storage;  // States at layer n.
-
   PetscInt size = 0;    // Local particle count.
   PetscReal avgit = 0;  // Average pusher iteration count.
 };

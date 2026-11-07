@@ -32,7 +32,6 @@ set(PETSC_ARCH_DEBUG linux-mpi-debug)
 
 set(interfaces
   src/interfaces/simulation.cpp
-  src/interfaces/point.cpp
   src/interfaces/sort_parameters.cpp
   src/interfaces/particles.cpp
   src/interfaces/builder.cpp
@@ -81,7 +80,7 @@ set(commands
   src/commands/set_particles_iaw.cpp
   src/commands/set_field.cpp
   src/commands/remove_particles.cpp
-  src/commands/fields_damping.cpp
+  src/commands/dampen_fields.cpp
   src/commands/builders/command_builder.cpp
   src/commands/builders/particles_builder.cpp
   src/commands/builders/inject_particles_builder.cpp
@@ -89,7 +88,7 @@ set(commands
   src/commands/builders/set_particles_builder.cpp
   src/commands/builders/set_particles_iaw_builder.cpp
   src/commands/builders/set_field_builder.cpp
-  src/commands/builders/fields_damping_builder.cpp
+  src/commands/builders/dampen_fields_builder.cpp
 )
 
 set(utils
@@ -98,6 +97,7 @@ set(utils
   src/utils/sync_clock.cpp
   src/utils/operators.cpp
   src/utils/shape.cpp
+  src/utils/particle_storage.cpp
   src/utils/particles_load.cpp
   src/utils/geometries.cpp
   src/utils/world.cpp

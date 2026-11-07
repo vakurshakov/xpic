@@ -15,26 +15,34 @@ static constexpr PetscInt cn_maxit = 100;
 
 KineticParticles::KineticParticles(
   const World& world, const SortParameters& parameters)
-  : interfaces::Particles(world, parameters),
-    previous_storage(world.size.elements_product())
+  : interfaces::Particles(world, parameters)
 {
+}
+
+PetscErrorCode KineticParticles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Particles::initialize());
+  PetscCall(storage.initialize());
+  PetscCall(storage.register_attribute("r", 3));
+  PetscCall(storage.register_attribute("p", 3));
+  PetscCall(storage.register_previous("r"));
+  PetscCall(storage.register_previous("p"));
+  PetscCall(storage.commit_attributes());
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode KineticParticles::prepare_storage()
 {
   PetscFunctionBeginUser;
-  size = 0;
-
-  for (PetscInt g = 0; g < world.size.elements_product(); g++) {
-    previous_storage[g].assign(storage[g].begin(), storage[g].end());
-    size += (PetscInt)storage[g].size();
-  }
+  PetscCall(storage.get_size(&size));
+  PetscCall(storage.save_previous());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // Restarts each particle from layer n and pushes it through the current field
 // iterate. The step is split at the ghost-region boundary of the subdomain,
-// substeps are chained, the particle is wrapped by the periodic boundaries.
+// substeps are chained; ParticleStorage wraps and migrates the accepted state.
 PetscErrorCode KineticParticles::form_iteration()
 {
   PetscFunctionBeginUser;
@@ -67,20 +75,19 @@ PetscErrorCode KineticParticles::form_iteration()
     return std::numeric_limits<PetscReal>::max();
   };
 
-  auto bound_periodic = [&](PetscReal& s, Axis a)
-  {
-    if (s < 0)
-      s += Geom[a];
-    else if (s > Geom[a])
-      s -= Geom[a];
-  };
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
+  PetscCall(storage.get_previous(f));
+  const PointArrays arrays(f);
+  const PointArrays arrays_prev(f, "_prev");
 
-#pragma omp parallel for reduction(+ : avgit)
-  for (PetscInt g = 0; g < (PetscInt)storage.size(); g++) {
+#pragma omp parallel reduction(+ : avgit)
+  {
     ImplicitEsirkepov util(E_arr, B_arr, J_arr);
 
-    for (PetscInt i = 0; auto& curr : storage[g]) {
-      curr = previous_storage[g][i];
+#pragma omp for schedule(static)
+    for (PetscInt i = 0; i < f.size; i++) {
+      Point curr = arrays_prev.load(i);
       Point p0 = curr;
       Point& pn = curr;
 
@@ -106,7 +113,7 @@ PetscErrorCode KineticParticles::form_iteration()
 
           for (PetscInt s = 1; s < (PetscInt)coords.size(); s++) {
             const PetscReal ds = (coords[s] - coords[s - 1]).length();
-            callback(coords[s], coords[s - 1], (d > 0 ? ds / d : 1.0));
+            callback(coords[s], coords[s - 1], d > 0 ? ds / d : 1.0);
           }
         };
 
@@ -127,12 +134,10 @@ PetscErrorCode KineticParticles::form_iteration()
 
         auto get_residue = [&]
         {
-          return ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p)))
-            .length();
+          return ((pn.p - p0.p) - (dtau * q / m) * (E_p + vh.cross(B_p))).length();
         };
 
         set_fields();
-        // const PetscReal r0 = get_residue();
         PetscReal rn;
 
         // At least one iteration, so that the deposited current `vh`
@@ -150,8 +155,8 @@ PetscErrorCode KineticParticles::form_iteration()
           set_fields();
           rn = get_residue();
           it++;
-          // } while (rn > cn_atol + cn_rtol * r0 && it < cn_maxit);
-        } while (rn > cn_atol + cn_rtol * vh.length() && it < cn_maxit);
+        }
+        while (rn > cn_atol + cn_rtol * vh.length() && it < cn_maxit);
 
         avgit += (PetscReal)it / (PetscReal)size;
 
@@ -161,16 +166,14 @@ PetscErrorCode KineticParticles::form_iteration()
             util.decompose(q * mpw * bs * (dtau / dt), vh, rsn, rs0);
           });
 
-        for (Axis a : {X, Y, Z})
-          bound_periodic(pn.r[a], a);
-
         p0 = pn;
       }
 
-      i++;
+      arrays.store(i, curr);
     }
   }
 
+  PetscCall(storage.restore_attributes(f));
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
 
@@ -184,12 +187,15 @@ PetscErrorCode KineticParticles::form_iteration()
 PetscReal KineticParticles::kinetic_energy_local() const
 {
   PetscReal w = 0;
+  ParticleStorage::Attributes f;
+  PetscCallAbort(PETSC_COMM_WORLD, storage.get_attribute(f, "p"));
+  const PetscReal* p = f["p"];
 
 #pragma omp parallel for reduction(+ : w)
-  for (auto&& cell : storage) {
-    for (auto&& point : cell)
-      w += point.p.squared();
-  }
+  for (PetscInt i = 0; i < f.size; i++)
+    w += Vector3R(p + 3 * i).squared();
+
+  PetscCallAbort(PETSC_COMM_WORLD, storage.restore_attributes(f));
   return 0.5 * parameters.m * parameters.mpw * w;
 }
 

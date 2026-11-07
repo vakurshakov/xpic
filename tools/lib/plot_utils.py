@@ -17,7 +17,7 @@ bbox = dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.25')
 
 def figure(ncols: int, nrows: int, width_ratios: list[int] = None, height_ratios: list[int] = None, figsize=None):
     if figsize == None:
-        figsize = (6 * ncols, 6 * nrows)
+        figsize = (8 * ncols * 1.2, 8 * nrows * 1.2)
 
     fig = plt.figure(figsize=figsize)
 

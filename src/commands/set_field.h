@@ -8,24 +8,6 @@
 #include "src/utils/vector3.h"
 
 
-/// @brief Component `c` of a Yee-staggered field lives at the point
-/// `(idx[a] + offset[c][a]) * d[a]` along each axis `a`.
-struct Stagger {
-  PetscReal offset[3][3];
-};
-
-constexpr Stagger yee_E{{
-  {0.5, 0.0, 0.0},
-  {0.0, 0.5, 0.0},
-  {0.0, 0.0, 0.5},
-}};
-
-constexpr Stagger yee_B{{
-  {0.0, 0.5, 0.5},
-  {0.5, 0.0, 0.5},
-  {0.5, 0.5, 0.0},
-}};
-
 /// @brief Fills `field` with `setup`; if `field0` is given, adds the result to it.
 /// @todo Simulation should be passed
 class SetField : public interfaces::Command {

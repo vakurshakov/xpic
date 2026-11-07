@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include <petscdmtypes.h>  // for DMBoundaryType
+#include <petscdmtypes.h>   // for DMBoundaryType
 #include <petscsystypes.h>  // for PetscInt
 
 #include <nlohmann/json.hpp>

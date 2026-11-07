@@ -11,6 +11,8 @@ enum class CellSplitMode {
   centers,  // Half-integer planes and a box starting at minus one half.
 };
 
+enum class SegmentImage { wrapped, local };
+
 /// @brief Straight track segment in grid coordinates.
 struct DriftKineticSegment {
   Vector3R Rs0;       // Start point.
@@ -27,10 +29,11 @@ DriftKineticSegment make_track(const Vector3R& R0, const Vector3R& Rn);
 Vector3R make_begin(const DriftKineticSegment& segment);
 Vector3R make_end(const DriftKineticSegment& segment);
 
-/// @brief Splits a track at the selected cell planes and wraps each piece
-/// into the periodic box, whose faces are a subset of these planes.
+/// @brief Splits at cell planes. Wrapped images lie in the periodic box;
+/// local images preserve the input coordinates and unwrapped cell indices.
 std::vector<DriftKineticSegment> cell_segments(
-  const DriftKineticSegment& track, CellSplitMode mode);
+  const DriftKineticSegment& track, CellSplitMode mode,
+  SegmentImage image = SegmentImage::wrapped);
 
 }  // namespace drift_kinetic
 

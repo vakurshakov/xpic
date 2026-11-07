@@ -21,7 +21,8 @@ static constexpr char help[] =
   "(dt / 2) omega_pe^2 / Omega_e = 62, and a matrix of the first iterate     \n"
   "slows the convergence down from 7 to 11-14 iterations per step. The step  \n"
   "is limited by the Picard push of the electrons, whose contraction grows   \n"
-  "as dt^2 (q/m) dE_par/ds: at dt = 50 some of them already need halving.    \n";
+  "as dt^2 (q/m) dE_par/ds: at dt = 50 some of them already need halving.    "
+  "\n";
 
 namespace fms {
 

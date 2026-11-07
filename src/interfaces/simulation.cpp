@@ -58,6 +58,7 @@ PetscErrorCode Simulation::initialize()
 
   da = world.da;
   da_rho = world.da_rho;
+  da_mflux = world.da_mflux;
 
   PetscCall(DMCreateGlobalVector(da, &E));
   PetscCall(DMCreateGlobalVector(da, &B));
@@ -122,7 +123,7 @@ PetscErrorCode Simulation::initialize()
     std::make_unique<ChargeConservation>(*this));
 
   diagnostics_.emplace_back(  //
-    std::make_unique<MomentumConservation>(da, E, particles));
+    std::make_unique<MomentumConservation>(da, E, B, particles));
 
   std::vector<Command_up> presets;
   PetscCall(build_commands(*this, "Presets", presets));
@@ -133,8 +134,11 @@ PetscErrorCode Simulation::initialize()
   for (const Command_up& preset : presets)
     preset->execute(start);
 
-  for (const Particles_sp& sort : particles_)
-    PetscCall(sort->initialize_rho());
+  for (const Particles_sp& sort : particles_) {
+    PetscCall(sort->calculate_moments());
+    PetscCall(VecCopy(sort->rho[1], sort->rho[0]));
+    PetscCall(VecCopy(sort->rho_loc[1], sort->rho_loc[0]));
+  }
 
   for (const Diagnostic_up& diagnostic : diagnostics_)
     PetscCall(diagnostic->diagnose(start));
@@ -157,7 +161,7 @@ PetscErrorCode Simulation::calculate()
     PetscCall(timestep_implementation(t));
 
     for (const Particles_sp& sort : particles_)
-      PetscCall(sort->calculate_rho());
+      PetscCall(sort->calculate_moments());
 
     PetscCall(PetscLogStagePush(stagenums[1]));
     for (const Diagnostic_up& diagnostic : diagnostics_)
@@ -222,7 +226,8 @@ PetscErrorCode Simulation::log_information() const
 Particles& Simulation::get_named_particles(std::string_view name)
 {
   auto it = std::find_if(particles_.begin(), particles_.end(),  //
-    [&](const Particles_sp& sort) {
+    [&](const Particles_sp& sort)
+    {
       return sort->parameters.sort_name == name;
     });
 

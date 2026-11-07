@@ -18,7 +18,12 @@ void BorisPush::set_fields(const Vector3R& E_p, const Vector3R& B_p)
 
 /* static */ void BorisPush::update_r(PetscReal dt, Point& point)
 {
-  point.r += point.p * dt;
+  point.r = updated_r(dt, point);
+}
+
+/* static */ Vector3R BorisPush::updated_r(PetscReal dt, const Point& point)
+{
+  return point.r + point.p * dt;
 }
 
 void BorisPush::update_vM(PetscReal dt, Point& point) const
@@ -56,6 +61,17 @@ void BorisPush::update_vEB(PetscReal dt, Point& point) const
   v += a + (b.cross(w) + 0.5 * b.cross(b.cross(w))) / (1.0 + 0.25 * b.squared());
 }
 
+/// @details The step reads `v_new - v = a + b x v_mean`, so `v_mean` solves
+/// `(1 + c x) v_mean = w` with `c = b / 2` and `w = v_new - a / 2`.
+Vector3R BorisPush::mean_vEB(PetscReal dt, const Vector3R& v_new) const
+{
+  PetscReal alpha = dt * qm;
+  Vector3R a = +alpha * E_p;
+  Vector3R c = -0.5 * alpha * B_p;
+
+  Vector3R w = v_new - 0.5 * a;
+  return (w - c.cross(w) + c.dot(w) * c) / (1.0 + c.squared());
+}
 
 inline PetscReal BorisPush::get_theta(PetscReal dt) const
 {

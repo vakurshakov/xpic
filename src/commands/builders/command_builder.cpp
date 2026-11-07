@@ -1,6 +1,6 @@
 #include "command_builder.h"
 
-#include "src/commands/builders/fields_damping_builder.h"
+#include "src/commands/builders/dampen_fields_builder.h"
 #include "src/commands/builders/inject_particles_builder.h"
 #include "src/commands/builders/remove_particles_builder.h"
 #include "src/commands/builders/set_field_builder.h"
@@ -55,8 +55,8 @@ PetscErrorCode build_commands(interfaces::Simulation& simulation,
     else if (command == "SetField") {
       PetscCall(Builder::use_impl<SetFieldBuilder>(info, simulation, result));
     }
-    else if (command == "FieldsDamping") {
-      PetscCall(Builder::use_impl<FieldsDampingBuilder>(info, simulation, result));
+    else if (command == "DampenFields") {
+      PetscCall(Builder::use_impl<DampenFieldsBuilder>(info, simulation, result));
     }
     else {
       throw std::runtime_error("Unknown command name " + command);

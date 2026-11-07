@@ -10,6 +10,7 @@ class Simulation;
 class Particles : public ecsim::Particles {
 public:
   Particles(Simulation& simulation, const SortParameters& parameters);
+  PetscErrorCode initialize() override;
   PetscErrorCode finalize() override;
 
   PetscErrorCode calculate_energy();

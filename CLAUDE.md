@@ -31,7 +31,9 @@ Your goal: increase the capabilities/correctness of `xpic`, identify bugs/ineffi
 - **Modifications:** maintain minimalism. Fix core bugs correctly; rewrite if unmaintainable rather than patching with new layers.
 - **Optimization:** profile first. Prioritize algorithmic improvements (fewer instructions) over micro-optimizations. Never ignore performance from the start.
 
-## Skills
+## Agent skills
+
+### Project skills
 
 Before working on the build system, exploring/placing code, writing or reviewing code, or tracing execution flow, consult the relevant skill:
 
@@ -41,3 +43,20 @@ Before working on the build system, exploring/placing code, writing or reviewing
 | Writing or reviewing code: comments, includes, definition order, formatting | `.claude/skills/code-style/SKILL.md` |
 | Repository/code organization, where new code belongs | `.claude/skills/directory-structure/SKILL.md` |
 | Execution flow, config-driven dispatch pattern, module responsibilities | `.claude/skills/architecture/SKILL.md` |
+
+### Issue tracker
+
+Issues live in GitHub Issues (`vakurshakov/xpic`), via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+## Documentation structure
+
+- `docs/agents/`: Reserved for automated agent state and tool tracking.
+- `docs/src/`: Core project documentation (Sphinx sources). The agent can read it for context but must NOT modify it unless explicitly asked.

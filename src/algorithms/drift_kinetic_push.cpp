@@ -5,6 +5,14 @@ DriftKineticPush::DriftKineticPush(PetscReal qm, PetscReal mp)
 {
 }
 
+void DriftKineticPush::set_tolerances(
+  PetscReal atol, PetscReal rtol, PetscInt maxit)
+{
+  this->atol = atol;
+  this->rtol = rtol;
+  this->maxit = maxit;
+}
+
 void DriftKineticPush::set_qm(PetscReal qm)
 {
   this->qm = qm;
@@ -63,7 +71,7 @@ PetscErrorCode DriftKineticPush::process(
 #elif DRIFT_KINETIC_AITKEN == 1
   PetscCall(process_picard_aitken(dt, pn, p0));
 #else
-#error "DRIFT_KINETIC_AITKEN must be 0 or 1"
+  #error "DRIFT_KINETIC_AITKEN must be 0 or 1"
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -153,7 +161,7 @@ PetscErrorCode DriftKineticPush::process_picard_aitken(
       it++;
       PetscReal trial_norm2 = PETSC_MAX_REAL;
       if (std::isfinite(pn.p_parallel) && std::isfinite(pn.r[X]) &&
-          std::isfinite(pn.r[Y]) && std::isfinite(pn.r[Z])) {
+        std::isfinite(pn.r[Y]) && std::isfinite(pn.r[Z])) {
         PetscCall(evaluate_rhs(pn, p0));
         const Vector3R trial_rr = dt * V_dgc - trial_dr;
         const PetscReal trial_rv = dt * (dt * a_par - trial_dv);
@@ -162,8 +170,7 @@ PetscErrorCode DriftKineticPush::process_picard_aitken(
           trial_rr[X], trial_rr[Y], trial_rr[Z], trial_rv};
         converged = check_increment_convergence(dt, trial_residual);
       }
-      if (std::isfinite(trial_norm2) &&
-          (converged || trial_norm2 <= 4 * norm2)) {
+      if (std::isfinite(trial_norm2) && (converged || trial_norm2 <= 4 * norm2)) {
         dr = trial_dr;
         dv = trial_dv;
         previous = f;
@@ -174,8 +181,8 @@ PetscErrorCode DriftKineticPush::process_picard_aitken(
         pn = current;
         PetscCall(evaluate_rhs(pn, p0));
         const Vector3R restore_rr = dt * V_dgc - dr;
-        const State restore_residual{restore_rr[X], restore_rr[Y],
-          restore_rr[Z], dt * (dt * a_par - dv)};
+        const State restore_residual{
+          restore_rr[X], restore_rr[Y], restore_rr[Z], dt * (dt * a_par - dv)};
         converged = check_increment_convergence(dt, restore_residual);
         PetscFunctionReturn(PETSC_SUCCESS);
       }
@@ -222,8 +229,7 @@ void DriftKineticPush::update_V_dgc()
   V_dgc = V_par * b_eff + F_eff.cross(b / (qm * mp * lenB_eff));
 }
 
-void DriftKineticPush::update_V_par(
-  const PointByField& pn, const PointByField& p0)
+void DriftKineticPush::update_V_par(const PointByField& pn, const PointByField& p0)
 {
   V_par = 0.5 * (pn.p_parallel + p0.p_parallel);
 }

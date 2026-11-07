@@ -25,6 +25,8 @@ PetscErrorCode SetParticles::load(PetscInt number_of_particles)
   std::ranges::fill(added_energy, 0);
   std::ranges::fill(added_particles, 0);
 
+  std::vector<std::vector<Point>> points(sorts.size());
+
   // The loop is sequential: coordinate generators can be stateful.
   for (PetscInt p = 0; p < number_of_particles; p++) {
     Vector3R coordinate = generate_coordinate();
@@ -33,12 +35,12 @@ PetscErrorCode SetParticles::load(PetscInt number_of_particles)
       auto& [particles, generate_momentum] = sorts[s];
       Vector3R momentum = generate_momentum(coordinate);
 
-      bool is_added = false;
-      PetscCall(particles.add_particle(Point(coordinate, momentum), &is_added));
+      const Point point(coordinate, momentum);
 
-      if (is_added) {
+      if (particles.is_local(point)) {
+        points[s].push_back(point);
         const PetscReal m = particles.parameters.m;
-        const PetscReal mpw = particles.parameters.n / particles.parameters.Np;
+        const PetscReal mpw = particles.parameters.mpw;
 
         added_energy[s] += Energy::get_kinetic(momentum, m, mpw);
         added_particles[s]++;
@@ -46,8 +48,8 @@ PetscErrorCode SetParticles::load(PetscInt number_of_particles)
     }
   }
 
-  for (auto& sort : sorts)
-    PetscCall(sort.particles.commit_added_particles());
+  for (std::size_t s = 0; s < sorts.size(); s++)
+    PetscCall(sorts[s].particles.ingest(points[s].data(), (PetscInt)points[s].size()));
 
   PetscCall(log_statistics());
   PetscFunctionReturn(PETSC_SUCCESS);

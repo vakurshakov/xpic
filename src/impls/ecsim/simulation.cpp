@@ -1,7 +1,6 @@
 #include "simulation.h"
 
 #include "src/utils/geometries.h"
-#include "src/utils/operators.h"
 #include "src/utils/utils.h"
 
 
@@ -142,6 +141,16 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode Simulation::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(interfaces::Simulation::finalize());
+  PetscCall(KSPDestroy(&ksp));
+  PetscCall(MatDestroy(&matL));
+  PetscCall(VecDestroy(&Ep));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 {
   PetscFunctionBeginUser;
@@ -233,7 +242,6 @@ PetscErrorCode Simulation::second_push()
     sort->E_arr = E_arr;
     sort->B_arr = B_arr;
     PetscCall(sort->second_push());
-    PetscCall(sort->correct_coordinates());
   }
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
@@ -306,13 +314,15 @@ PetscErrorCode Simulation::update_cells_with_assembly()
     sort->update_cells();
 
   for (const auto& sort : particles_) {
+    const std::vector<PetscInt>& offsets = sort->storage.cell_offsets();
+
     for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
       if (assembly_radius < 0) {
         assembly_map[g] = false;
         indices_assembled = false;
       }
 
-      if (sort->storage[g].empty() || (indices_assembled && assembly_map[g]))
+      if (offsets[g] == offsets[g + 1] || (indices_assembled && assembly_map[g]))
         continue;
 
       if (indices_assembled) {
@@ -399,7 +409,8 @@ PetscErrorCode Simulation::fill_matrix_indices(PetscInt* coo_i, PetscInt* coo_j)
   const PetscInt dims[4]{REP3_AP(world.gsize), 3};
   const PetscInt start[4]{REP3_AP(world.gstart), 0};
 
-  auto remap_stencil = [&](const MatStencil& s) {
+  auto remap_stencil = [&](const MatStencil& s)
+  {
     auto in = (PetscInt*)&s;
     PetscInt tmp = *in++ - start[0];
 
@@ -564,17 +575,10 @@ PetscErrorCode Simulation::init_ksp_solvers()
   PetscCall(KSPCreate(PETSC_COMM_WORLD, &ksp));
   PetscCall(KSPSetTolerances(ksp, rtol, atol, divtol, maxit));
   PetscCall(KSPSetResidualHistory(ksp, conv_hist.data(), maxit, PETSC_TRUE));
-  PetscCall(KSPSetFromOptions(ksp));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
-PetscErrorCode Simulation::finalize()
-{
-  PetscFunctionBeginUser;
-  PetscCall(interfaces::Simulation::finalize());
-  PetscCall(KSPDestroy(&ksp));
-  PetscCall(MatDestroy(&matL));
-  PetscCall(VecDestroy(&Ep));
+  PetscCall(KSPSetFromOptions(ksp));
+
+  PetscCall(KSPGetTolerances(ksp, &rtol, &atol, &divtol, &maxit));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

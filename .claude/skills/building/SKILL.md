@@ -18,9 +18,10 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) are set in `header.sh
 - `./run-tests.sh [ctest args]` — rebuilds Release, then runs `ctest --test-dir build/Release [ctest args]`. When using raw `ctest` always specify the `--test-dir` with `build/Release` or `build/Debug`, this flag is required; omitting it will fail. Use this when the code is already built and you want to iterate on test runs without triggering a rebuild. These commands support normal ctest agrument list, e.g.:
   - `./run-tests.sh -R basic_ex1` — run a specific test by name.
   - `./run-tests.sh -L "impls ecsim"` — run tests by label (labels combine an area label like `impls`/`diagnostics`/`boris`/`crank_nicolson`/`drift_kinetic` with an implementation label like `basic`/`ecsim`/`ecsimcorr`/`eccapfim`, and MPI variants add the `mpi` label).
+  - `./run-tests.sh -L smoke` / `-L sanity` / `-L regression` — every test has exactly one level label. `smoke`: single mechanism (pushers, commands, diagnostics, operators, `*_ex1` field solvers). `sanity`: short run, one invariant bounded (Gauss law, energy/momentum balance). `regression`: long runs with bounded physics outcome. Add `-LE mpi` to skip MPI variants.
   - `./run-tests.sh --help` — shows ctest's own help.
 
-- `./run-clang-format.sh` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`).
+- `./run-format-all.sh [--install]` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`); `--install` installs `clang-format` if missing. Run it _only_ when explicitly asked to fix project-wide styling issues or before major releases.
 
 ## Test layout
 
@@ -38,7 +39,7 @@ Tests are plain executables registered with `add_test` in each `tests/<area>/CMa
 
 - **clangd / LSP**: `.clangd` points at `build/compile_commands.json`, a symlink that CMake updates to the last configured build type (`./build.sh` configures both). Without a configured build clangd can't find the PETSc headers; run `./build.sh Debug` first. Use the LSP tool (`findReferences`, `goToDefinition`, `documentSymbol`) and `getDiagnostics` for navigation and checks, and restart clangd after changing `.clangd`; the build remains the final check.
 
-- **clang-format**: run `./run-clang-format.sh` before committing; config lives in `.clang-format`. Header guards use `SRC_<PATH>_H` (not `#pragma once`).
+- **clang-format**: files edited via `Edit`/`Write` are formatted automatically by the `PostToolUse` hook (`.claude/hooks/format.sh`, registered in `.claude/settings.json`); don't run it by hand. Config lives in `.clang-format`. Header guards use `SRC_<PATH>_H` (not `#pragma once`).
 - Keep CMake configuration in `CMakeLists.txt` files simple and readable — avoid complex generator expressions, deep custom macros, or conditional compilation for minor variations unless there's a strong reason.
 
 ## Dependency management
@@ -47,7 +48,7 @@ Keep external dependencies minimal. `xpic` depends on CMake, PETSc, MPI, and nlo
 
 ## Configuration file format
 
-`xpic` uses JSON for configuration, driven entirely by a config file passed as `./run.sh <config.json>` — there is no interactive mode. See `doc/src/commands.rst` for the JSON schema of commands/diagnostics, and `doc/src/structure.rst` for the broader config-driven architecture. Config-driven object construction matches a `name`/`command`/`diagnostic`/`Simulation` string field against a fixed set of literals in a builder or `build_*()` function; unknown values throw `std::runtime_error`.
+`xpic` uses JSON for configuration, driven entirely by a config file passed as `./run.sh <config.json>` — there is no interactive mode. See `docs/src/commands.rst` for the JSON schema of commands/diagnostics, and `docs/src/structure.rst` for the broader config-driven architecture. Config-driven object construction matches a `name`/`command`/`diagnostic`/`Simulation` string field against a fixed set of literals in a builder or `build_*()` function; unknown values throw `std::runtime_error`.
 
 ## Troubleshooting builds
 

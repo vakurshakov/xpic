@@ -12,34 +12,34 @@ static constexpr char help[] =
   "Optional -halton_ppc 8,32,128 selects up to three even marker counts.\n";
 
 namespace {
-constexpr std::array<unsigned int, 3> seeds{1729, 2718, 31415};
+constexpr std::array<unsigned int, 3> seeds{1729, 2718, 31'415};
 
 // Quadratic number-density deposition on the actual DK guiding centers,
 // using the same shape and periodic assembly as DK charge conservation.
 PetscErrorCode collect_density(const interfaces::Particles& particles, Vec density)
 {
   PetscFunctionBeginUser;
-  const auto& dk = dynamic_cast<const drift_kinetic::Particles&>(particles);
   Vec local;
   PetscCall(DMGetLocalVector(particles.da_rho, &local));
   PetscCall(VecSet(local, 0));
   PetscCall(VecSet(density, 0));
   PetscReal*** arr;
   PetscCall(DMDAVecGetArrayWrite(particles.da_rho, local, &arr));
-  for (const auto& cell : dk.get_dk_curr_storage()) {
-    for (const auto& point : cell) {
-      const Vector3R r = Shape::make_r(point.r);
-      const Vector3I start{static_cast<PetscInt>(std::ceil(r[X] - 1.5)),
-        static_cast<PetscInt>(std::ceil(r[Y] - 1.5)),
-        static_cast<PetscInt>(std::ceil(r[Z] - 1.5))};
-      for (PetscInt z = start[Z]; z < start[Z] + 3; ++z)
-        for (PetscInt y = start[Y]; y < start[Y] + 3; ++y)
-          for (PetscInt x = start[X]; x < start[X] + 3; ++x)
-            arr[z][y][x] += particles.parameters.mpw *
-              spline_of_2nd_order(r[X] - x) * spline_of_2nd_order(r[Y] - y) *
-              spline_of_2nd_order(r[Z] - z);
-    }
+  ParticleStorage::Attributes f;
+  PetscCall(particles.storage.get_attribute(f, "r"));
+  for (PetscInt i = 0; i < f.size; i++) {
+    const Vector3R r = Shape::make_r(Vector3R(f["r"] + 3 * i));
+    const Vector3I start{static_cast<PetscInt>(std::ceil(r[X] - 1.5)),
+      static_cast<PetscInt>(std::ceil(r[Y] - 1.5)),
+      static_cast<PetscInt>(std::ceil(r[Z] - 1.5))};
+    for (PetscInt z = start[Z]; z < start[Z] + 3; ++z)
+      for (PetscInt y = start[Y]; y < start[Y] + 3; ++y)
+        for (PetscInt x = start[X]; x < start[X] + 3; ++x)
+          arr[z][y][x] += particles.parameters.mpw *
+            spline_of_2nd_order(r[X] - x) * spline_of_2nd_order(r[Y] - y) *
+            spline_of_2nd_order(r[Z] - z);
   }
+  PetscCall(particles.storage.restore_attributes(f));
   PetscCall(DMDAVecRestoreArrayWrite(particles.da_rho, local, &arr));
   PetscCall(DMLocalToGlobal(particles.da_rho, local, ADD_VALUES, density));
   PetscCall(DMRestoreLocalVector(particles.da_rho, &local));
@@ -84,7 +84,10 @@ private:
 // IAW loader. Motion, field solve, charge deposition and time loop are DK.
 class NoiseSimulation : public drift_kinetic::Simulation {
 public:
-  explicit NoiseSimulation(bool halton) : halton(halton) {}
+  explicit NoiseSimulation(bool halton)
+    : halton(halton)
+  {
+  }
   PetscReal electric_square_sum = 0;
   PetscReal initial_density_rms = 0;
 
@@ -124,23 +127,21 @@ protected:
       // law. The unperturbed IAW loader supplies Halton/stratified positions
       // and antithetic, low-discrepancy Maxwellian velocities.
       for (auto* sort : {&ions, &electrons}) {
-        SetParticlesIonAcousticWave loader(*sort, count / 2,
-          0.0, 0.01, 0.01, {0, 0, 1}, {}, {}, {});
+        SetParticlesIonAcousticWave loader(
+          *sort, count / 2, 0.0, 0.01, 0.01, {0, 0, 1}, {}, {}, {});
         PetscCall(loader.execute(0));
       }
     }
     else {
-      SetParticles loader({
-          {ions, MaxwellianMomentum{ions.parameters, true}},
-          {electrons, MaxwellianMomentum{electrons.parameters, true}}}, count,
-        CoordinateInBox{{{0, 0, 0}, {geom_x, geom_y, geom_z}}});
+      SetParticles loader(
+        {{ions, MaxwellianMomentum{ions.parameters, true}},
+          {electrons, MaxwellianMomentum{electrons.parameters, true}}},
+        count, CoordinateInBox{{{0, 0, 0}, {geom_x, geom_y, geom_z}}});
       PetscCall(loader.execute(0));
     }
     for (const auto* sort : {&ions, &electrons}) {
-      const auto& dk = dynamic_cast<const drift_kinetic::Particles&>(*sort);
-      PetscInt actual = 0;
-      for (const auto& cell : dk.get_dk_curr_storage())
-        actual += static_cast<PetscInt>(cell.size());
+      PetscInt actual;
+      PetscCall(sort->storage.get_size(&actual));
       PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &actual, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
       PetscCheck(actual == count, PETSC_COMM_WORLD, PETSC_ERR_USER, "Unequal marker counts");
       diagnostics_.push_back(std::make_unique<DensityView>(*sort,
@@ -179,7 +180,7 @@ PetscErrorCode run_case(PetscInt ppc, bool halton, unsigned int seed,
     sort["Np"] = ppc;
   config["Presets"] = Configuration::json_t::array();
   const auto name = halton ? std::format("halton/ppc_{}", ppc)
-    : std::format("random/ppc_{}/seed_{}", ppc, seed);
+                           : std::format("random/ppc_{}/seed_{}", ppc, seed);
   const auto path = get_out_dir(__FILE__) / name;
   config["OutputDirectory"] = path;
   config["Sampling"] = {{"algorithm", halton ? "halton_quiet" : "random"},
@@ -196,8 +197,8 @@ PetscErrorCode run_case(PetscInt ppc, bool halton, unsigned int seed,
   PetscCall(simulation.calculate());
   // RMS of the vector magnitude over all grid nodes and the TEN evolved
   // frames (exclude the exactly zero initial field).
-  electric_rms = std::sqrt(simulation.electric_square_sum /
-    (geom_nt * geom_nx * geom_ny * geom_nz));
+  electric_rms = std::sqrt(
+    simulation.electric_square_sum / (geom_nt * geom_nx * geom_ny * geom_nz));
   PetscCall(simulation.finalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

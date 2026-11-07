@@ -1,5 +1,7 @@
 #include "particle_trace.h"
 
+#include "src/interfaces/point.h"
+
 template<class PointT>
 ParticleTrace<PointT>::ParticleTrace(
   const std::string& filename, Getter get_point, PetscInt skip)
@@ -11,8 +13,8 @@ template<class PointT>
 PetscErrorCode ParticleTrace<PointT>::add_columns(PetscInt t)
 {
   PetscFunctionBeginUser;
-  const PointT* point = get_point();
-  if (t % skip != 0 || point == nullptr)
+  const std::optional<PointT> point = get_point();
+  if (t % skip != 0 || !point)
     PetscFunctionReturn(PETSC_SUCCESS);
 
   if constexpr (std::is_same_v<PointT, Point>) {

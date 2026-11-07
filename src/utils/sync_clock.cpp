@@ -59,9 +59,11 @@ PetscLogDouble SyncClock::get(std::string_view name)
 
 SyncClock::Storage::iterator SyncClock::times_find(std::string_view name)
 {
-  return std::find_if(times_.begin(), times_.end(), [name](const Item& item) {
-    return item.first == name;
-  });
+  return std::find_if(times_.begin(), times_.end(),
+    [name](const Item& item)
+    {
+      return item.first == name;
+    });
 }
 
 PetscLogDouble& SyncClock::times_at(std::string_view name)

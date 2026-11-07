@@ -8,10 +8,10 @@ class ImplicitEsirkepov {
 public:
   ImplicitEsirkepov(Vector3R*** E_g, Vector3R*** B_g, Vector3R*** J_g);
 
-  void interpolate(Vector3R& E_p, Vector3R& B_p, //
+  void interpolate(Vector3R& E_p, Vector3R& B_p,  //
     const Vector3R& rn, const Vector3R& r0);
 
-  void decompose(PetscReal alpha, const Vector3R& v, //
+  void decompose(PetscReal alpha, const Vector3R& v,  //
     const Vector3R& rn, const Vector3R& r0);
 
 protected:
@@ -55,7 +55,7 @@ protected:
   Vector3R*** J_g;
 
   ImplicitEsirkepov::Shape sh_e;
-  /* Global namespace */::Shape sh_m;
+  /* Global namespace */ ::Shape sh_m;
 };
 
 #endif  // SRC_ALGORITHMS_IMPLICIT_ESIRKEPOV_H

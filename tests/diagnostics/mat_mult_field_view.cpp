@@ -8,21 +8,7 @@ static constexpr char help[] =
   "Testing \'MatMultFieldView\' diagnostics: vector and scalar results\n.";
 
 static PetscErrorCode test(const std::filesystem::path& out_dir,  //
-  DM result_da, Mat op, Vec source, const Region& region)
-{
-  PetscFunctionBeginUser;
-  auto&& diag = MatMultFieldView::create(out_dir, result_da, op, source, region);
-  PetscCall(diag->diagnose(0));
-  PetscCall(diag->finalize());
-
-  Vec expected;
-  PetscCall(DMGetGlobalVector(result_da, &expected));
-  PetscCall(MatMult(op, source, expected));
-
-  PetscCall(compare_with_vec(out_dir / "0000", result_da, expected, 5e-7));
-  PetscCall(DMRestoreGlobalVector(result_da, &expected));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
+  DM result_da, Mat op, Vec source, const Region& region);
 
 int main(int argc, char** argv)
 {
@@ -37,13 +23,16 @@ int main(int argc, char** argv)
   PetscCall(DMSetMatrixPreallocateOnly(world.da, PETSC_FALSE));
   PetscCall(DMSetMatrixPreallocateSkip(world.da, PETSC_TRUE));
 
-  Mat rotB, divE;
+  Mat rotB, gradP, divE;
   PetscCall(Rotor(world.da).create_negative(&rotB));
+  PetscCall(Gradient(world.da).create_negative(&gradP));
   PetscCall(Divergence(world.da).create_negative(&divE));
 
-  Vec v;
+  Vec v, p;
   PetscCall(DMCreateGlobalVector(world.da, &v));
+  PetscCall(DMCreateGlobalVector(world.da_rho, &p));
   PetscCall(VecSetRandom(v, nullptr));
+  PetscCall(VecSetRandom(p, nullptr));
 
   std::filesystem::path out_dir = get_out_dir(__FILE__);
 
@@ -53,7 +42,6 @@ int main(int argc, char** argv)
     .start = Vector4I{0, 0, 0, 0},
     .size = Vector4I{geom_nx, geom_ny, geom_nz, 3},
   };
-  PetscCall(test(out_dir / "rotB", world.da, rotB, v, vector_region));
 
   Region scalar_region{
     .dim = 3,
@@ -61,13 +49,35 @@ int main(int argc, char** argv)
     .start = Vector4I{0, 0, 0, 0},
     .size = Vector4I{geom_nx, geom_ny, geom_nz, 1},
   };
+
+  PetscCall(test(out_dir / "rotB", world.da, rotB, v, vector_region));
+  PetscCall(test(out_dir / "gradP", world.da, gradP, p, vector_region));
   PetscCall(test(out_dir / "divE", world.da_rho, divE, v, scalar_region));
 
   PetscCall(MatDestroy(&rotB));
+  PetscCall(MatDestroy(&gradP));
   PetscCall(MatDestroy(&divE));
   PetscCall(VecDestroy(&v));
+  PetscCall(VecDestroy(&p));
   PetscCall(world.finalize());
 
   PetscCall(PetscFinalize());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode test(const std::filesystem::path& out_dir,  //
+  DM result_da, Mat op, Vec source, const Region& region)
+{
+  PetscFunctionBeginUser;
+  auto&& diag = MatMultFieldView::create(out_dir, result_da, op, source, region);
+  PetscCall(diag->diagnose(0));
+  PetscCall(diag->finalize());
+
+  Vec expected;
+  PetscCall(DMGetGlobalVector(result_da, &expected));
+  PetscCall(MatMult(op, source, expected));
+
+  PetscCall(compare_with_vec(out_dir / "0000", result_da, expected, 5e-7));
+  PetscCall(DMRestoreGlobalVector(result_da, &expected));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

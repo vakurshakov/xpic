@@ -32,7 +32,7 @@ private:
   PetscErrorCode correct_fields();
   PetscErrorCode final_update();
 
-  using ecsim::Simulation::ksp; // prediction KSP
+  using ecsim::Simulation::ksp;  // prediction KSP
   KSP correct;
 
   PetscLogStage stagenums[7];

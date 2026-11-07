@@ -9,6 +9,7 @@ set(tests
   distribution_moment
   distribution_moment_dk
   simulation_backup
+  simulation_backup_dk
 )
 
 # Variants of one test share output files, so they hold a common lock and run one at a time.
@@ -17,22 +18,36 @@ foreach(test ${tests})
   target_link_libraries(${test}.out ${PROJECT_NAME})
 
   add_test(NAME "${test}" COMMAND ./${test}.out)
-  set_property(TEST "${test}" PROPERTY LABELS diagnostics)
+  set_property(TEST "${test}" PROPERTY LABELS smoke diagnostics)
   set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "${test}")
 
-  foreach(decomposition x1y1z2:z x1y2z1:y x2y1z1:x)
-    string(REPLACE ":" ";" decomposition ${decomposition})
-    list(GET decomposition 0 suffix)
-    list(GET decomposition 1 axis)
-
+  foreach(axis x y z)
     # @todo Fix `FieldViewZAvg` for runs decomposed along z
     if(${test} STREQUAL "field_view_zavg" AND ${axis} STREQUAL "z")
         continue()
     endif()
 
-    set(name "${test}_mpi_${suffix}")
+    set(name "${test}_mpi_${axis}2")
     add_test(NAME "${name}" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./${test}.out -da_processors_${axis} 2)
-    set_property(TEST "${name}" PROPERTY LABELS diagnostics mpi)
+    set_property(TEST "${name}" PROPERTY LABELS smoke diagnostics mpi)
     set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "${test}")
+  endforeach()
+endforeach()
+
+# Restart from a backup must reproduce the continuous run, for kinetic and drift-kinetic sorts
+add_executable(simulation_restart.out simulation_restart.cpp)
+target_link_libraries(simulation_restart.out ${PROJECT_NAME})
+
+foreach(simulation eccapfim drift_kinetic hybrid_kinetic)
+  set(test "simulation_restart_${simulation}")
+  add_test(NAME "${test}" COMMAND ./simulation_restart.out -restart_simulation ${simulation})
+  set_property(TEST "${test}" PROPERTY LABELS sanity diagnostics)
+  set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "simulation_restart")
+
+  foreach(axis x y z)
+    set(name "${test}_mpi_${axis}2")
+    add_test(NAME "${name}" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./simulation_restart.out -restart_simulation ${simulation} -da_processors_${axis} 2)
+    set_property(TEST "${name}" PROPERTY LABELS sanity diagnostics mpi)
+    set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "simulation_restart")
   endforeach()
 endforeach()

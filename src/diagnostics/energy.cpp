@@ -1,6 +1,6 @@
 #include "energy.h"
 
-#include "src/commands/fields_damping.h"
+#include "src/commands/dampen_fields.h"
 #include "src/commands/inject_particles.h"
 #include "src/commands/remove_particles.h"
 #include "src/utils/configuration.h"
@@ -20,7 +20,8 @@ Energy::Energy(const interfaces::Simulation& simulation)
 PetscErrorCode Energy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t == 0) {
+  if (!initialized) {
+    initialized = true;
     PetscCall(calculate_field());
     PetscCall(calculate_kinetic());
   }
@@ -78,17 +79,23 @@ PetscErrorCode Energy::calculate_kinetic()
     vx = vy = vz = w = 0;
     n = 0;
 
-#pragma omp parallel for reduction(+ : vx, vy, vz, w, n)
-    for (auto&& cell : sort->storage) {
-      for (auto&& point : cell) {
-        vx += point.px();
-        vy += point.py();
-        vz += point.pz();
+    ParticleStorage::Attributes f;
+    PetscCall(sort->storage.get_attribute(f, "p"));
+    const PetscReal* p = f["p"];
 
-        w += point.p.squared();
-        n++;
-      }
+#pragma omp parallel for reduction(+ : vx, vy, vz, w)
+    for (PetscInt j = 0; j < f.size; j++) {
+      vx += p[3 * j + X];
+      vy += p[3 * j + Y];
+      vz += p[3 * j + Z];
+      w +=                    //
+        POW2(p[3 * j + X]) +  //
+        POW2(p[3 * j + Y]) +  //
+        POW2(p[3 * j + Z]);
     }
+
+    n = f.size;
+    PetscCall(sort->storage.restore_attributes(f));
 
     K[i] = frac * w;
 
@@ -157,7 +164,7 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
   }
 
   for (const auto& command : simulation.step_presets_) {
-    if (auto&& damp = dynamic_cast<FieldsDamping*>(command.get())) {
+    if (auto&& damp = dynamic_cast<DampenFields*>(command.get())) {
       energy_cons.add(13, "Damped(E+B)", "{: .6e}", damp->get_damped_energy());
       dF += damp->get_damped_energy();
     }

@@ -1,22 +1,34 @@
 #include "table_diagnostic.h"
 
 TableDiagnostic::TableDiagnostic(const std::string& filename)
+  : filename(filename)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, open(filename));
 }
 
 PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (t == 0)
+  // The file is opened here, after `SimulationBackup` has loaded the temporal tables.
+  // The run continuing from `t != 0` appends to them, the loaded table already has the row `t`.
+  bool row_is_loaded = false;
+
+  if (!initialized) {
+    PetscCall(open(std::ios::out | (t == 0 ? std::ios::trunc : std::ios::app)));
     PetscCall(initialize());
+    row_is_loaded = (t != 0 && has_header);
+  }
 
   PetscCall(add_columns(t));
 
   if (!values.empty()) {
-    if (t == 0)
+    if (!has_header) {
+      has_header = true;
       PetscCall(write_formatted(titles));
-    PetscCall(write_formatted(values));
+    }
+
+    if (!row_is_loaded) {
+      PetscCall(write_formatted(values));
+    }
 
     titles.clear();
     values.clear();
@@ -30,6 +42,7 @@ PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
 PetscErrorCode TableDiagnostic::initialize()
 {
   PetscFunctionBeginUser;
+  initialized = true;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -59,7 +72,7 @@ PetscErrorCode TableDiagnostic::write_formatted(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode TableDiagnostic::open(const std::string& filename)
+PetscErrorCode TableDiagnostic::open(std::ios::openmode mode)
 {
   if (!is_synchronized())
     return PETSC_SUCCESS;
@@ -71,6 +84,7 @@ PetscErrorCode TableDiagnostic::open(const std::string& filename)
   std::filesystem::create_directories(path.parent_path());
 
   PetscCallCXX(file.open(path, mode));
+  has_header = (std::filesystem::file_size(path) > 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

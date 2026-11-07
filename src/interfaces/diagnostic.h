@@ -26,6 +26,9 @@ protected:
 
   std::string out_dir_;
   PetscInt diagnose_period_;
+
+  // Set by the first `diagnose()`, which may be called with any `t`, e.g. after a restart
+  bool initialized = false;
 };
 
 }  // namespace interfaces

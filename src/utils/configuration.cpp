@@ -26,7 +26,7 @@ void Configuration::init(const std::string& config_path)
 void Configuration::save(const std::string& out_dir)
 {
   if (!config.path.empty()) {
-    make_copy(config.path, out_dir,
+    make_copy(config.path, out_dir,  //
       std::filesystem::copy_options::overwrite_existing);
   }
   else if (!config.json.empty()) {
@@ -120,7 +120,8 @@ void Configuration::get_boundaries_type(
   geometry.at("da_boundary_y").get_to(boundary_type_str[Y]);
   geometry.at("da_boundary_z").get_to(boundary_type_str[Z]);
 
-  auto to_boundary_type = [](const std::string& str) {
+  auto to_boundary_type = [](const std::string& str)
+  {
     if (str == "DM_BOUNDARY_PERIODIC")
       return DM_BOUNDARY_PERIODIC;
     if (str == "DM_BOUNDARY_GHOSTED")
@@ -144,7 +145,8 @@ void Configuration::get_processors(PetscInt& px, PetscInt& py, PetscInt& pz)
 
   const Configuration::json_t& mpi = config.json.at("mpi");
 
-  auto get = [&mpi](const char* name, PetscInt& p) {
+  auto get = [&mpi](const char* name, PetscInt& p)
+  {
     if (auto it = mpi.find(name); it != mpi.end())
       p = it->get<PetscInt>();
   };

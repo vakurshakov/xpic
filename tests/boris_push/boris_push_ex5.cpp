@@ -43,7 +43,8 @@ int main(int argc, char** argv)
     const Vector3R old_r = point.r;
     const Vector3R old_v = point.p;
 
-    auto interpolated_fields = [t](const Vector3R&, Vector3R& E_p, Vector3R& B_p) {
+    auto interpolated_fields = [t](const Vector3R&, Vector3R& E_p, Vector3R& B_p)
+    {
       E_p = E0 * (t * dt);
       B_p = B0;
     };
@@ -51,7 +52,7 @@ int main(int argc, char** argv)
     PetscCall(trace.diagnose(t));
     process_impl(chin_scheme_id, push, point, interpolated_fields);
 
-    check_energy_conservation += //
+    check_energy_conservation +=  //
       (0.5 * (point.p.squared() - old_v.squared()) +
         0.5 * (point.p + old_v).dot(E0) * t * POW2(dt)) /
       geom_nt;

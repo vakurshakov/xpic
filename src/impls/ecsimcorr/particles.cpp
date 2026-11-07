@@ -12,16 +12,24 @@ namespace ecsimcorr {
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : ecsim::Particles(simulation, parameters), simulation_(simulation)
 {
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateGlobalVector(da, &currJe));
-  PetscCallAbort(PETSC_COMM_WORLD, DMCreateLocalVector(da, &currJe_loc));
+}
+
+PetscErrorCode Particles::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(ecsim::Particles::initialize());
+
+  PetscCall(DMCreateGlobalVector(da, &currJe));
+  PetscCall(DMCreateLocalVector(da, &currJe_loc));
 
   J = currJe;
   J_loc = currJe_loc;
 
-  PetscCallAbort(PETSC_COMM_WORLD, PetscClassIdRegister("ecsimcorr::Particles", &classid));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("first_push", classid, &events[0]));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("second_push", classid, &events[1]));
-  PetscCallAbort(PETSC_COMM_WORLD, PetscLogEventRegister("final_update", classid, &events[2]));
+  PetscCall(PetscClassIdRegister("ecsimcorr::Particles", &classid));
+  PetscCall(PetscLogEventRegister("first_push", classid, &events[0]));
+  PetscCall(PetscLogEventRegister("second_push", classid, &events[1]));
+  PetscCall(PetscLogEventRegister("final_update", classid, &events[2]));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::first_push()
@@ -31,17 +39,23 @@ PetscErrorCode Particles::first_push()
 
   PetscLogEventBegin(events[0], currJe_loc, 0, 0, 0);
 
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      const Vector3R old_r = point.r;
-      BorisPush::update_r(0.5 * dt, point);
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
+  const PointArrays arrays(f);
 
-      Shape shape;
-      shape.setup(old_r, point.r, shape_radius2, shape_func2);
-      decompose_esirkepov_current(shape, point);
-    }
+#pragma omp parallel for
+  for (PetscInt i = 0; i < f.size; i++) {
+    Point point = arrays.load(i);
+    const Vector3R old_r = point.r;
+    BorisPush::update_r(0.5 * dt, point);
+
+    Shape shape;
+    shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    decompose_esirkepov_current(shape, point);
+    arrays.store(i, point);
   }
+
+  PetscCall(storage.restore_attributes(f));
 
   PetscLogEventEnd(events[0], currJe_loc, 0, 0, 0);
 
@@ -57,27 +71,33 @@ PetscErrorCode Particles::second_push()
 
   PetscLogEventBegin(events[1], 0, 0, 0, 0);
 
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage) {
-    for (auto& point : cell) {
-      const Vector3R old_r = point.r;
-      const Vector3R old_v = point.p;
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
+  const PointArrays arrays(f);
 
-      Vector3R E_p = interpolate_E_s1(E_arr, point.r);
-      Vector3R B_p = interpolate_B_s1(B_arr, point.r);
+#pragma omp parallel for
+  for (PetscInt i = 0; i < f.size; i++) {
+    Point point = arrays.load(i);
+    const Vector3R old_r = point.r;
+    const Vector3R old_v = point.p;
 
-      BorisPush push(parameters.q / parameters.m, E_p, B_p);
-      push.update_vEB(dt, point);
-      push.update_r(0.5 * dt, point);
+    Vector3R E_p = interpolate_E_s1(E_arr, point.r);
+    Vector3R B_p = interpolate_B_s1(B_arr, point.r);
 
-      Shape shape;
-      shape.setup(old_r, point.r, shape_radius2, shape_func2);
-      decompose_esirkepov_current(shape, point);
+    BorisPush push(parameters.q / parameters.m, E_p, B_p);
+    push.update_vEB(dt, point);
+    push.update_r(0.5 * dt, point);
+
+    Shape shape;
+    shape.setup(old_r, point.r, shape_radius2, shape_func2);
+    decompose_esirkepov_current(shape, point);
+    arrays.store(i, point);
 
 #pragma omp atomic update
-      pred_w += parameters.q * parameters.mpw * 0.5 * (old_v + point.p).dot(E_p);
-    }
+    pred_w += parameters.q * parameters.mpw * 0.5 * (old_v + point.p).dot(E_p);
   }
+
+  PetscCall(storage.restore_attributes(f));
 
   PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
@@ -104,10 +124,15 @@ PetscErrorCode Particles::final_update()
   PetscReal lambda2 = 1.0 + dt * (corr_w - pred_w) / K;
   PetscReal lambda = std::sqrt(lambda2);
 
-#pragma omp parallel for schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage)
-    for (auto& point : cell)
-      point.p *= lambda;
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attribute(f, "p"));
+  PetscReal* p = f["p"];
+
+#pragma omp parallel for
+  for (PetscInt i = 0; i < 3 * f.size; i++)
+    p[i] *= lambda;
+
+  PetscCall(storage.restore_attributes(f));
 
   PetscLogEventEnd(events[2], 0, 0, 0, 0);
 
@@ -140,11 +165,15 @@ PetscErrorCode Particles::calculate_energy()
   const PetscReal m = parameters.m;
   const PetscReal mpw = parameters.n / parameters.Np;
 
-#pragma omp parallel for reduction(+ : energy), \
-  schedule(monotonic : dynamic, OMP_CHUNK_SIZE)
-  for (auto& cell : storage)
-    for (auto& point : cell)
-      energy += Energy::get_kinetic(point.p, m, mpw);
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attribute(f, "p"));
+  const PetscReal* p = f["p"];
+
+#pragma omp parallel for reduction(+ : energy)
+  for (PetscInt i = 0; i < f.size; i++)
+    energy += Energy::get_kinetic(Vector3R(p + 3 * i), m, mpw);
+
+  PetscCall(storage.restore_attributes(f));
 
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &energy, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);

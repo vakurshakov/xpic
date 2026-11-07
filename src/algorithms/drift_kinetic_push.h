@@ -6,7 +6,7 @@
 /// @brief 0 uses plain Picard, 1 uses sequential Picard with safeguarded
 /// dynamic Aitken relaxation.
 #ifndef DRIFT_KINETIC_AITKEN
-#define DRIFT_KINETIC_AITKEN 1
+  #define DRIFT_KINETIC_AITKEN 1
 #endif
 
 /// @brief Fully implicit drift-kinetic guiding-center pusher.
@@ -16,7 +16,12 @@ public:
   DriftKineticPush() = default;
   DriftKineticPush(PetscReal qm, PetscReal mp);
 
+  /// @brief Sets iteration tolerances and limit.
+  void set_tolerances(PetscReal atol, PetscReal rtol, PetscInt maxit);
+
+  /// @brief Sets the charge-to-mass ratio.
   void set_qm(PetscReal qm);
+  /// @brief Sets the particle mass.
   void set_mp(PetscReal mp);
   PetscReal get_mp() const;
   PetscReal get_qm() const;
@@ -31,8 +36,8 @@ public:
   PetscReal get_FVk() const;
 
   /// @brief Callback for interpolating particle fields.
-  using SetFields = std::function<PetscErrorCode(const Vector3R&, const Vector3R&,
-    Vector3R&, PetscReal&, Vector3R&, Vector3R&, Vector3R&)>;
+  using SetFields = std::function<PetscErrorCode(const Vector3R&,
+    const Vector3R&, Vector3R&, PetscReal&, Vector3R&, Vector3R&, Vector3R&)>;
 
   void set_fields_callback(SetFields&& callback);
 
@@ -42,7 +47,8 @@ public:
   PetscErrorCode process(PetscReal dt, PointByField& pn, const PointByField& p0);
 
 private:
-  PetscErrorCode process_picard(PetscReal dt, PointByField& pn, const PointByField& p0);
+  PetscErrorCode process_picard(
+    PetscReal dt, PointByField& pn, const PointByField& p0);
   PetscErrorCode process_picard_aitken(
     PetscReal dt, PointByField& pn, const PointByField& p0);
 
@@ -58,8 +64,7 @@ private:
   void update_V_par(const PointByField& pn, const PointByField& p0);
   void update_a_par();
   void update_r(PetscReal dt, PointByField& pn, const PointByField& p0);
-  void update_v_parallel(
-    PetscReal dt, PointByField& pn, const PointByField& p0);
+  void update_v_parallel(PetscReal dt, PointByField& pn, const PointByField& p0);
 
   /// @brief Checks convergence using both residuals.
   bool check_convergence(

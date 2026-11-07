@@ -14,29 +14,26 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
   removed_energy_ = 0.0;
   removed_particles_ = 0;
 
-  const World& world = particles_.world;
-
   const PetscReal m = particles_.parameters.m;
   const PetscReal mpw = particles_.parameters.n / particles_.parameters.Np;
 
-  for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
-    auto& cell = particles_.storage[g];
-
+  // The geometry is tested at the corner of the cell of the particle
+  auto is_removed = [&](const Point& point)
+  {
     const Vector3R r{
-      (world.start[X] + g % world.size[X]) * dx,
-      (world.start[Y] + (g / world.size[X]) % world.size[Y]) * dy,
-      (world.start[Z] + (g / world.size[X]) / world.size[Y]) * dz,
+      FLOOR_STEP(point.x(), dx) * dx,
+      FLOOR_STEP(point.y(), dy) * dy,
+      FLOOR_STEP(point.z(), dz) * dz,
     };
+    return !within_geom_(r);
+  };
 
-    if (cell.empty() || within_geom_(r))
-      continue;
+  std::vector<Point> removed;
+  PetscCall(particles_.extract(is_removed, &removed));
 
-    for (const auto& point : cell)
-      removed_energy_ += Energy::get_kinetic(point.p, m, mpw);
-
-    removed_particles_ += cell.size();
-    cell.clear();
-  }
+  for (const Point& point : removed)
+    removed_energy_ += Energy::get_kinetic(point.p, m, mpw);
+  removed_particles_ = (PetscInt)removed.size();
 
   PetscCall(log_statistics());
   PetscFunctionReturn(PETSC_SUCCESS);

@@ -19,6 +19,7 @@ public:
   void set_fields(const Vector3R& E_p, const Vector3R& B_p);
 
   static void update_r(PetscReal dt, Point& point);
+  static Vector3R updated_r(PetscReal dt, const Point& point);
 
   /// @brief Magnetic field integrators.
   void update_vM(PetscReal dt, Point& point) const;
@@ -28,6 +29,10 @@ public:
 
   /// @brief Electro-magnetic field integrator.
   void update_vEB(PetscReal dt, Point& point) const;
+
+  /// @returns Mean velocity `(v^n + v^{n+1}) / 2` of the `update_vEB(dt)` step,
+  /// reconstructed from the velocity `v_new` after the step (the fields are the same).
+  Vector3R mean_vEB(PetscReal dt, const Vector3R& v_new) const;
 
 private:
   using AnglePair = std::pair<PetscReal, PetscReal>;

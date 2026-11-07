@@ -22,7 +22,8 @@ int main(int argc, char** argv)
     PETSC_COMM_WORLD, PETSC_ERR_ARG_UNKNOWN_TYPE, "Unknown hybrid ex1 model: %s", model);
 
   const std::string file = (std::filesystem::path(__FILE__).parent_path() /
-    ("hybrid_ex1_" + simulation + ".cpp")).string();
+    ("hybrid_ex1_" + simulation + ".cpp"))
+                             .string();
   const bool drift = simulation == "drift_kinetic";
   const bool hybrid = simulation == "hybrid_kinetic";
   PetscCall(ex1::overwrite_config(file, simulation, drift ? "drift_kinetic" : "kinetic",
