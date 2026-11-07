@@ -118,6 +118,24 @@ _Avoid_: Snapshot (that is the step-start state)
 A config-driven factory that turns a JSON entry into a command, diagnostic or simulation.
 _Avoid_: Factory
 
+### Profiling
+
+**Stage**:
+A broad part of a step (e.g. the field solve, the particle push) timed as a whole; stages do not overlap.
+_Avoid_: Section, region
+
+**Event**:
+A named sub-step timed inside whichever stage is active when it runs; the same event may appear under several stages. The set of names is open: a few shared ones are conventional (`interpolate`, `push`, `decompose`) and any other name may be registered once and reused.
+_Avoid_: Timer, probe
+
+**Phase**:
+An event that runs inside a threaded region; its time is the mean over the threads of the team of each thread's busy time, so load imbalance shows up as a deficit against the stage time.
+_Avoid_: Thread event
+
+**Profiler**:
+The single process-wide place where stages, events and phases are registered, started and stopped, and from which `-log_view` and the `LogView` diagnostic report. Timing is on only when logging is requested.
+_Avoid_: Clock, timer
+
 ### Conservation
 
 **Charge conservation**:
