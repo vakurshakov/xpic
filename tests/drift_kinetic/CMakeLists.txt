@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(tests
+  halton_ex1
   drift_kinetic_ex1_segments
   drift_kinetic_ex2_exb
   drift_kinetic_ex3_gradb
@@ -19,7 +20,12 @@ foreach(test ${tests})
   set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "drift_kinetic")
 endforeach()
 
+# Tiny 3-D grid; avoid OpenMP startup overhead in the short noise comparison.
+set_property(TEST halton_ex1 PROPERTY ENVIRONMENT "OMP_NUM_THREADS=1")
+set_property(TEST halton_ex1 PROPERTY TIMEOUT 600)
+
 set(plot_tests
+  halton_ex1
   drift_kinetic_ex2_exb
   drift_kinetic_ex3_gradb
   drift_kinetic_ex4_curv
