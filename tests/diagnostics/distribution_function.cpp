@@ -14,7 +14,6 @@ static constexpr char help[] =
 constexpr PetscReal q = -1.0;
 constexpr PetscReal m = 2.0;
 constexpr PetscReal n = 1.0;
-constexpr PetscInt Np = 2;
 
 constexpr PetscReal dv = 0.1;
 constexpr PetscInt nv = (PetscInt)(2.0 / dv);  // bins in [-1, 1)
@@ -104,7 +103,7 @@ PetscErrorCode check_distribution(  //
     auto ivx = ROUND_STEP(vx, dv) + nv / 2;
     auto ivy = ROUND_STEP(vy, dv) + nv / 2;
     auto g = indexing::petsc_index(ivx, ivy, 0, 0, nv, nv, 1, 1);
-    expected[g] += n;  // Each point is loaded `Np` times with the weight `mpw`
+    expected[g] += n;
   }
 
   for (std::size_t i = 0; i < written.size(); i++) {
@@ -130,7 +129,6 @@ void overwrite_config()
 
   for (const Point& point : points) {
     presets.push_back({
-      // `PreciseCoordinate` loads `Np` copies
       {"command", "SetParticles"},
       {"particles", sort_name},
       {"coordinate",
@@ -170,7 +168,7 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", sort_name},
-        {"Np", Np},
+        {"Np", 1},
         {"n", n},
         {"q", q},
         {"m", m},

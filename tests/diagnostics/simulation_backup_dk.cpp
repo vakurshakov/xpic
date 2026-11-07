@@ -12,7 +12,6 @@ static constexpr char help[] =
 static constexpr PetscReal q = -1.0;
 static constexpr PetscReal m = 2.0;
 static constexpr PetscReal n = 1.0;
-static constexpr PetscInt Np = 3;
 static constexpr PetscReal B_value = 2.0;
 
 const std::vector<Point> points{
@@ -68,7 +67,7 @@ int main(int argc, char** argv)
 
   PetscInt local = (PetscInt)before.size(), total = 0;
   PetscCallMPI(MPI_Allreduce(&local, &total, 1, MPIU_INT, MPIU_SUM, PETSC_COMM_WORLD));
-  PetscCheck(total == Np * (PetscInt)points.size(), PETSC_COMM_WORLD, PETSC_ERR_USER,
+  PetscCheck(total == (PetscInt)points.size(), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Unexpected number of loaded particles: %" PetscInt_FMT, total);
 
   std::vector<interfaces::Particles*> sorts{&particles};
@@ -119,7 +118,6 @@ void overwrite_config()
 
   for (const Point& point : points) {
     presets.push_back({
-      // `PreciseCoordinate` loads `Np` copies
       {"command", "SetParticles"},
       {"particles", sort_name},
       {"coordinate",
@@ -161,7 +159,7 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", sort_name},
-        {"Np", Np},
+        {"Np", 1},
         {"n", n},
         {"q", q},
         {"m", m},

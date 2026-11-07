@@ -53,7 +53,9 @@ std::vector<SetParticles::Sort> SetParticlesBuilder::load_sorts(  //
     }
 
     MomentumGenerator generate_momentum;
-    load_momentum(sort_info.momentum_info, particles, generate_momentum);
+    load_momentum(sort_info.momentum_info, particles,  //
+      number_of_particles, generate_momentum);
+
     sorts.push_back({particles, std::move(generate_momentum)});
   }
   return sorts;

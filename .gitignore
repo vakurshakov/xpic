@@ -3,6 +3,7 @@ external/petsc
 external/f2cblaslapack**
 
 .cache/**
+.scratch/**
 **/__pycache__/**
 
 build/

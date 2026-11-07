@@ -39,6 +39,8 @@ public:
 
   static Vector3R parse_vector(
     const Configuration::json_t& info, const std::string& name);
+  static std::vector<Vector3R> parse_vectors(
+    const Configuration::json_t& info, const std::string& name);
   static PetscReal parse_value(const Configuration::json_t& value);
 
 protected:

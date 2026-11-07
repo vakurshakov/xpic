@@ -8,6 +8,7 @@ set(tests
   distribution_function_dk
   distribution_moment
   distribution_moment_dk
+  distribution_moment_deposit
   simulation_backup
   simulation_backup_dk
 )

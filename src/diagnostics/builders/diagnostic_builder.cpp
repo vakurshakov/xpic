@@ -5,6 +5,7 @@
 #include "src/diagnostics/builders/field_view_builder.h"
 #include "src/diagnostics/builders/field_view_zavg_builder.h"
 #include "src/diagnostics/builders/log_view_builder.h"
+#include "src/diagnostics/builders/momentum_conservation_builder.h"
 #include "src/diagnostics/builders/mat_mult_field_view_builder.h"
 #include "src/diagnostics/builders/particle_trace_builder.h"
 #include "src/diagnostics/builders/simulation_backup_builder.h"
@@ -58,6 +59,9 @@ PetscErrorCode build_diagnostics(
     }
     else if (name == "LogView") {
       PetscCall(Builder::use_impl<LogViewBuilder>(info, simulation, result));
+    }
+    else if (name == "MomentumConservation") {
+      PetscCall(Builder::use_impl<MomentumConservationBuilder>(info, simulation, result));
     }
     else if (name == "ParticleTrace") {
       PetscCall(Builder::use_impl<ParticleTraceBuilder>(info, simulation, result));

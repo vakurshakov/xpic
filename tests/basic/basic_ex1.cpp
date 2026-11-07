@@ -7,7 +7,8 @@ static constexpr char help[] =
   "E_y = a * cos(kx) is launched in vacuum (no particles) along x and is   \n"
   "advanced for 5 cycles. The result is compared with the exact recurrence \n"
   "of the discrete scheme, B^{n+1} = B^{n} - dt * rot(E^{n}) and           \n"
-  "E^{n+1} = E^{n} + dt * rot(B^{n+1}), in the Yee-staggered points.       \n";
+  "E^{n+1} = E^{n} + dt * rot(B^{n+1}), in the Yee-staggered points. No    \n"
+  "momentum_conservation entry is listed, so its table must not appear.    \n";
 
 static constexpr PetscReal amplitude = 1.0;
 
@@ -23,6 +24,9 @@ int main(int argc, char** argv)
 
   overwrite_config();
   Configuration::save(get_out_dir(__FILE__));
+
+  const auto momentum_table = get_out_dir(__FILE__) / "temporal/momentum_conservation.txt";
+  std::filesystem::remove(momentum_table);
 
   basic::Simulation simulation;
   PetscCall(simulation.initialize());
@@ -41,6 +45,10 @@ int main(int argc, char** argv)
   PetscCall(check(simulation.B, yee_B, Z, b, std::sin));
 
   PetscCall(simulation.finalize());
+
+  PetscCheck(!std::filesystem::exists(momentum_table), PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "\"%s\" is produced without being listed in Diagnostics", momentum_table.c_str());
+
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

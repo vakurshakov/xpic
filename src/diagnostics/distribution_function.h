@@ -56,6 +56,7 @@ protected:
   Projector projector;
   Tester within_geom;
 
+  Vec field_loc;
   IS is;
   VecScatter ctx;
 };

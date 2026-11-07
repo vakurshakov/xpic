@@ -89,6 +89,7 @@ void overwrite_config()
         {"T", +0.1},
       }},
     },
+    {"Diagnostics", {{{"diagnostic", "MomentumConservation"}}}},
     {
       "Presets",
       {

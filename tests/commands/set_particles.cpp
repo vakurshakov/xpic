@@ -11,7 +11,7 @@ static constexpr char help[] =
 
 static constexpr PetscReal B_value = 2.0;
 
-static constexpr PetscInt Np = 4;
+static constexpr PetscInt batch = 3;
 static constexpr PetscInt inject_num = 3;
 
 static const Vector3R r0(4.5, 4.5, 4.5);
@@ -85,7 +85,7 @@ void overwrite_config(const std::string& simulation_name, bool coord_is_gc)
       {
         {
           {"sort_name", "a"},
-          {"Np", Np},
+          {"Np", 1},
           {"n", +1.0},
           {"q", -1.0},
           {"m", +1.0},
@@ -93,7 +93,7 @@ void overwrite_config(const std::string& simulation_name, bool coord_is_gc)
         },
         {
           {"sort_name", "b"},
-          {"Np", Np},
+          {"Np", 1},
           {"n", +1.0},
           {"q", +1.0},
           {"m", +4.0},
@@ -118,6 +118,30 @@ void overwrite_config(const std::string& simulation_name, bool coord_is_gc)
           {"particles", "a"},
           {"coordinate", coordinate},
           {"momentum", momentum(p_a)},
+        },
+        {
+          {"command", "SetParticles"},
+          {"particles", "a"},
+          {"coordinate",
+            {
+              {"name", "PreciseCoordinate"},
+              {"value",
+                {
+                  {r0[X], r0[Y], r0[Z]},
+                  {r0[X], r0[Y], r0[Z]},
+                  {r0[X], r0[Y], r0[Z]},
+                }},
+            }},
+          {"momentum",
+            {
+              {"name", "PreciseMomentum"},
+              {"value",
+                {
+                  {p_a[X], p_a[Y], p_a[Z]},
+                  {p_a[X], p_a[Y], p_a[Z]},
+                  {p_a[X], p_a[Y], p_a[Z]},
+                }},
+            }},
         },
         {
           {"command", "SetParticles"},
@@ -220,14 +244,14 @@ PetscErrorCode run(const std::string& simulation_name, bool coord_is_gc)
   std::unique_ptr<interfaces::Simulation> simulation = build_simulation();
 
   // The presets are executed on initialization:
-  // 1 + 1 + 2 loads for "a" and 1 + 2 loads for "b"
+  // 1 + 3 (batch) + 1 + 2 particles for "a" and 1 + 2 for "b"
   PetscCall(simulation->initialize());
 
   auto& a = simulation->get_named_particles("a");
   auto& b = simulation->get_named_particles("b");
 
-  PetscCall(check_counts(a, Np + Np + 2 * inject_num));
-  PetscCall(check_counts(b, Np + 2 * inject_num));
+  PetscCall(check_counts(a, 1 + batch + 1 + 2 * inject_num));
+  PetscCall(check_counts(b, 1 + 2 * inject_num));
 
   if (dynamic_cast<drift_kinetic::Simulation*>(simulation.get())) {
     auto* dk_a = dynamic_cast<drift_kinetic::Particles*>(&a);
@@ -245,14 +269,14 @@ PetscErrorCode run(const std::string& simulation_name, bool coord_is_gc)
     0, 1, inject_num, PreciseCoordinate(r0));
   PetscCall(inject.execute(0));
 
-  PetscCall(check_counts(a, Np + Np + 3 * inject_num));
-  PetscCall(check_counts(b, Np + 3 * inject_num));
+  PetscCall(check_counts(a, 1 + batch + 1 + 3 * inject_num));
+  PetscCall(check_counts(b, 1 + 3 * inject_num));
   PetscCall(check_energy(a, p_a, inject.get_ionized_energy()));
   PetscCall(check_energy(b, p_b, inject.get_ejected_energy()));
 
   // Outside of the window nothing is injected
   PetscCall(inject.execute(2));
-  PetscCall(check_counts(a, Np + Np + 3 * inject_num));
+  PetscCall(check_counts(a, 1 + batch + 1 + 3 * inject_num));
   PetscCheck(inject.get_ionized_energy() == 0, PETSC_COMM_WORLD, PETSC_ERR_USER, "energy must be reset");
 
   PetscCall(simulation->finalize());

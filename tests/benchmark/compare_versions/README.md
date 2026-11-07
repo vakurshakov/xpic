@@ -43,19 +43,19 @@ Not a pure pusher benchmark: the per-step diagnostics (conservation checks, mome
 | | commit | storage |
 | - | ------ | ------- |
 | before | `9dee688a` (2026-10-28, "point.h was incorrectly removed from the particle_trace") | `std::vector<std::list<Point>>` |
-| after | `cd7c40d8` ("changing mpiexec to use -np within codebase"), tip of `particle-storage` | `ParticleStorage` (variant `e`) |
+| after | `a6bae29a` (`basic` tables; ecsim, ecsimcorr, eccapfim: `cd7c40d8`), `particle-storage` | `ParticleStorage` (variant `e`) |
 
 `56da9272` (the spike commit, last one with the old storage) does not compile: `particle_trace.cpp` misses the `point.h` include. `9dee688a` adds only that include and the glossary, `src/` is otherwise identical.
 
 ## Summary
 
-The new storage does not lose on any pusher, so there is no reason to fall back to `v`. The always-on diagnostics are 1.5-1.8x slower and eat part of the gain in the total time.
+The new storage does not lose on any pusher, so there is no reason to fall back to `v`. The diagnostics were 1.5-1.8x slower because of a doubled `MomentumConservation::calculate()` (fixed for `basic`, see below).
 
 after/before, 1 rank x 4 threads:
 
 | simulation | pusher stages | update_cells | diagnostics | wall | IPC |
 | ---------- | ------------- | ------------ | ----------- | ---- | --- |
-| basic | Main Stage 0.71 | 0.45 | **1.79** | 0.89 | 1.58 -> 2.08 |
+| basic (after the fix) | Main Stage 0.55 | 0.53 | 0.91 | 0.60 | 1.58 -> 2.26 |
 | ecsim | First push 0.82, Second push 0.56 | 0.51 | **1.81** | **1.04** | 1.54 -> 1.75 |
 | ecsimcorr | First push 0.64, Second push 0.60 | 0.48 | **1.83** | 0.83 | 1.35 -> 1.91 |
 | eccapfim | Calc iteration 1.01 (noise) | 0.95 | 1.98 | 1.02 | 2.09 -> 2.12 |
@@ -66,7 +66,11 @@ after/before, 1 rank x 4 threads:
 - Instructions are 15-30% higher after, cycles are lower or equal: the gain is IPC (L1 misses of basic and ecsimcorr drop by 25-55%).
 - eccapfim: `form_iteration` / `prepare_storage` events do not exist in the old code (shown as `-`). The +1.5% is the timer overhead of the new instrumentation (`__vdso_clock_gettime` + `omp_get_wtime` are 5.7% of samples after), which matches the phase-timing driver that was used before (within 0-2.5%, see the `eccapfim` phase timings in the PR description of `particle-storage`). The `perf record` profile shapes are the same: interpolation and shape functions dominate (> 65%).
 
-**Regression to look at:** `Diagnostics run` is 1.7-1.8x slower after (basic 67 -> 119 ms/step, about +50 ms/step), 1.5-2.0x for eccapfim. In the profiles `MomentumConservation::calculate` goes from 3.7-9.6% to 8.7-13.4% of the samples. It makes the wall of ecsim +4% (1 rank) and +7% (2 ranks) despite faster pushers. The cause is not investigated; first candidates are the per-cell sort and the access pattern of the moment and momentum loops over the new storage.
+**Diagnostics regression: found and fixed.** `MomentumConservation::calculate()` ran twice per diagnose step: `TableDiagnostic::diagnose` runs `open()` + `initialize()` while `!initialized`, and `MomentumConservation::initialize()` did not set the flag, so every step reopened the file and ran an extra `calculate()`. The loop itself is unchanged (57-59 ms per call after vs 61-62 ms before; storage is cell-sorted at diagnostics time, `Shape::fill` is identical). The fix is one line (`TableDiagnostic::initialize()` in `MomentumConservation::initialize()`); the output table also had 2 lines instead of one row per step.
+
+After the fix, basic `Diagnostics run` is 0.91x (1 rank x 4, 64.71 -> 58.78 ms/step) and 0.93x (2 ranks x 2, 179.97 -> 167.06 ms/step), final `wK` identical. The `calculate_moments` share of samples dropped from 15.2% to 3.7%: it deposits only the charge density since `mflux` was removed. `MomentumConservation` is now created only when the config lists it; the template requests it (`{ "diagnostic": "MomentumConservation" }`), so the diagnostic is still measured on `basic`.
+
+The ecsim, ecsimcorr and eccapfim tables and their rows in the summary table above predate the fix and the opt-in (their "Diagnostics run" is the doubled `MomentumConservation` cost); only `basic` was re-run.
 
 Noise: the 2-rank L1-miss values have `sd` comparable to the mean (e.g. eccapfim `0.232 ± 0.308`), do not read them. `perf record` includes diagnostics.
 
@@ -74,43 +78,46 @@ Noise: the 2-rank L1-miss values have `sd` comparable to the mean (e.g. eccapfim
 
 ### basic
 
+Measured at `a6bae29a` (`MomentumConservation` requested in the template, run once per diagnose step). `9dee688a` was patched locally to ignore the `MomentumConservation` entry (the diagnostic is always on there).
+
 1 rank x 4 threads
 
 | metric | before | after | after/before |
 | ------ | ------ | ----- | ------------ |
-| stage: Diagnostics run [ms/step] | 66.62 ± 3.45 | 119.40 ± 0.54 | 1.792 |
-| stage: Main Stage [ms/step] | 343.51 ± 8.68 | 245.26 ± 1.50 | 0.714 |
-| event: update_cells [ms/step] | 18.92 ± 2.49 | 8.41 ± 0.27 | 0.445 |
-| IPC | 1.5764 ± 0.0277 | 2.0778 ± 0.0064 | 1.318 |
-| final wK | 1.2025 | 1.2025 | 1.000 |
-| wall [ms/step] | 410.15 ± 12.13 | 364.67 ± 2.02 | 0.889 |
-| perf: L1-dcache-load-misses [G/step] | 0.017 ± 0.002 | 0.008 ± 0.001 | 0.459 |
-| perf: cycles [G/step] | 6.565 ± 0.117 | 5.971 ± 0.019 | 0.910 |
-| perf: instructions [G/step] | 10.347 ± 0.001 | 12.406 ± 0.001 | 1.199 |
+| stage: Diagnostics run [ms/step] | 64.71 ± 0.05 | 58.78 ± 0.21 | 0.908 |
+| stage: Main Stage [ms/step] | 338.57 ± 1.11 | 184.94 ± 1.81 | 0.546 |
+| event: update_cells [ms/step] | 16.64 ± 0.22 | 8.82 ± 0.25 | 0.530 |
+| IPC | 1.5833 ± 0.0031 | 2.2554 ± 0.0135 | 1.424 |
+| final wK | 1.2025 ± 0.0000 | 1.2025 ± 0.0000 | 1.000 |
+| wall [ms/step] | 403.28 ± 1.05 | 243.73 ± 1.68 | 0.604 |
+| perf: L1-dcache-load-misses [G/step] | 0.016 ± 0.000 | 0.006 ± 0.001 | 0.346 |
+| perf: cycles [G/step] | 6.534 ± 0.013 | 3.974 ± 0.025 | 0.608 |
+| perf: instructions [G/step] | 10.346 ± 0.000 | 8.963 ± 0.002 | 0.866 |
 
 2 ranks x 2 threads
 
 | metric | before | after | after/before |
 | ------ | ------ | ----- | ------------ |
-| stage: Diagnostics run [ms/step] | 181.38 ± 0.54 | 310.23 ± 4.84 | 1.710 |
-| stage: Main Stage [ms/step] | 650.77 ± 10.81 | 556.65 ± 9.32 | 0.855 |
-| event: update_cells [ms/step] | 26.37 ± 0.60 | 19.14 ± 0.67 | 0.726 |
-| IPC | 2.3561 ± 0.0100 | 2.4316 ± 0.0148 | 1.032 |
-| wall [ms/step] | 832.33 ± 11.09 | 867.00 ± 12.17 | 1.042 |
-| perf: L1-dcache-load-misses [G/step] | 0.047 ± 0.063 | 0.010 ± 0.004 | 0.219 |
-| perf: cycles [G/step] | 16.753 ± 0.629 | 17.324 ± 0.305 | 1.034 |
-| perf: instructions [G/step] | 39.469 ± 1.399 | 42.126 ± 0.852 | 1.067 |
+| stage: Diagnostics run [ms/step] | 179.97 ± 0.42 | 167.06 ± 0.78 | 0.928 |
+| stage: Main Stage [ms/step] | 649.00 ± 7.65 | 432.99 ± 18.79 | 0.667 |
+| event: update_cells [ms/step] | 24.50 ± 1.23 | 19.35 ± 0.95 | 0.790 |
+| IPC | 2.3668 ± 0.0074 | 2.5316 ± 0.0173 | 1.070 |
+| final wK | 1.2025 ± 0.0000 | 1.2025 ± 0.0000 | 1.000 |
+| wall [ms/step] | 829.00 ± 7.05 | 600.17 ± 18.91 | 0.724 |
+| perf: L1-dcache-load-misses [G/step] | 0.011 ± 0.000 | 0.006 ± 0.000 | 0.556 |
+| perf: cycles [G/step] | 16.977 ± 0.077 | 15.194 ± 0.108 | 0.895 |
+| perf: instructions [G/step] | 40.183 ± 0.079 | 38.464 ± 0.018 | 0.957 |
 
 `perf record`, 1 rank, self time
 
 | before % | before symbol | after % | after symbol |
-| -------- | ------------- | ------- | ------------ |
-| 29.11 | `EsirkepovDecomposition::process` | 21.48 | `spline_of_2nd_order` |
-| 14.74 | `spline_of_2nd_order` | 17.63 | `Shape::fill` |
-| 14.69 | `interfaces::Particles::calculate_moments` | 15.95 | `interfaces::Particles::calculate_moments` |
-| 12.88 | `Shape::fill` | 11.52 | `MomentumConservation::calculate` |
-| 6.61 | `MomentumConservation::calculate` | 11.02 | `EsirkepovDecomposition::process` |
-| 5.17 | `SimpleInterpolation::process` | 5.76 | `SimpleInterpolation::process` |
+| --- | --- | --- | --- |
+| 30.76 | `EsirkepovDecomposition::process` | 24.83 |`spline_of_2nd_order` |
+| 15.23 | `interfaces::Particles::calculate_moments` | 20.17 |`Shape::fill` |
+| 14.59 | `spline_of_2nd_order` | 16.61 |`EsirkepovDecomposition::process` |
+| 13.98 | `Shape::fill` | 9.4 |`MomentumConservation::calculate` |
+| 6.33 | `MomentumConservation::calculate` | 8.29 |`SimpleInterpolation::process` |
+| 4.75 | `SimpleInterpolation::process` | 3.74 |`interfaces::Particles::calculate_moments` |
 
 ### ecsim
 
