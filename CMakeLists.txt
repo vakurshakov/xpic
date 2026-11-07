@@ -23,7 +23,7 @@ set(CMAKE_CONFIGURATION_TYPES
   "Release"
 )
 
-set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers -Wno-unused-variable -Wno-unused-private-field -Wno-unused-but-set-variable -Wno-unused-parameter")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -mno-wbnoinvd")
 
