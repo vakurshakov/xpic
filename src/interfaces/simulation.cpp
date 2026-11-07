@@ -9,6 +9,7 @@
 #include "src/impls/eccapfim/simulation.h"
 #include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
+#include "src/impls/hybrid_kinetic/simulation.h"
 #include "src/utils/configuration.h"
 #include "src/utils/operators.h"
 #include "src/utils/utils.h"
@@ -28,6 +29,8 @@ std::unique_ptr<interfaces::Simulation> build_simulation()
     simulation = std::make_unique<drift_kinetic::Simulation>();
   else if (simulation_str == "eccapfim")
     simulation = std::make_unique<eccapfim::Simulation>();
+  else if (simulation_str == "hybrid_kinetic")
+    simulation = std::make_unique<hybrid_kinetic::Simulation>();
   else if (simulation_str == "ecsim")
     simulation = std::make_unique<ecsim::Simulation>();
   else if (simulation_str == "ecsimcorr")

@@ -14,7 +14,10 @@ set(sanity_tests
 )
 
 set(regression_tests
+  halton_ex1
   drift_kinetic_ex5_iaw
+  drift_kinetic_ex10_bounce
+  drift_kinetic_ex11_eparallel
 )
 
 # Setting snes options manually to stabilize the result
@@ -70,17 +73,74 @@ foreach(level smoke sanity regression)
   endforeach()
 endforeach()
 
+# Tiny 3-D grid; avoid OpenMP startup overhead in the short noise comparison.
+set_property(TEST halton_ex1 PROPERTY ENVIRONMENT "OMP_NUM_THREADS=1")
+set_property(TEST halton_ex1 PROPERTY TIMEOUT 600)
+
 set(plot_tests
+  halton_ex1
   drift_kinetic_ex2_exb
   drift_kinetic_ex3_gradb
   drift_kinetic_ex4_curv
+  drift_kinetic_ex10_bounce
+  drift_kinetic_ex11_eparallel
 )
 
 foreach(test ${plot_tests})
   add_test(NAME "${test}_plot" COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tools/${test}.py)
   set_property(TEST "${test}_plot" PROPERTY DEPENDS "${test}")
-  set_property(TEST "${test}_plot" PROPERTY LABELS smoke impls drift_kinetic)
+  set(level smoke)
+  if(${test} IN_LIST regression_tests)
+    set(level regression)
+  endif()
+  set_property(TEST "${test}_plot" PROPERTY LABELS ${level} impls drift_kinetic)
+  set_property(TEST "${test}_plot" PROPERTY ENVIRONMENT "MPLBACKEND=Agg")
+endforeach()
+
+# One source, two independent field geometries and output directories.
+foreach(case aligned oblique)
+  set(test drift_kinetic_ex9_nonlin_gradb_${case})
+  list(APPEND regression_tests ${test})
+  string(TOUPPER ${case} case_upper)
+  add_executable(${test}.out drift_kinetic_ex9_nonlin_gradb.cpp)
+  target_compile_definitions(${test}.out PRIVATE NONLIN_GRADB_${case_upper})
+  target_link_libraries(${test}.out ${PROJECT_NAME})
+
+  add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./${test}.out)
+  set_property(TEST "${test}" PROPERTY LABELS regression impls drift_kinetic)
+  set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "drift_kinetic")
+
+  add_test(NAME "${test}_plot" COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tools/drift_kinetic_ex9_nonlin_gradb.py --case ${case})
+  set_property(TEST "${test}_plot" PROPERTY DEPENDS "${test}")
+  set_property(TEST "${test}_plot" PROPERTY LABELS regression impls drift_kinetic)
   set_property(TEST "${test}_plot" PROPERTY ENVIRONMENT "MPLBACKEND=Agg")
 endforeach()
 
 set_property(TEST ${regression_tests} PROPERTY DEPENDS "${smoke_tests};${sanity_tests}")
+
+# Exercise the same seam and continuity checks without cached spline weights.
+add_executable(drift_kinetic_seam_raw.out
+  drift_kinetic_ex8_periodic_seam.cpp ../../src/algorithms/implicit_drift_kinetic.cpp)
+target_compile_definitions(drift_kinetic_seam_raw.out PRIVATE DRIFT_KINETIC_SPLINE_TABLES=0)
+target_link_libraries(drift_kinetic_seam_raw.out ${PROJECT_NAME})
+add_test(NAME drift_kinetic_seam_raw COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./drift_kinetic_seam_raw.out)
+set_property(TEST drift_kinetic_seam_raw PROPERTY LABELS smoke impls drift_kinetic)
+foreach(axis x y z)
+  set(test drift_kinetic_seam_raw_mpi_${axis}2)
+  add_test(NAME ${test} COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./drift_kinetic_seam_raw.out -da_processors_${axis} 2)
+  set_property(TEST ${test} PROPERTY LABELS smoke impls drift_kinetic mpi)
+endforeach()
+
+add_executable(drift_kinetic_ex12_substeping.out drift_kinetic_ex12_substeping.cpp)
+target_link_libraries(drift_kinetic_ex12_substeping.out ${PROJECT_NAME})
+add_test(NAME drift_kinetic_ex12_substeping COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./drift_kinetic_ex12_substeping.out)
+set_property(TEST drift_kinetic_ex12_substeping PROPERTY LABELS smoke impls drift_kinetic)
+
+# Compile the pusher into this executable to exercise ordinary Picard without
+# changing the solver used by the shared library and other tests.
+add_executable(drift_kinetic_ex12_substeping_picard.out
+  drift_kinetic_ex12_substeping.cpp ../../src/algorithms/drift_kinetic_push.cpp)
+target_compile_definitions(drift_kinetic_ex12_substeping_picard.out PRIVATE DRIFT_KINETIC_AITKEN=0)
+target_link_libraries(drift_kinetic_ex12_substeping_picard.out ${PROJECT_NAME})
+add_test(NAME drift_kinetic_ex12_substeping_picard COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./drift_kinetic_ex12_substeping_picard.out)
+set_property(TEST drift_kinetic_ex12_substeping_picard PROPERTY LABELS smoke impls drift_kinetic)

@@ -2,6 +2,7 @@
 #define SRC_DRIFT_KINETIC_PARTICLES_H
 
 #include "src/interfaces/particles.h"
+#include "src/impls/drift_kinetic/adaptive_substepping.h"
 
 namespace drift_kinetic {
 
@@ -15,7 +16,8 @@ struct DkPointArrays {
   PetscReal* mu_p;
 
   /// @param suffix `"_prev"` gives access to the saved states.
-  DkPointArrays(const ParticleStorage::Attributes& f, const std::string& suffix = "")
+  DkPointArrays(
+    const ParticleStorage::Attributes& f, const std::string& suffix = "")
     : r(f["r" + suffix]),
       p(f["p" + suffix]),
       p_parallel(f["p_parallel" + suffix]),
@@ -57,6 +59,9 @@ public:
   PetscReal get_max_push_leaf_residue_r() const;
   PetscReal get_max_push_leaf_residue_v() const;
 
+  const PushStatistics& get_push_stats() const;
+  void set_substepping(bool enabled, PetscInt depth);
+
   void set_fail_on_terminal_nonconvergence(bool value);
   bool get_fail_on_terminal_nonconvergence() const;
 
@@ -72,14 +77,9 @@ public:
   Arr Bn1_arr;  // Predicted magnetic field array.
 
 protected:
-  PetscInt size = 0;    // Local particle count.
-  PetscReal avgit = 0;  // Average pusher iteration count.
-  PetscInt maxit = 0;   // Largest pusher iteration count.
-  PetscInt retries = 0;
-  PetscInt leaf_failures = 0;
-  PetscReal max_leaf_residue_r = 0;
-  PetscReal max_leaf_residue_v = 0;
-
+  PushStatistics push_stats;
+  bool substepping = false;
+  PetscInt max_substep_depth = 4;
   bool coord_is_gc = false;
   bool fail_on_terminal_nonconvergence = false;
 
