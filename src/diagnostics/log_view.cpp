@@ -256,10 +256,10 @@ PetscErrorCode LogView::init()
 
   if (level_ == AllTimestepsSummary)
     PetscFunctionReturn(PETSC_SUCCESS);
-  else if (level_ == EachTimestep)
-    PetscCall(level_0_init());
 
   PetscCall(PetscLogGetDefaultHandler(&handler_));
+  if (level_ == EachTimestep)
+    PetscCall(level_0_init());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
