@@ -4,10 +4,12 @@
 #include <petsctime.h>
 
 #include "src/utils/configuration.h"
+#include "src/utils/profiler.h"
 
 LogView::LogView(Level level)
   : interfaces::Diagnostic(CONFIG().out_dir), level_(level)
 {
+  Profiler::enable();
 }
 
 PetscErrorCode LogView::diagnose(PetscInt t)
