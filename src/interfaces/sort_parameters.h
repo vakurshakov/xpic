@@ -38,26 +38,26 @@ PetscReal spline_of_4th_order(PetscReal s);
 #pragma omp declare simd notinbranch
 PetscReal spline_of_5th_order(PetscReal s);
 
-#if (PARTICLES_FORM_FACTOR == 0)
+#if (PARTICLES_SHAPE_ORDER == 0)
 static constexpr PetscReal shape_radius = 0.5;
 static constexpr const auto& shape_function = spline_of_0th_order;
-#elif (PARTICLES_FORM_FACTOR == 1)
+#elif (PARTICLES_SHAPE_ORDER == 1)
 static constexpr PetscReal shape_radius = 1.0;
 static constexpr const auto& shape_function = spline_of_1st_order;
-#elif (PARTICLES_FORM_FACTOR == 2)
+#elif (PARTICLES_SHAPE_ORDER == 2)
 static constexpr PetscReal shape_radius = 1.5;
 static constexpr const auto& shape_function = spline_of_2nd_order;
-#elif (PARTICLES_FORM_FACTOR == 3)
+#elif (PARTICLES_SHAPE_ORDER == 3)
 static constexpr PetscReal shape_radius = 2.0;
 static constexpr const auto& shape_function = spline_of_3rd_order;
-#elif (PARTICLES_FORM_FACTOR == 4)
+#elif (PARTICLES_SHAPE_ORDER == 4)
 static constexpr PetscReal shape_radius = 2.5;
 static constexpr const auto& shape_function = spline_of_4th_order;
-#elif (PARTICLES_FORM_FACTOR == 5)
+#elif (PARTICLES_SHAPE_ORDER == 5)
 static constexpr PetscReal shape_radius = 3.0;
 static constexpr const auto& shape_function = spline_of_5th_order;
 #else
-  #error "Unknown PARTICLES_FORM_FACTOR is specified!"
+  #error "Unknown PARTICLES_SHAPE_ORDER is specified!"
 #endif
 
 static constexpr PetscInt shape_width =

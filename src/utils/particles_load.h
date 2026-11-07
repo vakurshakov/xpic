@@ -10,9 +10,13 @@ using CoordinateGenerator = std::function<Vector3R()>;
 using MomentumGenerator =
   std::function<Vector3R(const Vector3R& /* reference */)>;
 
+/// @brief Returns the dots one by one, cycling after the last one.
 struct PreciseCoordinate {
+  PreciseCoordinate(std::vector<Vector3R> dots);
+  PreciseCoordinate(const Vector3R& dot);
   Vector3R operator()();
-  Vector3R dot;
+  std::vector<Vector3R> dots;
+  std::size_t next = 0;
 };
 
 struct CoordinateInBox {
@@ -37,9 +41,13 @@ struct CoordinateOnAnnulus {
   AnnulusGeometry ann;
 };
 
+/// @brief Returns the values one by one, cycling after the last one.
 struct PreciseMomentum {
+  PreciseMomentum(std::vector<Vector3R> values);
+  PreciseMomentum(const Vector3R& value);
   Vector3R operator()(const Vector3R& coordinate);
-  Vector3R value;
+  std::vector<Vector3R> values;
+  std::size_t next = 0;
 };
 
 struct MaxwellianMomentum {

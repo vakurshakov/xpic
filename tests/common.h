@@ -5,19 +5,19 @@
 
 /// @todo There would be probably lots of utilities, they should be placed to some static library
 
-bool equal_tol(PetscReal a, PetscReal b, PetscReal tol)
+inline bool equal_tol(PetscReal a, PetscReal b, PetscReal tol)
 {
   return std::abs(a - b) < tol;
 }
 
 /// @brief Relative comparison with an absolute floor `atol`, so that the values
 /// being zero up to the round-off noise are equal to each other.
-bool equal_rel(PetscReal a, PetscReal b, PetscReal tol, PetscReal atol)
+inline bool equal_rel(PetscReal a, PetscReal b, PetscReal tol, PetscReal atol)
 {
   return std::abs(a - b) <= tol * std::max(std::abs(a), std::abs(b)) + atol;
 }
 
-bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
+inline bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
 {
   return                           //
     equal_tol(a[X], b[X], tol) &&  //
@@ -26,7 +26,7 @@ bool equal_tol(const Vector3R& a, const Vector3R& b, PetscReal tol)
 }
 
 /// @brief Reads exactly `n` floats written by a field diagnostic (the whole file, on every rank).
-PetscErrorCode read_floats(
+inline PetscErrorCode read_floats(
   const std::filesystem::path& file, PetscInt n, std::vector<float>& out)
 {
   PetscFunctionBeginUser;
@@ -43,7 +43,7 @@ PetscErrorCode read_floats(
 }
 
 /// @brief Compares the file, covering the whole `geom_n*` grid, with the local part of `expected` living on `da`.
-PetscErrorCode compare_with_vec(
+inline PetscErrorCode compare_with_vec(
   const std::filesystem::path& file, DM da, Vec expected, PetscReal tol)
 {
   PetscFunctionBeginUser;
@@ -71,7 +71,7 @@ PetscErrorCode compare_with_vec(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-std::filesystem::path get_out_dir(
+inline std::filesystem::path get_out_dir(
   std::string_view file, std::string_view type = "output")
 {
   std::filesystem::path result(file);
@@ -84,8 +84,8 @@ std::filesystem::path get_out_dir(
 
 /// @brief Compares the table `diag` with the expected one, relative error is
 /// `PETSC_SMALL`. Use `atol` for columns that are only a round-off noise.
-PetscErrorCode compare_temporal(std::string_view file, std::string_view diag,
-  PetscReal atol = PETSC_MACHINE_EPSILON)
+inline PetscErrorCode compare_temporal(std::string_view file,
+  std::string_view diag, PetscReal atol = PETSC_MACHINE_EPSILON)
 {
   PetscFunctionBeginUser;
   auto e_path = get_out_dir(file, "expected") / "temporal" / diag;
@@ -143,9 +143,9 @@ PetscErrorCode compare_temporal(std::string_view file, std::string_view diag,
 /// @brief Finds max(|column|) over all rows of the output table `diag`, or of
 /// its running sum if `cumulative` is set, skipping the first `skip_rows` rows.
 /// The table is written by the root rank only, so the result is broadcasted.
-PetscErrorCode max_abs_column(std::string_view file, std::string_view diag,
-  std::string_view title, PetscReal& result, bool cumulative = false,
-  PetscInt skip_rows = 0)
+inline PetscErrorCode max_abs_column(std::string_view file,
+  std::string_view diag, std::string_view title, PetscReal& result,
+  bool cumulative = false, PetscInt skip_rows = 0)
 {
   PetscFunctionBeginUser;
   PetscMPIInt rank;
@@ -200,7 +200,7 @@ public:
   }
 };
 
-void update_counter_clockwise(                   //
+inline void update_counter_clockwise(            //
   const Vector3R& old_r, const Vector3R& new_r,  //
   const Vector3R& B_p, PetscReal& counter_clockwise)
 {
@@ -212,7 +212,7 @@ void update_counter_clockwise(                   //
 using Snapshot = std::vector<std::vector<PetscReal>>;
 
 /// @brief Particles as rows of all field values, sorted to be independent of the storage order.
-PetscErrorCode take_snapshot(const ParticleStorage& storage, Snapshot& out)
+inline PetscErrorCode take_snapshot(const ParticleStorage& storage, Snapshot& out)
 {
   PetscFunctionBeginUser;
   ParticleStorage::Attributes f;

@@ -49,11 +49,9 @@ PetscErrorCode World::initialize()
   };
 
   PetscCall(create_local_dm(da, create_reg(1), PETSC_COMM_WORLD, &da_rho));
-  PetscCall(create_local_dm(da, create_reg(6), PETSC_COMM_WORLD, &da_mflux));
 
   PetscCall(DMSetApplicationContext(da, this));
   PetscCall(DMSetApplicationContext(da_rho, this));
-  PetscCall(DMSetApplicationContext(da_mflux, this));
 
   PetscCall(DMDAGetInfo(da, NULL, REP3(NULL), REP3_A(&procs), NULL, NULL, REP3(NULL), NULL));
   PetscCall(DMDAGetNeighbors(da, &neighbors));

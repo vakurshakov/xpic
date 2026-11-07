@@ -14,7 +14,6 @@ static constexpr char help[] =
 static constexpr PetscReal q = -1.0;
 static constexpr PetscReal m = 2.0;
 static constexpr PetscReal n = 1.0;
-static constexpr PetscInt Np = 2;
 static constexpr PetscReal B_value = 2.0;
 
 const drift_kinetic::DkPhaseAxis v_parallel{
@@ -78,7 +77,6 @@ int main(int argc, char** argv)
   std::vector<float> written;
   PetscCall(read_floats(dir / "0000", geom_nx * geom_ny * geom_nz * nv * nmu, written));
 
-  // Each point is loaded `Np` times with the weight `mpw`
   std::vector<PetscReal> expected(written.size(), 0.0);
   auto deposit = [&](const Vector3I& cell, PetscReal p_par, PetscReal mu)
   {
@@ -129,7 +127,6 @@ void overwrite_config()
 
   for (const Point& point : points) {
     presets.push_back({
-      // `PreciseCoordinate` loads `Np` copies
       {"command", "SetParticles"},
       {"particles", sort_name},
       {"coordinate",
@@ -171,7 +168,7 @@ void overwrite_config()
       "Particles",
       {{
         {"sort_name", sort_name},
-        {"Np", Np},
+        {"Np", 1},
         {"n", n},
         {"q", q},
         {"m", m},

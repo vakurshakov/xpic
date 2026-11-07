@@ -3,9 +3,19 @@
 #include "src/utils/random_generator.h"
 #include "src/utils/utils.h"
 
+PreciseCoordinate::PreciseCoordinate(std::vector<Vector3R> dots)
+  : dots(std::move(dots))
+{
+}
+
+PreciseCoordinate::PreciseCoordinate(const Vector3R& dot)
+  : dots{dot}
+{
+}
+
 Vector3R PreciseCoordinate::operator()()
 {
-  return dot;
+  return dots[next++ % dots.size()];
 }
 
 Vector3R CoordinateInBox::operator()()
@@ -63,9 +73,19 @@ Vector3R CoordinateOnAnnulus::operator()()
   };
 }
 
+PreciseMomentum::PreciseMomentum(std::vector<Vector3R> values)
+  : values(std::move(values))
+{
+}
+
+PreciseMomentum::PreciseMomentum(const Vector3R& value)
+  : values{value}
+{
+}
+
 Vector3R PreciseMomentum::operator()(const Vector3R& /* coordinate */)
 {
-  return value;
+  return values[next++ % values.size()];
 }
 
 Vector3R thermal_momentum(const SortParameters& params)

@@ -54,7 +54,6 @@ public:
   const World& world;
   const DM da;
   const DM da_rho;
-  const DM da_mflux;
 
   Arr E_arr;
   Arr B_arr;
@@ -66,10 +65,6 @@ public:
   Vec rho[2];
   Vec rho_loc[2];
   PetscReal*** rho_arr[2];
-
-  Vec mflux;
-  Vec mflux_loc;
-  PetscReal**** mflux_arr;
 
   /// @brief Particles parameters, constant throughout the whole simulation run.
   const SortParameters parameters;

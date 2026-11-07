@@ -15,7 +15,8 @@ protected:
     PetscInt& number_of_particles);
 
   void load_momentum(const Configuration::json_t& info,
-    const interfaces::Particles& particles, MomentumGenerator& gen);
+    const interfaces::Particles& particles, PetscInt number_of_particles,
+    MomentumGenerator& gen);
 };
 
 #endif  // SRC_COMMANDS_BUILDERS_PARTICLES_BUILDER_H

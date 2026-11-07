@@ -51,6 +51,21 @@ Builder::Builder(Simulation& simulation)
   return Vector3R{};
 }
 
+/* static */ std::vector<Vector3R> Builder::parse_vectors(
+  const Configuration::json_t& info, const std::string& name)
+{
+  const Configuration::json_t& value = info.at(name);
+
+  if (!value.is_array() || value.empty() || !value[0].is_array())
+    return {parse_vector(info, name)};
+
+  std::vector<Vector3R> result;
+  for (const auto& item : value) {
+    result.push_back(parse_vector({{name, item}}, name));
+  }
+  return result;
+}
+
 /* static */ PetscReal Builder::parse_value(const Configuration::json_t& value)
 {
   if (value.type() != nlohmann::json::value_t::string)

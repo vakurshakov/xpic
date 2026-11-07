@@ -1,9 +1,6 @@
 #include "distribution_moment.h"
 
-#include "src/utils/geometries.h"
-#include "src/utils/shape.h"
 #include "src/utils/utils.h"
-#include "src/utils/vector_utils.h"
 
 
 std::unique_ptr<DistributionMoment> DistributionMoment::create(
@@ -13,8 +10,6 @@ std::unique_ptr<DistributionMoment> DistributionMoment::create(
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
   PetscCallAbort(PETSC_COMM_WORLD, World::create_local_comm(particles.world.da, region, &newcomm));
-  if (newcomm == MPI_COMM_NULL)
-    PetscFunctionReturn(nullptr);
 
   auto* diagnostic = new DistributionMoment(out_dir, particles, moment, newcomm);
   PetscCallAbort(PETSC_COMM_WORLD, diagnostic->set_data_views(region));
@@ -38,10 +33,25 @@ PetscErrorCode DistributionMoment::set_data_views(const Region& reg)
 {
   PetscFunctionBeginUser;
   da_glob = da;
-  PetscCall(World::create_local_dm(da_glob, reg, comm, &da));
-  PetscCall(DMCreateGlobalVector(da, &field));
-  PetscCall(DMCreateLocalVector(da, &field_loc));
-  PetscCall(FieldView::set_data_views(reg));
+  region = reg;
+
+  const Region world_region{
+    .dim = reg.dim,
+    .dof = reg.dof,
+    .start = Vector4I{0, 0, 0, 0},
+    .size = Vector4I{geom_nx, geom_ny, geom_nz, reg.dof},
+  };
+  PetscCall(World::create_local_dm(da_glob, world_region, PETSC_COMM_WORLD, &da_scratch));
+  PetscCall(DMCreateGlobalVector(da_scratch, &scratch));
+  PetscCall(DMCreateLocalVector(da_scratch, &scratch_loc));
+
+  // Only the ranks touching the region own the output
+  da = nullptr;
+  if (comm != MPI_COMM_NULL) {
+    PetscCall(World::create_local_dm(da_glob, reg, comm, &da));
+    PetscCall(DMCreateGlobalVector(da, &field));
+    PetscCall(FieldView::set_data_views(reg));
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -50,8 +60,10 @@ PetscErrorCode DistributionMoment::finalize()
   PetscFunctionBeginUser;
   PetscCall(FieldView::finalize());
   PetscCall(VecDestroy(&field));
-  PetscCall(VecDestroy(&field_loc));
+  PetscCall(VecDestroy(&scratch));
+  PetscCall(VecDestroy(&scratch_loc));
   PetscCall(DMDestroy(&da));
+  PetscCall(DMDestroy(&da_scratch));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -60,39 +72,12 @@ PetscErrorCode DistributionMoment::diagnose(PetscInt t)
   PetscFunctionBeginUser;
   if (t % diagnose_period_ == 0) {
     PetscCall(collect());
-    PetscCall(FieldView::diagnose(t));
+    if (comm != MPI_COMM_NULL)
+      PetscCall(FieldView::diagnose(t));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-
-/**
- * @brief `Shape` is reduced from global `Shape` to be used in a specific task:
- * (1) All moments are represented as a cell-centered quantities;
- * (2) Lower order `sfunc` is used to reduce the computational time;
- * (3) Storage size for `cache` is also reduced using shape products.
- */
-void DistributionMoment::Shape::setup(const Vector3R& r)
-{
-  static constexpr const auto& sfunc = spline_of_1st_order;
-
-  Vector3R p_r = ::Shape::make_r(r);
-  start = ::Shape::make_start(p_r, shr);
-
-  static const double offset[3]{
-    geom_nx == 1 ? 0.5 : 0,
-    geom_ny == 1 ? 0.5 : 0,
-    geom_nz == 1 ? 0.5 : 0,
-  };
-
-#pragma omp simd
-  for (PetscInt i = 0; i < shm; ++i) {
-    auto g_x = (PetscReal)(start[X] + i % shw) + offset[X];
-    auto g_y = (PetscReal)(start[Y] + (i / shw) % shw) + offset[Y];
-    auto g_z = (PetscReal)(start[Z] + (i / shw) / shw) + offset[Z];
-    cache[i] = sfunc(p_r[X] - g_x) * sfunc(p_r[Y] - g_y) * sfunc(p_r[Z] - g_z);
-  }
-}
 
 PetscErrorCode DistributionMoment::collect()
 {

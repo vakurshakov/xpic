@@ -100,8 +100,6 @@ std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
   PetscCallAbort(PETSC_COMM_WORLD, World::create_local_comm(particles.world.da, region, &newcomm));
-  if (newcomm == MPI_COMM_NULL)
-    PetscFunctionReturn(nullptr);
 
   auto* diagnostic =
     new DkDistributionMoment(out_dir, particles, moment, newcomm);
@@ -116,8 +114,6 @@ std::unique_ptr<DkDistributionMoment> DkDistributionMoment::create(
   PetscFunctionBeginUser;
   MPI_Comm newcomm;
   PetscCallAbort(PETSC_COMM_WORLD, World::create_local_comm(particles.world.da, region, &newcomm));
-  if (newcomm == MPI_COMM_NULL)
-    PetscFunctionReturn(nullptr);
 
   auto* diagnostic =
     new DkDistributionMoment(out_dir, particles, moment, newcomm);

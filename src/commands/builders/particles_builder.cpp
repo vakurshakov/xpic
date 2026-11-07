@@ -19,8 +19,9 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
   const PetscReal np = Np / (dx * dy * dz);
 
   if (name == "PreciseCoordinate") {
-    number_of_particles = Np;
-    gen = PreciseCoordinate(parse_vector(info, "value"));
+    auto dots = parse_vectors(info, "value");
+    number_of_particles = (PetscInt)dots.size();
+    gen = PreciseCoordinate(std::move(dots));
   }
   else if (name == "CoordinateInBox") {
     BoxGeometry box;
@@ -50,13 +51,22 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
 }
 
 void ParticlesBuilder::load_momentum(const Configuration::json_t& info,
-  const interfaces::Particles& particles, MomentumGenerator& gen)
+  const interfaces::Particles& particles, PetscInt number_of_particles,
+  MomentumGenerator& gen)
 {
   std::string name;
   info.at("name").get_to(name);
 
   if (name == "PreciseMomentum") {
-    gen = PreciseMomentum(parse_vector(info, "value"));
+    auto values = parse_vectors(info, "value");
+
+    if (!(values.size() == 1 || (PetscInt)values.size() == number_of_particles)) {
+      throw std::runtime_error(
+        std::format("PreciseMomentum has {} values for {} particles",
+          values.size(), number_of_particles));
+    }
+
+    gen = PreciseMomentum(std::move(values));
   }
   else if (name == "MaxwellianMomentum") {
     bool tov = false;
