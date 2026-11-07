@@ -27,8 +27,14 @@ set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missin
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -mno-wbnoinvd")
 
-set(PETSC_ARCH_OPT linux-mpi-opt)
-set(PETSC_ARCH_DEBUG linux-mpi-debug)
+# PETSC_ARCH from the environment (empty for prefix installs), local arches by default.
+if(DEFINED ENV{PETSC_ARCH})
+  set(PETSC_ARCH_OPT $ENV{PETSC_ARCH})
+  set(PETSC_ARCH_DEBUG $ENV{PETSC_ARCH})
+else()
+  set(PETSC_ARCH_OPT linux-mpi-opt)
+  set(PETSC_ARCH_DEBUG linux-mpi-debug)
+endif()
 
 set(interfaces
   src/interfaces/simulation.cpp
@@ -157,6 +163,31 @@ target_link_libraries(
   petsc
   m
 )
+
+# The runtime must not depend on the LD_LIBRARY_PATH of the submitting shell.
+# The PETSc rpath is added by CMake itself from target_link_directories.
+target_link_options(${PROJECT_NAME} PUBLIC "-Wl,-rpath,${MPI_DIR}/lib")
+
+# Clang (AOCC) takes libstdc++ from the GCC toolchain, not from the OS one.
+set(GCC_DIR $ENV{GCC_DIR})
+if(GCC_DIR)
+  target_link_options(${PROJECT_NAME} PUBLIC "-Wl,-rpath,${GCC_DIR}/lib64")
+endif()
+
+if(GCC_DIR AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  file(GLOB gcc_cxx_include ${GCC_DIR}/include/c++/*)
+  file(GLOB gcc_cxx_target_include ${gcc_cxx_include}/*-linux-gnu)
+
+  target_compile_options(
+    ${PROJECT_NAME}
+    PUBLIC --gcc-toolchain=${GCC_DIR} -Wno-error=pass-failed
+  )
+  target_link_options(${PROJECT_NAME} PUBLIC --gcc-toolchain=${GCC_DIR})
+  target_include_directories(
+    ${PROJECT_NAME} SYSTEM
+    PUBLIC ${gcc_cxx_include} ${gcc_cxx_target_include}
+  )
+endif()
 
 add_executable(${PROJECT_NAME}.out src/main.cpp)
 target_link_libraries(${PROJECT_NAME}.out ${PROJECT_NAME})
