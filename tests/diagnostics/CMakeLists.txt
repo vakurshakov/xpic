@@ -51,4 +51,3 @@ foreach(simulation eccapfim drift_kinetic hybrid_kinetic)
     set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "simulation_restart")
   endforeach()
 endforeach()
-

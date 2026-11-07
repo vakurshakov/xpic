@@ -14,6 +14,7 @@ set(sanity_tests
 )
 
 set(regression_tests
+  halton_ex1
   drift_kinetic_ex5_iaw
   drift_kinetic_ex10_bounce
   drift_kinetic_ex11_eparallel
@@ -72,7 +73,12 @@ foreach(level smoke sanity regression)
   endforeach()
 endforeach()
 
+# Tiny 3-D grid; avoid OpenMP startup overhead in the short noise comparison.
+set_property(TEST halton_ex1 PROPERTY ENVIRONMENT "OMP_NUM_THREADS=1")
+set_property(TEST halton_ex1 PROPERTY TIMEOUT 600)
+
 set(plot_tests
+  halton_ex1
   drift_kinetic_ex2_exb
   drift_kinetic_ex3_gradb
   drift_kinetic_ex4_curv
@@ -83,13 +89,18 @@ set(plot_tests
 foreach(test ${plot_tests})
   add_test(NAME "${test}_plot" COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tools/${test}.py)
   set_property(TEST "${test}_plot" PROPERTY DEPENDS "${test}")
-  set_property(TEST "${test}_plot" PROPERTY LABELS smoke impls drift_kinetic)
+  set(level smoke)
+  if(${test} IN_LIST regression_tests)
+    set(level regression)
+  endif()
+  set_property(TEST "${test}_plot" PROPERTY LABELS ${level} impls drift_kinetic)
   set_property(TEST "${test}_plot" PROPERTY ENVIRONMENT "MPLBACKEND=Agg")
 endforeach()
 
 # One source, two independent field geometries and output directories.
 foreach(case aligned oblique)
   set(test drift_kinetic_ex9_nonlin_gradb_${case})
+  list(APPEND regression_tests ${test})
   string(TOUPPER ${case} case_upper)
   add_executable(${test}.out drift_kinetic_ex9_nonlin_gradb.cpp)
   target_compile_definitions(${test}.out PRIVATE NONLIN_GRADB_${case_upper})
