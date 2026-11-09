@@ -99,9 +99,18 @@ private:
 
   std::vector<PetscReal> conv_hist;
 
-  PetscClassId classid;
-  PetscLogEvent events[7];
-  PetscLogStage stagenums[4];
+  // Profiler handles
+  PetscInt stage_init;
+  PetscInt stage_init_iteration;
+  PetscInt stage_calc_iteration;
+  PetscInt stage_after_iteration;
+  PetscInt event_clear_sources;
+  PetscInt event_form_current;
+  PetscInt event_form_function;
+  PetscInt event_form_precond;
+  PetscInt event_comp_snes;
+  PetscInt event_decomp_snes;
+  PetscInt event_mat_mult;
 
   SyncClock clock;
 
