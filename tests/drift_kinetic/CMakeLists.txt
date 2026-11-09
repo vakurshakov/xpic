@@ -7,6 +7,7 @@ set(smoke_tests
   drift_kinetic_ex4_curv
   drift_kinetic_ex6_fields
   drift_kinetic_ex8_periodic_seam
+  drift_kinetic_ex11_eparallel
 )
 
 set(sanity_tests
@@ -16,7 +17,6 @@ set(sanity_tests
 set(regression_tests
   drift_kinetic_ex5_iaw
   drift_kinetic_ex10_bounce
-  drift_kinetic_ex11_eparallel
 )
 
 # Setting snes options manually to stabilize the result

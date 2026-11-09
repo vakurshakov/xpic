@@ -158,14 +158,16 @@ inline PetscErrorCode max_abs_column(std::string_view file,
     PetscCheck(ifs.is_open(), PETSC_COMM_SELF, PETSC_ERR_USER,
       "Cannot open \"%s\"", path.c_str());
 
-    std::string line, name;
+    std::string line;
     std::getline(ifs, line);
-    std::istringstream header(line);
 
     PetscInt col = -1, n_cols = 0;
-    for (; header >> name; ++n_cols) {
-      if (name == title)
+    for (std::size_t start = line.find_first_not_of(" \t");
+         start != std::string::npos; n_cols++) {
+      const auto end = line.find("  ", start);
+      if (line.substr(start, end - start) == title)
         col = n_cols;
+      start = end == std::string::npos ? end : line.find_first_not_of(" \t", end);
     }
     PetscCheck(col >= 0, PETSC_COMM_SELF, PETSC_ERR_USER,
         "No column \"%s\" in \"%s\"", std::string(title).c_str(), path.c_str());

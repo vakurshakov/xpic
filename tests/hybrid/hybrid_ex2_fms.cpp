@@ -3,26 +3,15 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Fast magnetosonic wave in the \"hybrid_kinetic\" model.                  \n"
-  "                                                                          \n"
-  "A uniform Maxwellian plasma n = 1, Te = Ti = 1 keV, mi/me = 100 is placed \n"
-  "in the field Bz(x) = B0 (1 + 0.05 cos(k x)), B0 = 0.2, k = 2 pi / Lx,     \n"
-  "Lx = 32 dx, Ly = Lz = 3 dx, dx = 10, dt = 25, periodic boundaries. Ions   \n"
-  "are fully kinetic (Crank-Nicolson), electrons are drift-kinetic guiding   \n"
-  "centers (Omega_e dt = 5). The perturbation excites a standing fast        \n"
-  "magnetosonic wave, omega = k sqrt((vA^2 + cs^2) / (1 + vA^2)) = 0.215     \n"
-  "Omega_i, on top of a static pressure-balanced structure. B and E are      \n"
-  "written every eight steps and compared with the theory by                 \n"
-  "tools/hybrid_ex2_fms.py. The options `-npc` and `-time` override   \n"
-  "the markers per cell and the simulated time.                              \n"
-  "                                                                          \n"
-  "The field iterations are preconditioned by the mass matrix, rebuilt at    \n"
-  "every iteration: the E x B response of the electrons is stiff,            \n"
-  "(dt / 2) omega_pe^2 / Omega_e = 62, and a matrix of the first iterate     \n"
-  "slows the convergence down from 7 to 11-14 iterations per step. The step  \n"
-  "is limited by the Picard push of the electrons, whose contraction grows   \n"
-  "as dt^2 (q/m) dE_par/ds: at dt = 50 some of them already need halving.    "
-  "\n";
+  "Fast magnetosonic wave in the hybrid_kinetic model.\n"
+  "Uniform n=1, Te=Ti=1 keV, mi/me=100; Bz=B0*(1+0.05*cos(k*x)),\n"
+  "B0=0.2, k=2*pi/Lx, Lx=32*dx, Ly=Lz=4*dx, dx=10, periodic boundaries.\n"
+  "There are 64 markers per cell for each sort. The step dt=50 gives\n"
+  "Omega_i*dt=0.1 and Omega_e*dt=10. The duration covers 2.1 periods of\n"
+  "the long-wavelength FMS mode, rounded to a whole number of steps.\n"
+  "B and E are written every eight steps for tools/hybrid_ex2_fms.py.\n"
+  "The mass matrix is rebuilt at every field iteration; adaptive electron\n"
+  "substeps handle particle iterations that need a shorter interval.\n";
 
 namespace fms {
 
@@ -32,18 +21,16 @@ constexpr PetscReal ion_mass = 100.0;
 constexpr PetscReal temperature = 1.0;  // [keV], both sorts.
 constexpr PetscReal cell = 10.0;
 constexpr PetscInt cells_x = 32;
-constexpr PetscInt cells_yz = 3;
-constexpr PetscReal time_step = 25.0;
-// The wave period is 2 pi / omega = 1.46e4, about 585 steps; four periods
-// separate the static part from the wave. With fewer than 128 markers per
-// cell the noise shifts the fitted static part by 0.04-0.07 eps B0.
-constexpr PetscReal total_time = 6e4;
-constexpr PetscInt particles_per_cell = 128;
+constexpr PetscInt cells_yz = 4;
+constexpr PetscReal ion_gyrofrequency = B0 / ion_mass;
+constexpr PetscReal time_step = 0.1 / ion_gyrofrequency;
+constexpr PetscReal wave_periods = 2.1;
+constexpr PetscInt particles_per_cell = 64;
 constexpr PetscReal diagnostic_period = 8.0 * time_step;
 
 }  // namespace fms
 
-PetscErrorCode overwrite_config();
+void overwrite_config();
 
 int main(int argc, char** argv)
 {
@@ -51,7 +38,7 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
   PetscCall(PetscOptionsSetValue(nullptr, "-npc_mass_matrix_every_iteration", "true"));
 
-  PetscCall(overwrite_config());
+  overwrite_config();
   Configuration::save(get_out_dir(__FILE__));
 
   hybrid_kinetic::Simulation simulation;
@@ -63,14 +50,8 @@ int main(int argc, char** argv)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode overwrite_config()
+void overwrite_config()
 {
-  PetscFunctionBeginUser;
-  PetscReal time = fms::total_time;
-  PetscInt npc = fms::particles_per_cell;
-  PetscCall(PetscOptionsGetReal(nullptr, nullptr, "-time", &time, nullptr));
-  PetscCall(PetscOptionsGetInt(nullptr, nullptr, "-npc", &npc, nullptr));
-
   dx = dy = dz = fms::cell;
   geom_nx = fms::cells_x;
   geom_ny = geom_nz = fms::cells_yz;
@@ -79,13 +60,20 @@ PetscErrorCode overwrite_config()
   geom_z = geom_nz * dz;
 
   dt = fms::time_step;
-  geom_nt = ROUND_STEP(time, dt);
+  // Long-wavelength perpendicular FMS frequency with both sorts at T;
+  // cs^2 = 2*(Te+Ti)/mi, and temperatures are converted from keV.
+  const PetscReal k = 2 * M_PI / geom_x;
+  const PetscReal vA2 = fms::B0 * fms::B0 / fms::ion_mass;
+  const PetscReal cs2 = 4 * fms::temperature / (mec2 * fms::ion_mass);
+  const PetscReal omega = k * sqrt((vA2 + cs2) / (1 + vA2));
+  const PetscReal period = 2 * M_PI / omega;
+  geom_nt = ROUND_STEP(fms::wave_periods * period, dt);
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
     {"Simulation", "hybrid_kinetic"},
     {"OutputDirectory", get_out_dir(__FILE__)},
-    {"DriftKineticPush", {{"coord_is_gc", true}}},
+    {"DriftKineticPush", {{"coord_is_gc", true}, {"substepping", true}}},
     {"FieldPreconditioner", "mass_matrix"},
     {
       "Geometry",
@@ -110,7 +98,7 @@ PetscErrorCode overwrite_config()
         {
           {"sort_name", "ions"},
           {"model", "kinetic"},
-          {"Np", npc},
+          {"Np", fms::particles_per_cell},
           {"n", +1.0},
           {"q", +1.0},
           {"m", fms::ion_mass},
@@ -119,7 +107,7 @@ PetscErrorCode overwrite_config()
         {
           {"sort_name", "electrons"},
           {"model", "drift_kinetic"},
-          {"Np", npc},
+          {"Np", fms::particles_per_cell},
           {"n", +1.0},
           {"q", -1.0},
           {"m", +1.0},
@@ -178,5 +166,4 @@ PetscErrorCode overwrite_config()
       },
     },
   });
-  PetscFunctionReturn(PETSC_SUCCESS);
 }
