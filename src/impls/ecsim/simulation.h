@@ -92,7 +92,6 @@ protected:
   std::vector<PetscReal> conv_hist;
 
   // Profiler handles
-  PetscInt stage_init;
   PetscInt stage_clear_sources;
   PetscInt stage_first_push;
   PetscInt stage_advance_field;

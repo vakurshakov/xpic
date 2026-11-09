@@ -11,18 +11,12 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionBeginUser;
   PetscCall(init_log());
 
-  SyncClock init_clock;
-  PetscCall(init_clock.push(__FUNCTION__));
-  PetscCall(Profiler::push_stage(stage_init));
 
   PetscCall(init_snes());
   PetscCall(init_particles(*this, particles_));
 
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
 
-  PetscCall(Profiler::pop_stage(stage_init));
-  PetscCall(init_clock.pop());
-  LOG("Initialization took {:6.4e} seconds", init_clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -111,7 +105,6 @@ PetscErrorCode Simulation::init_log()
   PetscCall(Profiler::register_event("decomp_snes", &event_decomp_snes));
   PetscCall(Profiler::register_event("mat_mult", &event_mat_mult));
 
-  PetscCall(Profiler::register_stage("Initialization", &stage_init));
   PetscCall(Profiler::register_stage("Init iteration", &stage_init_iteration));
   PetscCall(Profiler::register_stage("Calc iteration", &stage_calc_iteration));
   PetscCall(Profiler::register_stage("After iteration", &stage_after_iteration));
@@ -154,14 +147,12 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   else {
     PetscCall(push_particles());
   }
-  PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::init_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
   PetscCall(Profiler::push_stage(stage_init_iteration));
 
   for (auto& sort : particles_)
@@ -176,14 +167,12 @@ PetscErrorCode Simulation::init_iteration()
 #endif
 
   PetscCall(Profiler::pop_stage(stage_init_iteration));
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::push_particles()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
 
   for (auto& sort : particles_)
     PetscCall(sort->prepare_storage());
@@ -197,14 +186,12 @@ PetscErrorCode Simulation::push_particles()
   for (auto& sort : particles_)
     PetscCall(sort->update_cells());
 
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::calc_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
   PetscCall(Profiler::push_stage(stage_calc_iteration));
 
   PetscCall(SNESSolve(snes, NULL, sol));
@@ -237,7 +224,6 @@ PetscErrorCode Simulation::calc_iteration()
   }
 
   PetscCall(Profiler::pop_stage(stage_calc_iteration));
-  PetscCall(clock.pop());
 
   PetscCheck(reason >= 0, PetscObjectComm((PetscObject)snes), PETSC_ERR_NOT_CONVERGED, "SNESSolve has not converged");
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -265,8 +251,6 @@ PetscErrorCode Simulation::impl_form_prediction(Vec x)
   PetscCall(DMDAVecGetArrayDOFWrite(da, I_loc, &I_arr));
   PetscCall(DMDAVecGetArrayDOFWrite(nda, nLv_loc, &nLv_arr));
 
-  /// @todo The clock shows the time of only the last iteration
-  PetscCall(clock.push(__FUNCTION__));
 
   for (auto& sort : particles_) {
     sort->B_arr = B_arr;
@@ -289,7 +273,6 @@ PetscErrorCode Simulation::impl_form_prediction(Vec x)
   PetscCall(KSPSolve(ksp, rE, E_hk));
   PetscCall(KSPGetSolution(ksp, &E_hk));
 
-  PetscCall(clock.pop());
 
   // Convergence analysis
   const char* name;
@@ -330,11 +313,9 @@ PetscErrorCode Simulation::impl_form_iteration(Vec x, Vec f)
   PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
   #endif
 #endif
-  PetscCall(clock.push(__FUNCTION__));
   PetscCall(clear_sources());
   PetscCall(form_current());
   PetscCall(form_function(f));
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -357,7 +338,6 @@ PetscErrorCode Simulation::clear_sources()
 PetscErrorCode Simulation::form_current()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
 
   PetscCall(DMDAVecGetArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
@@ -376,14 +356,12 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
 
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::form_function(Vec f)
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
 #if SNES_ITERATE_B
   Vec E_f, B_f;
   PetscCall(DMGetGlobalVector(da, &E_f));
@@ -425,14 +403,12 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(B, +1, B0));
   PetscCall(Profiler::pop_event(event_form_function));
 #endif
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::after_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
   PetscCall(Profiler::push_stage(stage_after_iteration));
 
   PetscCall(SNESGetSolution(snes, &sol));
@@ -452,7 +428,6 @@ PetscErrorCode Simulation::after_iteration()
     PetscCall(sort->update_cells());
 
   PetscCall(Profiler::pop_stage(stage_after_iteration));
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

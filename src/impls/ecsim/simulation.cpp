@@ -2,7 +2,6 @@
 
 #include "src/utils/geometries.h"
 #include "src/utils/profiler.h"
-#include "src/utils/sync_clock.h"
 #include "src/utils/utils.h"
 
 
@@ -123,10 +122,7 @@ namespace ecsim {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-  SyncClock init_clock;
-  PetscCall(init_clock.push(__FUNCTION__));
   PetscCall(init_log_stages());
-  PetscCall(Profiler::push_stage(stage_init));
 
   assembly_map.resize(world.size.elements_product());
 
@@ -137,9 +133,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   currI = J;
 
-  PetscCall(Profiler::pop_stage(stage_init));
-  PetscCall(init_clock.pop());
-  LOG("Initialization of ecsim took {:6.4e} seconds", init_clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -526,7 +519,6 @@ PetscErrorCode Simulation::init_log_stages()
   PetscCall(Profiler::register_event("update_cells_with_assembly", &event_update_cells_with_assembly));
   PetscCall(Profiler::register_event("fill_ecsim_current", &event_fill_ecsim_current));
 
-  PetscCall(Profiler::register_stage("Initialization", &stage_init));
   PetscCall(Profiler::register_stage("Clear sources", &stage_clear_sources));
   PetscCall(Profiler::register_stage("First push", &stage_first_push));
   PetscCall(Profiler::register_stage("Advance field", &stage_advance_field));

@@ -95,7 +95,6 @@ set(commands
 set(utils
   src/utils/utils.cpp
   src/utils/configuration.cpp
-  src/utils/sync_clock.cpp
   src/utils/profiler.cpp
   src/utils/operators.cpp
   src/utils/shape.cpp

@@ -6,7 +6,6 @@
 #include "src/interfaces/simulation.h"
 #include "src/diagnostics/table_diagnostic.h"
 #include "src/impls/eccapfim/particles.h"
-#include "src/utils/sync_clock.h"
 
 /// @todo Try to produce more information about crashes, see `PetscUnlikely`
 
@@ -100,7 +99,6 @@ private:
   std::vector<PetscReal> conv_hist;
 
   // Profiler handles
-  PetscInt stage_init;
   PetscInt stage_init_iteration;
   PetscInt stage_calc_iteration;
   PetscInt stage_after_iteration;
@@ -112,7 +110,6 @@ private:
   PetscInt event_decomp_snes;
   PetscInt event_mat_mult;
 
-  SyncClock clock;
 
   friend class ConvergenceHistory;
 };
