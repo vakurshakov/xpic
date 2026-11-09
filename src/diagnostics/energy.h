@@ -10,6 +10,7 @@ public:
   Energy(const interfaces::Simulation& simulation);
 
   PetscErrorCode diagnose(PetscInt t) override;
+  PetscErrorCode initialize();
 
   static PetscReal get_field(const Vector3R& f);
   static PetscReal get_kinetic(const Vector3R& p, PetscReal m, PetscReal mpw);
@@ -30,6 +31,9 @@ protected:
   PetscReal dF = 0, dK = 0;
 
   std::vector<PetscReal> K, K0, std_K;
+
+  PetscInt event_field;
+  PetscInt event_kinetic;
 };
 
 #endif  // SRC_DIAGNOSTICS_ENERGY_H

@@ -122,7 +122,7 @@ PetscErrorCode Simulation::initialize()
     preset->execute(start);
 
   for (const Particles_sp& sort : particles_) {
-    PetscCall(sort->calculate_moments());
+    PetscCall(sort->calculate_rho());
     PetscCall(VecCopy(sort->rho[1], sort->rho[0]));
     PetscCall(VecCopy(sort->rho_loc[1], sort->rho_loc[0]));
   }
@@ -148,7 +148,7 @@ PetscErrorCode Simulation::calculate()
     PetscCall(timestep_implementation(t));
 
     for (const Particles_sp& sort : particles_)
-      PetscCall(sort->calculate_moments());
+      PetscCall(sort->calculate_rho());
 
     PetscCall(PetscLogStagePush(stagenums[1]));
     for (const Diagnostic_up& diagnostic : diagnostics_)

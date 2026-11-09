@@ -1,13 +1,25 @@
 #include "table_diagnostic.h"
 
+#include "src/utils/profiler.h"
+
 TableDiagnostic::TableDiagnostic(const std::string& filename)
   : filename(filename)
 {
 }
 
+PetscErrorCode TableDiagnostic::initialize()
+{
+  PetscFunctionBeginUser;
+  initialized = true;
+  PetscCall(Profiler::register_event("table_write", &event_write));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_event(event_write));
+
   // The file is opened here, after `SimulationBackup` has loaded the temporal tables.
   // The run continuing from `t != 0` appends to them, the loaded table already has the row `t`.
   bool row_is_loaded = false;
@@ -36,13 +48,8 @@ PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
 
   if (t % diagnose_period_ == 0)
     PetscCall(flush());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
-PetscErrorCode TableDiagnostic::initialize()
-{
-  PetscFunctionBeginUser;
-  initialized = true;
+  PetscCall(Profiler::pop_event(event_write));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

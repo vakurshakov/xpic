@@ -1,6 +1,7 @@
 #include "particles.h"
 
 #include "src/utils/geometries.h"
+#include "src/utils/profiler.h"
 #include "src/utils/shape.h"
 
 namespace interfaces {
@@ -23,8 +24,8 @@ Particles::Particles(const World& world, const SortParameters& parameters)
 PetscErrorCode Particles::initialize()
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscClassIdRegister("interfaces::Particles", &classid));
-  PetscCall(PetscLogEventRegister("update_cells", classid, &events[0]));
+  PetscCall(Profiler::register_event("update_cells", &event_update_cells));
+  PetscCall(Profiler::register_event("calculate_rho", &event_calculate_rho));
 
   PetscCall(DMCreateGlobalVector(da, &J));
   PetscCall(DMCreateGlobalVector(da_rho, &rho[0]));
@@ -90,10 +91,10 @@ PetscErrorCode Particles::extract(
 PetscErrorCode Particles::update_cells()
 {
   PetscFunctionBeginUser;
-  PetscLogEventBegin(events[0], 0, 0, 0, 0);
+  PetscCall(Profiler::push_event(event_update_cells));
   PetscCall(storage.update_cells());
   PetscCall(storage.sort());
-  PetscLogEventEnd(events[0], 0, 0, 0, 0);
+  PetscCall(Profiler::pop_event(event_update_cells));
 
   PetscInt n;
   PetscCall(storage.get_size(&n));
@@ -161,9 +162,11 @@ PetscErrorCode Particles::finalize()
 }
 
 
-PetscErrorCode Particles::calculate_moments()
+PetscErrorCode Particles::calculate_rho()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_event(event_calculate_rho));
+
   auto r = rho[1];
   auto r_loc = rho_loc[1];
   auto r_arr = rho_arr[1];
@@ -195,10 +198,11 @@ PetscErrorCode Particles::calculate_moments()
       });
   }
   PetscCall(storage.restore_attributes(f));
-
   PetscCall(DMDAVecRestoreArrayWrite(da_rho, r_loc, &r_arr));
 
   PetscCall(DMLocalToGlobal(da_rho, r_loc, ADD_VALUES, r));
+
+  PetscCall(Profiler::pop_event(event_calculate_rho));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

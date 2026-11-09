@@ -2,6 +2,7 @@
 
 #include "src/algorithms/boris_push.h"
 #include "src/utils/configuration.h"
+#include "src/utils/profiler.h"
 #include "src/utils/shape.h"
 
 
@@ -31,6 +32,8 @@ PetscErrorCode MomentumConservation::initialize()
   std::fill_n(std::back_inserter(P1), particles.size(), 0);
   std::fill_n(std::back_inserter(QE), particles.size(), 0);
   std::fill_n(std::back_inserter(QVB), particles.size(), 0);
+
+  PetscCall(Profiler::register_event("momentum_conservation", &event_diagnose));
 
   PetscCall(VecDuplicate(E, &En0));
   PetscCall(VecDuplicate(B, &Bn0));
@@ -106,6 +109,8 @@ PetscErrorCode MomentumConservation::add_columns(PetscInt t)
 PetscErrorCode MomentumConservation::calculate()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_event(event_diagnose));
+
   Vec Bnh, En0_loc, Bnh_loc;
   PetscCall(DMGetGlobalVector(da, &Bnh));
   PetscCall(VecCopy(Bn0, Bnh));
@@ -197,5 +202,7 @@ PetscErrorCode MomentumConservation::calculate()
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, P1.data(), 3 * (PetscMPIInt)P1.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, QE.data(), 3 * (PetscMPIInt)QE.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, QVB.data(), 3 * (PetscMPIInt)QVB.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+
+  PetscCall(Profiler::pop_event(event_diagnose));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
