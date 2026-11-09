@@ -4,6 +4,7 @@
 /// @brief Drift-kinetic field interpolation and deposition.
 
 #include "src/impls/drift_kinetic/segments.h"
+#include "src/utils/world.h"
 
 namespace drift_kinetic {
 
@@ -30,10 +31,10 @@ struct DriftKineticShapeGradB {
 class DriftKineticEsirkepov {
 public:
   /// @brief Binds a magnetic field for point interpolation.
-  DriftKineticEsirkepov(Vector3R*** B_g);
+  DriftKineticEsirkepov(const World& world, Vector3R*** B_g);
 
   /// @brief Binds field layers and deposition arrays.
-  DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn0_g, Vector3R*** Bnh_g,
+  DriftKineticEsirkepov(const World& world, Vector3R*** E_g, Vector3R*** Bn0_g, Vector3R*** Bnh_g,
     Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g);
 
   PetscErrorCode interpolate(Vector3R& E_p, PetscReal& lenB_p, Vector3R& b_p,
@@ -45,6 +46,7 @@ public:
   PetscErrorCode interpolate_B(Vector3R& B_p, const Vector3R& Rp);
 
 private:
+  void check_stencil(const Vector3I& start, const Vector3I& size, const char* name) const;
   PetscErrorCode interpolate_B(  //
     Vector3R& B_p, Vector3R*** B_g, const Vector3R& Rp);
 
@@ -63,6 +65,7 @@ private:
   PetscErrorCode decomposition_J(  //
     const DriftKineticSegment& s, const Vector3R& Vh, PetscReal q_p);
 
+  const World& world;
   Vector3R*** E_g = nullptr;  // Midpoint electric field.
 
   Vector3R*** Bn0_g = nullptr;  // Previous magnetic field.

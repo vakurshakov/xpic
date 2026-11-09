@@ -48,37 +48,37 @@ PetscReal acrossS1(
 
 void DriftKineticShapeE::setup(const DriftKineticSegment& segment)
 {
-  p_g = Vector3I{
-    (PetscInt)std::floor(segment.Rsh[X] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsh[Y] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsh[Z] + 0.5) - shr,
-  };
+  p_g = segment.cell - Vector3I(shr);
 }
 
 void DriftKineticShapeGradB::setup(const DriftKineticSegment& segment)
 {
   p_s = Vector3R{
-    std::floor(segment.Rsh[X] + 0.5),
-    std::floor(segment.Rsh[Y] + 0.5),
-    std::floor(segment.Rsh[Z] + 0.5),
+    (PetscReal)segment.cell[X],
+    (PetscReal)segment.cell[Y],
+    (PetscReal)segment.cell[Z],
   };
 
-  p_g = Vector3I{
-    (PetscInt)std::floor(segment.Rsh[X] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsh[Y] + 0.5) - shr,
-    (PetscInt)std::floor(segment.Rsh[Z] + 0.5) - shr,
-  };
+  p_g = segment.cell - Vector3I(shr);
 }
 
-DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** B_g)
-  : Bn0_g(B_g)
+DriftKineticEsirkepov::DriftKineticEsirkepov(const World& world, Vector3R*** B_g)
+  : world(world), Bn0_g(B_g)
 {
 }
 
-DriftKineticEsirkepov::DriftKineticEsirkepov(Vector3R*** E_g, Vector3R*** Bn0_g,
+DriftKineticEsirkepov::DriftKineticEsirkepov(const World& world, Vector3R*** E_g, Vector3R*** Bn0_g,
   Vector3R*** Bnh_g, Vector3R*** Bn1_g, Vector3R*** J_g, Vector3R*** M_g)
-  : E_g(E_g), Bn0_g(Bn0_g), Bnh_g(Bnh_g), Bn1_g(Bn1_g), J_g(J_g), M_g(M_g)
+  : world(world), E_g(E_g), Bn0_g(Bn0_g), Bnh_g(Bnh_g), Bn1_g(Bn1_g), J_g(J_g), M_g(M_g)
 {
+}
+
+void DriftKineticEsirkepov::check_stencil(
+  const Vector3I& start, const Vector3I& size, const char* name) const
+{
+  for (PetscInt a = 0; a < 3; ++a)
+    PetscAssertAbort(world.gstart[a] <= start[a] && start[a] + size[a] <= world.gend[a], PETSC_COMM_SELF, PETSC_ERR_ARG_OUTOFRANGE,
+      "DK %s stencil axis %d: [%d,%d) outside ghost range [%d,%d)", name, a, start[a], start[a] + size[a], world.gstart[a], world.gend[a]);
 }
 
 PetscErrorCode DriftKineticEsirkepov::interpolate(                     //
@@ -92,14 +92,11 @@ PetscErrorCode DriftKineticEsirkepov::interpolate(                     //
 
   DriftKineticSegment track = make_track(R0, Rn);
 
-  std::vector<DriftKineticSegment> periodic_track =
-    periodic_segments(track, CellSplitMode::centers);
-
   std::vector<DriftKineticSegment> segmented_track =
-    cell_segments(periodic_track, CellSplitMode::centers);
+    cell_segments(track, CellSplitMode::centers, SegmentImage::local);
 
-  Vector3R pR0 = make_begin(periodic_track.front());
-  Vector3R pRn = make_end(periodic_track.back());
+  Vector3R pR0 = make_begin(segmented_track.front());
+  Vector3R pRn = make_end(segmented_track.back());
 
   Vector3R Bn0_p, Bn1_p;
   PetscCall(interpolate_B(Bn0_p, Bn0_g, pR0));
@@ -136,14 +133,11 @@ PetscErrorCode DriftKineticEsirkepov::decomposition(const Vector3R& Rn,
   PetscFunctionBeginHot;
   DriftKineticSegment track = make_track(R0, Rn);
 
-  std::vector<DriftKineticSegment> periodic_track =
-    periodic_segments(track, CellSplitMode::centers);
-
   std::vector<DriftKineticSegment> segmented_track =
-    cell_segments(periodic_track, CellSplitMode::centers);
+    cell_segments(track, CellSplitMode::centers, SegmentImage::local);
 
-  Vector3R pR0 = make_begin(periodic_track.front());
-  Vector3R pRn = make_end(periodic_track.back());
+  Vector3R pR0 = make_begin(segmented_track.front());
+  Vector3R pRn = make_end(segmented_track.back());
 
   Vector3R Bn0_p, Bn1_p;
   PetscCall(interpolate_B(Bn0_p, Bn0_g, pR0));
@@ -180,6 +174,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_B(
   PetscFunctionBeginHot;
   Shape sh;
   sh.setup(Rp, 1.5, sfunc2);
+  check_stencil(sh.start, sh.size, "interpolate_B");
 
   SimpleInterpolation interpolation(sh);
   interpolation.process({}, {{B_p, B_g}});
@@ -191,6 +186,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_E(
 {
   DriftKineticShapeE sh;
   sh.setup(s);
+  check_stencil(sh.p_g, Vector3I(sh.shw), "interpolate_E");
 
   PetscFunctionBeginHot;
   for (PetscInt i = 0; i < POW3(sh.shw); ++i) {
@@ -217,6 +213,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_rotB(
 {
   DriftKineticShapeGradB sh;
   sh.setup(s);
+  check_stencil(sh.p_g, Vector3I(sh.shw + 1), "interpolate_rotB");
 
   Vector3R dBdx, dBdy, dBdz;
 
@@ -304,6 +301,7 @@ PetscErrorCode DriftKineticEsirkepov::interpolate_gradB(
 {
   DriftKineticShapeGradB sh;
   sh.setup(s);
+  check_stencil(sh.p_g, Vector3I(sh.shw + 1), "interpolate_gradB");
 
   Vector3R dBdx, dBdy, dBdz;
 
@@ -423,6 +421,7 @@ PetscErrorCode DriftKineticEsirkepov::decomposition_M(
 {
   Shape sh;
   sh.setup(Rp, 1.5, sfunc2);
+  check_stencil(sh.start, sh.size, "decomposition_M");
 
   PetscFunctionBeginHot;
   for (PetscInt i = 0; i < sh.size.elements_product(); ++i) {
@@ -449,6 +448,7 @@ PetscErrorCode DriftKineticEsirkepov::decomposition_J(
 {
   DriftKineticShapeE sh;
   sh.setup(s);
+  check_stencil(sh.p_g, Vector3I(sh.shw), "decomposition_J");
 
   PetscFunctionBeginHot;
   for (PetscInt i = 0; i < POW3(sh.shw); ++i) {

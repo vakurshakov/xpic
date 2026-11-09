@@ -6,6 +6,7 @@ set(smoke_tests
   drift_kinetic_ex3_gradb
   drift_kinetic_ex4_curv
   drift_kinetic_ex6_fields
+  drift_kinetic_ex8_periodic_seam
 )
 
 set(sanity_tests
@@ -38,10 +39,11 @@ set(snes_opt
     -snes_ksp_ew_threshold 0.1
 )
 
-# Tests with evolving fields are run on a decomposed domain as well
+# Tests also run on a decomposed domain
 set(mpi_tests
   drift_kinetic_ex6_fields
   drift_kinetic_ex7_balance
+  drift_kinetic_ex8_periodic_seam
 )
 
 foreach(level smoke sanity regression)
@@ -67,17 +69,6 @@ foreach(level smoke sanity regression)
     endif()
   endforeach()
 endforeach()
-
-# Known defect of the DK pusher: periodic stencils at the domain seam are indexed
-# outside the local ghosted array on multi-rank runs, breaking charge continuity
-# and energy balance (see the separate issue). Drop WILL_FAIL when it is fixed.
-set_property(
-  TEST
-  drift_kinetic_ex7_balance_mpi_x2
-  drift_kinetic_ex7_balance_mpi_y2
-  drift_kinetic_ex7_balance_mpi_z2
-  PROPERTY WILL_FAIL TRUE
-)
 
 set(plot_tests
   drift_kinetic_ex2_exb

@@ -1,5 +1,10 @@
 #include "src/impls/drift_kinetic/segments.h"
 
+static constexpr char help[] =
+  "Test of drift-kinetic trajectory segmentation. Checks cell-plane splits,\n"
+  "wrapped and local periodic images, endpoints, cell indices and lengths\n"
+  "for stationary, boundary-crossing and multidimensional trajectories.\n";
+
 namespace {
 
 using namespace drift_kinetic;
@@ -25,7 +30,7 @@ bool close(const Vector3R& a, const Vector3R& b)
 
 PetscErrorCode check_segments(const std::string& name, const Endpoints& track,
   const std::vector<DriftKineticSegment>& actual,
-  const std::vector<Endpoints>& expected, bool periodic, bool cells)
+  const std::vector<Endpoints>& expected)
 {
   PetscFunctionBeginUser;
 
@@ -51,29 +56,21 @@ PetscErrorCode check_segments(const std::string& name, const Endpoints& track,
       "%s: segment %zu changes direction", name.c_str(), i);
 
     for (Axis axis : {X, Y, Z}) {
-      if (periodic) {
-        PetscCheck(
-          s.Rs0[axis] >= -0.5 - tolerance &&
-          s.Rsn[axis] >= -0.5 - tolerance &&
-          s.Rs0[axis] <= Geom_n[axis] - 0.5 + tolerance &&
-          s.Rsn[axis] <= Geom_n[axis] - 0.5 + tolerance,
-          PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
-          "%s: segment %zu outside periodic box", name.c_str(), i);
-      }
-      if (cells) {
-        const PetscReal node = floor(s.Rsh[axis] + 0.5);
-        PetscCheck(
-          s.Rs0[axis] >= node - 0.5 - tolerance &&
-          s.Rsn[axis] >= node - 0.5 - tolerance &&
-          s.Rs0[axis] <= node + 0.5 + tolerance &&
-          s.Rsn[axis] <= node + 0.5 + tolerance,
-          PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
-          "%s: segment %zu crosses a cell plane", name.c_str(), i);
-      }
+      PetscCheck(0 <= s.cell[axis] && s.cell[axis] < Geom_n[axis], PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
+        "%s: segment %zu outside periodic box", name.c_str(), i);
+
+      const PetscReal node = s.cell[axis];
+      PetscCheck(
+        s.Rs0[axis] >= node - 0.5 - tolerance &&
+        s.Rsn[axis] >= node - 0.5 - tolerance &&
+        s.Rs0[axis] <= node + 0.5 + tolerance &&
+        s.Rsn[axis] <= node + 0.5 + tolerance,
+        PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
+        "%s: segment %zu crosses a cell plane", name.c_str(), i);
+
       if (i > 0) {
         PetscReal gap = s.Rs0[axis] - actual[i - 1].Rsn[axis];
-        if (periodic)
-          gap -= round(gap / Geom_n[axis]) * Geom_n[axis];
+        gap -= round(gap / Geom_n[axis]) * Geom_n[axis];
 
         PetscCheck(abs(gap) <= tolerance, PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
           "%s: discontinuity before segment %zu", name.c_str(), i);
@@ -89,8 +86,8 @@ PetscErrorCode check_segments(const std::string& name, const Endpoints& track,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode check_cell_case(const std::string& name,
-  const Endpoints& endpoints, const std::vector<Endpoints>& expected)
+PetscErrorCode check_case(const std::string& name, const Endpoints& endpoints,
+  const std::vector<Endpoints>& expected)
 {
   PetscFunctionBeginUser;
   const auto track =
@@ -104,31 +101,15 @@ PetscErrorCode check_cell_case(const std::string& name,
     PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
     "%s: coordinate conversion failed", name.c_str());
 
-  const auto actual = cell_segments({track}, CellSplitMode::centers);
-  PetscCall(check_segments(name, endpoints, actual, expected, false, true));
-  PetscCall(check_segments(name + "/repeat", endpoints, cell_segments(actual, CellSplitMode::centers), expected, false, true));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode check_periodic_case(const std::string& name,
-  const Endpoints& endpoints, const std::vector<Endpoints>& expected,
-  const std::vector<Endpoints>& cell_expected)
-{
-  PetscFunctionBeginUser;
-  const auto track =
-    make_track(physical(endpoints.begin), physical(endpoints.end));
-  const auto periodic = periodic_segments(track, CellSplitMode::centers);
-  PetscCall(check_segments(name + "/periodic", endpoints, periodic, expected, true, false));
-  const auto cells = cell_segments(periodic, CellSplitMode::centers);
-  PetscCall(check_segments(name + "/cells", endpoints, cells, cell_expected, true, true));
-  PetscCall(check_segments(name + "/repeat", endpoints, cell_segments(cells, CellSplitMode::centers), cell_expected, true, true));
+  const auto actual = cell_segments(track, CellSplitMode::centers);
+  PetscCall(check_segments(name, endpoints, actual, expected));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 // The prescribed crossing times define the expected intervals. Periodic
 // images are chosen using interval midpoints, independently of the splitter.
 std::vector<Endpoints> intervals(
-  const Endpoints& track, std::vector<PetscReal> times, bool periodic)
+  const Endpoints& track, std::vector<PetscReal> times)
 {
   times.push_back(0);
   times.push_back(1);
@@ -138,14 +119,12 @@ std::vector<Endpoints> intervals(
   for (std::size_t i = 1; i < times.size(); i++) {
     Endpoints s{track.begin + (track.end - track.begin) * times[i - 1],
       track.begin + (track.end - track.begin) * times[i]};
-    if (periodic) {
-      for (Axis axis : {X, Y, Z}) {
-        const PetscReal midpoint = 0.5 * (s.begin[axis] + s.end[axis]);
-        const PetscReal shift =
-          floor((midpoint + 0.5) / Geom_n[axis]) * Geom_n[axis];
-        s.begin[axis] -= shift;
-        s.end[axis] -= shift;
-      }
+    for (Axis axis : {X, Y, Z}) {
+      const PetscReal midpoint = 0.5 * (s.begin[axis] + s.end[axis]);
+      const PetscReal shift =
+        floor((midpoint + 0.5) / Geom_n[axis]) * Geom_n[axis];
+      s.begin[axis] -= shift;
+      s.end[axis] -= shift;
     }
     expected.push_back(s);
   }
@@ -162,11 +141,47 @@ PetscErrorCode run_cases(std::size_t& count)
   Geom_n[Y] = 6;
   Geom_n[Z] = 8;
 
+  // Local segments must retain the original image and cell indices, even
+  // when the trajectory crosses either periodic face in either direction.
+  for (Axis axis : {X, Y, Z}) {
+    for (PetscInt side = 0; side < 2; ++side) {
+      for (PetscInt reverse = 0; reverse < 2; ++reverse) {
+        Vector3R begin{1, 1, 1}, end = begin;
+        const PetscReal face = side ? (PetscReal)Geom_n[axis] - 0.5 : -0.5;
+        begin[axis] = face + (reverse ? 0.25 : -0.25);
+        end[axis] = face + (reverse ? -0.25 : 0.25);
+        const auto track = make_track(physical(begin), physical(end));
+        const auto segments = cell_segments(track, CellSplitMode::centers, SegmentImage::local);
+        PetscCheck(segments.size() == 2 && close(segments.front().Rs0, begin) &&
+            close(segments.back().Rsn, end) && close(segments[0].Rsn, segments[1].Rs0),
+          PETSC_COMM_WORLD, PETSC_ERR_USER, "Local seam track is discontinuous");
+        Vector3R sum;
+        PetscReal length = 0;
+        for (const auto& segment : segments) {
+          PetscCheck(close(segment.dRs, segment.Rsn - segment.Rs0) &&
+              std::abs(segment.dRs_len - segment.dRs.length()) <= tolerance,
+            PETSC_COMM_WORLD, PETSC_ERR_USER, "Local segment geometry is inconsistent");
+          sum += segment.dRs;
+          length += segment.dRs_len;
+          for (Axis a : {X, Y, Z})
+            PetscCheck(segment.cell[a] == (PetscInt)std::floor(segment.Rsh[a] + 0.5),
+              PETSC_COMM_WORLD, PETSC_ERR_USER, "Local cell does not match segment midpoint");
+        }
+        PetscCheck(close(sum, end - begin) && std::abs(length - (end - begin).length()) <= tolerance,
+          PETSC_COMM_WORLD, PETSC_ERR_USER,
+          "Local segment displacement changed");
+        ++count;
+      }
+    }
+  }
+
   struct LineCase {
     const char* name;
     PetscReal begin, end;
     std::vector<PetscReal> cuts;
   };
+  // An endpoint an ulp past a plane leaves a sliver at that plane.
+  const PetscReal above_plane = std::nextafter(0.5, 1.0);
   const std::vector<LineCase> line_cases{
     {"inside", 0, 0.25, {}},
     {"stationary", 0, 0, {}},
@@ -179,7 +194,7 @@ PetscErrorCode run_cases(std::size_t& count)
     {"multiple_planes", -1.5, 2.5, {0.25, 0.5, 0.75}},
     {"near_stationary", 0, 1e-11, {}},
     {"almost_on_plane", std::nextafter(0.5, PetscReal{0}), 0.75, {}},
-    {"almost_ends_on_plane", 0.25, std::nextafter(0.5, 1.0), {}},
+    {"almost_ends_on_plane", 0.25, above_plane, {0.25 / (above_plane - 0.25)}},
   };
   for (Axis axis : {X, Y, Z}) {
     for (const auto& c : line_cases) {
@@ -191,13 +206,14 @@ PetscErrorCode run_cases(std::size_t& count)
         if (reverse)
           for (auto& t : cuts)
             t = 1 - t;
-        PetscCall(check_cell_case(std::format("cell/{}/{}/{}", c.name, (PetscInt)axis, reverse), track, intervals(track, cuts, false)));
+        PetscCall(check_case(std::format("cell/{}/{}/{}", c.name, (PetscInt)axis, reverse), track, intervals(track, cuts)));
         count++;
       }
     }
 
     const PetscReal length = Geom_n[axis];
     const PetscReal upper = length - 0.5;
+    const PetscReal below_upper = std::nextafter(upper, PetscReal{0});
     const std::vector<LineCase> periodic_cases{
       {"inside", 0, 0.25, {}},
       {"stationary", 0, 0, {}},
@@ -213,7 +229,7 @@ PetscErrorCode run_cases(std::size_t& count)
       {"multiple_wraps", -0.5, upper + length, {0.5}},
       {"near_stationary", 0, 1e-11, {}},
       {"almost_lower", std::nextafter(-0.5, PetscReal{-1}), -0.75, {}},
-      {"almost_upper", std::nextafter(upper, PetscReal{0}), upper + 0.25, {}},
+      {"almost_upper", below_upper, upper + 0.25, {(upper - below_upper) / (upper + 0.25 - below_upper)}},
     };
     for (const auto& c : periodic_cases) {
       for (PetscInt reverse = 0; reverse < 2; reverse++) {
@@ -234,7 +250,7 @@ PetscErrorCode run_cases(std::size_t& count)
             cell_cuts.push_back((position - track.begin[axis]) /
               (track.end[axis] - track.begin[axis]));
         }
-        PetscCall(check_periodic_case(std::format("periodic/{}/{}/{}", c.name, (PetscInt)axis, reverse), track, intervals(track, cuts, true), intervals(track, cell_cuts, true)));
+        PetscCall(check_case(std::format("periodic/{}/{}/{}", c.name, (PetscInt)axis, reverse), track, intervals(track, cell_cuts)));
         count++;
       }
     }
@@ -257,9 +273,8 @@ PetscErrorCode run_cases(std::size_t& count)
           periodic.end[axis] = sign == 0 ? 0 : boundary + sign * 0.25;
         }
         const auto name = std::format("direction/{}/{}/{}", sx, sy, sz);
-        PetscCall(check_cell_case(name, cell, intervals(cell, {0.5}, false)));
-        const auto expected = intervals(periodic, {0.5}, true);
-        PetscCall(check_periodic_case(name, periodic, expected, expected));
+        PetscCall(check_case(name + "/cell", cell, intervals(cell, {0.5})));
+        PetscCall(check_case(name + "/periodic", periodic, intervals(periodic, {0.5})));
         count += 2;
       }
     }
@@ -283,16 +298,16 @@ PetscErrorCode run_cases(std::size_t& count)
         periodic.end[axis] = periodic.begin[axis] + sign;
       }
       const auto name = std::format("ordering/{}/{}", octant, ordering);
-      PetscCall(check_cell_case(name, cell, intervals(cell, times, false)));
-      const auto expected = intervals(periodic, times, true);
-      PetscCall(check_periodic_case(name, periodic, expected, expected));
+      PetscCall(check_case(name + "/cell", cell, intervals(cell, times)));
+      const auto expected = intervals(periodic, times);
+      PetscCall(check_case(name + "/periodic", periodic, expected));
       // Moving the complete track by whole periods must preserve the result.
       for (Axis axis : {X, Y, Z}) {
         const PetscReal shift = (axis - 1) * 2 * Geom_n[axis];
         periodic.begin[axis] += shift;
         periodic.end[axis] += shift;
       }
-      PetscCall(check_periodic_case(name + "/translated", periodic, expected, expected));
+      PetscCall(check_case(name + "/translated", periodic, expected));
       count += 3;
     }
   }
@@ -320,76 +335,64 @@ PetscErrorCode run_cases(std::size_t& count)
                                                    : std::vector<PetscReal>{};
       const auto name = std::format("placement/{}/{}", mask, placement);
       if (mask == 0) {
-        PetscCall(check_cell_case(name, cell, intervals(cell, times, false)));
+        PetscCall(check_case(name + "/cell", cell, intervals(cell, times)));
         count++;
       }
-      const auto expected = intervals(periodic, times, true);
-      PetscCall(check_periodic_case(name, periodic, expected, expected));
+      PetscCall(check_case(name + "/periodic", periodic, intervals(periodic, times)));
       count++;
     }
   }
 
-  PetscCheck(cell_segments({}, CellSplitMode::centers).empty(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
-    "Empty input must stay empty");
-
-  count++;
-
-  // Resolve distinct events but merge intersections separated by roundoff.
+  // Intersections separated by roundoff are resolved as distinct events.
   for (PetscReal gap : {PetscReal{2e-14}, PetscReal{1e-8}}) {
     const Endpoints cell{{0, -gap, 0}, {1, 1 - gap, 0}};
     const Endpoints periodic{{3, 5 - gap, 0}, {4, 6 - gap, 0}};
-    std::vector<PetscReal> times{0.5};
-    if (gap > 1e-12)
-      times.push_back(0.5 + gap);
+    const std::vector<PetscReal> times{0.5, 0.5 + gap};
     const auto name = std::format("near_tie/{}", gap);
-    PetscCall(check_cell_case(name, cell, intervals(cell, times, false)));
-    const auto expected = intervals(periodic, times, true);
-    PetscCall(check_periodic_case(name, periodic, expected, expected));
+    PetscCall(check_case(name + "/cell", cell, intervals(cell, times)));
+    PetscCall(check_case(name + "/periodic", periodic, intervals(periodic, times)));
     count += 2;
   }
+
+  // Wrapping a coordinate an ulp below the lower face rounds it onto the
+  // upper face, the stored cell must stay inside the box.
+  const PetscReal below_lower = std::nextafter(-0.5, PetscReal{-1});
+  const Endpoints below{{below_lower, 0, 0}, {below_lower, 0.25, 0}};
+  PetscCall(check_case("below_lower", below, intervals(below, {})));
+  count++;
 
   const Endpoints multi{{-0.5, -0.5, -0.5}, {7.5, 11.5, 15.5}};
   std::vector<PetscReal> multi_cell_times;
   for (Axis axis : {X, Y, Z})
     for (PetscInt n = 1; n < 2 * Geom_n[axis]; n++)
       multi_cell_times.push_back(static_cast<PetscReal>(n) / (2 * Geom_n[axis]));
-  PetscCall(check_periodic_case("multiple_wraps_xyz", multi, intervals(multi, {0.5}, true), intervals(multi, multi_cell_times, true)));
-  count++;
-
-  const Endpoints first{{0, 0, 0}, {0.75, 0, 0}};
-  const Endpoints second{{2.75, 0, 0}, {2.25, 0, 0}};
-  const auto batch =
-    cell_segments({make_track(physical(first.begin), physical(first.end)),
-                    make_track(physical(second.begin), physical(second.end))},
-      CellSplitMode::centers);
-
-  PetscCheck(batch.size() == 4, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
-    "Batch processing lost input segments");
-
-  PetscCall(check_segments("batch/first", first, {batch.begin(), batch.begin() + 2}, intervals(first, {2.0 / 3}, false), false, true));
-  PetscCall(check_segments("batch/second", second, {batch.begin() + 2, batch.end()}, intervals(second, {0.5}, false), false, true));
+  PetscCall(check_case("multiple_wraps_xyz", multi, intervals(multi, multi_cell_times)));
   count++;
 
   // Preserve the other supported mode.
   const auto edge_track =
     make_track(physical({0.25, 0, 0}), physical({1.25, 0, 0}));
-  const auto edges = cell_segments({edge_track}, CellSplitMode::edges);
+  const auto edges = cell_segments(edge_track, CellSplitMode::edges);
 
   PetscCheck(
     edges.size() == 2 &&
     close(edges[0].Rsn, {1, 0, 0}) &&
-    close(edges[1].Rs0, {1, 0, 0}),
+    close(edges[1].Rs0, {1, 0, 0}) &&
+    edges[0].cell == Vector3I(0, 0, 0) &&
+    edges[1].cell == Vector3I(1, 0, 0),
     PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
     "edges was changed");
 
-  const auto edge_wrap = periodic_segments(
+  const auto edge_wrap = cell_segments(
     make_track(physical({3.75, 0.25, 0.25}), physical({4.25, 0.25, 0.25})),
     CellSplitMode::edges);
 
   PetscCheck(
     edge_wrap.size() == 2 &&
     close(edge_wrap[0].Rsn, {4, 0.25, 0.25}) &&
-    close(edge_wrap[1].Rs0, {0, 0.25, 0.25}),
+    close(edge_wrap[1].Rs0, {0, 0.25, 0.25}) &&
+    edge_wrap[0].cell == Vector3I(3, 0, 0) &&
+    edge_wrap[1].cell == Vector3I(0, 0, 0),
     PETSC_COMM_WORLD, PETSC_ERR_ARG_CORRUPT,
     "edges periodic box was changed");
 
@@ -397,8 +400,7 @@ PetscErrorCode run_cases(std::size_t& count)
 
   Geom_n[X] = Geom_n[Y] = Geom_n[Z] = 1;
   const Endpoints unit{{-0.5, -0.5, -0.5}, {2.5, -3.5, 1.5}};
-  const auto unit_expected = intervals(unit, {1.0 / 3, 0.5, 2.0 / 3}, true);
-  PetscCall(check_periodic_case("unit_period", unit, unit_expected, unit_expected));
+  PetscCall(check_case("unit_period", unit, intervals(unit, {1.0 / 3, 0.5, 2.0 / 3})));
   count++;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -408,7 +410,7 @@ PetscErrorCode run_cases(std::size_t& count)
 int main(int argc, char** argv)
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscInitialize(&argc, &argv, nullptr, "Drift-kinetic trajectory segmentation tests.\n"));
+  PetscCall(PetscInitialize(&argc, &argv, nullptr, help));
   std::size_t count = 0;
   PetscCall(run_cases(count));
   PetscCall(PetscPrintf(PETSC_COMM_WORLD, "Checked %zu segmentation cases.\n", count));
