@@ -39,7 +39,8 @@ PetscErrorCode World::initialize()
   PetscCall(DMSetFromOptions(da));
   PetscCall(DMSetUp(da));
 
-  auto create_reg = [&](PetscInt dof) {
+  auto create_reg = [&](PetscInt dof)
+  {
     return Region{
       .dim = 3,
       .dof = dof,
@@ -54,7 +55,14 @@ PetscErrorCode World::initialize()
   PetscCall(DMSetApplicationContext(da_rho, this));
 
   PetscCall(DMDAGetInfo(da, NULL, REP3(NULL), REP3_A(&procs), NULL, NULL, REP3(NULL), NULL));
-  PetscCall(DMDAGetNeighbors(da, &neighbors));
+
+  // PETSc marks missing neighbors with a hard-coded -2 (OpenMPI's MPI_PROC_NULL)
+  const PetscMPIInt* da_neighbors;
+  PetscCall(DMDAGetNeighbors(da, &da_neighbors));
+  for (int s = 0; s < 27; s++) {
+    neighbors[s] = da_neighbors[s] < 0 ? MPI_PROC_NULL : da_neighbors[s];
+  }
+
   PetscCall(DMDAGetCorners(da, REP3_A(&start), REP3_A(&size)));
   PetscCall(DMDAGetGhostCorners(da, REP3_A(&gstart), REP3_A(&gsize)));
   PetscCall(DMDAGetOwnershipRanges(da, REP3_A(&lg)));

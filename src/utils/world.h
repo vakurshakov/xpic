@@ -29,7 +29,7 @@ struct World {
   DMBoundaryType bounds[3];
 
   PetscInt neighbors_num;
-  const PetscMPIInt* neighbors;
+  PetscMPIInt neighbors[27];  // missing ones are MPI_PROC_NULL
 
   const PetscInt dof = Vector3R::dim;
   const PetscInt s = 2 * static_cast<PetscInt>(std::ceil(shape_radius));
