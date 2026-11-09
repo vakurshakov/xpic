@@ -22,9 +22,9 @@
  * PetscCall(Profiler::register_event("push", &push));
  * #pragma omp parallel
  * {
- *   (void)Profiler::push_phase(push);
+ *   Profiler::push_phase(push);
  *   ...
- *   (void)Profiler::pop_phase(push);
+ *   Profiler::pop_phase(push);
  * }
  * PetscCall(Profiler::flush());
  * @endcode

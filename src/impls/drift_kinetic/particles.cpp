@@ -84,16 +84,16 @@ PetscErrorCode Particles::form_iteration()
       [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
         PetscReal& lenB_p, Vector3R& b_p, Vector3R& gradB_p, Vector3R& rotB_p)
       {
-        (void)Profiler::push_phase(phase_interpolate);
+        Profiler::push_phase(phase_interpolate);
         util.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
-        (void)Profiler::pop_phase(phase_interpolate);
+        Profiler::pop_phase(phase_interpolate);
       });
 
     auto attempt = [&](PetscReal dtau, PointByField& pn, const PointByField& p0)
     {
-      (void)Profiler::push_phase(phase_push);
+      Profiler::push_phase(phase_push);
       push.process(dtau, pn, p0);
-      (void)Profiler::pop_phase(phase_push);
+      Profiler::pop_phase(phase_push);
       return AdaptiveSubstepAttempt{
         push.has_converged(),
         push.get_iteration_number(),
@@ -115,9 +115,9 @@ PetscErrorCode Particles::form_iteration()
       const PetscReal a0 = q * mpw * (dtau / dt);
       const PetscReal b0 = pn.mu_p * mpw * (dtau / dt);
       const Vector3R Vh_sub = (pn.r - p0.r) / dtau;
-      (void)Profiler::push_phase(phase_decompose);
+      Profiler::push_phase(phase_decompose);
       util.decomposition(pn.r, p0.r, Vh_sub, a0, b0);
-      (void)Profiler::pop_phase(phase_decompose);
+      Profiler::pop_phase(phase_decompose);
     };
 
     AdaptiveSubstepStats stats;

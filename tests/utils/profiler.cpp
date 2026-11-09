@@ -92,9 +92,9 @@ int main(int argc, char** argv)
 
 #pragma omp parallel num_threads(4)
   {
-    (void)Profiler::push_phase(phase);
-    (void)PetscSleep(2e-3);
-    (void)Profiler::pop_phase(phase);
+    Profiler::push_phase(phase);
+    PetscSleep(2e-3);
+    Profiler::pop_phase(phase);
   }
 
   PetscEventPerfInfo before;
@@ -113,9 +113,9 @@ int main(int argc, char** argv)
 #pragma omp parallel num_threads(4)
   {
     if (omp_get_thread_num() == 0) {
-      (void)Profiler::push_phase(partial);
-      (void)PetscSleep(4e-3);
-      (void)Profiler::pop_phase(partial);
+      Profiler::push_phase(partial);
+      PetscSleep(4e-3);
+      Profiler::pop_phase(partial);
     }
   }
   PetscCall(Profiler::flush());
@@ -130,9 +130,9 @@ int main(int argc, char** argv)
   PetscCall(Profiler::pop_phase(mixed));
 #pragma omp parallel num_threads(4)
   {
-    (void)Profiler::push_phase(mixed);
-    (void)PetscSleep(1e-3);
-    (void)Profiler::pop_phase(mixed);
+    Profiler::push_phase(mixed);
+    PetscSleep(1e-3);
+    Profiler::pop_phase(mixed);
   }
   PetscCall(Profiler::flush());
   PetscCall(Profiler::flush());

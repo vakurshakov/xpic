@@ -42,15 +42,15 @@ PetscErrorCode Particles::first_push()
     Point point = arrays.load(i);
     const Vector3R old_r = point.r;
 
-    (void)Profiler::push_phase(phase_push);
+    Profiler::push_phase(phase_push);
     BorisPush::update_r(0.5 * dt, point);
-    (void)Profiler::pop_phase(phase_push);
+    Profiler::pop_phase(phase_push);
 
-    (void)Profiler::push_phase(phase_decompose);
+    Profiler::push_phase(phase_decompose);
     Shape shape;
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
     decompose_esirkepov_current(shape, point);
-    (void)Profiler::pop_phase(phase_decompose);
+    Profiler::pop_phase(phase_decompose);
     arrays.store(i, point);
   }
 
@@ -77,22 +77,22 @@ PetscErrorCode Particles::second_push()
     const Vector3R old_r = point.r;
     const Vector3R old_v = point.p;
 
-    (void)Profiler::push_phase(phase_interpolate);
+    Profiler::push_phase(phase_interpolate);
     Vector3R E_p = interpolate_E_s1(E_arr, point.r);
     Vector3R B_p = interpolate_B_s1(B_arr, point.r);
-    (void)Profiler::pop_phase(phase_interpolate);
+    Profiler::pop_phase(phase_interpolate);
 
-    (void)Profiler::push_phase(phase_push);
+    Profiler::push_phase(phase_push);
     BorisPush push(parameters.q / parameters.m, E_p, B_p);
     push.update_vEB(dt, point);
     push.update_r(0.5 * dt, point);
-    (void)Profiler::pop_phase(phase_push);
+    Profiler::pop_phase(phase_push);
 
-    (void)Profiler::push_phase(phase_decompose);
+    Profiler::push_phase(phase_decompose);
     Shape shape;
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
     decompose_esirkepov_current(shape, point);
-    (void)Profiler::pop_phase(phase_decompose);
+    Profiler::pop_phase(phase_decompose);
     arrays.store(i, point);
 
 #pragma omp atomic update
