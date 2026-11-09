@@ -29,6 +29,9 @@ PetscErrorCode LogView::diagnose(PetscInt t)
     case AllTimestepsSummary:
       PetscCall(level_2_impl(t));
       break;
+    case EachTimestepEvents:
+      PetscCall(level_3_impl(t));
+      break;
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -249,6 +252,129 @@ PetscErrorCode LogView::level_2_impl(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode LogView::level_3_impl(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  PetscCall(pop_stack());
+
+  MPI_Comm comm;
+  PetscCall(PetscObjectGetComm((PetscObject)viewer_, &comm));
+
+  PetscMPIInt size;
+  PetscCallMPI(MPI_Comm_size(comm, &size));
+
+  PetscLogDouble now, step_time;
+  PetscCall(PetscTime(&now));
+  step_time = now - prev_time_;
+  prev_time_ = now;
+
+  PetscLogDouble total;
+  PetscCallMPI(MPIU_Allreduce(&step_time, &total, 1, MPIU_PETSCLOGDOUBLE, MPI_SUM, comm));
+
+  PetscLogState state;
+  PetscInt num_stages, num_events;
+  PetscCall(PetscLogHandlerGetState(handler_, &state));
+  PetscCall(PetscLogStateGetNumStages(state, &num_stages));
+  PetscCall(PetscLogStateGetNumEvents(state, &num_events));
+
+  struct Item {
+    std::string name;
+    PetscLogDouble time;  // sum over ranks, then percent
+  };
+  struct Column {
+    std::string name;
+    PetscLogDouble time;
+    std::vector<Item> events;
+  };
+
+  // Spaces are replaced to keep every name a single word
+  auto word = [](const char* name)
+  {
+    std::string result(name);
+    std::replace(result.begin(), result.end(), ' ', '_');
+    return result;
+  };
+
+  std::vector<Column> columns(num_stages);
+  size_t name_width = 0;
+  size_t rows = 0;
+
+  for (PetscLogStage stage = 0; stage < num_stages; ++stage) {
+    const char* stage_name;
+    PetscEventPerfInfo* stage_info;
+    PetscCall(PetscLogStageGetName(stage, &stage_name));
+    PetscCall(PetscLogHandlerGetStagePerfInfo(handler_, stage, &stage_info));
+
+    PetscLogDouble stage_time;
+    PetscCallMPI(MPIU_Allreduce(&stage_info->time, &stage_time, 1, MPIU_PETSCLOGDOUBLE, MPI_SUM, comm));
+
+    Column& column = columns[stage];
+    column.name = word(stage_name);
+    column.time = stage_time - prev_times_[stage_name];
+    prev_times_[stage_name] = stage_time;
+    name_width = std::max(name_width, column.name.size());
+
+    for (PetscLogEvent event = 0; event < num_events; ++event) {
+      const char* event_name;
+      PetscEventPerfInfo* event_info;
+      PetscCall(PetscLogEventGetName(event, &event_name));
+      PetscCall(PetscLogHandlerGetEventPerfInfo(handler_, stage, event, &event_info));
+
+      PetscLogDouble event_time;
+      PetscCallMPI(MPIU_Allreduce(&event_info->time, &event_time, 1, MPIU_PETSCLOGDOUBLE, MPI_SUM, comm));
+
+      PetscLogDouble& prev = prev_event_times_[{stage, event}];
+      PetscLogDouble delta = event_time - prev;
+      prev = event_time;
+
+      if (total > 0.0 && 100.0 * delta / total >= 0.1 && column.time > 0.0)
+        column.events.push_back({word(event_name), delta});
+    }
+
+    std::stable_sort(column.events.begin(), column.events.end(),
+      [](const Item& a, const Item& b)
+      {
+        return a.time > b.time;
+      });
+    column.events.resize(std::min<size_t>(column.events.size(), 5));
+
+    for (Item& item : column.events) {
+      name_width = std::max(name_width, item.name.size());
+      item.time *= 100.0 / column.time;
+    }
+    rows = std::max(rows, column.events.size());
+  }
+
+  // Cell: "name" + space + 9-char time ("%9.3e") or 6-char percent ("%5.1f%%")
+  const int width = (int)name_width + 1 + 9 + 2;
+  auto cell = [&](const std::string& name, const std::string& value)
+  {
+    return std::format("{:<{}} {:>9}  ", name, name_width, value);
+  };
+
+  PetscCall(PetscViewerASCIIPrintf(viewer_, "Timestep %d\n", (int)t));
+
+  std::string line;
+  for (const Column& column : columns)
+    line += cell(column.name, std::format("{:.3e}", column.time / size));
+  PetscCall(PetscViewerASCIIPrintf(viewer_, "%s\n", line.c_str()));
+
+  for (size_t row = 0; row < rows; ++row) {
+    line.clear();
+    for (const Column& column : columns) {
+      if (row < column.events.size())
+        line += cell(column.events[row].name, std::format("{:.1f}%", column.events[row].time));
+      else
+        line += std::string(width, ' ');
+    }
+    PetscCall(PetscViewerASCIIPrintf(viewer_, "%s\n", line.c_str()));
+  }
+
+  PetscCall(PetscViewerASCIIPrintf(viewer_, "\n"));
+  PetscCall(push_stack());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode LogView::init()
 {
   PetscFunctionBeginUser;
@@ -262,6 +388,11 @@ PetscErrorCode LogView::init()
   PetscCall(PetscLogGetDefaultHandler(&handler_));
   if (level_ == EachTimestep)
     PetscCall(level_0_init());
+  if (level_ == EachTimestepEvents) {
+    std::string filename = out_dir_ + "/log-EachTimestepEvents.txt";
+    PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
+    PetscCall(warn());
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -52,3 +52,19 @@ foreach(simulation eccapfim drift_kinetic)
     set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "simulation_restart")
   endforeach()
 endforeach()
+
+# One file set for all schemes, so they hold a common lock and run one at a time.
+add_executable(log_view.out log_view.cpp)
+target_link_libraries(log_view.out ${PROJECT_NAME})
+
+foreach(simulation ecsim ecsimcorr eccapfim)
+  set(test "log_view_${simulation}")
+
+  add_test(NAME "${test}" COMMAND ./log_view.out -simulation ${simulation})
+  set_property(TEST "${test}" PROPERTY LABELS smoke diagnostics ${simulation})
+  set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "log_view")
+
+  add_test(NAME "${test}_mpi_x2" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./log_view.out -simulation ${simulation} -da_processors_x 2)
+  set_property(TEST "${test}_mpi_x2" PROPERTY LABELS smoke diagnostics ${simulation} mpi)
+  set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "log_view")
+endforeach()
