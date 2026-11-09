@@ -52,7 +52,3 @@ foreach(simulation eccapfim drift_kinetic)
     set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "simulation_restart")
   endforeach()
 endforeach()
-
-# Known defect of the DK pusher on multi-rank runs (see `drift_kinetic_ex7_balance_mpi_*`): the
-# continuous run itself diverges here, before any restart. Drop WILL_FAIL when it is fixed.
-set_property(TEST simulation_restart_drift_kinetic_mpi_x2 PROPERTY WILL_FAIL TRUE)
