@@ -45,6 +45,11 @@ int main(int argc, char** argv)
   PetscCall(VecDestroy(&rho0));
   PetscCall(VecDestroy(&gauss));
   PetscCall(simulation.finalize());
+
+  PetscCall(check_log_view(__FILE__, geom_nt,
+    {"Initialization", "Clear sources", "First push", "Advance field", "Second push", "Final update", "Correct fields"},
+    {"push", "interpolate", "decompose", "update_cells_with_assembly", "fill_ecsim_current"}));
+
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -98,6 +103,14 @@ void overwrite_config()
         {"coordinate", {{"name", "CoordinateInBox"}}},
         {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
       }},
+    },
+    {
+      "Diagnostics",
+      {
+        {{"diagnostic", "LogView"}, {"level", "EachTimestep"}},
+        {{"diagnostic", "LogView"}, {"level", "DiagnosePeriodAvg"}},
+        {{"diagnostic", "LogView"}, {"level", "AllTimestepsSummary"}},
+      },
     },
   });
 }

@@ -140,6 +140,48 @@ inline PetscErrorCode compare_temporal(std::string_view file,
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+/// @brief Structural check of the `LogView` files, timings are not compared.
+/// The files are in the output directory of `file`, `stages` must be in every
+/// per-step header and `events` in the final summary.
+inline PetscErrorCode check_log_view(std::string_view file, PetscInt steps,
+  const std::vector<std::string>& stages, const std::vector<std::string>& events)
+{
+  PetscFunctionBeginUser;
+  PetscMPIInt rank;
+  PetscCallMPI(MPI_Comm_rank(PETSC_COMM_WORLD, &rank));
+  if (rank != 0)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
+  auto read = [&](const char* level)
+  {
+    std::ifstream ifs(get_out_dir(file) / std::format("log-{}.txt", level));
+    return std::string(std::istreambuf_iterator<char>(ifs), {});
+  };
+
+  const std::string each = read("EachTimestep");
+  const std::string avg = read("DiagnosePeriodAvg");
+  const std::string summary = read("AllTimestepsSummary");
+
+  const std::string header = each.substr(0, each.find('\n'));
+  for (const auto& stage : stages) {
+    std::string name = stage;
+    std::replace(name.begin(), name.end(), ' ', '_');
+    PetscCheck(header.find(name) != std::string::npos, PETSC_COMM_SELF, PETSC_ERR_USER,
+      "EachTimestep header has no stage \"%s\"", name.c_str());
+  }
+
+  PetscCheck(!avg.empty() && !summary.empty(), PETSC_COMM_SELF, PETSC_ERR_USER,
+    "DiagnosePeriodAvg and AllTimestepsSummary must be written");
+
+  PetscCheck(std::count(each.begin(), each.end(), '\n') > steps, PETSC_COMM_SELF, PETSC_ERR_USER,
+    "EachTimestep must have a header and a row per step");
+
+  for (const auto& event : events)
+    PetscCheck(summary.find(event) != std::string::npos, PETSC_COMM_SELF, PETSC_ERR_USER,
+      "AllTimestepsSummary has no event \"%s\"", event.c_str());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 /// @brief Finds max(|column|) over all rows of the output table `diag`, or of
 /// its running sum if `cumulative` is set, skipping the first `skip_rows` rows.
 /// The table is written by the root rank only, so the result is broadcasted.

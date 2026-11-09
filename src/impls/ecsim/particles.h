@@ -32,9 +32,10 @@ protected:
 
   Simulation& simulation_;
 
-private:
-  PetscClassId classid;
-  PetscLogEvent events[2];
+  // Profiler handles of the shared phases
+  PetscInt phase_interpolate;
+  PetscInt phase_push;
+  PetscInt phase_decompose;
 };
 
 }  // namespace ecsim

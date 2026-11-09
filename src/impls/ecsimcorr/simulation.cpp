@@ -2,6 +2,7 @@
 
 #include "src/utils/geometries.h"
 #include "src/utils/operators.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 
@@ -35,15 +36,13 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
     PetscCall(VecCopy(E, Ep));
     PetscCall(second_push());
   }
-  PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push("clear_sources2"));
-  PetscCall(PetscLogStagePush(stagenums[1]));
+  PetscCall(Profiler::push_stage(stage_clear_sources));
 
   PetscCall(ecsim::Simulation::clear_sources());
   PetscCall(VecSet(currJe, 0.0));
@@ -51,8 +50,7 @@ PetscErrorCode Simulation::clear_sources()
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
+  PetscCall(Profiler::pop_stage(stage_clear_sources));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -60,21 +58,18 @@ PetscErrorCode Simulation::clear_sources()
 PetscErrorCode Simulation::correct_fields()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[5]));
+  PetscCall(Profiler::push_stage(stage_correct_fields));
 
   PetscCall(advance_fields(correct, currJe, Ec));
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
+  PetscCall(Profiler::pop_stage(stage_correct_fields));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::final_update()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push("final_update2"));
-  PetscCall(PetscLogStagePush(stagenums[6]));
+  PetscCall(Profiler::push_stage(stage_final_update));
 
   for (auto& sort : particles_)
     PetscCall(sort->final_update());
@@ -92,8 +87,7 @@ PetscErrorCode Simulation::final_update()
   PetscCall(VecSwap(Ep, Ec));
   PetscCall(ecsim::Simulation::final_update());
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
+  PetscCall(Profiler::pop_stage(stage_final_update));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -148,13 +142,7 @@ PetscErrorCode Simulation::init_log_stages()
   PetscFunctionBeginUser;
   PetscCall(ecsim::Simulation::init_log_stages());
 
-  stagenums[0] = ecsim::Simulation::stagenums[0];  // Initialization
-  stagenums[1] = ecsim::Simulation::stagenums[1];  // Clear sources
-  stagenums[2] = ecsim::Simulation::stagenums[2];  // First push
-  stagenums[4] = ecsim::Simulation::stagenums[4];  // Second push
-  stagenums[6] = ecsim::Simulation::stagenums[5];  // Final update
-  PetscCall(register_log_stage("Predict field", &stagenums[3]));
-  PetscCall(register_log_stage("Correct fields", &stagenums[5]));
+  PetscCall(Profiler::register_stage("Correct fields", &stage_correct_fields));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

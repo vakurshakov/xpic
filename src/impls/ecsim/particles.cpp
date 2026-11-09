@@ -5,6 +5,7 @@
 #include "src/algorithms/simple_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
 #include "src/impls/ecsim/simulation.h"
+#include "src/utils/profiler.h"
 
 namespace ecsim {
 
@@ -26,17 +27,15 @@ PetscErrorCode Particles::initialize()
   currI = J;
   currI_loc = J_loc;
 
-  PetscCall(PetscClassIdRegister("ecsim::Particles", &classid));
-  PetscCall(PetscLogEventRegister("first_push", classid, &events[0]));
-  PetscCall(PetscLogEventRegister("second_push", classid, &events[1]));
+  PetscCall(Profiler::register_event("interpolate", &phase_interpolate));
+  PetscCall(Profiler::register_event("push", &phase_push));
+  PetscCall(Profiler::register_event("decompose", &phase_decompose));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
-  PetscLogEventBegin(events[0], 0, 0, 0, 0);
-
   ParticleStorage::Attributes f;
   PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
@@ -44,13 +43,14 @@ PetscErrorCode Particles::first_push()
 #pragma omp parallel for
   for (PetscInt i = 0; i < f.size; i++) {
     Point point = arrays.load(i);
+    (void)Profiler::push_phase(phase_push);
     BorisPush::update_r(dt, point);
+    (void)Profiler::pop_phase(phase_push);
     arrays.store(i, point);
   }
 
+  PetscCall(Profiler::flush());
   PetscCall(storage.restore_attributes(f));
-
-  PetscLogEventEnd(events[0], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -76,10 +76,14 @@ PetscErrorCode Particles::fill_ecsim_current(PetscReal* coo_v)
     prev_g = g;
 
     PetscReal* coo_cv = coo_v + off;
-    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++)
+    for (PetscInt i = offsets[g]; i < offsets[g + 1]; i++) {
+      (void)Profiler::push_phase(phase_decompose);
       decompose_ecsim_current(arrays.load(i), coo_cv);
+      (void)Profiler::pop_phase(phase_decompose);
+    }
   }
 
+  PetscCall(Profiler::flush());
   PetscCall(storage.restore_attributes(f));
 
   PetscCall(DMDAVecRestoreArrayWrite(da, currI_loc, &currI_arr));
@@ -205,8 +209,6 @@ void Particles::decompose_ecsim_current(const Point& point, PetscReal* coo_v)
 PetscErrorCode Particles::second_push()
 {
   PetscFunctionBeginUser;
-  PetscLogEventBegin(events[2], 0, 0, 0, 0);
-
   PetscReal q = parameters.q;
   PetscReal m = parameters.m;
 
@@ -217,17 +219,20 @@ PetscErrorCode Particles::second_push()
 #pragma omp parallel for
   for (PetscInt i = 0; i < f.size; i++) {
     Point point = arrays.load(i);
+    (void)Profiler::push_phase(phase_interpolate);
     Vector3R E_p = interpolate_E_s1(E_arr, point.r);
     Vector3R B_p = interpolate_B_s1(B_arr, point.r);
+    (void)Profiler::pop_phase(phase_interpolate);
 
+    (void)Profiler::push_phase(phase_push);
     BorisPush push(q / m, E_p, B_p);
     push.update_vEB(dt, point);
+    (void)Profiler::pop_phase(phase_push);
     arrays.store(i, point);
   }
 
+  PetscCall(Profiler::flush());
   PetscCall(storage.restore_attributes(f));
-
-  PetscLogEventBegin(events[2], 0, 0, 0, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

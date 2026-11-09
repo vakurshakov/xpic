@@ -6,6 +6,7 @@
 #include "src/algorithms/simple_interpolation.h"
 #include "src/diagnostics/energy.h"
 #include "src/impls/ecsimcorr/simulation.h"
+#include "src/utils/profiler.h"
 
 namespace ecsimcorr {
 
@@ -24,11 +25,6 @@ PetscErrorCode Particles::initialize()
 
   J = currJe;
   J_loc = currJe_loc;
-
-  PetscCall(PetscClassIdRegister("ecsimcorr::Particles", &classid));
-  PetscCall(PetscLogEventRegister("first_push", classid, &events[0]));
-  PetscCall(PetscLogEventRegister("second_push", classid, &events[1]));
-  PetscCall(PetscLogEventRegister("final_update", classid, &events[2]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -36,8 +32,6 @@ PetscErrorCode Particles::first_push()
 {
   PetscFunctionBeginUser;
   PetscCall(DMDAVecGetArray(da, currJe_loc, &currJe_arr));
-
-  PetscLogEventBegin(events[0], currJe_loc, 0, 0, 0);
 
   ParticleStorage::Attributes f;
   PetscCall(storage.get_attributes(f));
@@ -47,17 +41,21 @@ PetscErrorCode Particles::first_push()
   for (PetscInt i = 0; i < f.size; i++) {
     Point point = arrays.load(i);
     const Vector3R old_r = point.r;
-    BorisPush::update_r(0.5 * dt, point);
 
+    (void)Profiler::push_phase(phase_push);
+    BorisPush::update_r(0.5 * dt, point);
+    (void)Profiler::pop_phase(phase_push);
+
+    (void)Profiler::push_phase(phase_decompose);
     Shape shape;
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
     decompose_esirkepov_current(shape, point);
+    (void)Profiler::pop_phase(phase_decompose);
     arrays.store(i, point);
   }
 
+  PetscCall(Profiler::flush());
   PetscCall(storage.restore_attributes(f));
-
-  PetscLogEventEnd(events[0], currJe_loc, 0, 0, 0);
 
   PetscCall(DMDAVecRestoreArray(da, currJe_loc, &currJe_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -69,8 +67,6 @@ PetscErrorCode Particles::second_push()
   pred_w = 0.0;
   PetscCall(DMDAVecGetArray(da, currJe_loc, &currJe_arr));
 
-  PetscLogEventBegin(events[1], 0, 0, 0, 0);
-
   ParticleStorage::Attributes f;
   PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
@@ -81,25 +77,30 @@ PetscErrorCode Particles::second_push()
     const Vector3R old_r = point.r;
     const Vector3R old_v = point.p;
 
+    (void)Profiler::push_phase(phase_interpolate);
     Vector3R E_p = interpolate_E_s1(E_arr, point.r);
     Vector3R B_p = interpolate_B_s1(B_arr, point.r);
+    (void)Profiler::pop_phase(phase_interpolate);
 
+    (void)Profiler::push_phase(phase_push);
     BorisPush push(parameters.q / parameters.m, E_p, B_p);
     push.update_vEB(dt, point);
     push.update_r(0.5 * dt, point);
+    (void)Profiler::pop_phase(phase_push);
 
+    (void)Profiler::push_phase(phase_decompose);
     Shape shape;
     shape.setup(old_r, point.r, shape_radius2, shape_func2);
     decompose_esirkepov_current(shape, point);
+    (void)Profiler::pop_phase(phase_decompose);
     arrays.store(i, point);
 
 #pragma omp atomic update
     pred_w += parameters.q * parameters.mpw * 0.5 * (old_v + point.p).dot(E_p);
   }
 
+  PetscCall(Profiler::flush());
   PetscCall(storage.restore_attributes(f));
-
-  PetscLogEventEnd(events[1], 0, 0, 0, 0);
 
   // Because we manually calculated `pred_w`, it is needed to reduce it between ranks
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &pred_w, 1, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
@@ -116,8 +117,6 @@ PetscErrorCode Particles::final_update()
   PetscCall(VecDot(currJe, simulation_.Ec, &corr_w));
 
   PetscReal K0 = energy;
-  PetscLogEventBegin(events[2], 0, 0, 0, 0);
-
   calculate_energy();
   PetscReal K = energy;
 
@@ -133,8 +132,6 @@ PetscErrorCode Particles::final_update()
     p[i] *= lambda;
 
   PetscCall(storage.restore_attributes(f));
-
-  PetscLogEventEnd(events[2], 0, 0, 0, 0);
 
   lambda_dK = (lambda2 - 1.0) * K;
   pred_dK = K - K0;

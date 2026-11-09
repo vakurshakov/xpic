@@ -33,6 +33,10 @@ int main(int argc, char** argv)
   PetscCheck(max_err < 1e-10 * max_dK, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Energy balance is violated, max error: %g, max dK: %g", max_err, max_dK);
 
+  PetscCall(check_log_view(__FILE__, geom_nt,
+    {"Initialization", "Clear sources", "First push", "Advance field", "Second push", "Final update"},
+    {"push", "interpolate", "decompose", "update_cells_with_assembly", "fill_ecsim_current"}));
+
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -86,6 +90,14 @@ void overwrite_config()
         {"coordinate", {{"name", "CoordinateInBox"}}},
         {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
       }},
+    },
+    {
+      "Diagnostics",
+      {
+        {{"diagnostic", "LogView"}, {"level", "EachTimestep"}},
+        {{"diagnostic", "LogView"}, {"level", "DiagnosePeriodAvg"}},
+        {{"diagnostic", "LogView"}, {"level", "AllTimestepsSummary"}},
+      },
     },
   });
 }

@@ -5,7 +5,6 @@
 
 #include "src/interfaces/simulation.h"
 #include "src/impls/ecsim/particles.h"
-#include "src/utils/sync_clock.h"
 
 Vector3R interpolate_E_s1(Arr E_g, const Vector3R& coord);
 Vector3R interpolate_B_s1(Arr B_g, const Vector3R& coord);
@@ -92,11 +91,15 @@ protected:
 
   std::vector<PetscReal> conv_hist;
 
-  PetscClassId classid;
-  PetscLogEvent events[2];
-  PetscLogStage stagenums[6];
-
-  SyncClock clock;
+  // Profiler handles
+  PetscInt stage_init;
+  PetscInt stage_clear_sources;
+  PetscInt stage_first_push;
+  PetscInt stage_advance_field;
+  PetscInt stage_second_push;
+  PetscInt stage_final_update;
+  PetscInt event_update_cells_with_assembly;
+  PetscInt event_fill_ecsim_current;
 };
 
 }  // namespace ecsim
