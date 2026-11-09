@@ -38,7 +38,6 @@ protected:
 
   // Profiler handles
   PetscInt event_prepare_storage;
-  PetscInt event_form_iteration;
   PetscInt event_interpolate;
   PetscInt event_push;
   PetscInt event_decompose;

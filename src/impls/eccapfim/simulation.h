@@ -99,12 +99,9 @@ private:
   std::vector<PetscReal> conv_hist;
 
   // Profiler handles
-  PetscInt stage_init_iteration;
-  PetscInt stage_calc_iteration;
-  PetscInt stage_after_iteration;
+  PetscInt stage_form_current;
+  PetscInt stage_form_function;
   PetscInt event_clear_sources;
-  PetscInt event_form_current;
-  PetscInt event_form_function;
   PetscInt event_form_precond;
   PetscInt event_comp_snes;
   PetscInt event_decomp_snes;

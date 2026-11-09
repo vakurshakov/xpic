@@ -26,7 +26,6 @@ PetscErrorCode Particles::initialize()
   PetscCall(storage.commit_attributes());
 
   PetscCall(Profiler::register_event("prepare_storage", &event_prepare_storage));
-  PetscCall(Profiler::register_event("form_iteration", &event_form_iteration));
   PetscCall(Profiler::register_event("interpolate", &event_interpolate));
   PetscCall(Profiler::register_event("push", &event_push));
   PetscCall(Profiler::register_event("decompose", &event_decompose));
@@ -126,7 +125,6 @@ PetscErrorCode Particles::form_prediction(PetscReal**** I_arr, PetscReal**** L_a
 PetscErrorCode Particles::form_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_event(event_form_iteration));
   PetscCall(DMDAVecGetArrayWrite(da, J_loc, &J_arr));
 
   avgit = 0;
@@ -314,7 +312,6 @@ PetscErrorCode Particles::form_iteration()
 
   avgit /= (PetscReal)size;
   avgcell /= (PetscReal)size;
-  PetscCall(Profiler::pop_event(event_form_iteration));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

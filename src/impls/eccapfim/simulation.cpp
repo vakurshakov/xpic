@@ -98,16 +98,13 @@ PetscErrorCode Simulation::init_log()
 {
   PetscFunctionBeginUser;
   PetscCall(Profiler::register_event("clear_sources", &event_clear_sources));
-  PetscCall(Profiler::register_event("form_current", &event_form_current));
-  PetscCall(Profiler::register_event("form_function", &event_form_function));
+  PetscCall(Profiler::register_stage("Form current", &stage_form_current));
+  PetscCall(Profiler::register_stage("Form function", &stage_form_function));
   PetscCall(Profiler::register_event("form_precond", &event_form_precond));
   PetscCall(Profiler::register_event("comp_snes", &event_comp_snes));
   PetscCall(Profiler::register_event("decomp_snes", &event_decomp_snes));
   PetscCall(Profiler::register_event("mat_mult", &event_mat_mult));
 
-  PetscCall(Profiler::register_stage("Init iteration", &stage_init_iteration));
-  PetscCall(Profiler::register_stage("Calc iteration", &stage_calc_iteration));
-  PetscCall(Profiler::register_stage("After iteration", &stage_after_iteration));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -153,8 +150,6 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 PetscErrorCode Simulation::init_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_stage(stage_init_iteration));
-
   for (auto& sort : particles_)
     PetscCall(sort->prepare_storage());
 
@@ -165,8 +160,6 @@ PetscErrorCode Simulation::init_iteration()
 #if !SNES_ITERATE_B
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
 #endif
-
-  PetscCall(Profiler::pop_stage(stage_init_iteration));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -192,8 +185,6 @@ PetscErrorCode Simulation::push_particles()
 PetscErrorCode Simulation::calc_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_stage(stage_calc_iteration));
-
   PetscCall(SNESSolve(snes, NULL, sol));
 
   const char* name;
@@ -222,8 +213,6 @@ PetscErrorCode Simulation::calc_iteration()
     LOG("    Averaged number of traversed cells is {:3.4f}", sort->get_average_number_of_traversed_cells());
     LOG("    Maximum number of traversed cells is {:3d}", sort->get_maximum_number_of_traversed_cells());
   }
-
-  PetscCall(Profiler::pop_stage(stage_calc_iteration));
 
   PetscCheck(reason >= 0, PetscObjectComm((PetscObject)snes), PETSC_ERR_NOT_CONVERGED, "SNESSolve has not converged");
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -338,11 +327,10 @@ PetscErrorCode Simulation::clear_sources()
 PetscErrorCode Simulation::form_current()
 {
   PetscFunctionBeginUser;
-
   PetscCall(DMDAVecGetArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
-  PetscCall(Profiler::push_event(event_form_current));
+  PetscCall(Profiler::push_stage(stage_form_current));
 
   for (auto& sort : particles_) {
     sort->E_arr = E_arr;
@@ -351,11 +339,10 @@ PetscErrorCode Simulation::form_current()
     PetscCall(VecAXPY(J, 1, sort->J));
   }
 
-  PetscCall(Profiler::pop_event(event_form_current));
+  PetscCall(Profiler::pop_stage(stage_form_current));
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
-
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -367,7 +354,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(DMGetGlobalVector(da, &E_f));
   PetscCall(DMGetGlobalVector(da, &B_f));
 
-  PetscCall(Profiler::push_event(event_form_function));
+  PetscCall(Profiler::push_stage(stage_form_function));
   PetscCall(VecAXPY(B, -1, B0));
 
   // F(E) = (E^{n+1/2,k} - E^{n}) + (0.5 * dt) * (J^{n+1/2,k} - rot(B^{n+1/2,k}))
@@ -384,14 +371,14 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(B_f, +0.5 * dt, rE));
 
   PetscCall(VecAXPY(B, +1, B0));
-  PetscCall(Profiler::pop_event(event_form_function));
+  PetscCall(Profiler::pop_stage(stage_form_function));
 
   PetscCall(comp_snes(E_f, B_f, f));
 
   PetscCall(DMRestoreGlobalVector(da, &E_f));
   PetscCall(DMRestoreGlobalVector(da, &B_f));
 #else
-  PetscCall(Profiler::push_event(event_form_function));
+  PetscCall(Profiler::push_stage(stage_form_function));
   PetscCall(VecAXPY(B, -1, B0));
 
   PetscCall(MatMult(rotB, B, rB));
@@ -401,7 +388,7 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(f, -0.5 * dt, rB));
 
   PetscCall(VecAXPY(B, +1, B0));
-  PetscCall(Profiler::pop_event(event_form_function));
+  PetscCall(Profiler::pop_stage(stage_form_function));
 #endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -409,8 +396,6 @@ PetscErrorCode Simulation::form_function(Vec f)
 PetscErrorCode Simulation::after_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_stage(stage_after_iteration));
-
   PetscCall(SNESGetSolution(snes, &sol));
   PetscCall(decomp_snes(E_hk, B_hk, sol));
 
@@ -426,8 +411,6 @@ PetscErrorCode Simulation::after_iteration()
   /// @note The same crash can happen here...
   for (auto& sort : particles_)
     PetscCall(sort->update_cells());
-
-  PetscCall(Profiler::pop_stage(stage_after_iteration));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
