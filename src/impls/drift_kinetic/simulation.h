@@ -47,6 +47,10 @@ protected:
   SNES snes;                           // Nonlinear field solver.
   PetscInt snes_iteration_number = 0;  // Last field iteration count.
 
+  // Profiler handles
+  PetscInt stage_form_current;
+  PetscInt stage_form_function;
+
   PetscReal a_MB0 = 0;  // (M * B) at the particle push, for `EnergyConservation`.
 
   friend class EnergyConservation;

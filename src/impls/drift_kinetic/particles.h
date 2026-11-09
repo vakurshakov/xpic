@@ -84,6 +84,11 @@ protected:
   bool fail_on_terminal_nonconvergence = false;
 
   Simulation& simulation_;
+
+  // Profiler handles of the shared phases; `interpolate` is nested in `push`
+  PetscInt phase_interpolate;
+  PetscInt phase_push;
+  PetscInt phase_decompose;
 };
 
 }  // namespace drift_kinetic

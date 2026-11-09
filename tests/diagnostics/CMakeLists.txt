@@ -57,7 +57,7 @@ endforeach()
 add_executable(log_view.out log_view.cpp)
 target_link_libraries(log_view.out ${PROJECT_NAME})
 
-foreach(simulation ecsim ecsimcorr eccapfim)
+foreach(simulation basic drift_kinetic eccapfim ecsim ecsimcorr)
   set(test "log_view_${simulation}")
 
   add_test(NAME "${test}" COMMAND ./log_view.out -simulation ${simulation})

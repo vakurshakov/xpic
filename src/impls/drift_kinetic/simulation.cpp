@@ -1,6 +1,7 @@
 #include "simulation.h"
 
 #include "src/utils/configuration.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 namespace drift_kinetic {
@@ -15,6 +16,9 @@ static constexpr PetscInt maxf = PETSC_UNLIMITED;
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::register_stage("Form current", &stage_form_current));
+  PetscCall(Profiler::register_stage("Form function", &stage_form_function));
+
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
   PetscCall(SNESSetType(snes, SNESNGMRES));
   // PetscCall(SNESSetType(snes, SNESANDERSON));
@@ -136,6 +140,7 @@ PetscErrorCode Simulation::form_iteration(SNES, Vec vx, Vec vf, void* ctx)
 PetscErrorCode Simulation::form_current()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_stage(stage_form_current));
   PetscCall(VecSet(J, 0));
   PetscCall(VecSet(M, 0));
 
@@ -193,6 +198,8 @@ PetscErrorCode Simulation::form_current()
   PetscCall(DMDAVecRestoreArrayRead(da, Bn0_loc, &Bn0_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, Bn1_loc, &Bn1_arr));
 
+  PetscCall(Profiler::pop_stage(stage_form_current));
+
   PetscCheck(failed_sort == nullptr, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
     "DK Push terminal non-convergence for sort %s: leaf_failures=%d, max FRk=%g, max FVk=%g",
     failed_sort->parameters.sort_name.c_str(),
@@ -205,6 +212,7 @@ PetscErrorCode Simulation::form_current()
 PetscErrorCode Simulation::form_function(Vec vf)
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_stage(stage_form_function));
   Vec E_f, B_f;
   PetscCall(DMGetGlobalVector(da, &E_f));
   PetscCall(DMGetGlobalVector(da, &B_f));
@@ -224,6 +232,7 @@ PetscErrorCode Simulation::form_function(Vec vf)
   PetscCall(to_snes(E_f, B_f, vf));
   PetscCall(DMRestoreGlobalVector(da, &E_f));
   PetscCall(DMRestoreGlobalVector(da, &B_f));
+  PetscCall(Profiler::pop_stage(stage_form_function));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

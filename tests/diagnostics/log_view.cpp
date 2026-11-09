@@ -92,12 +92,19 @@ void overwrite_config(const char* name)
     },
     {
       "Presets",
-      {{
-        {"command", "SetParticles"},
-        {"particles", "electrons"},
-        {"coordinate", {{"name", "CoordinateInBox"}}},
-        {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
-      }},
+      {
+        {
+          {"command", "SetField"},
+          {"field", "B"},
+          {"setter", {{"name", "SetUniformField"}, {"value", {0.0, 0.0, 1.0}}}},
+        },
+        {
+          {"command", "SetParticles"},
+          {"particles", "electrons"},
+          {"coordinate", {{"name", "CoordinateInBox"}}},
+          {"momentum", {{"name", "MaxwellianMomentum"}, {"tov", true}}},
+        },
+      },
     },
     {
       "Diagnostics",

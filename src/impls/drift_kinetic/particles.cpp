@@ -4,6 +4,7 @@
 #include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/adaptive_substepping.h"
 #include "src/impls/drift_kinetic/simulation.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 namespace drift_kinetic {
@@ -31,6 +32,10 @@ PetscErrorCode Particles::initialize()
 
   PetscCall(DMCreateGlobalVector(da, &M));
   PetscCall(DMCreateLocalVector(da, &M_loc));
+
+  PetscCall(Profiler::register_event("interpolate", &phase_interpolate));
+  PetscCall(Profiler::register_event("push", &phase_push));
+  PetscCall(Profiler::register_event("decompose", &phase_decompose));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -79,12 +84,16 @@ PetscErrorCode Particles::form_iteration()
       [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
         PetscReal& lenB_p, Vector3R& b_p, Vector3R& gradB_p, Vector3R& rotB_p)
       {
+        (void)Profiler::push_phase(phase_interpolate);
         util.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
+        (void)Profiler::pop_phase(phase_interpolate);
       });
 
     auto attempt = [&](PetscReal dtau, PointByField& pn, const PointByField& p0)
     {
+      (void)Profiler::push_phase(phase_push);
       push.process(dtau, pn, p0);
+      (void)Profiler::pop_phase(phase_push);
       return AdaptiveSubstepAttempt{
         push.has_converged(),
         push.get_iteration_number(),
@@ -106,7 +115,9 @@ PetscErrorCode Particles::form_iteration()
       const PetscReal a0 = q * mpw * (dtau / dt);
       const PetscReal b0 = pn.mu_p * mpw * (dtau / dt);
       const Vector3R Vh_sub = (pn.r - p0.r) / dtau;
+      (void)Profiler::push_phase(phase_decompose);
       util.decomposition(pn.r, p0.r, Vh_sub, a0, b0);
+      (void)Profiler::pop_phase(phase_decompose);
     };
 
     AdaptiveSubstepStats stats;
@@ -123,6 +134,7 @@ PetscErrorCode Particles::form_iteration()
     arrays.store(i, curr);
   }
 
+  PetscCall(Profiler::flush());
   PetscCall(storage.restore_attributes(f));
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));
