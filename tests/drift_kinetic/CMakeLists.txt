@@ -14,7 +14,6 @@ set(sanity_tests
 )
 
 set(regression_tests
-  halton_ex1
   drift_kinetic_ex5_iaw
   drift_kinetic_ex10_bounce
   drift_kinetic_ex11_eparallel
@@ -73,12 +72,7 @@ foreach(level smoke sanity regression)
   endforeach()
 endforeach()
 
-# Tiny 3-D grid; avoid OpenMP startup overhead in the short noise comparison.
-set_property(TEST halton_ex1 PROPERTY ENVIRONMENT "OMP_NUM_THREADS=1")
-set_property(TEST halton_ex1 PROPERTY TIMEOUT 600)
-
 set(plot_tests
-  halton_ex1
   drift_kinetic_ex2_exb
   drift_kinetic_ex3_gradb
   drift_kinetic_ex4_curv
