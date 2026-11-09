@@ -202,23 +202,24 @@ static PetscErrorCode compare(const State& expected, const State& actual)
 static PetscErrorCode compare_tables(std::string_view subdir)
 {
   PetscFunctionBeginUser;
-  auto read = [](const std::filesystem::path& path)
+  auto read = [](const std::filesystem::path& path, std::string& header,
+                std::vector<PetscReal>& values)
   {
     std::ifstream ifs(path);
-    std::string header;
     std::getline(ifs, header);
-    std::vector<PetscReal> values;
     for (PetscReal v; ifs >> v;)
       values.push_back(v);
-    return std::pair{header, values};
   };
 
   for (auto&& entry : std::filesystem::directory_iterator(
          get_out_dir(__FILE__) / "continuous" / "temporal")) {
     auto name = entry.path().filename();
-    auto [e_header, e_values] = read(entry.path());
-    auto [o_header, o_values] =
-      read(get_out_dir(__FILE__) / subdir / "temporal" / name);
+    std::string e_header;
+    std::string o_header;
+    std::vector<PetscReal> e_values;
+    std::vector<PetscReal> o_values;
+    read(entry.path(), e_header, e_values);
+    read(get_out_dir(__FILE__) / subdir / "temporal" / name, o_header, o_values);
 
     PetscCheck(e_header == o_header, PETSC_COMM_WORLD, PETSC_ERR_USER,
       "Header of \"%s\" differs after the restart", name.c_str());
