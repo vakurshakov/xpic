@@ -19,6 +19,7 @@ PetscErrorCode ParticleStorage::initialize()
   PetscCall(DMSetDimension(swarm, 3));
   PetscCall(DMSwarmSetType(swarm, DMSWARM_BASIC));
   PetscCall(DMSwarmInitializeFieldRegister(swarm));
+  offsets.assign(world.size.elements_product() + 1, 0);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

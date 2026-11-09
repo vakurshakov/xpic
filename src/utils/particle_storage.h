@@ -96,6 +96,9 @@ public:
    * @brief Counting sort by the local cell. Cell `g` of `World::s_g()`
    * is `[offsets[g], offsets[g + 1])` of the attribute arrays.
    * Previous attributes are not permuted.
+   * Before the first `sort()` the offsets describe an empty storage: runs with
+   * `InjectParticles` can have no particles at t = 0, while the diagnostics
+   * are already called and iterate over the cells.
    * @warning The order is stale after any change of positions or of `size()`.
    */
   PetscErrorCode sort();
