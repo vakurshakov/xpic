@@ -25,10 +25,11 @@ PetscErrorCode Particles::initialize()
   PetscCall(storage.register_previous("p"));
   PetscCall(storage.commit_attributes());
 
+  // `push` is the update of a Crank-Nicolson iteration, without `set_fields()`
   PetscCall(Profiler::register_event("prepare_storage", &event_prepare_storage));
-  PetscCall(Profiler::register_event("interpolate", &event_interpolate));
-  PetscCall(Profiler::register_event("push", &event_push));
-  PetscCall(Profiler::register_event("decompose", &event_decompose));
+  PetscCall(Profiler::register_event("interpolate", &phase_interpolate));
+  PetscCall(Profiler::register_event("push", &phase_push));
+  PetscCall(Profiler::register_event("decompose", &phase_decompose));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -176,11 +177,6 @@ PetscErrorCode Particles::form_iteration()
   const PointArrays arrays(f);
   const PointArrays arrays_prev(f, "_prev");
 
-  // `push` is the update of a Crank-Nicolson iteration, without `set_fields()`
-  const PetscInt interpolate = event_interpolate;
-  const PetscInt push = event_push;
-  const PetscInt decompose = event_decompose;
-
 #pragma omp parallel reduction(+ : avgit, avgcell), reduction(max : maxcell)
   {
     ImplicitEsirkepov util(E_arr, B_arr, J_arr);
@@ -219,7 +215,7 @@ PetscErrorCode Particles::form_iteration()
 
         auto set_fields = [&]
         {
-          (void)Profiler::push_phase(interpolate);
+          (void)Profiler::push_phase(phase_interpolate);
           E_p = Vector3R{};
           B_p = Vector3R{};
 
@@ -238,7 +234,7 @@ PetscErrorCode Particles::form_iteration()
             E_p += Es_p * bs;
             B_p += Bs_p * bs;
           }
-          (void)Profiler::pop_phase(interpolate);
+          (void)Profiler::pop_phase(phase_interpolate);
         };
 
         auto get_residue = [&]
@@ -250,7 +246,7 @@ PetscErrorCode Particles::form_iteration()
         rn = r0 = get_residue();
 
         for (; rn > cn_atol + cn_rtol * r0 && it < cn_maxit; it++) {
-          (void)Profiler::push_phase(push);
+          (void)Profiler::push_phase(phase_push);
           Vector3R a, b, w;
           a = alpha * E_p;
           b = alpha * B_p;
@@ -259,7 +255,7 @@ PetscErrorCode Particles::form_iteration()
 
           pn.r = p0.r + dtau * vh;
           pn.p = 2.0 * vh - p0.p;
-          (void)Profiler::pop_phase(push);
+          (void)Profiler::pop_phase(phase_push);
 
           set_fields();
           rn = get_residue();
@@ -269,7 +265,7 @@ PetscErrorCode Particles::form_iteration()
         avgcell += (PetscReal)(coords.size() - 1) / size;
         maxcell = std::max(maxcell, (PetscInt)(coords.size() - 1));
 
-        (void)Profiler::push_phase(decompose);
+        (void)Profiler::push_phase(phase_decompose);
         d = (pn.r - p0.r).length();
         coords = cell_traversal(pn.r, p0.r);
 
@@ -281,7 +277,7 @@ PetscErrorCode Particles::form_iteration()
 
           util.decompose(a0 * bs * (dtau / dt), vh, rsn, rs0);
         }
-        (void)Profiler::pop_phase(decompose);
+        (void)Profiler::pop_phase(phase_decompose);
 
         bool reset = false;
         reset |= bound_periodic(pn.r[X], X);

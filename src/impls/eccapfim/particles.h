@@ -38,9 +38,9 @@ protected:
 
   // Profiler handles
   PetscInt event_prepare_storage;
-  PetscInt event_interpolate;
-  PetscInt event_push;
-  PetscInt event_decompose;
+  PetscInt phase_interpolate;
+  PetscInt phase_push;
+  PetscInt phase_decompose;
 };
 
 
