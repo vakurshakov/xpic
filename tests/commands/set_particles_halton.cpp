@@ -7,7 +7,7 @@ static constexpr char help[] =
   "Halton/quiet versus random loading of a uniform drift-kinetic plasma.\n";
 
 namespace {
-constexpr PetscInt particles_per_cell = 128;
+constexpr PetscInt particles_per_cell = 32;
 
 PetscErrorCode run_case(bool halton, PetscReal& density_rms)
 {
@@ -40,7 +40,7 @@ PetscErrorCode run_case(bool halton, PetscReal& density_rms)
     {"FieldPreconditioner", "none"},
     {"Geometry",
       {
-        {"x", 40}, {"y", 40}, {"z", 40}, {"t", 100},
+        {"x", 80}, {"y", 80}, {"z", 80}, {"t", 10},
         {"dx", 10}, {"dy", 10}, {"dz", 10}, {"dt", 10},
         {"diagnose_period", 10},
         {"da_boundary_x", "DM_BOUNDARY_PERIODIC"},
