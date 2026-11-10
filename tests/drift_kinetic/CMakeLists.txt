@@ -8,6 +8,7 @@ set(smoke_tests
   drift_kinetic_ex6_fields
   drift_kinetic_ex8_periodic_seam
   drift_kinetic_ex11_eparallel
+  drift_kinetic_ex13_splines
 )
 
 set(sanity_tests
@@ -46,6 +47,7 @@ set(mpi_tests
   drift_kinetic_ex6_fields
   drift_kinetic_ex7_balance
   drift_kinetic_ex8_periodic_seam
+  drift_kinetic_ex13_splines
 )
 
 foreach(level smoke sanity regression)
@@ -111,19 +113,6 @@ foreach(case aligned oblique)
 endforeach()
 
 set_property(TEST ${regression_tests} PROPERTY DEPENDS "${smoke_tests};${sanity_tests}")
-
-# Exercise the same seam and continuity checks without cached spline weights.
-add_executable(drift_kinetic_seam_raw.out
-  drift_kinetic_ex8_periodic_seam.cpp ../../src/algorithms/implicit_drift_kinetic.cpp)
-target_compile_definitions(drift_kinetic_seam_raw.out PRIVATE DRIFT_KINETIC_SPLINE_TABLES=0)
-target_link_libraries(drift_kinetic_seam_raw.out ${PROJECT_NAME})
-add_test(NAME drift_kinetic_seam_raw COMMAND ${MPI_DIR}/bin/mpiexec -np 1 ./drift_kinetic_seam_raw.out)
-set_property(TEST drift_kinetic_seam_raw PROPERTY LABELS smoke impls drift_kinetic)
-foreach(axis x y z)
-  set(test drift_kinetic_seam_raw_mpi_${axis}2)
-  add_test(NAME ${test} COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./drift_kinetic_seam_raw.out -da_processors_${axis} 2)
-  set_property(TEST ${test} PROPERTY LABELS smoke impls drift_kinetic mpi)
-endforeach()
 
 add_executable(drift_kinetic_ex12_substeping.out drift_kinetic_ex12_substeping.cpp)
 target_link_libraries(drift_kinetic_ex12_substeping.out ${PROJECT_NAME})

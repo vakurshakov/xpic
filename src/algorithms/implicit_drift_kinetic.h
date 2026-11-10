@@ -6,13 +6,6 @@
 #include "src/impls/drift_kinetic/segments.h"
 #include "src/utils/world.h"
 
-/// @brief 1 builds the segment weights from one-dimensional spline tables
-/// (`DriftKineticSplineTables`), 0 evaluates the splines at every stencil node.
-/// Both give bitwise identical results.
-#ifndef DRIFT_KINETIC_SPLINE_TABLES
-  #define DRIFT_KINETIC_SPLINE_TABLES 1
-#endif
-
 namespace drift_kinetic {
 
 /// @brief Grid stencil for electric fields and current.
@@ -29,12 +22,10 @@ struct DriftKineticShapeGradB {
   static constexpr PetscInt shr = 2;
   static constexpr PetscInt shw = 4;
   Vector3I p_g;
-  Vector3R p_s;
 
   void setup(const DriftKineticSegment& segment);
 };
 
-#if DRIFT_KINETIC_SPLINE_TABLES
 /// @brief Separable factors of the segment weights on the 4-node stencil of
 /// `DriftKineticShapeGradB`; every weight is a product of two entries.
 struct DriftKineticSplineTables {
@@ -50,7 +41,6 @@ struct DriftKineticSplineTables {
 
   void setup(const DriftKineticSegment& segment);
 };
-#endif
 
 /// @brief Interpolates fields and deposits current and magnetization.
 class DriftKineticEsirkepov {
@@ -86,16 +76,8 @@ private:
   PetscErrorCode interpolate_E(  //
     Vector3R& E_p, const DriftKineticSegment& s);
 
-#if DRIFT_KINETIC_SPLINE_TABLES
   PetscErrorCode interpolate_gradB_rotB(Vector3R& gradB_p, Vector3R& rotB_p,
     const Vector3R& b_p, const DriftKineticSegment& s);
-#else
-  PetscErrorCode interpolate_rotB(  //
-    Vector3R& rotB_p, const DriftKineticSegment& s);
-
-  PetscErrorCode interpolate_gradB(  //
-    Vector3R& gradB_p, const Vector3R& b_p, const DriftKineticSegment& s);
-#endif
 
   PetscErrorCode decomposition_M(  //
     const Vector3R& Rp, const Vector3R& b_p, PetscReal mu_p);
@@ -115,9 +97,7 @@ private:
   Vector3R*** J_g = nullptr;  // Current deposition array.
   Vector3R*** M_g = nullptr;  // Magnetization deposition array.
 
-#if DRIFT_KINETIC_SPLINE_TABLES
   DriftKineticSplineTables tables;  // Weights of the current segment.
-#endif
 };
 
 }  // namespace drift_kinetic
