@@ -33,7 +33,7 @@ PetscErrorCode MomentumConservation::initialize()
   std::fill_n(std::back_inserter(QE), particles.size(), 0);
   std::fill_n(std::back_inserter(QVB), particles.size(), 0);
 
-  PetscCall(Profiler::register_event("momentum_conservation", &event_diagnose));
+  PetscCall(Profiler::register_event("momentum_cons", &event_diagnose));
 
   PetscCall(VecDuplicate(E, &En0));
   PetscCall(VecDuplicate(B, &Bn0));

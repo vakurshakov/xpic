@@ -42,7 +42,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_stage(stage_clear_sources));
+  PetscCall(Profiler::push_event(event_clear_sources));
 
   PetscCall(ecsim::Simulation::clear_sources());
   PetscCall(VecSet(currJe, 0.0));
@@ -50,7 +50,7 @@ PetscErrorCode Simulation::clear_sources()
   for (auto& sort : particles_)
     PetscCall(sort->calculate_energy());
 
-  PetscCall(Profiler::pop_stage(stage_clear_sources));
+  PetscCall(Profiler::pop_event(event_clear_sources));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -69,7 +69,7 @@ PetscErrorCode Simulation::correct_fields()
 PetscErrorCode Simulation::final_update()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_stage(stage_final_update));
+  PetscCall(Profiler::push_event(event_final_update));
 
   for (auto& sort : particles_)
     PetscCall(sort->final_update());
@@ -87,7 +87,7 @@ PetscErrorCode Simulation::final_update()
   PetscCall(VecSwap(Ep, Ec));
   PetscCall(ecsim::Simulation::final_update());
 
-  PetscCall(Profiler::pop_stage(stage_final_update));
+  PetscCall(Profiler::pop_event(event_final_update));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

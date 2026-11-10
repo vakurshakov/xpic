@@ -13,7 +13,7 @@ PetscErrorCode ChargeConservation::initialize()
 {
   PetscFunctionBeginUser;
   PetscCall(TableDiagnostic::initialize());
-  PetscCall(Profiler::register_event("charge_conservation", &event_diagnose));
+  PetscCall(Profiler::register_event("charge_cons", &event_diagnose));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

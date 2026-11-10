@@ -24,7 +24,7 @@ Particles::Particles(const World& world, const SortParameters& parameters)
 PetscErrorCode Particles::initialize()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::register_event("update_cells", &event_update_cells));
+  PetscCall(Profiler::register_event("upd_cells", &event_update_cells));
   PetscCall(Profiler::register_event("calculate_rho", &event_calculate_rho));
 
   PetscCall(DMCreateGlobalVector(da, &J));

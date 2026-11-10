@@ -168,7 +168,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_stage(stage_clear_sources));
+  PetscCall(Profiler::push_event(event_clear_sources));
 
   PetscCall(VecSet(currI, 0));
   PetscCall(MatZeroEntries(matL));
@@ -176,7 +176,7 @@ PetscErrorCode Simulation::clear_sources()
   for (auto& sort : particles_)
     PetscCall(sort->clear_sources());
 
-  PetscCall(Profiler::pop_stage(stage_clear_sources));
+  PetscCall(Profiler::pop_event(event_clear_sources));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -243,13 +243,13 @@ PetscErrorCode Simulation::second_push()
 PetscErrorCode Simulation::final_update()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_stage(stage_final_update));
+  PetscCall(Profiler::push_event(event_final_update));
 
   PetscCall(VecAXPBY(E, 2, -1, Ep));
   PetscCall(MatMult(rotE, Ep, rE));
   PetscCall(VecAXPY(B, -dt, rE));
 
-  PetscCall(Profiler::pop_stage(stage_final_update));
+  PetscCall(Profiler::pop_event(event_final_update));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -292,7 +292,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 PetscErrorCode Simulation::update_cells_with_assembly()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_event(event_update_cells_with_assembly));
+  PetscCall(Profiler::push_event(event_upd_cells_wasm));
 
   for (auto& sort : particles_)
     sort->update_cells();
@@ -345,7 +345,7 @@ PetscErrorCode Simulation::update_cells_with_assembly()
     }
   }
 
-  PetscCall(Profiler::pop_event(event_update_cells_with_assembly));
+  PetscCall(Profiler::pop_event(event_upd_cells_wasm));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -491,14 +491,14 @@ PetscErrorCode Simulation::fill_ecsim_current(PetscReal* coo_v)
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
-  PetscCall(Profiler::push_event(event_fill_ecsim_current));
+  PetscCall(Profiler::push_event(event_fill_ecsim_curr));
 
   for (auto& sort : particles_) {
     sort->B_arr = B_arr;
     PetscCall(sort->fill_ecsim_current(coo_v));
   }
 
-  PetscCall(Profiler::pop_event(event_fill_ecsim_current));
+  PetscCall(Profiler::pop_event(event_fill_ecsim_curr));
 
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -516,14 +516,14 @@ void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& of
 PetscErrorCode Simulation::init_log_stages()
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::register_event("update_cells_with_assembly", &event_update_cells_with_assembly));
-  PetscCall(Profiler::register_event("fill_ecsim_current", &event_fill_ecsim_current));
-
-  PetscCall(Profiler::register_stage("Clear sources", &stage_clear_sources));
   PetscCall(Profiler::register_stage("First push", &stage_first_push));
   PetscCall(Profiler::register_stage("Advance field", &stage_advance_field));
   PetscCall(Profiler::register_stage("Second push", &stage_second_push));
-  PetscCall(Profiler::register_stage("Final update", &stage_final_update));
+
+  PetscCall(Profiler::register_event("upd_cells_wasm", &event_upd_cells_wasm));
+  PetscCall(Profiler::register_event("fill_ecsim_curr", &event_fill_ecsim_curr));
+  PetscCall(Profiler::register_event("clear_sources", &event_clear_sources));
+  PetscCall(Profiler::register_event("final_update", &event_final_update));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

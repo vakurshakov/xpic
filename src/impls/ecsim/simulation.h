@@ -92,13 +92,13 @@ protected:
   std::vector<PetscReal> conv_hist;
 
   // Profiler handles
-  PetscInt stage_clear_sources;
   PetscInt stage_first_push;
   PetscInt stage_advance_field;
   PetscInt stage_second_push;
-  PetscInt stage_final_update;
-  PetscInt event_update_cells_with_assembly;
-  PetscInt event_fill_ecsim_current;
+  PetscInt event_final_update;
+  PetscInt event_clear_sources;
+  PetscInt event_upd_cells_wasm;
+  PetscInt event_fill_ecsim_curr;
 };
 
 }  // namespace ecsim
