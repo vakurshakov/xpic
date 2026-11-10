@@ -350,7 +350,7 @@ PetscErrorCode LogView::level_3_impl(PetscInt t)
       PetscLogDouble delta = event_time - prev;
       prev = event_time;
 
-      if (total > 0.0 && 100.0 * delta / total >= 0.1 && column.time > 0.0)
+      if (total > 0 && 100.0 * delta / total >= 0.1 && column.time > 0)
         column.events.push_back({word(event_name), delta});
     }
 
