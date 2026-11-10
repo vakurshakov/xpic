@@ -141,7 +141,6 @@ PetscErrorCode Particles::prepare_storage()
 PetscReal Particles::kinetic_energy_local() const
 {
   PetscReal energy = 0.0;
-  const PetscReal mpw = parameters.n / static_cast<PetscReal>(parameters.Np);
   PetscCallAbort(PETSC_COMM_WORLD, DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
   PetscCallAbort(PETSC_COMM_WORLD, DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
@@ -164,7 +163,7 @@ PetscReal Particles::kinetic_energy_local() const
 
   PetscCallAbort(PETSC_COMM_WORLD, storage.restore_attributes(f));
   PetscCallAbort(PETSC_COMM_WORLD, DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
-  return 0.5 * parameters.m * mpw * energy;
+  return 0.5 * parameters.m * parameters.mpw * energy;
 }
 
 PetscReal Particles::get_average_iteration_number() const

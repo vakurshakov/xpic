@@ -2,12 +2,13 @@
 
 #include "src/algorithms/crank_nicolson_push.h"
 #include "src/algorithms/implicit_esirkepov.h"
-#include "src/impls/eccapfim/simulation.h"
+#include "src/interfaces/simulation.h"
 
 namespace eccapfim {
 
-Particles::Particles(Simulation& simulation, const SortParameters& parameters)
-  : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
+Particles::Particles(
+  interfaces::Simulation& simulation, const SortParameters& parameters)
+  : interfaces::Particles(simulation.world, parameters)
 {
 }
 
@@ -157,8 +158,6 @@ PetscErrorCode Particles::form_iteration()
   PetscReal ze = (world.end[Z] + 0.5) * dz;
 
   PetscReal max = std::numeric_limits<double>::max();
-
-  const PetscReal atol = simulation_.atol;
 
   auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe)
   {

@@ -97,6 +97,13 @@ public:
 
   PetscErrorCode calculate_moments();
 
+  /**
+   * @returns Kinetic energy of the particles owned by this MPI rank.
+   * @note Call on all ranks: derived sorts may exchange field ghost values.
+   * The caller performs the global energy reduction.
+   */
+  virtual PetscReal kinetic_energy_local() const;
+
   Vector3R velocity(const Point& point) const;
 
   PetscErrorCode log_distribution() const;

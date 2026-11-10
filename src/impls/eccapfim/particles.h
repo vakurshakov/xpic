@@ -5,13 +5,15 @@
 #include "src/interfaces/particles.h"
 #include "src/utils/shape.h"
 
-namespace eccapfim {
-
+namespace interfaces {
 class Simulation;
+}
+
+namespace eccapfim {
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const SortParameters& parameters);
+  Particles(interfaces::Simulation& simulation, const SortParameters& parameters);
   PetscErrorCode initialize() override;
 
   PetscErrorCode prepare_storage();
@@ -41,8 +43,6 @@ protected:
   PetscReal avgit = 0;
   PetscReal avgcell = 0;
   PetscInt maxcell = 0;
-
-  Simulation& simulation_;
 
   PetscClassId classid;
   PetscLogEvent events[2];

@@ -97,7 +97,7 @@ PetscErrorCode Energy::calculate_kinetic()
     n = f.size;
     PetscCall(sort->storage.restore_attributes(f));
 
-    K[i] = frac * w;
+    K[i] = sort->kinetic_energy_local();
 
     PetscReal v[4] = {vx, vy, vz, w};
     PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, v, 4, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));

@@ -99,13 +99,9 @@ PetscErrorCode EnergyConservation::initialize()
   DM da = simulation.da_rho;
 
   for (const auto& ptr : simulation.particles_) {
-    const drift_kinetic::Particles& sort = *ptr;
+    const interfaces::Particles& sort = *ptr;
     sorts.emplace_back(SortView{
       sort,
-      [&sort]
-      {
-        return sort.kinetic_energy_local();
-      },
       [&sort, da](Vec rho)
       {
         return collect_charge_density(
@@ -115,13 +111,9 @@ PetscErrorCode EnergyConservation::initialize()
   }
 
   for (const auto& ptr : simulation.kinetic_particles_) {
-    const KineticParticles& sort = *ptr;
+    const interfaces::Particles& sort = *ptr;
     sorts.emplace_back(SortView{
       sort,
-      [&sort]
-      {
-        return sort.kinetic_energy_local();
-      },
       [&sort, da](Vec rho)
       {
         return collect_charge_density(
@@ -274,7 +266,7 @@ PetscErrorCode EnergyConservation::calculate_kinetic_energies(
   PetscFunctionBeginUser;
   K.resize(sorts.size());
   for (std::size_t i = 0; i < sorts.size(); i++)
-    K[i] = sorts[i].kinetic_energy_local();
+    K[i] = sorts[i].sort.kinetic_energy_local();
 
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, K.data(), (PetscMPIInt)K.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);

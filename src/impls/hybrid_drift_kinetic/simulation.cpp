@@ -201,7 +201,7 @@ PetscErrorCode Simulation::init_kinetic_particles()
     auto base =
       std::find_if(all_particles.begin(), all_particles.end(), is_named);
 
-    auto sort = std::make_shared<KineticParticles>(world, (*dk)->parameters);
+    auto sort = std::make_shared<Particles>(*this, (*dk)->parameters);
     PetscCall(sort->initialize());
     PetscCall((*dk)->finalize());
     particles_.erase(dk);

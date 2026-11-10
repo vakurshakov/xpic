@@ -14,7 +14,7 @@ public:
   Simulation() = default;
   PetscErrorCode finalize() override;
 
-  std::vector<std::shared_ptr<KineticParticles>> kinetic_particles_;
+  std::vector<std::shared_ptr<Particles>> kinetic_particles_;
 
 protected:
   PetscErrorCode initialize_implementation() override;

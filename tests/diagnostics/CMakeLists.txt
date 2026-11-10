@@ -9,6 +9,7 @@ set(tests
   distribution_moment
   distribution_moment_dk
   distribution_moment_deposit
+  kinetic_energy
   simulation_backup
   simulation_backup_dk
 )
@@ -18,7 +19,12 @@ foreach(test ${tests})
   add_executable(${test}.out ${test}.cpp)
   target_link_libraries(${test}.out ${PROJECT_NAME})
 
-  add_test(NAME "${test}" COMMAND ./${test}.out)
+  if(test STREQUAL "kinetic_energy")
+    # Avoid singleton MPI initialization hangs for the serial run.
+    add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -np 1 ./${test}.out)
+  else()
+    add_test(NAME "${test}" COMMAND ./${test}.out)
+  endif()
   set_property(TEST "${test}" PROPERTY LABELS smoke diagnostics)
   set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "${test}")
 

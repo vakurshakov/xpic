@@ -20,7 +20,6 @@ public:
 private:
   struct SortView {
     const interfaces::Particles& sort;
-    std::function<PetscReal()> kinetic_energy_local;
     std::function<PetscErrorCode(Vec)> collect_charge_density;
   };
 

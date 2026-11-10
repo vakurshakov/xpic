@@ -202,4 +202,19 @@ PetscErrorCode Particles::calculate_moments()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscReal Particles::kinetic_energy_local() const
+{
+  PetscReal energy = 0;
+  ParticleStorage::Attributes f;
+  PetscCallAbort(PETSC_COMM_WORLD, storage.get_attribute(f, "p"));
+  const PetscReal* p = f["p"];
+
+#pragma omp parallel for reduction(+ : energy)
+  for (PetscInt i = 0; i < f.size; i++)
+    energy += Vector3R(p + 3 * i).squared();
+
+  PetscCallAbort(PETSC_COMM_WORLD, storage.restore_attributes(f));
+  return 0.5 * parameters.m * parameters.mpw * energy;
+}
+
 }  // namespace interfaces
