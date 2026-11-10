@@ -16,15 +16,6 @@ MomentumConservation::MomentumConservation(
 {
 }
 
-PetscErrorCode MomentumConservation::finalize()
-{
-  PetscFunctionBeginUser;
-  PetscCall(VecDestroy(&En0));
-  PetscCall(VecDestroy(&Bn0));
-  PetscCall(TableDiagnostic::finalize());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
 PetscErrorCode MomentumConservation::initialize()
 {
   PetscFunctionBeginUser;
@@ -46,6 +37,15 @@ PetscErrorCode MomentumConservation::initialize()
     P0[i] = P1[i];
   }
   PetscCall(TableDiagnostic::initialize());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode MomentumConservation::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(VecDestroy(&En0));
+  PetscCall(VecDestroy(&Bn0));
+  PetscCall(TableDiagnostic::finalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
