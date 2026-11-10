@@ -73,7 +73,7 @@ PetscErrorCode Profiler::pop_stage(PetscInt id)
   if (!enabled)
     PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscAssert(!active_stages.empty() && active_stages.top() == id, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+  PetscCheck(!active_stages.empty() && active_stages.top() == id, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Profiler::pop_stage(%d) does not match the last push", (int)id);
 
   PetscCall(PetscLogStagePop());
@@ -86,7 +86,7 @@ PetscErrorCode Profiler::register_event(const char* name, PetscInt* id)
   PetscFunctionBeginUser;
   PetscCall(check_option());
 
-  PetscAssert(!omp_in_parallel(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+  PetscCheck(!omp_in_parallel(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Profiler::register_event(%s) must be called outside parallel regions", name);
 
   PetscLogEvent event;
@@ -113,7 +113,7 @@ PetscErrorCode Profiler::push_event(PetscInt id)
   if (!enabled)
     PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscAssert(!omp_in_parallel(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+  PetscCheck(!omp_in_parallel(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Profiler::push_event(%d) is serial only, use push_phase", (int)id);
 
   PetscCall(PetscLogEventBegin(id, 0, 0, 0, 0));
@@ -127,10 +127,10 @@ PetscErrorCode Profiler::pop_event(PetscInt id)
   if (!enabled)
     PetscFunctionReturn(PETSC_SUCCESS);
 
-  PetscAssert(!omp_in_parallel(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+  PetscCheck(!omp_in_parallel(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Profiler::pop_event(%d) is serial only, use pop_phase", (int)id);
 
-  PetscAssert(!active_events.empty() && active_events.top() == id, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+  PetscCheck(!active_events.empty() && active_events.top() == id, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Profiler::pop_event(%d) does not match the last push", (int)id);
 
   PetscCall(PetscLogEventEnd(id, 0, 0, 0, 0));
@@ -168,7 +168,7 @@ PetscErrorCode Profiler::pop_phase(PetscInt id)
   PetscCall(PetscTime(&now));
 
   ThreadSlot& slot = slots[omp_get_thread_num()];
-  PetscAssert(!slot.active.empty() && slot.active.top() == id, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+  PetscCheck(!slot.active.empty() && slot.active.top() == id, PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Profiler::pop_phase(%d) does not match the last push in the thread", (int)id);
 
   ThreadSlot::Acc& acc = slot.events[id];
@@ -181,7 +181,7 @@ PetscErrorCode Profiler::pop_phase(PetscInt id)
 PetscErrorCode Profiler::flush()
 {
   PetscFunctionBeginUser;
-  PetscAssert(!omp_in_parallel(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+  PetscCheck(!omp_in_parallel(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
     "Profiler::flush() must be called outside parallel regions");
 
   if (!enabled || slots.empty())
@@ -203,7 +203,7 @@ PetscErrorCode Profiler::flush()
 
     for (ThreadSlot& slot : slots) {
       ThreadSlot::Acc& acc = slot.events[id];
-      PetscAssert(slot.active.empty(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
+      PetscCheck(slot.active.empty(), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
         "Profiler::flush() called with an unmatched push_phase(%d)", (int)slot.active.top());
 
       time += acc.time;
