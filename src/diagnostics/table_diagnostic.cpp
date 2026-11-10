@@ -1,8 +1,18 @@
 #include "table_diagnostic.h"
 
+#include "src/utils/profiler.h"
+
 TableDiagnostic::TableDiagnostic(const std::string& filename)
   : filename(filename)
 {
+}
+
+PetscErrorCode TableDiagnostic::initialize()
+{
+  PetscFunctionBeginUser;
+  initialized = true;
+  PetscCall(Profiler::register_event("table_write", &event_write));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
@@ -18,6 +28,8 @@ PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
     row_is_loaded = (t != 0 && has_header);
   }
 
+  // The event is registered by `initialize()`, so it can be pushed only now.
+  PetscCall(Profiler::push_event(event_write));
   PetscCall(add_columns(t));
 
   if (!values.empty()) {
@@ -36,13 +48,8 @@ PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
 
   if (t % diagnose_period_ == 0)
     PetscCall(flush());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
 
-PetscErrorCode TableDiagnostic::initialize()
-{
-  PetscFunctionBeginUser;
-  initialized = true;
+  PetscCall(Profiler::pop_event(event_write));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

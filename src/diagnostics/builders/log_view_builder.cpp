@@ -23,6 +23,8 @@ PetscErrorCode LogViewBuilder::build(const Configuration::json_t& info)
     level = LogView::DiagnosePeriodAvg;
   else if (level_info == "AllTimestepsSummary")
     level = LogView::AllTimestepsSummary;
+  else if (level_info == "EachTimestepEvents")
+    level = LogView::EachTimestepEvents;
 
   diagnostics_.emplace_back(std::make_unique<LogView>(level));
 

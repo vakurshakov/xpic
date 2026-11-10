@@ -4,6 +4,7 @@
 #include "src/commands/inject_particles.h"
 #include "src/commands/remove_particles.h"
 #include "src/utils/configuration.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 Energy::Energy(const interfaces::Simulation& simulation)
@@ -11,17 +12,28 @@ Energy::Energy(const interfaces::Simulation& simulation)
     energy(CONFIG().out_dir + "/temporal/energy.txt"),
     energy_cons(CONFIG().out_dir + "/temporal/energy_conservation.txt")
 {
+}
+
+PetscErrorCode Energy::initialize()
+{
+  PetscFunctionBeginUser;
+  initialized = true;
+
   auto& particles = simulation.particles_;
   std::fill_n(std::back_inserter(K), particles.size(), 0);
   std::fill_n(std::back_inserter(K0), particles.size(), 0);
   std::fill_n(std::back_inserter(std_K), particles.size(), 0);
+
+  PetscCall(Profiler::register_event("energy_field", &event_field));
+  PetscCall(Profiler::register_event("energy_kinetic", &event_kinetic));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Energy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   if (!initialized) {
-    initialized = true;
+    PetscCall(initialize());
     PetscCall(calculate_field());
     PetscCall(calculate_kinetic());
   }
@@ -44,6 +56,8 @@ PetscErrorCode Energy::diagnose(PetscInt t)
 PetscErrorCode Energy::calculate_field()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_event(event_field));
+
   PetscCall(VecAXPY(simulation.B, -1, simulation.B0));
 
   PetscCall(VecNorm(simulation.E, NORM_2, &E));
@@ -60,12 +74,16 @@ PetscErrorCode Energy::calculate_field()
   std_B = sqrt((B - 0.5 * mean_B.squared() / g3) / g3);
 
   PetscCall(VecAXPY(simulation.B, +1, simulation.B0));
+
+  PetscCall(Profiler::pop_event(event_field));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Energy::calculate_kinetic()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_event(event_kinetic));
+
   PetscReal frac, m, mpw, vx, vy, vz, w;
   PetscInt n;
 
@@ -112,8 +130,9 @@ PetscErrorCode Energy::calculate_kinetic()
     PetscReal s = v[3] - (v[X] * v[X] + v[Y] * v[Y] + v[Z] * v[Z]) / n;
     std_K[i] = frac * sqrt(abs(s) / n);
   }
-
   PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, K.data(), K.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+
+  PetscCall(Profiler::pop_event(event_kinetic));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

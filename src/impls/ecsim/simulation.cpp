@@ -1,6 +1,7 @@
 #include "simulation.h"
 
 #include "src/utils/geometries.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 
@@ -121,10 +122,7 @@ namespace ecsim {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
-  SyncClock init_clock;
-  PetscCall(init_clock.push(__FUNCTION__));
   PetscCall(init_log_stages());
-  PetscCall(PetscLogStagePush(stagenums[0]));
 
   assembly_map.resize(world.size.elements_product());
 
@@ -135,9 +133,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   currI = J;
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(init_clock.pop());
-  LOG("Initialization of ecsim took {:6.4e} seconds", init_clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -167,15 +162,13 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt t)
     PetscCall(VecCopy(E, Ep));
     PetscCall(second_push());
   }
-  PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push("clear_sources1"));
-  PetscCall(PetscLogStagePush(stagenums[1]));
+  PetscCall(Profiler::push_event(event_clear_sources));
 
   PetscCall(VecSet(currI, 0));
   PetscCall(MatZeroEntries(matL));
@@ -183,16 +176,14 @@ PetscErrorCode Simulation::clear_sources()
   for (auto& sort : particles_)
     PetscCall(sort->clear_sources());
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
+  PetscCall(Profiler::pop_event(event_clear_sources));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::first_push()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[2]));
+  PetscCall(Profiler::push_stage(stage_first_push));
 
   for (auto& sort : particles_)
     PetscCall(sort->first_push());
@@ -200,16 +191,14 @@ PetscErrorCode Simulation::first_push()
   PetscCall(update_cells_with_assembly());
   PetscCall(fill_ecsim_current());
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
+  PetscCall(Profiler::pop_stage(stage_first_push));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::advance_fields()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[3]));
+  PetscCall(Profiler::push_stage(stage_advance_field));
 
   PetscCall(MatDuplicate(matL, MAT_COPY_VALUES, &matA));
   PetscCall(MatAXPY(matA, 1, matM, DIFFERENT_NONZERO_PATTERN));
@@ -221,16 +210,14 @@ PetscErrorCode Simulation::advance_fields()
 
   PetscCall(MatDestroy(&matA));
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
+  PetscCall(Profiler::pop_stage(stage_advance_field));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::second_push()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[4]));
+  PetscCall(Profiler::push_stage(stage_second_push));
 
   PetscCall(DMGlobalToLocal(da, Ep, INSERT_VALUES, E_loc));
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
@@ -249,23 +236,20 @@ PetscErrorCode Simulation::second_push()
 
   PetscCall(update_cells_with_assembly());
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
+  PetscCall(Profiler::pop_stage(stage_second_push));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::final_update()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push("final_update1"));
-  PetscCall(PetscLogStagePush(stagenums[5]));
+  PetscCall(Profiler::push_event(event_final_update));
 
   PetscCall(VecAXPBY(E, 2, -1, Ep));
   PetscCall(MatMult(rotE, Ep, rE));
   PetscCall(VecAXPY(B, -dt, rE));
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
+  PetscCall(Profiler::pop_event(event_final_update));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -308,7 +292,7 @@ PetscErrorCode Simulation::advance_fields(KSP ksp, Vec curr, Vec out)
 PetscErrorCode Simulation::update_cells_with_assembly()
 {
   PetscFunctionBeginUser;
-  PetscLogEventBegin(events[0], 0, 0, 0, 0);
+  PetscCall(Profiler::push_event(event_upd_cells_wasm));
 
   for (auto& sort : particles_)
     sort->update_cells();
@@ -361,7 +345,7 @@ PetscErrorCode Simulation::update_cells_with_assembly()
     }
   }
 
-  PetscLogEventEnd(events[0], 0, 0, 0, 0);
+  PetscCall(Profiler::pop_event(event_upd_cells_wasm));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -507,14 +491,14 @@ PetscErrorCode Simulation::fill_ecsim_current(PetscReal* coo_v)
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
-  PetscLogEventBegin(events[1], B_loc, 0, 0, 0);
+  PetscCall(Profiler::push_event(event_fill_ecsim_curr));
 
   for (auto& sort : particles_) {
     sort->B_arr = B_arr;
     PetscCall(sort->fill_ecsim_current(coo_v));
   }
 
-  PetscLogEventEnd(events[1], B_loc, 0, 0, 0);
+  PetscCall(Profiler::pop_event(event_fill_ecsim_curr));
 
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -532,16 +516,14 @@ void Simulation::get_array_offset(PetscInt begin_g, PetscInt end_g, PetscInt& of
 PetscErrorCode Simulation::init_log_stages()
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscClassIdRegister("ecsim::Simulation", &classid));
-  PetscCall(PetscLogEventRegister("update_cells_with_assembly", classid, &events[0]));
-  PetscCall(PetscLogEventRegister("fill_ecsim_current", classid, &events[1]));
+  PetscCall(Profiler::register_stage("First push", &stage_first_push));
+  PetscCall(Profiler::register_stage("Advance field", &stage_advance_field));
+  PetscCall(Profiler::register_stage("Second push", &stage_second_push));
 
-  PetscCall(register_log_stage("Initialization", &stagenums[0]));
-  PetscCall(register_log_stage("Clear sources", &stagenums[1]));
-  PetscCall(register_log_stage("First push", &stagenums[2]));
-  PetscCall(register_log_stage("Advance field", &stagenums[3]));
-  PetscCall(register_log_stage("Second push", &stagenums[4]));
-  PetscCall(register_log_stage("Final update", &stagenums[5]));
+  PetscCall(Profiler::register_event("upd_cells_wasm", &event_upd_cells_wasm));
+  PetscCall(Profiler::register_event("fill_ecsim_curr", &event_fill_ecsim_curr));
+  PetscCall(Profiler::register_event("clear_sources", &event_clear_sources));
+  PetscCall(Profiler::register_event("final_update", &event_final_update));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -1,5 +1,6 @@
 #include "simulation.h"
 
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 
@@ -10,18 +11,12 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionBeginUser;
   PetscCall(init_log());
 
-  SyncClock init_clock;
-  PetscCall(init_clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[0]));
 
   PetscCall(init_snes());
   PetscCall(init_particles(*this, particles_));
 
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(init_clock.pop());
-  LOG("Initialization took {:6.4e} seconds", init_clock.get(__FUNCTION__));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -102,19 +97,14 @@ PetscErrorCode Simulation::init_snes()
 PetscErrorCode Simulation::init_log()
 {
   PetscFunctionBeginUser;
-  PetscCall(PetscClassIdRegister("eccapfim::Simulation", &classid));
-  PetscCall(PetscLogEventRegister("clear_sources", classid, &events[0]));
-  PetscCall(PetscLogEventRegister("form_current", classid, &events[1]));
-  PetscCall(PetscLogEventRegister("form_function", classid, &events[2]));
-  PetscCall(PetscLogEventRegister("form_precond", classid, &events[3]));
-  PetscCall(PetscLogEventRegister("comp_snes", classid, &events[4]));
-  PetscCall(PetscLogEventRegister("decomp_snes", classid, &events[5]));
-  PetscCall(PetscLogEventRegister("mat_mult", classid, &events[6]));
+  PetscCall(Profiler::register_event("clear_sources", &event_clear_sources));
+  PetscCall(Profiler::register_stage("Form current", &stage_form_current));
+  PetscCall(Profiler::register_stage("Form function", &stage_form_function));
+  PetscCall(Profiler::register_event("form_precond", &event_form_precond));
+  PetscCall(Profiler::register_event("comp_snes", &event_comp_snes));
+  PetscCall(Profiler::register_event("decomp_snes", &event_decomp_snes));
+  PetscCall(Profiler::register_event("mat_mult", &event_mat_mult));
 
-  PetscCall(register_log_stage("Initialization", &stagenums[0]));
-  PetscCall(register_log_stage("Init iteration", &stagenums[1]));
-  PetscCall(register_log_stage("Calc iteration", &stagenums[2]));
-  PetscCall(register_log_stage("After iteration", &stagenums[3]));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -154,16 +144,12 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
   else {
     PetscCall(push_particles());
   }
-  PetscCall(clock.log_timings());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::init_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[1]));
-
   for (auto& sort : particles_)
     PetscCall(sort->prepare_storage());
 
@@ -174,16 +160,12 @@ PetscErrorCode Simulation::init_iteration()
 #if !SNES_ITERATE_B
   PetscCall(DMGlobalToLocal(da, B, INSERT_VALUES, B_loc));
 #endif
-
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::push_particles()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
 
   for (auto& sort : particles_)
     PetscCall(sort->prepare_storage());
@@ -197,16 +179,12 @@ PetscErrorCode Simulation::push_particles()
   for (auto& sort : particles_)
     PetscCall(sort->update_cells());
 
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::calc_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[2]));
-
   PetscCall(SNESSolve(snes, NULL, sol));
 
   const char* name;
@@ -236,9 +214,6 @@ PetscErrorCode Simulation::calc_iteration()
     LOG("    Maximum number of traversed cells is {:3d}", sort->get_maximum_number_of_traversed_cells());
   }
 
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
-
   PetscCheck(reason >= 0, PetscObjectComm((PetscObject)snes), PETSC_ERR_NOT_CONVERGED, "SNESSolve has not converged");
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -265,8 +240,6 @@ PetscErrorCode Simulation::impl_form_prediction(Vec x)
   PetscCall(DMDAVecGetArrayDOFWrite(da, I_loc, &I_arr));
   PetscCall(DMDAVecGetArrayDOFWrite(nda, nLv_loc, &nLv_arr));
 
-  /// @todo The clock shows the time of only the last iteration
-  PetscCall(clock.push(__FUNCTION__));
 
   for (auto& sort : particles_) {
     sort->B_arr = B_arr;
@@ -289,7 +262,6 @@ PetscErrorCode Simulation::impl_form_prediction(Vec x)
   PetscCall(KSPSolve(ksp, rE, E_hk));
   PetscCall(KSPGetSolution(ksp, &E_hk));
 
-  PetscCall(clock.pop());
 
   // Convergence analysis
   const char* name;
@@ -330,18 +302,16 @@ PetscErrorCode Simulation::impl_form_iteration(Vec x, Vec f)
   PetscCall(DMGlobalToLocal(da, B_hk, INSERT_VALUES, B_loc));
   #endif
 #endif
-  PetscCall(clock.push(__FUNCTION__));
   PetscCall(clear_sources());
   PetscCall(form_current());
   PetscCall(form_function(f));
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::clear_sources()
 {
   PetscFunctionBeginUser;
-  PetscLogEventBegin(events[0], J, 0, 0, 0);
+  PetscCall(Profiler::push_event(event_clear_sources));
 
   PetscCall(VecSet(J, 0));
 
@@ -350,19 +320,17 @@ PetscErrorCode Simulation::clear_sources()
     PetscCall(VecSet(sort->J_loc, 0));
   }
 
-  PetscLogEventEnd(events[0], J, 0, 0, 0);
+  PetscCall(Profiler::pop_event(event_clear_sources));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::form_current()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-
   PetscCall(DMDAVecGetArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecGetArrayRead(da, B_loc, &B_arr));
 
-  PetscLogEventBegin(events[1], E_loc, B_loc, J, 0);
+  PetscCall(Profiler::push_stage(stage_form_current));
 
   for (auto& sort : particles_) {
     sort->E_arr = E_arr;
@@ -371,25 +339,22 @@ PetscErrorCode Simulation::form_current()
     PetscCall(VecAXPY(J, 1, sort->J));
   }
 
-  PetscLogEventEnd(events[1], E_loc, B_loc, J, 0);
+  PetscCall(Profiler::pop_stage(stage_form_current));
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
-
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::form_function(Vec f)
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
 #if SNES_ITERATE_B
   Vec E_f, B_f;
   PetscCall(DMGetGlobalVector(da, &E_f));
   PetscCall(DMGetGlobalVector(da, &B_f));
 
-  PetscLogEventBegin(events[2], f, E_f, B_f, J);
+  PetscCall(Profiler::push_stage(stage_form_function));
   PetscCall(VecAXPY(B, -1, B0));
 
   // F(E) = (E^{n+1/2,k} - E^{n}) + (0.5 * dt) * (J^{n+1/2,k} - rot(B^{n+1/2,k}))
@@ -406,14 +371,14 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(B_f, +0.5 * dt, rE));
 
   PetscCall(VecAXPY(B, +1, B0));
-  PetscLogEventEnd(events[2], f, E_f, B_f, J);
+  PetscCall(Profiler::pop_stage(stage_form_function));
 
   PetscCall(comp_snes(E_f, B_f, f));
 
   PetscCall(DMRestoreGlobalVector(da, &E_f));
   PetscCall(DMRestoreGlobalVector(da, &B_f));
 #else
-  PetscLogEventBegin(events[2], f, E_hk, B, J);
+  PetscCall(Profiler::push_stage(stage_form_function));
   PetscCall(VecAXPY(B, -1, B0));
 
   PetscCall(MatMult(rotB, B, rB));
@@ -423,18 +388,14 @@ PetscErrorCode Simulation::form_function(Vec f)
   PetscCall(VecAXPY(f, -0.5 * dt, rB));
 
   PetscCall(VecAXPY(B, +1, B0));
-  PetscLogEventEnd(events[2], f, E_hk, B, J);
+  PetscCall(Profiler::pop_stage(stage_form_function));
 #endif
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::after_iteration()
 {
   PetscFunctionBeginUser;
-  PetscCall(clock.push(__FUNCTION__));
-  PetscCall(PetscLogStagePush(stagenums[3]));
-
   PetscCall(SNESGetSolution(snes, &sol));
   PetscCall(decomp_snes(E_hk, B_hk, sol));
 
@@ -450,9 +411,6 @@ PetscErrorCode Simulation::after_iteration()
   /// @note The same crash can happen here...
   for (auto& sort : particles_)
     PetscCall(sort->update_cells());
-
-  PetscCall(PetscLogStagePop());
-  PetscCall(clock.pop());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -476,7 +434,7 @@ PetscErrorCode Simulation::impl_mat_mult(Vec x, Vec y)
   PetscCall(DMDAVecGetArrayDOFRead(da, x, &x_arr));
   PetscCall(DMDAVecGetArrayDOFWrite(da, y, &y_arr));
 
-  PetscLogEventBegin(events[6], nLv, x, y, 0);
+  PetscCall(Profiler::push_event(event_mat_mult));
 
 #pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
@@ -497,7 +455,7 @@ PetscErrorCode Simulation::impl_mat_mult(Vec x, Vec y)
   PetscCall(DMDAVecRestoreArrayDOFRead(da, x, &x_arr));
   PetscCall(DMDAVecRestoreArrayDOFWrite(da, y, &y_arr));
 
-  PetscLogEventEnd(events[6], nLv, x, y, 0);
+  PetscCall(Profiler::pop_event(event_mat_mult));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -513,7 +471,7 @@ PetscErrorCode Simulation::comp_snes(Vec vE, Vec vB, Vec v)
   PetscCall(DMDAVecGetArrayDOFRead(da, vB, &vB_arr));
   PetscCall(DMDAVecGetArrayDOFWrite(sda, v, &v_arr));
 
-  PetscLogEventBegin(events[4], vE, vB, v, 0);
+  PetscCall(Profiler::push_event(event_comp_snes));
 
   #pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
@@ -530,7 +488,7 @@ PetscErrorCode Simulation::comp_snes(Vec vE, Vec vB, Vec v)
     v_arr[z][y][x][5] = vB_arr[z][y][x][Z];
   }
 
-  PetscLogEventEnd(events[4], vE, vB, v, 0);
+  PetscCall(Profiler::pop_event(event_comp_snes));
 
   PetscCall(DMDAVecRestoreArrayDOFWrite(sda, v, &v_arr));
   PetscCall(DMDAVecRestoreArrayDOFRead(da, vE, &vE_arr));
@@ -552,7 +510,7 @@ PetscErrorCode Simulation::decomp_snes(Vec vE, Vec vB, Vec v)
   PetscCall(DMDAVecGetArrayDOFWrite(da, vB, &vB_arr));
   PetscCall(DMDAVecGetArrayDOFRead(sda, v, &v_arr));
 
-  PetscLogEventBegin(events[5], v, vE, vB, 0);
+  PetscCall(Profiler::push_event(event_decomp_snes));
 
   #pragma omp parallel for simd
   for (PetscInt g = 0; g < world.size.elements_product(); ++g) {
@@ -569,7 +527,7 @@ PetscErrorCode Simulation::decomp_snes(Vec vE, Vec vB, Vec v)
     vB_arr[z][y][x][Z] = v_arr[z][y][x][5];
   }
 
-  PetscLogEventEnd(events[5], v, vE, vB, 0);
+  PetscCall(Profiler::pop_event(event_decomp_snes));
 
   PetscCall(DMDAVecRestoreArrayDOFRead(sda, v, &v_arr));
   PetscCall(DMDAVecRestoreArrayDOFWrite(da, vE, &vE_arr));

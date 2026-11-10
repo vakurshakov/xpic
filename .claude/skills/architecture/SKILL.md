@@ -72,7 +72,7 @@ Cross-cutting infrastructure with no config-dispatch layer:
 - `Vector3`/`Vector4`/`vector_utils.h`, `Operators` (`operators.h`/`.cpp`) — math/vector helpers.
 - `TableFunction` (`table_function.h`/`.cpp`) — tabulated function evaluation (e.g. for arbitrary profiles).
 - `RandomGenerator` (`random_generator.h`), `ZigguratGaussian` (`ziggurat_gaussian.h`/`.cpp`) — RNG, including Maxwellian sampling.
-- `SyncClock` (`sync_clock.h`/`.cpp`) — timing/profiling instrumentation.
+- `Profiler` (`profiler.h`/`.cpp`) — timing/profiling instrumentation.
 - `utils.h`/`.cpp` — the `LOG(...)`, `LOG_IMPL(...)`, `LOG_FLUSH()` logging macros (format-string style, similar to `std::format`) and other small helpers.
 
 ## `docs/`

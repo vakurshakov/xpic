@@ -23,6 +23,8 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) are set in `header.sh
 
 - `./run-format-all.sh [--install]` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`); `--install` installs `clang-format` if missing. Run it _only_ when explicitly asked to fix project-wide styling issues or before major releases.
 
+- **When to run which level:** during implementation run only `smoke` and `sanity` (`-L smoke`, `-L sanity`); they are fast. Run `regression` tests only before executing the modified versions of the code on the cluster, pushing to the remote branch and before committing to master, never in the middle of an implementation.
+
 ## Test layout
 
 Tests are plain executables registered with `add_test` in each `tests/<area>/CMakeLists.txt`; most are added twice — once serial, once as an `mpiexec -np 2 ... -da_processors_x 2` MPI variant. When adding a new implementation or algorithm, add matching tests in the corresponding `tests/<area>/` directory and register them the same way, including both the serial and MPI variants.

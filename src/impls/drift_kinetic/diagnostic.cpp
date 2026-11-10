@@ -323,7 +323,7 @@ PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 PetscErrorCode EnergyConservation::initialize()
 {
   PetscFunctionBeginUser;
-  initialized = true;
+  PetscCall(TableDiagnostic::initialize());
   PetscCall(DMCreateGlobalVector(simulation.da, &E_prev));
   PetscCall(DMCreateGlobalVector(simulation.da, &B_prev));
   PetscCall(VecCopy(simulation.E, E_prev));

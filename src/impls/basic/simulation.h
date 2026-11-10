@@ -18,6 +18,10 @@ private:
 
   PetscErrorCode push_particles();
   PetscErrorCode push_fields();
+
+  // Profiler handles
+  PetscInt stage_push_particles;
+  PetscInt stage_push_fields;
 };
 
 }  // namespace basic

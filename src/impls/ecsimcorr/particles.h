@@ -39,9 +39,6 @@ private:
   PetscReal corr_dK = 0.0;
   PetscReal lambda_dK = 0.0;
 
-  PetscClassId classid;
-  PetscLogEvent events[3];
-
   friend class Energy;
 };
 

@@ -4,7 +4,6 @@
 #include "src/diagnostics/energy.h"
 #include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/particles.h"
-#include "src/utils/sync_clock.h"
 
 namespace ecsimcorr {
 
@@ -35,7 +34,8 @@ private:
   using ecsim::Simulation::ksp;  // prediction KSP
   KSP correct;
 
-  PetscLogStage stagenums[7];
+  // Profiler handles
+  PetscInt stage_correct_fields;
 };
 
 class Energy : public ::Energy {

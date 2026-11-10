@@ -52,6 +52,8 @@ protected:
   const std::string filename;
   std::ofstream file;
   bool has_header = false;
+
+  PetscInt event_write;
 };
 
 #endif  // SRC_DIAGNOSTICS_UTILS_TABLE_DIAGNOSTIC_H

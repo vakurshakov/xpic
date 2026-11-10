@@ -94,7 +94,8 @@ protected:
   std::vector<Command_up> step_presets_;
   std::vector<Diagnostic_up> diagnostics_;
 
-  PetscLogStage stagenums[2];
+  PetscInt event_commands;
+  PetscInt event_diagnostics;
 };
 
 }  // namespace interfaces
