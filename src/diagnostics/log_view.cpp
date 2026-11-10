@@ -12,11 +12,39 @@ LogView::LogView(Level level)
   Profiler::enable();
 }
 
+PetscErrorCode LogView::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(PetscLogDefaultBegin());
+  initialized = true;
+  prev_time_ = petsc_BaseTime;
+
+  if (level_ == AllTimestepsSummary)
+    PetscFunctionReturn(PETSC_SUCCESS);
+
+  PetscCall(PetscLogGetDefaultHandler(&handler_));
+  if (level_ == EachTimestep) {
+    PetscCall(level_0_initialize());
+  }
+  else if (level_ == EachTimestepEvents) {
+    PetscCall(open_file("log-EachTimestepEvents.txt"));
+  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode LogView::finalize()
+{
+  PetscFunctionBeginUser;
+  if (viewer_)
+    PetscCall(PetscViewerDestroy(&viewer_));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode LogView::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   if (!initialized) {
-    PetscCall(init());
+    PetscCall(initialize());
   }
 
   switch (level_) {
@@ -83,12 +111,10 @@ PetscErrorCode LogView::level_0_impl(PetscInt t)
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode LogView::level_0_init()
+PetscErrorCode LogView::level_0_initialize()
 {
   PetscFunctionBeginUser;
-  std::string filename = out_dir_ + "/log-EachTimestep.txt";
-  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
-  PetscCall(warn());
+  PetscCall(open_file("log-EachTimestep.txt"));
 
   PetscLogState state;
   PetscInt num_stages;
@@ -118,10 +144,8 @@ PetscErrorCode LogView::level_1_impl(PetscInt t)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
-  std::string filename = out_dir_ + "/log-DiagnosePeriodAvg.txt";
-  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
+  PetscCall(open_file("log-DiagnosePeriodAvg.txt"));
   PetscCall(pop_stack());
-  PetscCall(warn());
 
   PetscLogDouble loc_time, delta_time, period_time, stage_time;
   PetscLogDouble frac_period_time, frac_stage_time;
@@ -245,8 +269,7 @@ PetscErrorCode LogView::level_2_impl(PetscInt t)
     return PETSC_SUCCESS;
 
   PetscFunctionBeginUser;
-  std::string filename = out_dir_ + "/log-AllTimestepsSummary.txt";
-  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
+  PetscCall(open_file("log-AllTimestepsSummary.txt", /* print_warn */ false));
   PetscCall(PetscLogView(viewer_));
   PetscCall(PetscViewerDestroy(&viewer_));
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -336,6 +359,7 @@ PetscErrorCode LogView::level_3_impl(PetscInt t)
       {
         return a.time > b.time;
       });
+
     column.events.resize(std::min<size_t>(column.events.size(), 5));
 
     for (Item& item : column.events) {
@@ -355,15 +379,19 @@ PetscErrorCode LogView::level_3_impl(PetscInt t)
   PetscCall(PetscViewerASCIIPrintf(viewer_, "Timestep %d\n", (int)t));
 
   std::string line;
-  for (const Column& column : columns)
-    line += cell(column.name, std::format("{:.3e}", column.time / size));
+  for (const Column& column : columns) {
+    line += cell(column.name,  //
+      std::format("{:.3e}", column.time / size));
+  }
   PetscCall(PetscViewerASCIIPrintf(viewer_, "%s\n", line.c_str()));
 
   for (size_t row = 0; row < rows; ++row) {
     line.clear();
     for (const Column& column : columns) {
-      if (row < column.events.size())
-        line += cell(column.events[row].name, std::format("{:.1f}%", column.events[row].time));
+      if (row < column.events.size()) {
+        line += cell(column.events[row].name,  //
+          std::format("{:.1f}%", column.events[row].time));
+      }
       else
         line += std::string(width, ' ');
     }
@@ -372,27 +400,6 @@ PetscErrorCode LogView::level_3_impl(PetscInt t)
 
   PetscCall(PetscViewerASCIIPrintf(viewer_, "\n"));
   PetscCall(push_stack());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode LogView::init()
-{
-  PetscFunctionBeginUser;
-  PetscCall(PetscLogDefaultBegin());
-  initialized = true;
-  prev_time_ = petsc_BaseTime;
-
-  if (level_ == AllTimestepsSummary)
-    PetscFunctionReturn(PETSC_SUCCESS);
-
-  PetscCall(PetscLogGetDefaultHandler(&handler_));
-  if (level_ == EachTimestep)
-    PetscCall(level_0_init());
-  if (level_ == EachTimestepEvents) {
-    std::string filename = out_dir_ + "/log-EachTimestepEvents.txt";
-    PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, filename.c_str(), &viewer_));
-    PetscCall(warn());
-  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -428,10 +435,13 @@ PetscErrorCode LogView::push_stack()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode LogView::warn()
+PetscErrorCode LogView::open_file(std::string_view filename, bool print_warn)
 {
   PetscFunctionBeginUser;
-  if (PetscDefined(USE_DEBUG)) {
+  const std::string name = std::filesystem::path(out_dir_) / filename;
+  PetscCall(PetscViewerASCIIOpen(PETSC_COMM_WORLD, name.c_str(), &viewer_));
+
+  if (PetscDefined(USE_DEBUG) && print_warn) {
     PetscCall(PetscViewerASCIIPrintf(viewer_, "\n\n"));
     PetscCall(PetscViewerASCIIPrintf(viewer_, "      ##########################################################\n"));
     PetscCall(PetscViewerASCIIPrintf(viewer_, "      #                                                        #\n"));
@@ -444,13 +454,5 @@ PetscErrorCode LogView::warn()
     PetscCall(PetscViewerASCIIPrintf(viewer_, "      #                                                        #\n"));
     PetscCall(PetscViewerASCIIPrintf(viewer_, "      ##########################################################\n\n\n"));
   }
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode LogView::finalize()
-{
-  PetscFunctionBeginUser;
-  if (viewer_)
-    PetscCall(PetscViewerDestroy(&viewer_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

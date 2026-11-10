@@ -44,13 +44,14 @@ public:
   PetscErrorCode diagnose(PetscInt t) override;
 
 private:
-  PetscErrorCode level_0_init();
+  PetscErrorCode level_0_initialize();
   PetscErrorCode level_0_impl(PetscInt t);
   PetscErrorCode level_1_impl(PetscInt t);
   PetscErrorCode level_2_impl(PetscInt t);
   PetscErrorCode level_3_impl(PetscInt t);
 
-  PetscErrorCode init();
+  PetscErrorCode initialize();
+  PetscErrorCode open_file(std::string_view filename, bool print_warn = true);
   PetscErrorCode warn();
   PetscErrorCode pop_stack();
   PetscErrorCode push_stack();
