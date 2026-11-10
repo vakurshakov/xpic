@@ -1584,22 +1584,22 @@ def density_comparison_series(ctx, dz, sort_name, model_tmax=None):
 
 
 def diagnostic_energy_series(ctx, model_tmax=None):
-    """Read wE and per-sort wK columns from temporal/dk_diagnostic.txt."""
+    """Read wE and per-sort wK columns from temporal/energy.txt."""
     const, config = ctx["const"], ctx["config"]
-    candidates = [os.path.join(const.in_dir, "temporal", "dk_diagnostic.txt"),
+    candidates = [os.path.join(const.in_dir, "temporal", "energy.txt"),
                   os.path.join(ctx["config_dir"], "temporal",
-                               "dk_diagnostic.txt")]
+                               "energy.txt")]
     path = next((candidate for candidate in candidates
                  if os.path.isfile(candidate)), None)
     if path is None:
-        raise SystemExit(f"dk_diagnostic.txt not found for '{ctx['config_dir']}'.")
+        raise SystemExit(f"energy.txt not found for '{ctx['config_dir']}'.")
     with open(path, "r", encoding="utf-8") as stream:
         header = re.split(r"\s{2,}", stream.readline().strip())
     data = np.loadtxt(path, skiprows=1)
     if data.ndim == 1:
         data = data.reshape(1, -1)
     if data.shape[1] != len(header) or "Time" not in header:
-        raise SystemExit(f"unexpected dk_diagnostic table: {path}")
+        raise SystemExit(f"unexpected energy table: {path}")
     dt = float(config.get("Geometry", {}).get("dt", 1.0))
     time = data[:, header.index("Time")] * dt / ctx["T_wave"]
     if model_tmax is not None:
@@ -1799,7 +1799,7 @@ def run_compare_electric(args):
     for i, run in enumerate(runs):
         if "wE" not in run["energies"]:
             raise SystemExit(
-                f"wE column not found in dk_diagnostic for '{run['testname']}'.")
+                f"wE column not found in energy for '{run['testname']}'.")
         energy_axis.plot(
             run["energy_time"], run["energies"]["wE"],
             color=colors[i % len(colors)], marker=markers[i % len(markers)],
@@ -3758,7 +3758,7 @@ def run_article_energy(args):
         energy_column = f"wK_{ctx['electron'].name}"
         if energy_column not in energies:
             raise SystemExit(
-                f"{energy_column} column not found in dk_diagnostic for "
+                f"{energy_column} column not found in energy for "
                 f"'{name}'.")
         electron_energy = energies[energy_column]
         model_delta = electron_energy - electron_energy[0]

@@ -82,12 +82,12 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(init_kinetic_particles());
   PetscCall(init_preconditioner());
 
-  // The base adds the drift-kinetic `EnergyConservation` last,
-  // it misses the kinetic sorts.
-  PetscCheck(dynamic_cast<drift_kinetic::EnergyConservation*>(diagnostics_.back().get()), PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONGSTATE,
-    "The last diagnostic of drift_kinetic::Simulation is expected to be EnergyConservation");
-
-  diagnostics_.back() = std::make_unique<EnergyConservation>(*this);
+  for (auto& diagnostic : diagnostics_) {
+    if (dynamic_cast<drift_kinetic::EnergyConservation*>(diagnostic.get()))
+      diagnostic = std::make_unique<EnergyConservation>(*this);
+    else if (dynamic_cast<drift_kinetic::ConvergenceHistory*>(diagnostic.get()))
+      diagnostic = std::make_unique<ConvergenceHistory>(*this);
+  }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

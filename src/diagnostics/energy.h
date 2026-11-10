@@ -18,7 +18,9 @@ protected:
   PetscErrorCode calculate_field();
   PetscErrorCode calculate_kinetic();
 
-  PetscErrorCode fill_energy(PetscInt t);
+  virtual PetscErrorCode calculate_field_change();
+
+  virtual PetscErrorCode fill_energy(PetscInt t);
   virtual PetscErrorCode fill_energy_cons(PetscInt t);
 
   const interfaces::Simulation& simulation;

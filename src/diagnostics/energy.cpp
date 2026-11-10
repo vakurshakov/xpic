@@ -118,6 +118,14 @@ PetscErrorCode Energy::calculate_kinetic()
 }
 
 
+PetscErrorCode Energy::calculate_field_change()
+{
+  PetscFunctionBeginUser;
+  dE = E - E0;
+  dB = B - B0;
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Energy::fill_energy(PetscInt t)
 {
   PetscFunctionBeginUser;
@@ -131,7 +139,7 @@ PetscErrorCode Energy::fill_energy(PetscInt t)
 
   for (i = 0; i < size; ++i) {
     auto& name = particles[i]->parameters.sort_name;
-    energy.add(13, "wK_" + name, "{: .6e}", K[i]);
+    energy.add(std::max<PetscInt>(13, 3 + name.size()), "wK_" + name, "{: .6e}", K[i]);
   }
 
   energy.add(13, "sE", "{: .6e}", std_E);
@@ -139,7 +147,7 @@ PetscErrorCode Energy::fill_energy(PetscInt t)
 
   for (i = 0; i < size; ++i) {
     auto& name = particles[i]->parameters.sort_name;
-    energy.add(13, "sK_" + name, "{: .6e}", std_K[i]);
+    energy.add(std::max<PetscInt>(13, 3 + name.size()), "sK_" + name, "{: .6e}", std_K[i]);
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -149,8 +157,7 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
   PetscFunctionBeginUser;
   energy_cons.add(6, "Time", "{:d}", t);
 
-  dE = E - E0;
-  dB = B - B0;
+  PetscCall(calculate_field_change());
 
   dF = dE + dB;
   energy_cons.add(13, "dE", "{: .6e}", dE);
@@ -159,7 +166,7 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
   dK = 0;
   for (PetscInt i = 0; i < (PetscInt)K.size(); ++i) {
     auto&& n = simulation.particles_[i]->parameters.sort_name;
-    energy_cons.add(13, "dK_" + n, "{: .6e}", K[i] - K0[i]);
+    energy_cons.add(std::max<PetscInt>(13, 3 + n.size()), "dK_" + n, "{: .6e}", K[i] - K0[i]);
     dK += K[i] - K0[i];
   }
 

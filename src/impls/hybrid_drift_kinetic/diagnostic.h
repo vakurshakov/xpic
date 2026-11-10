@@ -1,27 +1,30 @@
 #ifndef SRC_IMPLS_HYBRID_DRIFT_KINETIC_DIAGNOSTIC_H
 #define SRC_IMPLS_HYBRID_DRIFT_KINETIC_DIAGNOSTIC_H
 
-#include "src/diagnostics/table_diagnostic.h"
+#include "src/impls/drift_kinetic/diagnostic.h"
 
 namespace hybrid_drift_kinetic {
 
 class Simulation;
 
-/// @brief Energy balance of fields, kinetic and drift-kinetic sorts.
-class EnergyConservation : public TableDiagnostic {
+class EnergyConservation : public drift_kinetic::EnergyConservation {
 public:
   EnergyConservation(const Simulation& simulation);
-  PetscErrorCode initialize() override;
+
+protected:
+  PetscErrorCode fill_energy_cons(PetscInt t) override;
+
+private:
+  const Simulation& simulation;
+};
+
+class ConvergenceHistory : public drift_kinetic::ConvergenceHistory {
+public:
+  ConvergenceHistory(const Simulation& simulation);
   PetscErrorCode add_columns(PetscInt t) override;
 
 private:
-  PetscErrorCode calculate_kinetic_energies(std::vector<PetscReal>& K) const;
-
-  const Simulation& simulation;
-
-  PetscReal w_E0 = 0;         // Electric field energy at the previous step.
-  PetscReal w_B0 = 0;         // Magnetic field energy at the previous step.
-  std::vector<PetscReal> K0;  // Kinetic energies at the previous step.
+  const Simulation& hybrid_simulation;
 };
 
 }  // namespace hybrid_drift_kinetic

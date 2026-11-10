@@ -55,6 +55,7 @@ protected:
   PetscReal a_MB0 = 0;  // (M * B) at the particle push, for `EnergyConservation`.
 
   friend class EnergyConservation;
+  friend class ConvergenceHistory;
 };
 
 }  // namespace drift_kinetic

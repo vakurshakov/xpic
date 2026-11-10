@@ -74,6 +74,7 @@ PetscErrorCode Simulation::initialize_implementation()
   LOG("    Substepping: {}, max depth: {}, fail on final nonconvergence: {}",
     substepping, max_depth, fail_on_final_nonconvergence);
 
+  diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

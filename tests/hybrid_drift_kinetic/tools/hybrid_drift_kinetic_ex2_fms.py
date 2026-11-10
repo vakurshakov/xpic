@@ -7,7 +7,8 @@ Yee spatial staggering and implicit-midpoint time dispersion are included.
 
 The PNG/PDF shows the spectrum and full amplitude history. The MP4 and PNG
 frames animate the spatial profile separately. Before plotting, check energy
-from hybrid_diagnostic.txt and charge continuity from charge_conservation.txt.
+from energy.txt and energy_conservation.txt, and charge continuity from
+charge_conservation.txt.
 Accumulate per-step energy increments to avoid subtracting rounded absolute
 energies.
 
@@ -67,9 +68,10 @@ def read_diagnostic(path):
 
 
 def check_conservation(out):
-    table = read_diagnostic(os.path.join(out, "temporal", "hybrid_diagnostic.txt"))
+    table = read_diagnostic(os.path.join(out, "temporal", "energy_conservation.txt"))
+    energies = read_diagnostic(os.path.join(out, "temporal", "energy.txt"))
     charge = read_diagnostic(os.path.join(out, "temporal", "charge_conservation.txt"))
-    WK0 = table["wK"][0]
+    WK0 = energies["wK"][0]
     if WK0 <= 0:
         raise ValueError("Conservation diagnostics require positive initial particle energy")
     energy = np.cumsum(table["dE+dB+dK"]) / WK0

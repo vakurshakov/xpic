@@ -288,46 +288,23 @@ PetscErrorCode DkDistributionFunction::diagnose(PetscInt t)
 }
 
 EnergyConservation::EnergyConservation(const Simulation& simulation)
-  : TableDiagnostic(CONFIG().out_dir + "/temporal/dk_diagnostic.txt"),
-    simulation(simulation)
+  : ::Energy(simulation), dk_simulation(simulation)
 {
-}
-
-void EnergyConservation::calculate_kinetic_energies(
-  std::vector<PetscReal>& per_sort, PetscReal& total) const
-{
-  per_sort.assign(simulation.particles_.size(), 0);
-  total = 0;
-
-  for (PetscInt i = 0; i < (PetscInt)simulation.particles_.size(); ++i)
-    per_sort[i] = simulation.particles_[i]->kinetic_energy_local();
-
-  PetscCallMPIAbort(PETSC_COMM_WORLD, MPI_Allreduce(MPI_IN_PLACE, per_sort.data(), (PetscMPIInt)per_sort.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-
-  for (PetscReal kinetic : per_sort)
-    total += kinetic;
 }
 
 PetscErrorCode EnergyConservation::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (!initialized)
-    calculate_kinetic_energies(K_by_sort, K);
+  if (!initialized) {
+    PetscCall(VecDuplicate(dk_simulation.E, &E_prev));
+    PetscCall(VecDuplicate(dk_simulation.B, &B_prev));
+    PetscCall(VecCopy(dk_simulation.E, E_prev));
+    PetscCall(VecCopy(dk_simulation.B, B_prev));
+  }
 
-  K0 = K;
-  K0_by_sort = K_by_sort;
-  PetscCall(TableDiagnostic::diagnose(t));
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode EnergyConservation::initialize()
-{
-  PetscFunctionBeginUser;
-  initialized = true;
-  PetscCall(DMCreateGlobalVector(simulation.da, &E_prev));
-  PetscCall(DMCreateGlobalVector(simulation.da, &B_prev));
-  PetscCall(VecCopy(simulation.E, E_prev));
-  PetscCall(VecCopy(simulation.B, B_prev));
+  PetscCall(::Energy::diagnose(t));
+  PetscCall(VecCopy(dk_simulation.E, E_prev));
+  PetscCall(VecCopy(dk_simulation.B, B_prev));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -339,76 +316,104 @@ PetscErrorCode EnergyConservation::finalize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode EnergyConservation::add_columns(PetscInt t)
+PetscErrorCode EnergyConservation::calculate_field_change()
 {
   PetscFunctionBeginUser;
+  Vec sum, diff;
+  PetscCall(DMGetGlobalVector(dk_simulation.da, &sum));
+  PetscCall(DMGetGlobalVector(dk_simulation.da, &diff));
+
+  // Avoid subtracting nearly equal field energies.
+  PetscCall(VecWAXPY(diff, -1, E_prev, dk_simulation.E));
+  PetscCall(VecWAXPY(sum, 1, E_prev, dk_simulation.E));
+  PetscCall(VecDot(sum, diff, &dE));
+  dE *= 0.5;
+
+  PetscCall(VecWAXPY(diff, -1, B_prev, dk_simulation.B));
+  PetscCall(VecWAXPY(sum, 1, B_prev, dk_simulation.B));
+  PetscCall(VecDot(sum, diff, &dB_total));
+  dB_total *= 0.5;
+
+  // The standard wB excludes the prescribed background B0.
+  PetscCall(VecAXPY(sum, -2, dk_simulation.B0));
+  PetscCall(VecDot(sum, diff, &dB));
+  dB *= 0.5;
+
+  PetscCall(DMRestoreGlobalVector(dk_simulation.da, &sum));
+  PetscCall(DMRestoreGlobalVector(dk_simulation.da, &diff));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode EnergyConservation::fill_energy(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  PetscCall(::Energy::fill_energy(t));
+  PetscReal total_K = 0;
+  for (PetscReal kinetic : K)
+    total_K += kinetic;
+  PetscReal total_B;
+  PetscCall(VecDot(dk_simulation.B, dk_simulation.B, &total_B));
+  total_B *= 0.5;
+
+  energy.add(13, "wK", "{: .6e}", total_K);
+  energy.add(13, "wB_total", "{: .6e}", total_B);
+  energy.add(13, "wEB+wK", "{: .6e}", E + B + total_K);
+  energy.add(13, "wEB_total+wK", "{: .6e}", E + total_B + total_K);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode EnergyConservation::fill_energy_cons(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  PetscCall(::Energy::fill_energy_cons(t));
+  PetscReal kinetic_change = 0;
+  for (std::size_t i = 0; i < K.size(); i++)
+    kinetic_change += K[i] - K0[i];
+  energy_cons.add(13, "dK", "{: .6e}", kinetic_change);
+
+  PetscReal balance = 0;
+  if (t != dk_simulation.start) {
+    PetscReal EJ, MB;
+    PetscCall(VecDot(dk_simulation.E_hk, dk_simulation.J, &EJ));
+    PetscCall(VecDot(dk_simulation.M, dk_simulation.B, &MB));
+    balance = kinetic_change + MB - dk_simulation.a_MB0 - dt * EJ;
+  }
+  const std::string title = "dK-dMB+dt*dEJ";
+  energy_cons.add(std::max<PetscInt>(13, title.size()), title, "{: .6e}", balance);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+ConvergenceHistory::ConvergenceHistory(const Simulation& simulation)
+  : TableDiagnostic(CONFIG().out_dir + "/temporal/convergence_history.txt"),
+    simulation(simulation)
+{
+}
+
+PetscErrorCode ConvergenceHistory::add_columns(PetscInt t)
+{
+  PetscFunctionBeginUser;
+  const bool initial = t == simulation.start;
   add(6, "Time", "{:d}", t);
+  add(13, "NItNum", "{:d}", initial ? 0 : simulation.snes_iteration_number);
   for (const auto& sort : simulation.particles_) {
     const auto& name = sort->parameters.sort_name;
-    add(13, "MaxPushIt_" + name, "{:d}", sort->get_max_iteration_number());
-    const std::string retries_title = "PushRetries_" + name;
-    const std::string failures_title = "PushLeafFailures_" + name;
-    add(std::max<PetscInt>(13, static_cast<PetscInt>(retries_title.size())),
-      retries_title, "{:d}", sort->get_push_retries());
-    add(std::max<PetscInt>(13, static_cast<PetscInt>(failures_title.size())),
-      failures_title, "{:d}", sort->get_push_leaf_failures());
+    const auto title = [&](const std::string& prefix)
+    {
+      return prefix + name;
+    };
+    const auto width = [&](const std::string& prefix)
+    {
+      return std::max<PetscInt>(13, title(prefix).size());
+    };
+    add(width("AvgPushIt_"), title("AvgPushIt_"), "{: .6e}",
+      initial ? 0 : sort->get_average_iteration_number());
+    add(width("MaxPushIt_"), title("MaxPushIt_"), "{:d}",
+      initial ? 0 : sort->get_max_iteration_number());
+    add(width("PushRetries_"), title("PushRetries_"), "{:d}",
+      initial ? 0 : sort->get_push_retries());
+    add(width("PushLeafFailures_"), title("PushLeafFailures_"), "{:d}",
+      initial ? 0 : sort->get_push_leaf_failures());
   }
-  add(13, "AvgFieldIt", "{:d}", simulation.snes_iteration_number);
-
-  PetscReal w_E = 0;
-  PetscReal w_B = 0;
-  PetscReal a_EJ = 0;
-  PetscReal a_MB = 0;
-  PetscCall(VecDot(simulation.E, simulation.E, &w_E));
-  PetscCall(VecDot(simulation.B, simulation.B, &w_B));
-  PetscCall(VecDot(simulation.E_hk, simulation.J, &a_EJ));
-  PetscCall(VecDot(simulation.M, simulation.B, &a_MB));
-  w_E *= 0.5;
-  w_B *= 0.5;
-  calculate_kinetic_energies(K_by_sort, K);
-
-  Vec fsum = nullptr;
-  Vec fdiff = nullptr;
-  PetscCall(DMGetGlobalVector(simulation.da, &fsum));
-  PetscCall(DMGetGlobalVector(simulation.da, &fdiff));
-
-  PetscReal dWE = 0;
-  PetscReal dWB = 0;
-  PetscCall(VecWAXPY(fdiff, -1, E_prev, simulation.E));
-  PetscCall(VecWAXPY(fsum, +1, E_prev, simulation.E));
-  PetscCall(VecDot(fsum, fdiff, &dWE));
-  dWE *= 0.5;
-
-  PetscCall(VecWAXPY(fdiff, -1, B_prev, simulation.B));
-  PetscCall(VecWAXPY(fsum, +1, B_prev, simulation.B));
-  PetscCall(VecDot(fsum, fdiff, &dWB));
-  dWB *= 0.5;
-
-  PetscCall(VecCopy(simulation.E, E_prev));
-  PetscCall(VecCopy(simulation.B, B_prev));
-
-  PetscCall(DMRestoreGlobalVector(simulation.da, &fsum));
-  PetscCall(DMRestoreGlobalVector(simulation.da, &fdiff));
-
-  add(13, "dK", "{: .6e}", K - K0);
-  for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
-    const auto& name = simulation.particles_[i]->parameters.sort_name;
-    add(24, "dK_" + name, "{: .6e}", K_by_sort[i] - K0_by_sort[i]);
-  }
-  add(13, "dE", "{: .6e}", dWE);
-  add(13, "dB", "{: .6e}", dWB);
-  add(13, "dE+dB+dK", "{: .6e}", dWE + dWB + (K - K0));
-  add(13, "dK-dMB+dt*dEJ", "{: .6e}",
-    (K - K0) + (a_MB - simulation.a_MB0) - dt * a_EJ);
-
-  add(13, "wK", "{: .6e}", K);
-  for (PetscInt i = 0; i < (PetscInt)K_by_sort.size(); ++i) {
-    const auto& name = simulation.particles_[i]->parameters.sort_name;
-    add(13, "wK_" + name, "{: .6e}", K_by_sort[i]);
-  }
-  add(13, "wE", "{: .6e}", w_E);
-  add(13, "wB", "{: .6e}", w_B);
-  add(13, "wEB+wK", "{: .6e}", w_E + w_B + K);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
