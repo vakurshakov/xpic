@@ -18,8 +18,6 @@ PetscErrorCode TableDiagnostic::initialize()
 PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  PetscCall(Profiler::push_event(event_write));
-
   // The file is opened here, after `SimulationBackup` has loaded the temporal tables.
   // The run continuing from `t != 0` appends to them, the loaded table already has the row `t`.
   bool row_is_loaded = false;
@@ -30,6 +28,8 @@ PetscErrorCode TableDiagnostic::diagnose(PetscInt t)
     row_is_loaded = (t != 0 && has_header);
   }
 
+  // The event is registered by `initialize()`, so it can be pushed only now.
+  PetscCall(Profiler::push_event(event_write));
   PetscCall(add_columns(t));
 
   if (!values.empty()) {
