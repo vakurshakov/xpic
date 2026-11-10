@@ -1,37 +1,27 @@
 #ifndef SRC_IMPLS_HYBRID_DRIFT_KINETIC_DIAGNOSTIC_H
 #define SRC_IMPLS_HYBRID_DRIFT_KINETIC_DIAGNOSTIC_H
 
-#include "src/interfaces/particles.h"
 #include "src/diagnostics/table_diagnostic.h"
 
 namespace hybrid_drift_kinetic {
 
 class Simulation;
 
-/// @brief Total energy balance and per-step continuity residual for both
-/// kinetic and drift-kinetic sorts, columns follow `dk_diagnostic.txt`.
+/// @brief Energy balance of fields, kinetic and drift-kinetic sorts.
 class EnergyConservation : public TableDiagnostic {
 public:
   EnergyConservation(const Simulation& simulation);
   PetscErrorCode initialize() override;
-  PetscErrorCode finalize() override;
   PetscErrorCode add_columns(PetscInt t) override;
 
 private:
-  struct SortView {
-    const interfaces::Particles& sort;
-    std::function<PetscErrorCode(Vec)> collect_charge_density;
-  };
-
   PetscErrorCode calculate_kinetic_energies(std::vector<PetscReal>& K) const;
 
   const Simulation& simulation;
-  std::vector<SortView> sorts;  // Drift-kinetic sorts first, then kinetic ones.
 
   PetscReal w_E0 = 0;         // Electric field energy at the previous step.
   PetscReal w_B0 = 0;         // Magnetic field energy at the previous step.
   std::vector<PetscReal> K0;  // Kinetic energies at the previous step.
-  std::vector<Vec> rho0;      // Charge densities at the previous step.
 };
 
 }  // namespace hybrid_drift_kinetic

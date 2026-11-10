@@ -7,8 +7,9 @@ Yee spatial staggering and implicit-midpoint time dispersion are included.
 
 The PNG/PDF shows the spectrum and full amplitude history. The MP4 and PNG
 frames animate the spatial profile separately. Before plotting, check energy
-and charge continuity from hybrid_diagnostic.txt. Accumulate per-step energy
-increments to avoid subtracting rounded absolute energies.
+from hybrid_diagnostic.txt and charge continuity from charge_conservation.txt.
+Accumulate per-step energy increments to avoid subtracting rounded absolute
+energies.
 
 Usage: hybrid_drift_kinetic_ex2_fms.py [--no-check] [--no-animation] [output directory]
 Checks require at least two wave periods; --no-check permits unfinished runs.
@@ -56,21 +57,24 @@ def check(name, value, limit):
         raise AssertionError(f"{name} is {value:.3e}, expected at most {limit:.1e}")
 
 
-def check_conservation(out):
-    path = os.path.join(out, "temporal", "hybrid_diagnostic.txt")
+def read_diagnostic(path):
     with open(path) as stream:
         header = re.split(r"\s{2,}", stream.readline().strip())
     data = np.loadtxt(path, skiprows=1, ndmin=2)
     if data.shape[1] != len(header) or not np.all(np.isfinite(data)):
         raise ValueError(f"Invalid conservation diagnostic: {path}")
-    table = dict(zip(header, data.T))
+    return dict(zip(header, data.T))
+
+
+def check_conservation(out):
+    table = read_diagnostic(os.path.join(out, "temporal", "hybrid_diagnostic.txt"))
+    charge = read_diagnostic(os.path.join(out, "temporal", "charge_conservation.txt"))
     WK0 = table["wK"][0]
     if WK0 <= 0:
         raise ValueError("Conservation diagnostics require positive initial particle energy")
     energy = np.cumsum(table["dE+dB+dK"]) / WK0
-    charge = table["N2dQ_tot"]
     check("max |W-W0| / WK0", np.max(np.abs(energy)), ENERGY_LIMIT)
-    check("max charge continuity residual", np.max(np.abs(charge)), CHARGE_LIMIT)
+    check("max charge continuity residual", np.max(np.abs(charge["N2dQ_tot"])), CHARGE_LIMIT)
 
 
 class Parameters:
