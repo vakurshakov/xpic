@@ -10,7 +10,7 @@ frames animate the spatial profile separately. Before plotting, check energy
 and charge continuity from hybrid_diagnostic.txt. Accumulate per-step energy
 increments to avoid subtracting rounded absolute energies.
 
-Usage: hybrid_ex2_fms.py [--no-check] [--no-animation] [output directory]
+Usage: hybrid_drift_kinetic_ex2_fms.py [--no-check] [--no-animation] [output directory]
 Checks require at least two wave periods; --no-check permits unfinished runs.
 """
 
@@ -24,7 +24,7 @@ import numpy as np
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_DIR = os.path.dirname(SCRIPT_DIR)
-OUT_DIR = os.path.join(TEST_DIR, "output", "hybrid_ex2_fms")
+OUT_DIR = os.path.join(TEST_DIR, "output", "hybrid_drift_kinetic_ex2_fms")
 
 sys.path.insert(0, os.path.join(TEST_DIR, "../../tools"))
 from lib.constants import init_constants, mec2
@@ -287,7 +287,7 @@ def plot_history(out, p, t, mode, signals, omega, fitted):
     fig.tight_layout()
     try:
         for extension in ("png", "pdf"):
-            fig.savefig(os.path.join(out, f"hybrid_ex2_fms.{extension}"), dpi=150)
+            fig.savefig(os.path.join(out, f"hybrid_drift_kinetic_ex2_fms.{extension}"), dpi=150)
     finally:
         plt.close(fig)
 
@@ -314,7 +314,7 @@ def animate_profile(out, p, t, x, signals, omega, fps, dpi):
     os.makedirs(frames_dir, exist_ok=True)
     writer = FFMpegWriter(fps=fps, bitrate=3000)
     try:
-        with writer.saving(fig, os.path.join(out, "hybrid_ex2_fms.mp4"), dpi=dpi):
+        with writer.saving(fig, os.path.join(out, "hybrid_drift_kinetic_ex2_fms.mp4"), dpi=dpi):
             for i, time in enumerate(t):
                 for line, values in lines:
                     line.set_ydata(values[i])
@@ -350,7 +350,7 @@ def main():
         can_fit = len(t) >= 12 and t[-1]-t[0] >= period
         enough_data = can_fit and t[-1]-t[0] >= 2*period
         fitted = fit(t, mode.real, w_theory) if can_fit else None
-        print("hybrid_ex2_fms: shelf-subtracted FMS profiles, spectrum and amplitudes")
+        print("hybrid_drift_kinetic_ex2_fms: shelf-subtracted FMS profiles, spectrum and amplitudes")
         print(f"  omega fluid = {w_fluid:.6e}, kinetic = {w_kinetic:.6e}, discrete = {w_theory:.6e}")
         print(f"  theoretical shelf / (eps B0) = {p.beta/(1+p.beta):.6f}")
         if fitted is not None:

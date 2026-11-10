@@ -1,10 +1,10 @@
-#ifndef SRC_IMPLS_HYBRID_KINETIC_DIAGNOSTIC_H
-#define SRC_IMPLS_HYBRID_KINETIC_DIAGNOSTIC_H
+#ifndef SRC_IMPLS_HYBRID_DRIFT_KINETIC_DIAGNOSTIC_H
+#define SRC_IMPLS_HYBRID_DRIFT_KINETIC_DIAGNOSTIC_H
 
 #include "src/interfaces/particles.h"
 #include "src/diagnostics/table_diagnostic.h"
 
-namespace hybrid_kinetic {
+namespace hybrid_drift_kinetic {
 
 class Simulation;
 
@@ -28,7 +28,6 @@ private:
 
   const Simulation& simulation;
   std::vector<SortView> sorts;  // Drift-kinetic sorts first, then kinetic ones.
-  bool initialized = false;
 
   PetscReal w_E0 = 0;         // Electric field energy at the previous step.
   PetscReal w_B0 = 0;         // Magnetic field energy at the previous step.
@@ -36,6 +35,6 @@ private:
   std::vector<Vec> rho0;      // Charge densities at the previous step.
 };
 
-}  // namespace hybrid_kinetic
+}  // namespace hybrid_drift_kinetic
 
-#endif  // SRC_IMPLS_HYBRID_KINETIC_DIAGNOSTIC_H
+#endif  // SRC_IMPLS_HYBRID_DRIFT_KINETIC_DIAGNOSTIC_H

@@ -1,10 +1,10 @@
-#ifndef SRC_IMPLS_HYBRID_KINETIC_SIMULATION_H
-#define SRC_IMPLS_HYBRID_KINETIC_SIMULATION_H
+#ifndef SRC_IMPLS_HYBRID_DRIFT_KINETIC_SIMULATION_H
+#define SRC_IMPLS_HYBRID_DRIFT_KINETIC_SIMULATION_H
 
 #include "src/impls/drift_kinetic/simulation.h"
-#include "src/impls/hybrid_kinetic/particles.h"
+#include "src/impls/hybrid_drift_kinetic/particles.h"
 
-namespace hybrid_kinetic {
+namespace hybrid_drift_kinetic {
 
 /// @brief Hybrid model: sorts with `"model": "kinetic"` follow the full
 /// Vlasov equation, the rest are drift-kinetic guiding centers. Both are
@@ -45,6 +45,6 @@ protected:
   friend class EnergyConservation;
 };
 
-}  // namespace hybrid_kinetic
+}  // namespace hybrid_drift_kinetic
 
-#endif  // SRC_IMPLS_HYBRID_KINETIC_SIMULATION_H
+#endif  // SRC_IMPLS_HYBRID_DRIFT_KINETIC_SIMULATION_H

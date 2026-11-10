@@ -1,10 +1,10 @@
 #include "diagnostic.h"
 
-#include "src/impls/hybrid_kinetic/simulation.h"
+#include "src/impls/hybrid_drift_kinetic/simulation.h"
 #include "src/utils/configuration.h"
 #include "src/utils/shape.h"
 
-namespace hybrid_kinetic {
+namespace hybrid_drift_kinetic {
 
 namespace {
 
@@ -280,4 +280,4 @@ PetscErrorCode EnergyConservation::calculate_kinetic_energies(
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-}  // namespace hybrid_kinetic
+}  // namespace hybrid_drift_kinetic

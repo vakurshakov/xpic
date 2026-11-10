@@ -12,6 +12,6 @@ add_subdirectory(eccapfim)
 add_subdirectory(ecsim)
 add_subdirectory(ecsimcorr)
 add_subdirectory(drift_kinetic)
-add_subdirectory(hybrid)
+add_subdirectory(hybrid_drift_kinetic)
 
 add_subdirectory(benchmark)

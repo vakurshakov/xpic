@@ -1,10 +1,10 @@
 #include "simulation.h"
 
-#include "src/impls/hybrid_kinetic/diagnostic.h"
+#include "src/impls/hybrid_drift_kinetic/diagnostic.h"
 #include "src/utils/configuration.h"
 #include "src/utils/utils.h"
 
-namespace hybrid_kinetic {
+namespace hybrid_drift_kinetic {
 
 namespace {
 
@@ -520,4 +520,4 @@ PetscErrorCode Simulation::check_response()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-}  // namespace hybrid_kinetic
+}  // namespace hybrid_drift_kinetic

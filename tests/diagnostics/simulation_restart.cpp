@@ -49,7 +49,7 @@ int main(int argc, char** argv)
   }
   PetscCallMPI(MPI_Barrier(PETSC_COMM_WORLD));
 
-  const PetscInt steps = std::string(name) == "hybrid_kinetic" ? 4 : N;
+  const PetscInt steps = std::string(name) == "hybrid_drift_kinetic" ? 4 : N;
   State continuous;
   PetscCall(run(name, steps, {}, "continuous", &continuous));
 
@@ -76,7 +76,7 @@ static PetscErrorCode run(const std::string& simulation_name, PetscInt nt,
   geom_nx = geom_ny = geom_nz = 8;
   geom_x = geom_y = geom_z = 8.0;
 
-  dt = simulation_name == "hybrid_kinetic" ? 0.1 : 1.0;
+  dt = simulation_name == "hybrid_drift_kinetic" ? 0.1 : 1.0;
   geom_nt = nt;
   geom_t = nt * dt;
 
@@ -143,7 +143,7 @@ static PetscErrorCode run(const std::string& simulation_name, PetscInt nt,
     {"Presets", presets},
   };
 
-  if (simulation_name == "hybrid_kinetic") {
+  if (simulation_name == "hybrid_drift_kinetic") {
     json["Particles"][0]["model"] = "kinetic";
     auto guiding_centers = json["Particles"][0];
     guiding_centers["sort_name"] = "guiding_centers";

@@ -1,4 +1,4 @@
-#include "src/impls/hybrid_kinetic/simulation.h"
+#include "src/impls/hybrid_drift_kinetic/simulation.h"
 #include "src/utils/configuration.h"
 #include "tests/common.h"
 
@@ -31,7 +31,7 @@ int main(int argc, char** argv)
   overwrite_config();
   Configuration::save(get_out_dir(__FILE__));
 
-  hybrid_kinetic::Simulation simulation;
+  hybrid_drift_kinetic::Simulation simulation;
   PetscCall(simulation.initialize());
 
   PetscInt ions0, ions1;
@@ -100,7 +100,7 @@ void overwrite_config()
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
-    {"Simulation", "hybrid_kinetic"},
+    {"Simulation", "hybrid_drift_kinetic"},
     {"OutputDirectory", get_out_dir(__FILE__)},
     {"DriftKineticPush", {{"coord_is_gc", true}}},
     {

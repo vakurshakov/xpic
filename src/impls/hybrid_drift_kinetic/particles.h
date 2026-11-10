@@ -1,9 +1,9 @@
-#ifndef SRC_IMPLS_HYBRID_KINETIC_PARTICLES_H
-#define SRC_IMPLS_HYBRID_KINETIC_PARTICLES_H
+#ifndef SRC_IMPLS_HYBRID_DRIFT_KINETIC_PARTICLES_H
+#define SRC_IMPLS_HYBRID_DRIFT_KINETIC_PARTICLES_H
 
 #include "src/interfaces/particles.h"
 
-namespace hybrid_kinetic {
+namespace hybrid_drift_kinetic {
 
 /// @brief Fully kinetic sort, pushed by the implicit Crank-Nicolson scheme
 /// of `eccapfim` with the energy-conserving Esirkepov interpolation.
@@ -23,6 +23,6 @@ private:
   PetscReal avgit = 0;  // Average pusher iteration count.
 };
 
-}  // namespace hybrid_kinetic
+}  // namespace hybrid_drift_kinetic
 
-#endif  // SRC_IMPLS_HYBRID_KINETIC_PARTICLES_H
+#endif  // SRC_IMPLS_HYBRID_DRIFT_KINETIC_PARTICLES_H

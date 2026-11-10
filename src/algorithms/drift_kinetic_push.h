@@ -6,7 +6,7 @@
 /// @brief 0 uses plain Picard, 1 uses sequential Picard with safeguarded
 /// dynamic Aitken relaxation.
 #ifndef DRIFT_KINETIC_AITKEN
-  #define DRIFT_KINETIC_AITKEN 1
+  #define DRIFT_KINETIC_AITKEN 0
 #endif
 
 /// @brief Fully implicit drift-kinetic guiding-center pusher.

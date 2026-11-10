@@ -120,9 +120,9 @@ set(impls
   src/impls/drift_kinetic/particles.cpp
   src/impls/drift_kinetic/adaptive_substepping.cpp
   src/impls/drift_kinetic/segments.cpp
-  src/impls/hybrid_kinetic/simulation.cpp
-  src/impls/hybrid_kinetic/diagnostic.cpp
-  src/impls/hybrid_kinetic/particles.cpp
+  src/impls/hybrid_drift_kinetic/simulation.cpp
+  src/impls/hybrid_drift_kinetic/diagnostic.cpp
+  src/impls/hybrid_drift_kinetic/particles.cpp
 )
 
 add_library(

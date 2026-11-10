@@ -3,7 +3,7 @@
 #include "src/algorithms/implicit_esirkepov.h"
 #include "src/impls/eccapfim/particles.h"
 
-namespace hybrid_kinetic {
+namespace hybrid_drift_kinetic {
 
 // Picard tolerances of the Crank-Nicolson push. The residual of the velocity
 // equation is compared with the mid-step velocity `vh`, so `cn_rtol` is the
@@ -204,4 +204,4 @@ PetscReal KineticParticles::get_average_iteration_number() const
   return avgit;
 }
 
-}  // namespace hybrid_kinetic
+}  // namespace hybrid_drift_kinetic

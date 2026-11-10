@@ -1,15 +1,15 @@
-#include "src/impls/hybrid_kinetic/simulation.h"
+#include "src/impls/hybrid_drift_kinetic/simulation.h"
 #include "src/utils/configuration.h"
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Fast magnetosonic wave in the hybrid_kinetic model.\n"
+  "Fast magnetosonic wave in the hybrid_drift_kinetic model.\n"
   "Uniform n=1, Te=Ti=1 keV, mi/me=100; Bz=B0*(1+0.05*cos(k*x)),\n"
   "B0=0.2, k=2*pi/Lx, Lx=32*dx, Ly=Lz=4*dx, dx=10, periodic boundaries.\n"
   "There are 64 markers per cell for each sort. The step dt=50 gives\n"
   "Omega_i*dt=0.1 and Omega_e*dt=10. The duration covers 2.1 periods of\n"
   "the long-wavelength FMS mode, rounded to a whole number of steps.\n"
-  "B and E are written every eight steps for tools/hybrid_ex2_fms.py.\n"
+  "B and E are written every eight steps for tools/hybrid_drift_kinetic_ex2_fms.py.\n"
   "The mass matrix is rebuilt at every field iteration; adaptive electron\n"
   "substeps handle particle iterations that need a shorter interval.\n";
 
@@ -41,7 +41,7 @@ int main(int argc, char** argv)
   overwrite_config();
   Configuration::save(get_out_dir(__FILE__));
 
-  hybrid_kinetic::Simulation simulation;
+  hybrid_drift_kinetic::Simulation simulation;
   PetscCall(simulation.initialize());
   PetscCall(simulation.calculate());
   PetscCall(simulation.finalize());
@@ -71,7 +71,7 @@ void overwrite_config()
   geom_t = geom_nt * dt;
 
   Configuration::overwrite({
-    {"Simulation", "hybrid_kinetic"},
+    {"Simulation", "hybrid_drift_kinetic"},
     {"OutputDirectory", get_out_dir(__FILE__)},
     {"DriftKineticPush", {{"coord_is_gc", true}, {"substepping", true}}},
     {"FieldPreconditioner", "mass_matrix"},
