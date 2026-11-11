@@ -1,6 +1,7 @@
 #!/bin/bash
 
 source ./scripts/setenv.sh || exit 1
+check_dependency_versions || exit 1
 
 check_build() {
   if [[ $? != 0 ]]; then
