@@ -3,6 +3,7 @@
 
 #include "src/interfaces/sort_parameters.h"
 #include "src/utils/geometries.h"
+#include "src/utils/halton_generator.h"
 #include "src/utils/vector3.h"
 
 using CoordinateGenerator = std::function<Vector3R()>;
@@ -34,6 +35,25 @@ struct CoordinateInBoxCosineHump {
   Vector3R operator()();
   BoxGeometry box;
   Axis axis = Z;
+};
+
+struct CoordinateInBoxQS {
+  Vector3R operator()();
+  BoxGeometry box;
+  HaltonGenerator sequence;
+};
+
+struct CoordinateInCylinderQS {
+  Vector3R operator()();
+  CylinderGeometry cyl;
+  HaltonGenerator sequence;
+};
+
+struct CoordinateInBoxCosineHumpQS {
+  Vector3R operator()();
+  BoxGeometry box;
+  Axis axis = Z;
+  HaltonGenerator sequence;
 };
 
 struct CoordinateOnAnnulus {

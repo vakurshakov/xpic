@@ -3,6 +3,50 @@
 #include "src/utils/random_generator.h"
 #include "src/utils/utils.h"
 
+namespace {
+
+Vector3R coordinate_in_box(const BoxGeometry& box, const Vector3R& unit)
+{
+  Vector3R coordinate;
+  for (Axis a : {X, Y, Z})
+    coordinate[a] = box.min[a] + unit[a] * (box.max[a] - box.min[a]);
+  return coordinate;
+}
+
+Vector3R coordinate_in_cylinder(
+  const CylinderGeometry& cyl, const Vector3R& unit)
+{
+  PetscReal r = cyl.radius * sqrt(unit[X]);
+  PetscReal phi = 2.0 * M_PI * unit[Y];
+
+  return Vector3R{
+    cyl.center[X] + r * cos(phi),
+    cyl.center[Y] + r * sin(phi),
+    cyl.center[Z] + cyl.height * (unit[Z] - 0.5),
+  };
+}
+
+/// @brief Inverts the cosine-hump CDF on [0, 1] by bisection, using
+/// PetscReal's epsilon as absolute tolerance and its mantissa bits as step limit.
+PetscReal cosine_hump_inv_cdf(PetscReal u)
+{
+  PetscReal lo = 0;
+  PetscReal hi = 1;
+  for (int it = 0; it < std::numeric_limits<PetscReal>::digits; it++) {
+    PetscReal x = 0.5 * (lo + hi);
+    // The normalized density is 1 - cos(2*pi*x) on [0, 1].
+    PetscReal cdf = x - sin(2.0 * M_PI * x) / (2.0 * M_PI);
+    if (cdf == u)
+      return x;
+    ((cdf < u) ? lo : hi) = x;
+    if (hi - lo <= std::numeric_limits<PetscReal>::epsilon())
+      break;
+  }
+  return 0.5 * (lo + hi);
+}
+
+}  // namespace
+
 PreciseCoordinate::PreciseCoordinate(std::vector<Vector3R> dots)
   : dots(std::move(dots))
 {
@@ -20,23 +64,12 @@ Vector3R PreciseCoordinate::operator()()
 
 Vector3R CoordinateInBox::operator()()
 {
-  return Vector3R{
-    box.min[X] + random_01() * (box.max[X] - box.min[X]),
-    box.min[Y] + random_01() * (box.max[Y] - box.min[Y]),
-    box.min[Z] + random_01() * (box.max[Z] - box.min[Z]),
-  };
+  return coordinate_in_box(box, {random_01(), random_01(), random_01()});
 }
 
 Vector3R CoordinateInCylinder::operator()()
 {
-  PetscReal r = cyl.radius * sqrt(random_01());
-  PetscReal phi = 2.0 * M_PI * random_01();
-
-  return Vector3R{
-    cyl.center[X] + r * cos(phi),
-    cyl.center[Y] + r * sin(phi),
-    cyl.center[Z] + cyl.height * (random_01() - 0.5),
-  };
+  return coordinate_in_cylinder(cyl, {random_01(), random_01(), random_01()});
 }
 
 Vector3R CoordinateInBoxCosineHump::operator()()
@@ -45,11 +78,8 @@ Vector3R CoordinateInBoxCosineHump::operator()()
   PetscReal half_length = 0.5 * (box.max[axis] - box.min[axis]);
 
   while (true) {
-    Vector3R coordinate{
-      box.min[X] + random_01() * (box.max[X] - box.min[X]),
-      box.min[Y] + random_01() * (box.max[Y] - box.min[Y]),
-      box.min[Z] + random_01() * (box.max[Z] - box.min[Z]),
-    };
+    Vector3R coordinate =
+      coordinate_in_box(box, {random_01(), random_01(), random_01()});
 
     PetscReal normalized = (coordinate[axis] - center) / half_length;
     PetscReal weight = 0.5 * (1.0 + cos(M_PI * normalized));
@@ -57,6 +87,23 @@ Vector3R CoordinateInBoxCosineHump::operator()()
     if (random_01() < weight)
       return coordinate;
   }
+}
+
+Vector3R CoordinateInBoxQS::operator()()
+{
+  return coordinate_in_box(box, sequence());
+}
+
+Vector3R CoordinateInCylinderQS::operator()()
+{
+  return coordinate_in_cylinder(cyl, sequence());
+}
+
+Vector3R CoordinateInBoxCosineHumpQS::operator()()
+{
+  Vector3R unit = sequence();
+  unit[axis] = cosine_hump_inv_cdf(unit[axis]);
+  return coordinate_in_box(box, unit);
 }
 
 Vector3R CoordinateOnAnnulus::operator()()

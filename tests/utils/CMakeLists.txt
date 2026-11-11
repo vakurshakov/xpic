@@ -19,6 +19,11 @@ foreach(test ${tests})
   endforeach()
 endforeach()
 
+add_executable(coordinate_generators_qs.out coordinate_generators_qs.cpp)
+target_link_libraries(coordinate_generators_qs.out ${PROJECT_NAME})
+add_test(NAME coordinate_generators_qs COMMAND ./coordinate_generators_qs.out)
+set_property(TEST coordinate_generators_qs PROPERTY LABELS smoke utils)
+
 # Edge and corner neighbours. The domain is 16x18x16 cells (y splits unevenly over 4 ranks)
 # and the DMDA needs at least 4 cells per rank, so x4 is the finest split along x.
 add_test(
