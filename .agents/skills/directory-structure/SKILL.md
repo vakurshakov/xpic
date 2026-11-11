@@ -30,7 +30,8 @@ tools/             - Standalone Python scripts (not part of the C++ build): batc
 
 docs/              - Sphinx docs (Russian); structure.rst and commands.rst are the key references
 
-CMakeLists.txt, build.sh, header.sh, run.sh, run-tests.sh, run-format-all.sh, .clang-format - Project config/scripts
+CMakeLists.txt, .clang-format - Project config
+scripts/ - build.sh, run.sh, run-tests.sh, run-format-all.sh, setenv.sh (environment), versions.sh, stacks/
 ```
 
 For execution flow, the config-driven dispatch pattern, per-directory responsibilities, and the module dependency hierarchy, see `.agents/skills/architecture/SKILL.md`.

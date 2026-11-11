@@ -167,7 +167,7 @@ def submit():
     elif sim == "ecsimcorr":
         options = f"-ksp_atol {tol:.0e} -ksp_rtol {tol:.0e}"
 
-    os.system(f"qsub ./run.sh {out_config} {out_result}/output {options}")
+    os.system(f"qsub ./scripts/run.sh {out_config} {out_result}/output {options}")
     
 if __name__ == "__main__":
     for sim, Np, d in pool:

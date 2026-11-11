@@ -2,7 +2,7 @@
 
 # Formats the whole project. Local edits are formatted by the PostToolUse hook
 # (.agents/hooks/format.sh), run this only for project-wide style fixes.
-# Usage: ./run-format-all.sh [--install]
+# Usage: ./scripts/run-format-all.sh [--install]
 
 install_command() {
   if command -v pacman &> /dev/null; then

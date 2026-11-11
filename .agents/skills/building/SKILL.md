@@ -9,19 +9,19 @@ Use this skill when working with the build system, CMake configuration, compilat
 
 ## Environment
 
-Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) are set in `header.sh` and sourced by all top-level scripts. Third-party dependencies (nlohmann::json, PETSc) are expected as sibling clones under `./external/` — see README.md for the exact clone/configure commands, including the two required PETSc arches: `linux-mpi-debug` and `linux-mpi-opt`.
+Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) (plus `PETSC_ARCH`, optional `GCC_DIR`) are set in `scripts/setenv.sh` and sourced by all scripts; each can be overridden from the environment, and `STACK=<name>` sources `scripts/stacks/<name>.sh` first (default `local`; unknown names fail). Third-party dependencies (nlohmann::json, PETSc) are expected as sibling clones under `./external/` — see README.md for the exact clone/configure commands, including the two required PETSc arches: `linux-mpi-debug` and `linux-mpi-opt`.
 
 ## Top-level scripts
 
-- `./build.sh [Debug|Release]` — configures and builds with CMake. With no argument, builds both Debug and Release sequentially. When using raw `cmake --build` always specify either `build/Debug` or `build/Release` — running without specifying the build type will fail. Raw `cmake`/`ctest` calls also fail (e.g. `fatal error: petscerror.h: No such file`) in a fresh shell, because `PETSC_DIR`, `MPI_DIR` and `JSON_DIR` are exported only by `header.sh`: prefer `./build.sh <type>`, or run `source ./header.sh && cmake --build build/<type>` from the repo root (the paths in `header.sh` are relative). Pass `Debug` for quick iteration with symbols, or `Release` for optimized builds used by tests and benchmarking.
-- `./run.sh <config.json> [petsc/mpi options]` — runs `./build/Release/xpic.out` via `mpiexec`, with OpenMP env vars set (`OMP_NUM_THREADS=4`, thread spread/affinity). Must be run from the repo root since output paths in configs are relative to it. Clears PETSc shared memory before each run.
-- `./run-tests.sh [ctest args]` — rebuilds Release, then runs `ctest --test-dir build/Release [ctest args]`. When using raw `ctest` always specify the `--test-dir` with `build/Release` or `build/Debug`, this flag is required; omitting it will fail. Use this when the code is already built and you want to iterate on test runs without triggering a rebuild. These commands support normal ctest agrument list, e.g.:
-  - `./run-tests.sh -R basic_ex1` — run a specific test by name.
-  - `./run-tests.sh -L "impls ecsim"` — run tests by label (labels combine an area label like `impls`/`diagnostics`/`boris`/`crank_nicolson`/`drift_kinetic` with an implementation label like `basic`/`ecsim`/`ecsimcorr`/`eccapfim`, and MPI variants add the `mpi` label).
-  - `./run-tests.sh -L smoke` / `-L sanity` / `-L regression` — every test has exactly one level label. `smoke`: single mechanism (pushers, commands, diagnostics, operators, `*_ex1` field solvers). `sanity`: short run, one invariant bounded (Gauss law, energy/momentum balance). `regression`: long runs with bounded physics outcome. Add `-LE mpi` to skip MPI variants.
-  - `./run-tests.sh --help` — shows ctest's own help.
+- `./scripts/build.sh [Debug|Release]` — configures and builds with CMake. With no argument, builds both Debug and Release sequentially. When using raw `cmake --build` always specify either `build/Debug` or `build/Release` — running without specifying the build type will fail. Raw `cmake`/`ctest` calls also fail (e.g. `fatal error: petscerror.h: No such file`) in a fresh shell, because `PETSC_DIR`, `MPI_DIR` and `JSON_DIR` are exported only by `scripts/setenv.sh`: prefer `./scripts/build.sh <type>`, or run `source ./scripts/setenv.sh && cmake --build build/<type>` from the repo root (the paths in `scripts/setenv.sh` are relative). Pass `Debug` for quick iteration with symbols, or `Release` for optimized builds used by tests and benchmarking.
+- `./scripts/run.sh <config.json> [petsc/mpi options]` — runs `./build/Release/xpic.out` via `mpiexec`, with OpenMP env vars set (`OMP_NUM_THREADS=4`, thread spread/affinity). Must be run from the repo root since output paths in configs are relative to it. Clears PETSc shared memory before each run.
+- `./scripts/run-tests.sh [ctest args]` — rebuilds Release, then runs `ctest --test-dir build/Release [ctest args]`. When using raw `ctest` always specify the `--test-dir` with `build/Release` or `build/Debug`, this flag is required; omitting it will fail. Use this when the code is already built and you want to iterate on test runs without triggering a rebuild. These commands support normal ctest agrument list, e.g.:
+  - `./scripts/run-tests.sh -R basic_ex1` — run a specific test by name.
+  - `./scripts/run-tests.sh -L "impls ecsim"` — run tests by label (labels combine an area label like `impls`/`diagnostics`/`boris`/`crank_nicolson`/`drift_kinetic` with an implementation label like `basic`/`ecsim`/`ecsimcorr`/`eccapfim`, and MPI variants add the `mpi` label).
+  - `./scripts/run-tests.sh -L smoke` / `-L sanity` / `-L regression` — every test has exactly one level label. `smoke`: single mechanism (pushers, commands, diagnostics, operators, `*_ex1` field solvers). `sanity`: short run, one invariant bounded (Gauss law, energy/momentum balance). `regression`: long runs with bounded physics outcome. Add `-LE mpi` to skip MPI variants.
+  - `./scripts/run-tests.sh --help` — shows ctest's own help.
 
-- `./run-format-all.sh [--install]` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`); `--install` installs `clang-format` if missing. Run it _only_ when explicitly asked to fix project-wide styling issues or before major releases.
+- `./scripts/run-format-all.sh [--install]` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`); `--install` installs `clang-format` if missing. Run it _only_ when explicitly asked to fix project-wide styling issues or before major releases.
 
 - **When to run which level:** during implementation run only `smoke` and `sanity` (`-L smoke`, `-L sanity`); they are fast. Run `regression` tests only before executing the modified versions of the code on the cluster, pushing to the remote branch and before committing to master, never in the middle of an implementation.
 
@@ -39,7 +39,7 @@ Tests are plain executables registered with `add_test` in each `tests/<area>/CMa
 
 ## Static analysis and formatting
 
-- **clangd / LSP**: `.clangd` points at `build/compile_commands.json`, a symlink that CMake updates to the last configured build type (`./build.sh` configures both). Without a configured build clangd can't find the PETSc headers; run `./build.sh Debug` first. Use the LSP tool (`findReferences`, `goToDefinition`, `documentSymbol`) and `getDiagnostics` for navigation and checks, and restart clangd after changing `.clangd`; the build remains the final check.
+- **clangd / LSP**: `.clangd` points at `build/compile_commands.json`, a symlink that CMake updates to the last configured build type (`./scripts/build.sh` configures both). Without a configured build clangd can't find the PETSc headers; run `./scripts/build.sh Debug` first. Use the LSP tool (`findReferences`, `goToDefinition`, `documentSymbol`) and `getDiagnostics` for navigation and checks, and restart clangd after changing `.clangd`; the build remains the final check.
 
 - **clang-format**: files edited via `Edit`/`Write` are formatted automatically by the `PostToolUse` hook (`.agents/hooks/format.sh`, registered in the agent hook configs); don't run it by hand. Config lives in `.clang-format`. Header guards use `SRC_<PATH>_H` (not `#pragma once`).
 - Keep CMake configuration in `CMakeLists.txt` files simple and readable — avoid complex generator expressions, deep custom macros, or conditional compilation for minor variations unless there's a strong reason.
@@ -50,12 +50,12 @@ Keep external dependencies minimal. `xpic` depends on CMake, PETSc, MPI, and nlo
 
 ## Configuration file format
 
-`xpic` uses JSON for configuration, driven entirely by a config file passed as `./run.sh <config.json>` — there is no interactive mode. See `docs/src/commands.rst` for the JSON schema of commands/diagnostics, and `docs/src/structure.rst` for the broader config-driven architecture. Config-driven object construction matches a `name`/`command`/`diagnostic`/`Simulation` string field against a fixed set of literals in a builder or `build_*()` function; unknown values throw `std::runtime_error`.
+`xpic` uses JSON for configuration, driven entirely by a config file passed as `./scripts/run.sh <config.json>` — there is no interactive mode. See `docs/src/commands.rst` for the JSON schema of commands/diagnostics, and `docs/src/structure.rst` for the broader config-driven architecture. Config-driven object construction matches a `name`/`command`/`diagnostic`/`Simulation` string field against a fixed set of literals in a builder or `build_*()` function; unknown values throw `std::runtime_error`.
 
 ## Troubleshooting builds
 
 Common issues:
-1. **CMake can't find PETSc**: verify `PETSC_DIR` and `PETSC_ARCH` are set correctly (sourced from `header.sh`).
+1. **CMake can't find PETSc**: verify `PETSC_DIR` and `PETSC_ARCH` are set correctly (sourced from `scripts/setenv.sh`).
 2. **MPI compiler not found**: ensure `MPI_DIR` is set and the MPI compiler wrappers are on `PATH`.
 3. **Linker errors**: verify `target_link_libraries` includes all needed libraries for the target.
-4. **Stale build directory**: if CMake configuration changed significantly, remove `build/Debug` or `build/Release` and rerun `./build.sh`.
+4. **Stale build directory**: if CMake configuration changed significantly, remove `build/Debug` or `build/Release` and rerun `./scripts/build.sh`.

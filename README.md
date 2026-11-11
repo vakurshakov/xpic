@@ -52,10 +52,10 @@ If configure cannot automatically download the package, you can use a pre-downlo
 
 Now, the executable can be built successfully. To do so, run the following command from the home directory:
 ```sh
-./build.sh
+./scripts/build.sh
 ```
 
 The binary will be created in the `./build` folder. Execution of the code should be performed from the home directory too:
 ```sh
-./run.sh <config.json> [options]
+./scripts/run.sh <config.json> [options]
 ```

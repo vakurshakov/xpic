@@ -1,10 +1,10 @@
 #!/bin/bash
 
-source ./header.sh
+source ./scripts/setenv.sh || exit 1
 
 build_type=Release
 
-# source ./build.sh $build_type
+# source ./scripts/build.sh $build_type
 
 # see https://github.com/pmodels/mpich/issues/4616
 # see https://github.com/pmodels/mpich/blob/main/doc/wiki/how_to/Using_the_Hydra_Process_Manager.md#process-core-binding

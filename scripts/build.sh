@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ./header.sh
+source ./scripts/setenv.sh || exit 1
 
 check_build() {
   if [[ $? != 0 ]]; then
