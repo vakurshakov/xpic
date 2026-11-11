@@ -4,14 +4,25 @@
 # (.agents/hooks/format.sh), run this only for project-wide style fixes.
 # Usage: ./scripts/run-format-all.sh [--install]
 
+if command -v pacman &> /dev/null; then
+  manager=pacman
+elif command -v apt-get &> /dev/null; then
+  manager=apt-get
+elif command -v dnf &> /dev/null; then
+  manager=dnf
+elif command -v brew &> /dev/null; then
+  manager=brew
+fi
+
 install_command() {
-  if command -v pacman &> /dev/null; then
-    echo "sudo pacman -S clang"
-  elif command -v apt-get &> /dev/null; then
-    echo "sudo apt-get install clang-format"
-  elif command -v brew &> /dev/null; then
-    echo "brew install clang-format"
-  fi
+  local sudo=""
+  [[ $manager != brew && $EUID != 0 ]] && sudo="sudo "
+  case $manager in
+    pacman) echo "${sudo}pacman -S --needed clang" ;;
+    apt-get) echo "${sudo}apt-get install -y clang-format" ;;
+    dnf) echo "${sudo}dnf install -y clang-tools-extra" ;;
+    brew) echo "brew install clang-format" ;;
+  esac
 }
 
 if ! command -v clang-format &> /dev/null; then

@@ -1,5 +1,10 @@
-# Dependency versions, the single source of truth. Sourced by `setenv.sh`.
-# MIN: hard-known minimum (empty if unverified), TESTED: verified versions, PINNED: installed by scripts.
+# Dependency versions, the single source of truth.
+# Usage: source setenv.sh.
+#
+# MIN: hard-known minimum (empty if unverified),
+# TESTED: verified versions,
+# PINNED: installed by scripts.
+
 
 # C++20 compiler (gcc, g++): minimum unverified. `GCC_DIR` is required for Clang-based stacks.
 COMPILER_MIN_VERSION=
@@ -16,7 +21,7 @@ GIT_MIN_VERSION=
 
 # MPI is never built from source. Minimum unverified.
 MPI_MIN_VERSION=
-MPI_TESTED="MPICH 5.0.2 (stark), Open MPI 5.0.11 (local)"
+MPI_TESTED="Open MPI 5.0.11 (local), MPICH 5.0.2 (stark)"
 
 # BLAS/LAPACK is installed through PETSc.
 BLAS_TESTED="OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark)"

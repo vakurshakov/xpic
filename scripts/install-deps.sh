@@ -54,7 +54,7 @@ package_of() {
   esac
 }
 
-for tool in git make cmake python3 gcc g++ gfortran mpicxx; do
+for tool in git gcc g++ gfortran mpicxx make cmake python3; do
   command -v "$tool" &> /dev/null && continue
 
   cmd=$(install_command "$(package_of "$tool")")
@@ -72,6 +72,9 @@ for tool in git make cmake python3 gcc g++ gfortran mpicxx; do
   fi
 
   $cmd || exit 1
+
+  # The install can succeed while the tool stays off PATH: on dnf, openmpi-devel puts mpicxx
+  # into /usr/lib64/openmpi/bin, which only the environment module adds to PATH.
   command -v "$tool" &> /dev/null || {
     echo "'$tool' is still not on PATH after the install (for dnf, try 'module load mpi/openmpi-x86_64')." >&2
     exit 1
