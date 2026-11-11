@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# PostToolUse hook: formats the C/C++ file just written or edited by Claude.
+# PostToolUse hook: formats the C/C++ file just written or edited by the agent.
 
 if ! command -v clang-format &> /dev/null; then
-  echo "[Claude Hook Warning]: 'clang-format' is not installed, skipping formatting." >&2
+  echo "[Agent Hook Warning]: 'clang-format' is not installed, skipping formatting." >&2
   echo "Install it with: ./run-format-all.sh --install" >&2
-  # Exit 0 so that Claude continues working without formatting.
+  # Exit 0 so that the agent continues working without formatting.
   exit 0
 fi
 

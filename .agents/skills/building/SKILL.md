@@ -41,7 +41,7 @@ Tests are plain executables registered with `add_test` in each `tests/<area>/CMa
 
 - **clangd / LSP**: `.clangd` points at `build/compile_commands.json`, a symlink that CMake updates to the last configured build type (`./build.sh` configures both). Without a configured build clangd can't find the PETSc headers; run `./build.sh Debug` first. Use the LSP tool (`findReferences`, `goToDefinition`, `documentSymbol`) and `getDiagnostics` for navigation and checks, and restart clangd after changing `.clangd`; the build remains the final check.
 
-- **clang-format**: files edited via `Edit`/`Write` are formatted automatically by the `PostToolUse` hook (`.agents/hooks/format.sh`, registered in `.claude/settings.json`); don't run it by hand. Config lives in `.clang-format`. Header guards use `SRC_<PATH>_H` (not `#pragma once`).
+- **clang-format**: files edited via `Edit`/`Write` are formatted automatically by the `PostToolUse` hook (`.agents/hooks/format.sh`, registered in the agent hook configs); don't run it by hand. Config lives in `.clang-format`. Header guards use `SRC_<PATH>_H` (not `#pragma once`).
 - Keep CMake configuration in `CMakeLists.txt` files simple and readable — avoid complex generator expressions, deep custom macros, or conditional compilation for minor variations unless there's a strong reason.
 
 ## Dependency management

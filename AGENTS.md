@@ -1,6 +1,6 @@
-# Claude instructions for `xpic`
+# Agent instructions for `xpic`
 
-This file provides guidance to coding agents (Claude Code, Codex) when working with code in this repository.
+This file provides guidance to coding agents when working with code in this repository.
 
 ## Project overview
 
