@@ -147,3 +147,13 @@ The identity $dP/dt = QE + QVB$ for a sort, exact only for the `basic` Boris cen
 **Energy balance**:
 Field plus particle energy changes only by what the scheme exchanges with an external source.
 _Avoid_: Energy drift (that is the error, not the property)
+
+### Build and environment
+
+**Stack**:
+A named, mutually compatible set of compiler, MPI, PETSc and BLAS/LAPACK that `xpic` is built and run against. `local` is the default one.
+_Avoid_: Toolchain, machine, environment (too broad)
+
+**Dependency**:
+A third-party library `xpic` needs (MPI, PETSc, nlohmann::json). Each has a minimum supported version and a pinned version that the install script fetches.
+_Avoid_: Package, external
