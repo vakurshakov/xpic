@@ -11,7 +11,7 @@ build_type=Release
 
 source ./scripts/build.sh $build_type
 
-export OMP_NUM_THREADS=16
-export CTEST_PARALLEL_LEVEL=16
+export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
+export CTEST_PARALLEL_LEVEL=${CTEST_PARALLEL_LEVEL:-$(nproc)} # overridden by `-j <n>`
 
-ctest --test-dir build/$build_type $@
+ctest --test-dir build/$build_type "$@"
