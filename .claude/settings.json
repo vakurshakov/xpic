@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format.sh"
+            "command": "./.agents/hooks/format.sh"
           }
         ]
       }

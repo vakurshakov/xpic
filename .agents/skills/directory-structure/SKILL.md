@@ -33,7 +33,7 @@ docs/              - Sphinx docs (Russian); structure.rst and commands.rst are t
 CMakeLists.txt, build.sh, header.sh, run.sh, run-tests.sh, run-format-all.sh, .clang-format - Project config/scripts
 ```
 
-For execution flow, the config-driven dispatch pattern, per-directory responsibilities, and the module dependency hierarchy, see `.claude/skills/architecture/SKILL.md`.
+For execution flow, the config-driven dispatch pattern, per-directory responsibilities, and the module dependency hierarchy, see `.agents/skills/architecture/SKILL.md`.
 
 ## Search hierarchy when looking for code
 
