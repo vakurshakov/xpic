@@ -1,5 +1,6 @@
 # Sourced by all scripts from the repository root. Every variable can be overridden
 # from the environment; `STACK=<name>` sources scripts/stacks/<name>.sh first.
+# PETSC_ARCH is not defaulted here: CMake picks linux-mpi-debug/-opt per build type unless it is set.
 
 scripts_dir="$(dirname "${BASH_SOURCE[0]}")"
 
@@ -18,7 +19,6 @@ mpicxx="$(command -v mpicxx)"
 export MPI_DIR="${MPI_DIR:-${mpicxx:+$(dirname "$(dirname "$mpicxx")")}}"
 
 export PETSC_DIR="${PETSC_DIR:-./external/petsc}"
-export PETSC_ARCH="${PETSC_ARCH:-linux-mpi-opt}"
 export JSON_DIR="${JSON_DIR:-./external/json}"
 
 [[ -n "$GCC_DIR" ]] && export GCC_DIR

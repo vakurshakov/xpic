@@ -6,9 +6,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 file(CREATE_LINK ${CMAKE_BINARY_DIR}/compile_commands.json
   ${CMAKE_SOURCE_DIR}/build/compile_commands.json SYMBOLIC)
 
-set(MPI_DIR $ENV{MPI_DIR})
-set(JSON_DIR $ENV{JSON_DIR})
-set(PETSC_DIR $ENV{PETSC_DIR})
+# Absolute paths, because they end up in rpaths.
+get_filename_component(MPI_DIR "$ENV{MPI_DIR}" ABSOLUTE)
+get_filename_component(JSON_DIR "$ENV{JSON_DIR}" ABSOLUTE)
+get_filename_component(PETSC_DIR "$ENV{PETSC_DIR}" ABSOLUTE)
 
 set(MPI_CXX_COMPILER "${MPI_DIR}/bin/mpicxx")
 set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
@@ -27,8 +28,29 @@ set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missin
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -mno-wbnoinvd")
 
-set(PETSC_ARCH_OPT linux-mpi-opt)
-set(PETSC_ARCH_DEBUG linux-mpi-debug)
+# PETSC_ARCH from the environment overrides the per-configuration defaults.
+if(DEFINED ENV{PETSC_ARCH})
+  set(PETSC_ARCH_OPT $ENV{PETSC_ARCH})
+  set(PETSC_ARCH_DEBUG $ENV{PETSC_ARCH})
+else()
+  set(PETSC_ARCH_OPT linux-mpi-opt)
+  set(PETSC_ARCH_DEBUG linux-mpi-debug)
+endif()
+set(PETSC_LIB_DIR ${PETSC_DIR}/$<IF:$<CONFIG:Release>,${PETSC_ARCH_OPT},${PETSC_ARCH_DEBUG}>/lib)
+
+# Clang needs the libstdc++ of a GCC installation, which GCC_DIR points to.
+set(GCC_DIR $ENV{GCC_DIR})
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND GCC_DIR)
+  file(GLOB gcc_cxx_dirs ${GCC_DIR}/include/c++/*)
+  list(SORT gcc_cxx_dirs COMPARE NATURAL)
+  list(POP_BACK gcc_cxx_dirs gcc_cxx_dir)
+  file(GLOB gcc_cxx_target_dirs LIST_DIRECTORIES true ${gcc_cxx_dir}/*-*)
+  string(APPEND CMAKE_CXX_FLAGS " --gcc-toolchain=${GCC_DIR} -isystem ${gcc_cxx_dir}")
+  foreach(dir ${gcc_cxx_target_dirs})
+    string(APPEND CMAKE_CXX_FLAGS " -isystem ${dir}")
+  endforeach()
+  set(GCC_RPATH "-Wl,-rpath,${GCC_DIR}/lib64")
+endif()
 
 set(interfaces
   src/interfaces/simulation.cpp
@@ -149,7 +171,14 @@ target_include_directories(
 target_link_directories(
   ${PROJECT_NAME}
   PUBLIC ${MPI_DIR}/lib
-  PUBLIC ${PETSC_DIR}/$<IF:$<CONFIG:Release>,${PETSC_ARCH_OPT},${PETSC_ARCH_DEBUG}>/lib
+  PUBLIC ${PETSC_LIB_DIR}
+)
+
+target_link_options(
+  ${PROJECT_NAME}
+  PUBLIC -Wl,-rpath,${MPI_DIR}/lib
+  PUBLIC -Wl,-rpath,${PETSC_LIB_DIR}
+  PUBLIC ${GCC_RPATH}
 )
 
 target_link_libraries(
