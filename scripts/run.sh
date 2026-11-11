@@ -13,7 +13,7 @@ export HYDRA_MAPPING=none
 
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
 export OMP_PROC_BIND=${OMP_PROC_BIND:-spread} # see https://www.openmp.org/spec-html/5.0/openmpse52.html
-export OMP_PLACES=${OMP_PLACES:-threads} # see https://www.openmp.org/spec-html/5.0/openmpse53.html
+export OMP_PLACES=${OMP_PLACES:-threads}      # see https://www.openmp.org/spec-html/5.0/openmpse53.html
 
 # Can help to inspect thread migration
 export OMP_DISPLAY_ENV=false       # [true | false | verbose], see https://www.openmp.org/spec-html/5.0/openmpse60.html
@@ -21,7 +21,7 @@ export OMP_DISPLAY_AFFINITY=false  # [true | false],           see https://www.o
 
 # Clearing shared memory allocated by `PetscShmgetAllocateArray()`
 ipcrm --all
-$PETSC_DIR/lib/petsc/bin/petscfreesharedmemory
+$PETSC_DIR/lib/petsc/bin/petscfreesharedmemory.sh
 
 MPI_NUM_PROC=${MPI_NUM_PROC:-1}
 
@@ -29,6 +29,4 @@ MPI_NUM_PROC=${MPI_NUM_PROC:-1}
 RUN_PREFIX=${RUN_PREFIX:-}
 
 # Running the main executable, namely `xpic.out`
-$MPI_DIR/bin/mpiexec                          \
-    -np $MPI_NUM_PROC                         \
-    $RUN_PREFIX ./build/$build_type/xpic.out "$@"
+$MPI_DIR/bin/mpiexec -np $MPI_NUM_PROC $RUN_PREFIX ./build/$build_type/xpic.out "$@"
