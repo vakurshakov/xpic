@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Usage: build.sh [Debug|Release] [cmake --build options, e.g. -j 16]
+# Without a build type, both are built.
+
 source ./scripts/setenv.sh || exit 1
 check_dependency_versions || exit 1
 
@@ -10,14 +13,17 @@ check_build() {
   fi
 }
 
-if [[ $1 == "Debug" || $# == 0 ]]; then
-  cmake -S . -B build/Debug -D CMAKE_BUILD_TYPE=Debug
-  cmake --build build/Debug --parallel
-  check_build
+# Four cores (overridden by calling with `-j <n>`), so the machine stays responsive.
+export CMAKE_BUILD_PARALLEL_LEVEL=${CMAKE_BUILD_PARALLEL_LEVEL:-4}
+
+build_types=(Debug Release)
+if [[ $1 == "Debug" || $1 == "Release" ]]; then
+  build_types=("$1")
+  shift
 fi
 
-if [[ $1 == "Release" || $# == 0 ]]; then
-  cmake -S . -B build/Release -D CMAKE_BUILD_TYPE=Release
-  cmake --build build/Release --parallel
+for build_type in "${build_types[@]}"; do
+  cmake -S . -B build/$build_type -D CMAKE_BUILD_TYPE=$build_type
+  cmake --build build/$build_type "$@"
   check_build
-fi
+done
