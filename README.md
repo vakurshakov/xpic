@@ -11,7 +11,7 @@ cd xpic
 
 | Dependency | Minimum | Tested | Installed by `install-deps.sh` |
 | --- | --- | --- | --- |
-| git | — | — | system package manager |
+| git | 1.8.5 | 2.56.0 | system package manager |
 | C++20 compiler (`gcc`, `g++`) | unverified | GCC 15.1, GCC 16.2, AOCC 5.2.0 (with `GCC_DIR`) | system package manager |
 | `gfortran` (local only, OpenBLAS build needs it) | — | GCC 15.1 | system package manager |
 | MPI (`mpicxx`) | unverified | Open MPI 5.0.11 (local), MPICH 5.0.2 (stark) | system package manager, never built from source |

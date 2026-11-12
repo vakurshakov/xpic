@@ -5,16 +5,17 @@
 # TESTED: verified versions,
 # PINNED: installed by scripts.
 
-GIT_MIN_VERSION=
+# Required at a minimum so that the install-deps.sh can fetch dependencies
+GIT_MIN_VERSION=1.8.5
 
-# C++20 compiler (gcc, g++): minimum unverified. `GCC_DIR` is required for Clang-based stacks.
+# C++20 compiler (gcc, g++). `GCC_DIR` is required for Clang-based stacks.
 COMPILER_MIN_VERSION=
 COMPILER_TESTED="GCC 15.1, GCC 16.2, AOCC 5.2.0 (with GCC_DIR)"
 
 # gfortran: needed locally only, because PETSc's OpenBLAS install always passes `FC=`.
 GFORTRAN_TESTED="GCC 15.1"
 
-# MPI is never built from source. Minimum unverified.
+# MPI is never built from source.
 MPI_MIN_VERSION=
 MPI_TESTED="Open MPI 5.0.11 (local), MPICH 5.0.2 (stark)"
 
@@ -39,7 +40,7 @@ PYTHON_TESTED=3.14
 # `tools/` and by the `*_plot` smoke tests; the build does not depend on them.
 PYTHON_OPTIONAL_PACKAGES="numpy matplotlib scipy"
 
-# diff (diffutils): PETSc `configure` fails without it, and minimal images (e.g. Arch) do not ship it.
+# PETSc `configure` fails without it, and minimal images (e.g. Arch) do not ship it.
 DIFF_MIN_VERSION=
 
 
