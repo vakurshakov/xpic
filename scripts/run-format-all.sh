@@ -2,7 +2,20 @@
 
 # Formats the whole project. Local edits are formatted by the PostToolUse hook
 # (.agents/hooks/format.sh), run this only for project-wide style fixes.
-# Usage: ./scripts/run-format-all.sh [--install]
+#
+# Usage: ./scripts/run-format-all.sh [-h|--help] [--install]
+#   --install   install clang-format with the system package manager if missing
+#   -h, --help  print this help and exit
+
+source "$(dirname "${BASH_SOURCE[0]}")/usage.sh"
+
+for arg in "$@"; do
+  case "$arg" in
+    -h | --help) usage; exit 0 ;;
+    --install) install=1 ;;
+    *) echo "Unknown argument '$arg'." >&2; usage >&2; exit 1 ;;
+  esac
+done
 
 if command -v pacman &> /dev/null; then
   manager=pacman
@@ -32,7 +45,7 @@ if ! command -v clang-format &> /dev/null; then
     exit 1
   fi
 
-  if [ "$1" != "--install" ]; then
+  if [[ -z "$install" ]]; then
     echo "'clang-format' is not installed. Run: $cmd" >&2
     echo "Or rerun with --install to do it automatically." >&2
     exit 1

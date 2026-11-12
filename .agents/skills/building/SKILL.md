@@ -13,6 +13,8 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) (plus optional `GCC_D
 
 ## Top-level scripts
 
+Every script accepts `-h`/`--help`: it prints the usage, options and environment variables from the script's header comment, with no side effects. Unknown arguments print the same usage to stderr and exit 1.
+
 - `./scripts/install-deps.sh [--install] [--force]` — checks the prerequisite tools (offering package-manager install commands; `--install` accepts them) and clones nlohmann::json at the pinned tag (skipped when already there; `--force` re-fetches; an external `JSON_DIR` is reused). Versions live in `scripts/versions.sh`; `build.sh` fails early when json or PETSc is missing or below its minimum.
 - `./scripts/build.sh [Debug|Release]` — configures and builds with CMake. With no argument, builds both Debug and Release sequentially. When using raw `cmake --build` always specify either `build/Debug` or `build/Release` — running without specifying the build type will fail. Raw `cmake`/`ctest` calls also fail (e.g. `fatal error: petscerror.h: No such file`) in a fresh shell, because `PETSC_DIR`, `MPI_DIR` and `JSON_DIR` are exported only by `scripts/setenv.sh`: prefer `./scripts/build.sh <type>`, or run `source ./scripts/setenv.sh && cmake --build build/<type>` from the repo root (the paths in `scripts/setenv.sh` are relative). Pass `Debug` for quick iteration with symbols, or `Release` for optimized builds used by tests and benchmarking.
 - `./scripts/run.sh <config.json> [petsc/mpi options]` — runs `./build/Release/xpic.out` via `mpiexec`, with OpenMP env vars set (`OMP_NUM_THREADS=4`, thread spread/affinity). Must be run from the repo root since output paths in configs are relative to it. Clears PETSc shared memory before each run.
@@ -20,7 +22,7 @@ Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) (plus optional `GCC_D
   - `./scripts/run-tests.sh -R basic_ex1` — run a specific test by name.
   - `./scripts/run-tests.sh -L "impls ecsim"` — run tests by label (labels combine an area label like `impls`/`diagnostics`/`boris`/`crank_nicolson`/`drift_kinetic` with an implementation label like `basic`/`ecsim`/`ecsimcorr`/`eccapfim`, and MPI variants add the `mpi` label).
   - `./scripts/run-tests.sh -L smoke` / `-L sanity` / `-L regression` — every test has exactly one level label. `smoke`: single mechanism (pushers, commands, diagnostics, operators, `*_ex1` field solvers). `sanity`: short run, one invariant bounded (Gauss law, energy/momentum balance). `regression`: long runs with bounded physics outcome. Add `-LE mpi` to skip MPI variants.
-  - `./scripts/run-tests.sh --help` — shows ctest's own help.
+  - `./scripts/run-tests.sh --help` — prints the script's usage (`ctest --help` lists the ctest options).
 
 - `./scripts/run-format-all.sh [--install]` — formats all `.h`/`.cpp` files under `src/` and `tests/` in place with `clang-format` (config in `.clang-format`); `--install` installs `clang-format` if missing. Run it _only_ when explicitly asked to fix project-wide styling issues or before major releases.
 

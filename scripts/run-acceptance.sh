@@ -3,7 +3,12 @@
 # Clean-container acceptance run of the README sequence: install-deps, build, smoke tests, run,
 # idempotency and the PETSC_DIR reuse path. Needs docker; the working tree is copied in, so
 # uncommitted changes are tested and the host's external/, build/ and results/ are untouched.
-# Usage: ./scripts/run-acceptance.sh [ubuntu|arch]   (default: ubuntu)
+#
+# Usage: ./scripts/run-acceptance.sh [-h|--help] [ubuntu|arch]
+#   ubuntu|arch  distribution of the container (default: ubuntu)
+#   -h, --help   print this help and exit
+
+source "$(dirname "${BASH_SOURCE[0]}")/usage.sh"
 
 if [[ -n "$XPIC_ACCEPTANCE_INSIDE" ]]; then
   set -eo pipefail
@@ -64,9 +69,10 @@ if [[ -n "$XPIC_ACCEPTANCE_INSIDE" ]]; then
 fi
 
 case "${1:-ubuntu}" in
+  -h | --help) usage; exit 0 ;;
   ubuntu) image=ubuntu:24.04 ;;
   arch) image=archlinux:latest ;;
-  *) echo "Unknown distro '$1'. Usage: $0 [ubuntu|arch]" >&2; exit 1 ;;
+  *) echo "Unknown argument '$1'." >&2; usage >&2; exit 1 ;;
 esac
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1

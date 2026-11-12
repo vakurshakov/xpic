@@ -39,6 +39,8 @@ Options:
 - `debug` or `opt` builds a single PETSc arch;
 - `--force` re-fetches and rebuilds even if the pinned version is present.
 
+Every script prints its usage, options and the environment variables it reads with `--help` (e.g. `./scripts/install-deps.sh --help`).
+
 Re-running the script is a no-op for dependencies that are already built at the pinned version.
 
 ## 2. Build

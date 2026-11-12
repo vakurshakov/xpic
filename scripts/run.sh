@@ -1,5 +1,24 @@
 #!/bin/bash
 
+# Runs build/Release/xpic.out through mpiexec with the OpenMP environment set and PETSc shared
+# memory cleared. Run from the repository root: output paths in configs are relative to it.
+# 
+# Usage: ./scripts/run.sh [-h|--help] <config.json> [petsc/mpi options]
+#   -h, --help  print this help and exit
+# 
+# Environment (also see scripts/setenv.sh):
+#   MPI_NUM_PROC    MPI ranks (default: 1)
+#   OMP_NUM_THREADS, OMP_PROC_BIND, OMP_PLACES  OpenMP settings (default: 4, spread, threads)
+#   RUN_PREFIX      command inserted before the binary, e.g. "numactl --localalloc"
+#   STACK       name of scripts/stacks/<name>.sh sourced first (default: local)
+#   MPI_DIR, PETSC_DIR, PETSC_ARCH  dependency locations
+
+source "$(dirname "${BASH_SOURCE[0]}")/usage.sh"
+if [[ $1 == "-h" || $1 == "--help" ]]; then
+  usage
+  exit 0
+fi
+
 source ./scripts/setenv.sh || exit 1
 
 build_type=Release

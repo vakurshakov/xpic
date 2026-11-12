@@ -1,18 +1,27 @@
 #!/usr/bin/env bash
 
-# Clones nlohmann::json at the pinned tag into JSON_DIR. Sourced environment decides the location.
+# Clones nlohmann::json at the pinned tag into JSON_DIR.
 # A JSON_DIR outside ./external is reused with only version and header checks.
-# Usage: ./scripts/install-json.sh [--force]
-#   --force    re-fetch even if the pinned version is present
+#
+# Usage: ./scripts/install-json.sh [-h|--help] [--force]
+#   --force     re-fetch even if the pinned version is present
+#   -h, --help  print this help and exit
+#
+# Environment (also see scripts/setenv.sh):
+#   STACK       name of scripts/stacks/<name>.sh sourced first (default: local)
+#   JSON_DIR    nlohmann::json location (default: ./external/json)
 
-source ./scripts/setenv.sh || exit 1
+source "$(dirname "${BASH_SOURCE[0]}")/usage.sh"
 
 for arg in "$@"; do
   case "$arg" in
+    -h | --help) usage; exit 0 ;;
     --force) force=1 ;;
-    *) echo "Unknown argument '$arg'. Usage: $0 [--force]" >&2; exit 1 ;;
+    *) echo "Unknown argument '$arg'." >&2; usage >&2; exit 1 ;;
   esac
 done
+
+source ./scripts/setenv.sh || exit 1
 
 # Step 1: a JSON_DIR outside ./external is reused, only verified.
 if [[ "$JSON_DIR" != ./external/* && "$JSON_DIR" != "$PWD/external/"* ]]; then

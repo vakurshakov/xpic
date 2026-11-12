@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
 
-# Clones PETSc at the pinned tag into PETSC_DIR and builds the requested arches. Sourced environment
-# decides the location. A PETSC_DIR outside ./external is reused with only version and library checks.
-# Usage: ./scripts/install-petsc.sh [debug|opt] [--force]
-#   debug|opt  build only this arch (default: both)
-#   --force    rebuild even if the pinned version is built
+# Clones PETSc at the pinned tag into PETSC_DIR and builds the requested arches.
+# A PETSC_DIR outside ./external is reused with only version and library checks.
+#
+# Usage: ./scripts/install-petsc.sh [-h|--help] [debug|opt] [--force]
+#   debug|opt   build only this arch (default: both)
+#   --force     rebuild even if the pinned version is built
+#   -h, --help  print this help and exit
+#
+# Environment (also see scripts/setenv.sh):
+#   STACK       name of scripts/stacks/<name>.sh sourced first (default: local)
+#   MPI_DIR     MPI prefix (default: derived from mpicxx on PATH)
+#   PETSC_DIR   PETSc location (default: ./external/petsc)
+#   PETSC_ARCH  PETSc arch to verify in a reused PETSC_DIR
 
-source ./scripts/setenv.sh || exit 1
+source "$(dirname "${BASH_SOURCE[0]}")/usage.sh"
 
 arches=(debug opt)
 for arg in "$@"; do
   case "$arg" in
+    -h | --help) usage; exit 0 ;;
     debug | opt) arches=("$arg") ;;
     --force) force=1 ;;
-    *) echo "Unknown argument '$arg'. Usage: $0 [debug|opt] [--force]" >&2; exit 1 ;;
+    *) echo "Unknown argument '$arg'." >&2; usage >&2; exit 1 ;;
   esac
 done
+
+source ./scripts/setenv.sh || exit 1
 
 # Whether an arch holds a built library (a prefix-style install has it directly in PETSC_DIR).
 is_built() {

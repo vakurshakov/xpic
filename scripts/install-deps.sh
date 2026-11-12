@@ -1,17 +1,29 @@
 #!/usr/bin/env bash
 
 # Installs what `xpic` needs: prerequisite tools (through the system package manager), nlohmann::json and PETSc.
-# Usage: ./scripts/install-deps.sh [debug|opt] [--install] [--force]
-#   debug|opt  build only this PETSc arch (default: both)
-#   --install  accept all prompts to install missing tools
-#   --force    re-fetch and rebuild dependencies even if the pinned version is present
+#
+# Usage: ./scripts/install-deps.sh [-h|--help] [debug|opt] [--install] [--force]
+#   debug|opt   build only this PETSc arch (default: both)
+#   --install   accept all prompts to install missing tools
+#   --force     re-fetch and rebuild dependencies even if the pinned version is present
+#   -h, --help  print this help and exit
+#
+# Environment (also see scripts/setenv.sh):
+#   STACK       name of scripts/stacks/<name>.sh sourced first (default: local)
+#   MPI_DIR     MPI prefix (default: derived from mpicxx on PATH)
+#   JSON_DIR    nlohmann::json location (default: ./external/json; outside ./external it is only verified)
+#   PETSC_DIR   PETSc location (default: ./external/petsc; outside ./external it is only verified)
+#   PETSC_ARCH  PETSc arch to verify in a reused PETSC_DIR
+
+source "$(dirname "${BASH_SOURCE[0]}")/usage.sh"
 
 for arg in "$@"; do
   case "$arg" in
+    -h | --help) usage; exit 0 ;;
     --install) auto_install=1 ;;
     --force) force=--force ;;
     debug | opt) arch="$arg" ;;
-    *) echo "Unknown argument '$arg'. Usage: $0 [debug|opt] [--install] [--force]" >&2; exit 1 ;;
+    *) echo "Unknown argument '$arg'." >&2; usage >&2; exit 1 ;;
   esac
 done
 

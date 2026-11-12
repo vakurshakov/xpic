@@ -1,7 +1,21 @@
 #!/bin/bash
 
-# Usage: build.sh [Debug|Release] [cmake --build options, e.g. -j 16]
-# Without a build type, both are built.
+# Configures and builds xpic with CMake into build/<type>.
+# 
+# Usage: ./scripts/build.sh [-h|--help] [Debug|Release] [cmake --build options, e.g. -j 16]
+#   Debug|Release  build only this type (default: both)
+#   -h, --help     print this help and exit
+# 
+# Environment (also see scripts/setenv.sh):
+#   CMAKE_BUILD_PARALLEL_LEVEL  build jobs (default: 4, `-j <n>` overrides)
+#   STACK       name of scripts/stacks/<name>.sh sourced first (default: local)
+#   MPI_DIR, JSON_DIR, PETSC_DIR, PETSC_ARCH, GCC_DIR  dependency locations
+
+source "$(dirname "${BASH_SOURCE[0]}")/usage.sh"
+if [[ $1 == "-h" || $1 == "--help" ]]; then
+  usage
+  exit 0
+fi
 
 source ./scripts/setenv.sh || exit 1
 check_dependency_versions || exit 1
