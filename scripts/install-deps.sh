@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 
-# Installs what `xpic` needs: prerequisite tools (through the system package manager) and nlohmann::json.
-# Usage: ./scripts/install-deps.sh [--install] [--force]
+# Installs what `xpic` needs: prerequisite tools (through the system package manager), nlohmann::json and PETSc.
+# Usage: ./scripts/install-deps.sh [debug|opt] [--install] [--force]
+#   debug|opt  build only this PETSc arch (default: both)
 #   --install  accept all prompts to install missing tools
-#   --force    re-fetch dependencies even if the pinned version is present
+#   --force    re-fetch and rebuild dependencies even if the pinned version is present
 
 for arg in "$@"; do
   case "$arg" in
     --install) auto_install=1 ;;
     --force) force=--force ;;
-    *) echo "Unknown argument '$arg'. Usage: $0 [--install] [--force]" >&2; exit 1 ;;
+    debug | opt) arch="$arg" ;;
+    *) echo "Unknown argument '$arg'. Usage: $0 [debug|opt] [--install] [--force]" >&2; exit 1 ;;
   esac
 done
 
@@ -82,3 +84,4 @@ for tool in git gcc g++ gfortran mpicxx make cmake python3; do
 done
 
 ./scripts/install-json.sh $force || exit 1
+./scripts/install-petsc.sh $arch $force || exit 1

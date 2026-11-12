@@ -18,8 +18,8 @@ source "$scripts_dir/stacks/$stack.sh"
 mpicxx="$(command -v mpicxx)"
 export MPI_DIR="${MPI_DIR:-${mpicxx:+$(dirname "$(dirname "$mpicxx")")}}"
 
-export PETSC_DIR="${PETSC_DIR:-./external/petsc}"
 export JSON_DIR="${JSON_DIR:-./external/json}"
+export PETSC_DIR="${PETSC_DIR:-./external/petsc}"
 
 [[ -n "$GCC_DIR" ]] && export GCC_DIR
 

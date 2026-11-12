@@ -23,14 +23,14 @@ GIT_MIN_VERSION=
 MPI_MIN_VERSION=
 MPI_TESTED="Open MPI 5.0.11 (local), MPICH 5.0.2 (stark)"
 
-# BLAS/LAPACK is installed through PETSc.
-BLAS_TESTED="OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark)"
+JSON_MIN_VERSION=3.11
+JSON_PINNED_TAG=v3.11.2
 
 PETSC_MIN_VERSION=3.26
 PETSC_PINNED_TAG=v3.26.1
 
-JSON_MIN_VERSION=3.11
-JSON_PINNED_TAG=v3.11.2
+# BLAS/LAPACK is installed through PETSc.
+BLAS_TESTED="OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark)"
 
 PYTHON_MIN_VERSION=3.6
 PYTHON_TESTED=3.14
@@ -52,19 +52,31 @@ check_min_version() {
   fi
 }
 
-# Prints an error and returns 1 if the PETSc or json found by the environment is below its minimum.
-check_dependency_versions() {
-  local header="$PETSC_DIR/include/petscversion.h" major minor
-  if [[ -f "$header" ]]; then
-    major=$(sed -n 's/^#define PETSC_VERSION_MAJOR *//p' "$header")
-    minor=$(sed -n 's/^#define PETSC_VERSION_MINOR *//p' "$header")
-    check_min_version PETSc "$major.$minor" "$PETSC_MIN_VERSION" || return 1
-  fi
+# Prints an error and returns 1 unless the nlohmann::json in `dir` exists and is at least JSON_MIN_VERSION.
+# Usage: verify_json <dir>
+verify_json() {
+  local header="$1/include/nlohmann/detail/abi_macros.hpp" major minor
+  [[ -f "$1/include/nlohmann/json.hpp" && -f "$header" ]] || {
+    echo "JSON_DIR=$1 has no include/nlohmann/json.hpp or include/nlohmann/detail/abi_macros.hpp" >&2; return 1;
+  }
+  major=$(sed -n 's/^#define NLOHMANN_JSON_VERSION_MAJOR *\([0-9]*\).*/\1/p' "$header")
+  minor=$(sed -n 's/^#define NLOHMANN_JSON_VERSION_MINOR *\([0-9]*\).*/\1/p' "$header")
+  check_min_version nlohmann::json "$major.$minor" "$JSON_MIN_VERSION"
+}
 
-  header="$JSON_DIR/include/nlohmann/detail/abi_macros.hpp"
-  if [[ -f "$header" ]]; then
-    major=$(sed -n 's/^#define NLOHMANN_JSON_VERSION_MAJOR *\([0-9]*\).*/\1/p' "$header")
-    minor=$(sed -n 's/^#define NLOHMANN_JSON_VERSION_MINOR *\([0-9]*\).*/\1/p' "$header")
-    check_min_version nlohmann::json "$major.$minor" "$JSON_MIN_VERSION" || return 1
-  fi
+# Same for PETSc and PETSC_MIN_VERSION.
+# Usage: verify_petsc <dir>
+verify_petsc() {
+  local header="$1/include/petscversion.h" major minor
+  [[ -f "$header" ]] || {
+    echo "PETSC_DIR=$1 has no include/petscversion.h" >&2; return 1;
+  }
+  major=$(sed -n 's/^#define PETSC_VERSION_MAJOR *//p' "$header")
+  minor=$(sed -n 's/^#define PETSC_VERSION_MINOR *//p' "$header")
+  check_min_version PETSc "$major.$minor" "$PETSC_MIN_VERSION"
+}
+
+# Verifies the dependencies found by the environment.
+check_dependency_versions() {
+  verify_json "$JSON_DIR" && verify_petsc "$PETSC_DIR"
 }
