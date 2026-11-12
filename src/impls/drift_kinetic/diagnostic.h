@@ -69,20 +69,12 @@ private:
 class EnergyConservation : public ::Energy {
 public:
   EnergyConservation(const Simulation& simulation);
-  PetscErrorCode diagnose(PetscInt t) override;
-  PetscErrorCode finalize() override;
 
 protected:
-  PetscErrorCode calculate_field_change() override;
-  PetscErrorCode fill_energy(PetscInt t) override;
   PetscErrorCode fill_energy_cons(PetscInt t) override;
 
   const Simulation& dk_simulation;
-  PetscReal dB_total = 0;  // Change in the full magnetic-field energy.
-
-private:
-  Vec E_prev = nullptr;
-  Vec B_prev = nullptr;
+  PetscReal dEJ = 0;  // dt * E_hk . J
 };
 
 class ConvergenceHistory : public TableDiagnostic {

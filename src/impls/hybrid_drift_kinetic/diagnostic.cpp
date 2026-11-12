@@ -14,7 +14,6 @@ PetscErrorCode EnergyConservation::fill_energy_cons(PetscInt t)
   PetscFunctionBeginUser;
   PetscCall(drift_kinetic::EnergyConservation::fill_energy_cons(t));
   const auto& sorts = simulation.interfaces::Simulation::particles_;
-  const bool initial = t == simulation.start;
 
   // The work of magnetization uses the full magnetic-field increment.
   Vec field_change;
@@ -22,31 +21,25 @@ PetscErrorCode EnergyConservation::fill_energy_cons(PetscInt t)
   PetscCall(VecWAXPY(field_change, -1, simulation.B_hk, simulation.B));
   PetscCall(VecScale(field_change, 2));
 
-  PetscReal field_balance = 0;
-  if (!initial) {
-    PetscReal EJ, MdB;
-    PetscCall(VecDot(simulation.E_hk, simulation.J, &EJ));
-    PetscCall(VecDot(simulation.M, field_change, &MdB));
-    field_balance = dE + dB_total + dt * EJ - MdB;
-  }
+  // Before the first step M, J and E_hk are zero, so all balances vanish.
+  PetscReal MdB;
+  PetscCall(VecDot(simulation.M, field_change, &MdB));
+  const PetscReal field_balance = dE + dB_total + dEJ - MdB;
   const std::string field_title = "dW-tEJ_field";
   energy_cons.add(std::max<PetscInt>(13, field_title.size()), field_title, "{: .6e}", field_balance);
 
   for (std::size_t i = 0; i < sorts.size(); i++) {
     const auto& sort = sorts[i];
-    PetscReal balance = 0;
-    if (!initial) {
-      PetscReal EJ, MdB = 0;
-      PetscCall(VecDot(simulation.E_hk, sort->J, &EJ));
-      const auto dk = std::find_if(simulation.particles_.begin(),
-        simulation.particles_.end(), [&](const auto& ptr)
-        {
-          return ptr.get() == sort.get();
-        });
-      if (dk != simulation.particles_.end())
-        PetscCall(VecDot((*dk)->M, field_change, &MdB));
-      balance = K[i] - K0[i] - dt * EJ + MdB;
-    }
+    PetscReal EJ, MdB = 0;
+    PetscCall(VecDot(simulation.E_hk, sort->J, &EJ));
+    const auto dk = std::find_if(simulation.particles_.begin(),
+      simulation.particles_.end(), [&](const auto& ptr)
+      {
+        return ptr.get() == sort.get();
+      });
+    if (dk != simulation.particles_.end())
+      PetscCall(VecDot((*dk)->M, field_change, &MdB));
+    const PetscReal balance = K[i] - K0[i] - dt * EJ + MdB;
     const std::string title = "dK-tEJ_" + sort->parameters.sort_name;
     energy_cons.add(std::max<PetscInt>(13, title.size()), title, "{: .6e}", balance);
   }

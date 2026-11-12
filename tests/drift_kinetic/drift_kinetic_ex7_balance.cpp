@@ -53,6 +53,14 @@ int main(int argc, char** argv)
   PetscReal max_dK, max_err, max_dQ;
   PetscCall(max_abs_column(__FILE__, "energy_conservation.txt", "dK", max_dK));
   PetscCall(max_abs_column(__FILE__, "energy_conservation.txt", "dE+dB+dK", max_err));
+  PetscReal max_particle_err, max_work;
+  PetscCall(max_abs_column(__FILE__, "energy_conservation.txt", "dK+dMB-dEJ", max_particle_err));
+  PetscCall(max_abs_column(__FILE__, "energy_conservation.txt", "dEJ", max_work));
+
+  PetscCheck(max_work > 1e-6 && max_particle_err < 1e-4 * max_dK,
+    PETSC_COMM_WORLD, PETSC_ERR_USER,
+    "Discrete particle energy balance is violated: residual %g, work %g", max_particle_err, max_work);
+
   PetscCall(max_abs_column(__FILE__, "charge_conservation.txt", "N2dQ_tot", max_dQ));
 
   PetscCheck(max_dK > 1e-6, PETSC_COMM_WORLD, PETSC_ERR_USER,

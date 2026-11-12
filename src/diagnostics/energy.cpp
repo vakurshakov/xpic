@@ -17,33 +17,50 @@ Energy::Energy(const interfaces::Simulation& simulation)
   std::fill_n(std::back_inserter(std_K), particles.size(), 0);
 }
 
+PetscErrorCode Energy::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(VecDestroy(&E_prev));
+  PetscCall(VecDestroy(&B_prev));
+  PetscCall(energy.finalize());
+  PetscCall(energy_cons.finalize());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode Energy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
   if (!initialized) {
-    initialized = true;
-    PetscCall(calculate_field());
-    PetscCall(calculate_kinetic());
+    PetscCall(VecDuplicate(simulation.E, &E_prev));
+    PetscCall(VecDuplicate(simulation.B, &B_prev));
+    PetscCall(VecCopy(simulation.E, E_prev));
+    PetscCall(VecCopy(simulation.B, B_prev));
   }
 
-  E0 = E;
-  B0 = B;
   K0 = K;
 
   PetscCall(calculate_field());
   PetscCall(calculate_kinetic());
+  if (!initialized) {
+    initialized = true;
+    K0 = K;
+  }
 
   PetscCall(fill_energy(t));
   PetscCall(fill_energy_cons(t));
 
   PetscCall(energy.diagnose(t));
   PetscCall(energy_cons.diagnose(t));
+  PetscCall(VecCopy(simulation.E, E_prev));
+  PetscCall(VecCopy(simulation.B, B_prev));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Energy::calculate_field()
 {
   PetscFunctionBeginUser;
+  PetscCall(VecDot(simulation.B, simulation.B, &B_total));
+  B_total *= 0.5;
   PetscCall(VecAXPY(simulation.B, -1, simulation.B0));
 
   PetscCall(VecNorm(simulation.E, NORM_2, &E));
@@ -121,8 +138,28 @@ PetscErrorCode Energy::calculate_kinetic()
 PetscErrorCode Energy::calculate_field_change()
 {
   PetscFunctionBeginUser;
-  dE = E - E0;
-  dB = B - B0;
+  Vec sum, diff;
+  PetscCall(DMGetGlobalVector(simulation.da, &sum));
+  PetscCall(DMGetGlobalVector(simulation.da, &diff));
+
+  // Avoid subtracting nearly equal field energies.
+  PetscCall(VecWAXPY(diff, -1, E_prev, simulation.E));
+  PetscCall(VecWAXPY(sum, 1, E_prev, simulation.E));
+  PetscCall(VecDot(sum, diff, &dE));
+  dE *= 0.5;
+
+  PetscCall(VecWAXPY(diff, -1, B_prev, simulation.B));
+  PetscCall(VecWAXPY(sum, 1, B_prev, simulation.B));
+  PetscCall(VecDot(sum, diff, &dB_total));
+  dB_total *= 0.5;
+
+  // The standard wB excludes the prescribed background B0.
+  PetscCall(VecAXPY(sum, -2, simulation.B0));
+  PetscCall(VecDot(sum, diff, &dB));
+  dB *= 0.5;
+
+  PetscCall(DMRestoreGlobalVector(simulation.da, &sum));
+  PetscCall(DMRestoreGlobalVector(simulation.da, &diff));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -149,6 +186,15 @@ PetscErrorCode Energy::fill_energy(PetscInt t)
     auto& name = particles[i]->parameters.sort_name;
     energy.add(std::max<PetscInt>(13, 3 + name.size()), "sK_" + name, "{: .6e}", std_K[i]);
   }
+
+  PetscReal total_K = 0;
+  for (PetscReal kinetic : K)
+    total_K += kinetic;
+
+  energy.add(13, "wK", "{: .6e}", total_K);
+  energy.add(13, "wB_total", "{: .6e}", B_total);
+  energy.add(13, "wEB+wK", "{: .6e}", E + B + total_K);
+  energy.add(13, "wEB_total+wK", "{: .6e}", E + B_total + total_K);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -169,6 +215,8 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
     energy_cons.add(std::max<PetscInt>(13, 3 + n.size()), "dK_" + n, "{: .6e}", K[i] - K0[i]);
     dK += K[i] - K0[i];
   }
+
+  const PetscReal raw_dK = dK;
 
   for (const auto& command : simulation.step_presets_) {
     if (auto&& damp = dynamic_cast<DampenFields*>(command.get())) {
@@ -192,6 +240,8 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
     }
   }
 
+  // Raw particle change (without source/sink corrections) precedes the total balance.
+  energy_cons.add(13, "dK", "{: .6e}", raw_dK);
   energy_cons.add(13, "dE+dB+dK", "{: .6e}", dF + dK);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
