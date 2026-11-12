@@ -1,12 +1,12 @@
-external/json
-external/petsc
-external/f2cblaslapack**
-
-.cache/**
-.scratch/**
 **/__pycache__/**
 
+.cache/
+.scratch/
+
 build/
+external/
+results/
+
 docs/build/
 
 tests/**/output/**
@@ -19,6 +19,3 @@ tests/**/output/**
 *.pdf
 *.zip
 *.log
-
-results/
-src/commands/kotelnikov_equilibrium/**/cache/**
