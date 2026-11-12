@@ -1,61 +1,94 @@
-## Installation guide
+# xpic
 
-#### Clone the repository
+Particle-in-cell plasma simulation code built on PETSc (MPI + OpenMP) and nlohmann::json. A run is driven entirely by a JSON config file. All commands below are run from the repository root.
 
 ```sh
 git clone https://github.com/vakurshakov/xpic.git
+cd xpic
 ```
 
-#### 1. Install [nlohmann::json](https://github.com/nlohmann/json)
+## Dependencies
+
+| Dependency | Minimum | Tested | Installed by `install-deps.sh` |
+| --- | --- | --- | --- |
+| C++20 compiler (`gcc`, `g++`) | unverified | GCC 15.1, GCC 16.2, AOCC 5.2.0 (with `GCC_DIR`) | system package manager |
+| `gfortran` (local only, OpenBLAS build needs it) | — | GCC 15.1 | system package manager |
+| CMake | 3.10 | 4.4 | system package manager |
+| make, git | — | — | system package manager |
+| MPI (`mpicxx`) | unverified | Open MPI 5.0.11 (local), MPICH 5.0.2 (stark) | system package manager, never built from source |
+| BLAS/LAPACK | — | OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark) | through PETSc (`--download-openblas`) |
+| PETSc | 3.26 | v3.26.1 | cloned and built into `./external/petsc` |
+| nlohmann::json | 3.11 | v3.11.2 | cloned into `./external/json` |
+| Python 3 | 3.6 | 3.14 | system package manager |
+| numpy, matplotlib, scipy | — | — | optional, only for post-processing in `tools/` |
+
+The source of truth is [scripts/versions.sh](scripts/versions.sh).
+
+## 1. Install dependencies
+
 ```sh
-git clone https://github.com/nlohmann/json.git ./external/json
+./scripts/install-deps.sh
 ```
 
-#### 2. Install [PETSc](https://gitlab.com/petsc/petsc)
-This is the short summary of PETSc installation process. To take an in-depth look on the configuring process, check the [documentation](https://petsc.org/release/install/install/) or run `./configure --help`. First, clone and update PETSc repository.
+The script checks `git`, `gcc`, `g++`, `gfortran`, `mpicxx`, `make`, `cmake` and `python3` one by one and offers the package-manager command (`pacman`, `apt-get`, `dnf`, `brew`) for each missing one. Then it clones nlohmann::json and PETSc at the pinned tags into `./external` and builds both PETSc arches (`linux-mpi-debug`, `linux-mpi-opt`), running `make check` after each.
+
+Options:
+
+- `--install` accepts all package-manager prompts (unattended setups, containers);
+- `debug` or `opt` builds a single PETSc arch;
+- `--force` re-fetches and rebuilds even if the pinned version is present.
+
+Re-running the script is a no-op for dependencies that are already built at the pinned version.
+
+## 2. Build
 
 ```sh
-git clone -b release https://gitlab.com/petsc/petsc.git ./external/petsc
+./scripts/build.sh            # Debug and Release
+./scripts/build.sh Release    # only one of them
 ```
 
-Change the directory to `./external/petsc/` and configure the library. The following code creates two configurations of the library with use of preinstalled MPI compilers and downloads just BLAS/LAPACK to the output directories `PETSC_ARCH`.
+The executables are `build/Debug/xpic.out` and `build/Release/xpic.out`. The build fails early if nlohmann::json or PETSc is missing or older than the minimum.
+
+## 3. Test
 
 ```sh
-./configure PETSC_ARCH=linux-mpi-debug  \
-  --with-fc=0                           \
-  --with-mpi-dir=/opt/mpich/            \
-  --with-threadsafety=1                 \
-  --with-openmp=1                       \
-  ---with-openmp-kernels=true           \
-  --download-f2cblaslapack;             \
-make PETSC_ARCH=linux-mpi-debug all;    \
-make PETSC_ARCH=linux-mpi-debug check
-```
-```sh
-./configure PETSC_ARCH=linux-mpi-opt             \
-  --with-fc=0                                    \
-  --with-mpi-dir=/opt/mpich/                     \
-  --with-threadsafety=1                          \
-  --with-openmp=1                                \
-  ---with-openmp-kernels=true                    \
-  --download-f2cblaslapack                       \
-  --with-debugging=0                             \
-  COPTFLAGS='-O3 -march=native -mtune=native'    \
-  CXXOPTFLAGS='-O3 -march=native -mtune=native'; \
-make PETSC_ARCH=linux-mpi-opt all;               \
-make PETSC_ARCH=linux-mpi-opt check
+./scripts/run-tests.sh -L smoke
 ```
 
-If configure cannot automatically download the package, you can use a pre-downloaded one. Once the tarfile is downloaded, the path to this file can be specified to configure and it will proceed to install this package and then configure PETSc with this package. For example, one can download `f2cblaslapack` package locally and pass the configuration option `--download-f2cblaslapack=/path/to/local/f2cblaslapack-X.Y.Z.q.tar.gz`
+Arguments are passed to `ctest`; levels are `smoke` (fast, one mechanism), `sanity` (short run, one invariant) and `regression` (long runs). Add `-LE mpi` to skip the MPI variants.
 
-#### 3. Compiling and running `xpic`
+## 4. Run
 
-Now, the executable can be built successfully. To do so, run the following command from the home directory:
 ```sh
-./scripts/build.sh
+./scripts/run.sh examples/basic.json
 ```
 
-The binary will be created in the `./build` folder. Execution of the code should be performed from the home directory too:
+This runs `build/Release/xpic.out` through `mpiexec` and writes the output to `results/basic`. Everything after the config path is forwarded to `xpic.out` (PETSc options included). Tune the launch with `MPI_NUM_PROC` (default 1), `OMP_NUM_THREADS` (default 4), `OMP_PROC_BIND`, `OMP_PLACES` and `RUN_PREFIX` (a command inserted before the binary, e.g. `numactl --localalloc`):
+
 ```sh
-./scripts/run.sh <config.json> [options]
+MPI_NUM_PROC=2 OMP_NUM_THREADS=2 ./scripts/run.sh examples/basic.json -da_processors_x 2
+```
+
+## Environment overrides and `STACK`
+
+All scripts source [scripts/setenv.sh](scripts/setenv.sh), the only place where dependency locations are decided. Every variable can be overridden from the environment, inline on the command:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MPI_DIR` | parent of the `mpicxx` found on `PATH` | MPI installation; its wrapper defines the compiler |
+| `PETSC_DIR` | `./external/petsc` | PETSc installation |
+| `PETSC_ARCH` | `linux-mpi-debug` / `linux-mpi-opt` for Debug / Release | PETSc arch |
+| `JSON_DIR` | `./external/json` | nlohmann::json checkout |
+| `GCC_DIR` | unset | GCC toolchain for Clang-based stacks (libstdc++ and rpath) |
+
+A `PETSC_DIR` or `JSON_DIR` outside `./external` is reused as is: `install-deps.sh` only verifies the version and the presence of the library, and builds nothing.
+
+```sh
+PETSC_DIR=/opt/petsc PETSC_ARCH=arch-opt ./scripts/build.sh Release
+```
+
+`STACK=<name>` sources `scripts/stacks/<name>.sh` before the defaults are applied, which lets a machine set these variables once. The default is `local`; an unknown name fails.
+
+```sh
+STACK=local ./scripts/build.sh Release
 ```
