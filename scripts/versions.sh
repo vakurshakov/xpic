@@ -35,8 +35,13 @@ BLAS_TESTED="OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark)"
 PYTHON_MIN_VERSION=3.6
 PYTHON_TESTED=3.14
 
-# Optional post-processing in `tools/`; build and tests do not depend on them.
+# Not installed by install-deps.sh. Needed by the Python post-processing in
+# `tools/` and by the `*_plot` smoke tests; the build does not depend on them.
 PYTHON_OPTIONAL_PACKAGES="numpy matplotlib scipy"
+
+# diff (diffutils): PETSc `configure` fails without it, and minimal images (e.g. Arch) do not ship it.
+DIFF_MIN_VERSION=
+
 
 # Prints an error and returns 1 unless `found` >= `required` (compared with `sort -V`).
 # Usage: check_min_version <name> <found> <required>

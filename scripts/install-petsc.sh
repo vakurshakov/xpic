@@ -50,9 +50,9 @@ if [[ "$PETSC_TAG" != "$PETSC_PINNED_TAG" ]]; then
   rm -rf "$PETSC_DIR"
   (
     # Not `git clone --branch`: for an annotated tag it warns "is not a commit!".
-    git --no-advice init "$PETSC_DIR" || exit 1
-    git --no-advice -C "$PETSC_DIR" fetch --depth 1 "$PETSC_REPO" tag "$PETSC_PINNED_TAG" || exit 1
-    git --no-advice -C "$PETSC_DIR" checkout "$PETSC_PINNED_TAG" || exit 1
+    GIT_ADVICE=0 git init "$PETSC_DIR" || exit 1
+    GIT_ADVICE=0 git -C "$PETSC_DIR" fetch --depth 1 "$PETSC_REPO" tag "$PETSC_PINNED_TAG" || exit 1
+    GIT_ADVICE=0 git -C "$PETSC_DIR" checkout "$PETSC_PINNED_TAG" || exit 1
   ) || {
     rm -rf "$PETSC_DIR"
     echo "Cloning failed (no network?). Copy PETSc to a directory and set PETSC_DIR." >&2

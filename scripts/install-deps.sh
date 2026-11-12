@@ -30,7 +30,7 @@ install_command() {
   local sudo=""
   [[ $manager != brew && $EUID != 0 ]] && sudo="sudo "
   case $manager in
-    pacman) echo "${sudo}pacman -S --needed $*" ;;
+    pacman) echo "${sudo}pacman -S --needed ${auto_install:+--noconfirm }$*" ;;
     apt-get) echo "${sudo}apt-get install -y $*" ;;
     dnf) echo "${sudo}dnf install -y $*" ;;
     brew) echo "brew install $*" ;;
@@ -42,21 +42,22 @@ package_of() {
   case "$manager:$1" in
     apt-get:g++) echo g++ ;;
     dnf:g++) echo gcc-c++ ;;
-    pacman:g++ | brew:g++) echo gcc ;;
+    pacman:g++ | brew:g++ | brew:gfortran) echo gcc ;;
     apt-get:gfortran) echo gfortran ;;
     dnf:gfortran) echo gcc-gfortran ;;
-    pacman:gfortran | brew:gfortran) echo gcc ;;
+    pacman:gfortran) echo gcc-fortran ;;
     apt-get:mpicxx) echo "openmpi-bin libopenmpi-dev" ;;
     dnf:mpicxx) echo openmpi-devel ;;
     pacman:mpicxx) echo openmpi ;;
     brew:mpicxx) echo open-mpi ;;
     apt-get:python3 | dnf:python3) echo python3 ;;
     pacman:python3 | brew:python3) echo python ;;
+    *:diff) echo diffutils ;;
     *) echo "$1" ;;
   esac
 }
 
-for tool in git gcc g++ gfortran mpicxx make cmake python3; do
+for tool in git gcc g++ gfortran mpicxx make cmake python3 diff; do
   command -v "$tool" &> /dev/null && continue
 
   cmd=$(install_command "$(package_of "$tool")")

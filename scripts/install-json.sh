@@ -31,9 +31,9 @@ if [[ -n "$force" || "$JSON_TAG" != "$JSON_PINNED_TAG" ]]; then
   rm -rf "$JSON_DIR"
   (
     # Not `git clone --branch`: for an annotated tag it warns "is not a commit!".
-    git --no-advice init "$JSON_DIR" || exit 1
-    git --no-advice -C "$JSON_DIR" fetch --depth 1 "$JSON_REPO" tag "$JSON_PINNED_TAG" || exit 1
-    git --no-advice -C "$JSON_DIR" checkout "$JSON_PINNED_TAG" || exit 1
+    GIT_ADVICE=0 git init "$JSON_DIR" || exit 1
+    GIT_ADVICE=0 git -C "$JSON_DIR" fetch --depth 1 "$JSON_REPO" tag "$JSON_PINNED_TAG" || exit 1
+    GIT_ADVICE=0 git -C "$JSON_DIR" checkout "$JSON_PINNED_TAG" || exit 1
   ) || {
     rm -rf "$JSON_DIR"
     echo "Cloning failed (no network?). Copy nlohmann::json to a directory and set JSON_DIR." >&2

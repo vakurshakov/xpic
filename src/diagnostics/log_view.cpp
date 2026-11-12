@@ -360,7 +360,8 @@ PetscErrorCode LogView::level_3_impl(PetscInt t)
         return a.time > b.time;
       });
 
-    column.events.resize(std::min<size_t>(column.events.size(), 5));
+    if (column.events.size() > 5)
+      column.events.erase(column.events.begin() + 5, column.events.end());
 
     for (Item& item : column.events) {
       name_width = std::max(name_width, item.name.size());

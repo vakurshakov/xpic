@@ -21,7 +21,7 @@ cd xpic
 | BLAS/LAPACK | — | OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark) | through PETSc (`--download-openblas`) |
 | PETSc | 3.26 | v3.26.1 | cloned and built into `./external/petsc` |
 | Python 3 | 3.6 | 3.14 | system package manager |
-| numpy, matplotlib, scipy | — | — | optional, only for post-processing in `tools/` |
+| numpy, matplotlib, scipy | — | — | no, install them yourself: needed by the Python post-processing in `tools/` and by the `*_plot` tests (they validate the generated data) |
 
 The source of truth is [scripts/versions.sh](scripts/versions.sh).
 
@@ -31,7 +31,7 @@ The source of truth is [scripts/versions.sh](scripts/versions.sh).
 ./scripts/install-deps.sh
 ```
 
-The script checks `git`, `gcc`, `g++`, `gfortran`, `mpicxx`, `make`, `cmake` and `python3` one by one and offers the package-manager command (`pacman`, `apt-get`, `dnf`, `brew`) for each missing one. Then it clones nlohmann::json and PETSc at the pinned tags into `./external` and builds both PETSc arches (`linux-mpi-debug`, `linux-mpi-opt`), running `make check` after each.
+The script checks `git`, `gcc`, `g++`, `gfortran`, `mpicxx`, `make`, `cmake`, `python3` and `diff` one by one and offers the package-manager command (`pacman`, `apt-get`, `dnf`, `brew`) for each missing one. Then it clones nlohmann::json and PETSc at the pinned tags into `./external` and builds both PETSc arches (`linux-mpi-debug`, `linux-mpi-opt`), running `make check` after each.
 
 Options:
 
