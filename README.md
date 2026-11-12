@@ -1,4 +1,4 @@
-# xpic
+# `xpic`
 
 Particle-in-cell plasma simulation code built on PETSc (MPI + OpenMP) and nlohmann::json. A run is driven entirely by a JSON config file. All commands below are run from the repository root.
 
@@ -11,14 +11,15 @@ cd xpic
 
 | Dependency | Minimum | Tested | Installed by `install-deps.sh` |
 | --- | --- | --- | --- |
+| git | — | — | system package manager |
 | C++20 compiler (`gcc`, `g++`) | unverified | GCC 15.1, GCC 16.2, AOCC 5.2.0 (with `GCC_DIR`) | system package manager |
 | `gfortran` (local only, OpenBLAS build needs it) | — | GCC 15.1 | system package manager |
-| CMake | 3.10 | 4.4 | system package manager |
-| make, git | — | — | system package manager |
 | MPI (`mpicxx`) | unverified | Open MPI 5.0.11 (local), MPICH 5.0.2 (stark) | system package manager, never built from source |
+| make | — | — | system package manager |
+| CMake | 3.10 | 4.4 | system package manager |
+| nlohmann::json | 3.11 | v3.11.2 | cloned into `./external/json` |
 | BLAS/LAPACK | — | OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark) | through PETSc (`--download-openblas`) |
 | PETSc | 3.26 | v3.26.1 | cloned and built into `./external/petsc` |
-| nlohmann::json | 3.11 | v3.11.2 | cloned into `./external/json` |
 | Python 3 | 3.6 | 3.14 | system package manager |
 | numpy, matplotlib, scipy | — | — | optional, only for post-processing in `tools/` |
 
@@ -76,12 +77,12 @@ All scripts source [scripts/setenv.sh](scripts/setenv.sh), the only place where 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `MPI_DIR` | parent of the `mpicxx` found on `PATH` | MPI installation; its wrapper defines the compiler |
+| `JSON_DIR` | `./external/json` | nlohmann::json checkout |
 | `PETSC_DIR` | `./external/petsc` | PETSc installation |
 | `PETSC_ARCH` | `linux-mpi-debug` / `linux-mpi-opt` for Debug / Release | PETSc arch |
-| `JSON_DIR` | `./external/json` | nlohmann::json checkout |
 | `GCC_DIR` | unset | GCC toolchain for Clang-based stacks (libstdc++ and rpath) |
 
-A `PETSC_DIR` or `JSON_DIR` outside `./external` is reused as is: `install-deps.sh` only verifies the version and the presence of the library, and builds nothing.
+A `PETSC_DIR` or `JSON_DIR` outside `./external` is never cloned or built, only verified: `install-deps.sh` checks the version header against the minimum and, for PETSc, that the library is built; `build.sh` re-checks the versions on every run and fails if they are too old.
 
 ```sh
 PETSC_DIR=/opt/petsc PETSC_ARCH=arch-opt ./scripts/build.sh Release

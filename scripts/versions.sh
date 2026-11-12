@@ -5,6 +5,7 @@
 # TESTED: verified versions,
 # PINNED: installed by scripts.
 
+GIT_MIN_VERSION=
 
 # C++20 compiler (gcc, g++): minimum unverified. `GCC_DIR` is required for Clang-based stacks.
 COMPILER_MIN_VERSION=
@@ -13,15 +14,14 @@ COMPILER_TESTED="GCC 15.1, GCC 16.2, AOCC 5.2.0 (with GCC_DIR)"
 # gfortran: needed locally only, because PETSc's OpenBLAS install always passes `FC=`.
 GFORTRAN_TESTED="GCC 15.1"
 
-CMAKE_MIN_VERSION=3.10
-CMAKE_TESTED=4.4
-
-MAKE_MIN_VERSION=
-GIT_MIN_VERSION=
-
 # MPI is never built from source. Minimum unverified.
 MPI_MIN_VERSION=
 MPI_TESTED="Open MPI 5.0.11 (local), MPICH 5.0.2 (stark)"
+
+MAKE_MIN_VERSION=
+
+CMAKE_MIN_VERSION=3.10
+CMAKE_TESTED=4.4
 
 JSON_MIN_VERSION=3.11
 JSON_PINNED_TAG=v3.11.2
