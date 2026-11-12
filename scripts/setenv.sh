@@ -13,7 +13,7 @@ if [[ ! -f "$scripts_dir/stacks/$stack.sh" ]]; then
   return 1 2> /dev/null || exit 1
 fi
 
-source "$scripts_dir/stacks/$stack.sh"
+source "$scripts_dir/stacks/$stack.sh" || { return 1 2> /dev/null || exit 1; }
 
 mpicxx="$(command -v mpicxx)"
 export MPI_DIR="${MPI_DIR:-${mpicxx:+$(dirname "$(dirname "$mpicxx")")}}"
