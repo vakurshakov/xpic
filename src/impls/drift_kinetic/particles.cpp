@@ -217,6 +217,12 @@ bool Particles::get_fail_on_any_push_nonconvergence() const
   return fail_on_any_push_nonconvergence;
 }
 
+void Particles::set_field_tolerances(PetscReal atol, PetscReal rtol)
+{
+  field_atol = atol;
+  field_rtol = rtol;
+}
+
 const Simulation& Particles::simulation() const
 {
   return simulation_;

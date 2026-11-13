@@ -30,6 +30,8 @@ public:
   PetscReal get_average_number_of_traversed_cells() const;
   PetscInt get_maximum_number_of_traversed_cells() const;
 
+  void set_field_tolerances(PetscReal atol, PetscReal rtol);
+
 protected:
   static constexpr const auto& shape_func = spline_of_2nd_order;
   static constexpr const auto& shape_radius = 1.5;
@@ -43,6 +45,9 @@ protected:
   PetscReal avgit = 0;
   PetscReal avgcell = 0;
   PetscInt maxcell = 0;
+
+  PetscReal field_atol = 0;  // SNES tolerances of the field residual.
+  PetscReal field_rtol = 0;
 
   PetscClassId classid;
   PetscLogEvent events[2];

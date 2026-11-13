@@ -65,6 +65,8 @@ public:
   void set_fail_on_any_push_nonconvergence(bool value);
   bool get_fail_on_any_push_nonconvergence() const;
 
+  void set_field_tolerances(PetscReal atol, PetscReal rtol);
+
   const Simulation& simulation() const;
 
   void set_coord_is_gc(bool v);
@@ -82,6 +84,9 @@ protected:
   PetscInt max_substep_depth = 4;
   bool coord_is_gc = false;
   bool fail_on_any_push_nonconvergence = false;  // Any SNES evaluation.
+
+  PetscReal field_atol = 0;  // SNES tolerances of the field residual.
+  PetscReal field_rtol = 0;
 
   Simulation& simulation_;
 };

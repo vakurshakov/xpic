@@ -16,6 +16,8 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCall(init_snes());
   PetscCall(init_particles(*this, particles_));
+  for (auto& sort : particles_)
+    sort->set_field_tolerances(atol, rtol);
 
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
 

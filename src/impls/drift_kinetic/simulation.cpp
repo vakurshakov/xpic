@@ -61,7 +61,11 @@ PetscErrorCode Simulation::initialize_implementation()
 
   PetscCheck(max_depth >= 0 && max_depth <= 30, PETSC_COMM_WORLD,
     PETSC_ERR_ARG_OUTOFRANGE, "max_substep_depth must be between 0 and 30");
+  PetscReal field_atol, field_rtol;
+  PetscCall(SNESGetTolerances(snes, &field_atol, &field_rtol, nullptr, nullptr, nullptr));
+
   for (auto& sort : particles_) {
+    sort->set_field_tolerances(field_atol, field_rtol);
     sort->set_substepping(substepping, max_depth);
     sort->set_coord_is_gc(is_gc_coord);
     sort->set_fail_on_any_push_nonconvergence(is_fail_any_push);
