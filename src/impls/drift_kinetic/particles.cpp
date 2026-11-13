@@ -88,7 +88,7 @@ PetscErrorCode Particles::form_iteration()
   PetscCall(DMLocalToGlobal(da, J_loc, ADD_VALUES, J));
   PetscCall(DMLocalToGlobal(da, M_loc, ADD_VALUES, M));
   PetscCall(push_stats.finish(stats, PETSC_COMM_WORLD,
-    parameters.sort_name, fail_on_terminal_nonconvergence));
+    parameters.sort_name, fail_on_any_push_nonconvergence));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -207,14 +207,14 @@ void Particles::set_substepping(bool enabled, PetscInt depth)
   max_substep_depth = depth;
 }
 
-void Particles::set_fail_on_terminal_nonconvergence(bool value)
+void Particles::set_fail_on_any_push_nonconvergence(bool value)
 {
-  fail_on_terminal_nonconvergence = value;
+  fail_on_any_push_nonconvergence = value;
 }
 
-bool Particles::get_fail_on_terminal_nonconvergence() const
+bool Particles::get_fail_on_any_push_nonconvergence() const
 {
-  return fail_on_terminal_nonconvergence;
+  return fail_on_any_push_nonconvergence;
 }
 
 const Simulation& Particles::simulation() const

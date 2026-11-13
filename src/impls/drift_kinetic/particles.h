@@ -62,8 +62,8 @@ public:
   const PushStatistics& get_push_stats() const;
   void set_substepping(bool enabled, PetscInt depth);
 
-  void set_fail_on_terminal_nonconvergence(bool value);
-  bool get_fail_on_terminal_nonconvergence() const;
+  void set_fail_on_any_push_nonconvergence(bool value);
+  bool get_fail_on_any_push_nonconvergence() const;
 
   const Simulation& simulation() const;
 
@@ -81,7 +81,7 @@ protected:
   bool substepping = false;
   PetscInt max_substep_depth = 4;
   bool coord_is_gc = false;
-  bool fail_on_terminal_nonconvergence = false;
+  bool fail_on_any_push_nonconvergence = false;  // Any SNES evaluation.
 
   Simulation& simulation_;
 };

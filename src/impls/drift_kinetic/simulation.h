@@ -46,7 +46,7 @@ protected:
 
   Vec last_push_fields = nullptr;
   PetscInt push_evaluation = 0;
-  bool fail_on_final_nonconvergence = false;
+  bool fail_on_accepted_push_nonconvergence = false;  // Accepted push only.
 
   Vec sol;                             // Combined field solution.
   SNES snes;                           // Nonlinear field solver.

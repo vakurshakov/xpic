@@ -13,7 +13,7 @@ struct PushStatistics {
   PetscReal average_iterations() const;
   void merge(const PushStatistics& other);
   PetscErrorCode finish(const PushStatistics& local, MPI_Comm comm,
-    const std::string& sort_name, bool fail_on_terminal_nonconvergence);
+    const std::string& sort_name, bool fail_on_any_push_nonconvergence);
 
   PetscInt retries = 0;
   PetscInt leaf_failures = 0;

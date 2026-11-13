@@ -27,7 +27,7 @@ void PushStatistics::merge(const PushStatistics& other)
 }
 
 PetscErrorCode PushStatistics::finish(const PushStatistics& local, MPI_Comm comm,
-  const std::string& sort_name, bool fail_on_terminal_nonconvergence)
+  const std::string& sort_name, bool fail_on_any_push_nonconvergence)
 {
   PetscFunctionBeginHot;
   *this = local;
@@ -55,7 +55,7 @@ PetscErrorCode PushStatistics::finish(const PushStatistics& local, MPI_Comm comm
   PetscCheck(invalid_particles == 0, comm, PETSC_ERR_FP,
     "Invalid drift-kinetic orbit or inaccessible stencil for %d particles", (int)invalid_particles);
 
-  if (leaf_failures > 0 && !fail_on_terminal_nonconvergence) {
+  if (leaf_failures > 0 && !fail_on_any_push_nonconvergence) {
     LOG("WARNING: DK Push terminal non-convergence for sort={}:", sort_name);
     LOG("  leaf_failures={}, max FRk={: .4e}, max FVk={: .4e}", leaf_failures, max_leaf_residue_r, max_leaf_residue_v);
   }

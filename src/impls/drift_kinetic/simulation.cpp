@@ -46,17 +46,17 @@ PetscErrorCode Simulation::initialize_implementation()
   const Configuration::json_t& json = CONFIG().json;
 
   bool is_gc_coord = false;
-  bool is_fail_terminal = false;
+  bool is_fail_any_push = false;
   bool substepping = false;
   PetscInt max_depth = 4;
 
   if (auto it = json.find("DriftKineticPush"); it != json.end()) {
     is_gc_coord = it->value("coord_is_gc", false);
-    is_fail_terminal = it->value("fail_on_terminal_nonconvergence", false);
+    is_fail_any_push = it->value("fail_on_any_push_nonconvergence", false);
     substepping = it->value("substepping", false);
     max_depth = it->value("max_substep_depth", 4);
-    fail_on_final_nonconvergence =
-      it->value("fail_on_final_nonconvergence", false);
+    fail_on_accepted_push_nonconvergence =
+      it->value("fail_on_accepted_push_nonconvergence", false);
   }
 
   PetscCheck(max_depth >= 0 && max_depth <= 30, PETSC_COMM_WORLD,
@@ -64,15 +64,15 @@ PetscErrorCode Simulation::initialize_implementation()
   for (auto& sort : particles_) {
     sort->set_substepping(substepping, max_depth);
     sort->set_coord_is_gc(is_gc_coord);
-    sort->set_fail_on_terminal_nonconvergence(is_fail_terminal);
+    sort->set_fail_on_any_push_nonconvergence(is_fail_any_push);
   }
 
   LOG("  Additional settings for drift_kinetic:");
   LOG("    Use gyro-centers to set coordinates (coord_is_gc): {}", is_gc_coord);
-  LOG("    Terminate on particles non-convergence (fail_on_terminal_nonconvergence): {}", is_fail_terminal);
+  LOG("    Terminate on particles non-convergence (fail_on_any_push_nonconvergence): {}", is_fail_any_push);
 
-  LOG("    Substepping: {}, max depth: {}, fail on final nonconvergence: {}",
-    substepping, max_depth, fail_on_final_nonconvergence);
+  LOG("    Substepping: {}, max depth: {}, fail on accepted push nonconvergence: {}",
+    substepping, max_depth, fail_on_accepted_push_nonconvergence);
 
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
@@ -211,7 +211,7 @@ PetscErrorCode Simulation::form_current()
       stats.root_failures, stats.failed_particles, stats.leaves, stats.depth, stats.iteration_sum);
 
     if (failed_sort == nullptr &&  //
-      sort->get_fail_on_terminal_nonconvergence() &&
+      sort->get_fail_on_any_push_nonconvergence() &&
       sort->get_push_leaf_failures() > 0) {
       failed_sort = sort.get();
       break;
@@ -241,7 +241,7 @@ PetscErrorCode Simulation::accept_push(PetscInt step)
   for (const auto& sort : particles_)
     failures += sort->get_push_stats().failed_particles;
   LOG("DKFinal step={} eval={} failed_particles={}", step, push_evaluation, failures);
-  PetscCheck(!fail_on_final_nonconvergence || failures == 0,
+  PetscCheck(!fail_on_accepted_push_nonconvergence || failures == 0,
     PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
     "Final particle push has %d non-converged particles at step %d",
     (int)failures, (int)step);
