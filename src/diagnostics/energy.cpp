@@ -83,57 +83,28 @@ PetscErrorCode Energy::calculate_field()
 PetscErrorCode Energy::calculate_kinetic()
 {
   PetscFunctionBeginUser;
-  PetscReal frac, m, mpw, vx, vy, vz, w;
-  PetscInt n;
-
   for (std::size_t i = 0; i < simulation.particles_.size(); ++i) {
     auto& sort = simulation.particles_[i];
 
-    m = sort->parameters.m;
-    mpw = sort->parameters.n / (PetscReal)sort->parameters.Np;
+    interfaces::Particles::KineticSums s;
+    PetscCall(sort->kinetic_sums_local(s));
 
-    frac = 0.5 * m * mpw;
-    vx = vy = vz = w = 0;
-    n = 0;
+    PetscReal v[5] = {s.K, s.vx, s.vy, s.vz, s.w};
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, v, 5, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &s.n, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
-    ParticleStorage::Attributes f;
-    PetscCall(sort->storage.get_attribute(f, "p"));
-    const PetscReal* p = f["p"];
-
-#pragma omp parallel for reduction(+ : vx, vy, vz, w)
-    for (PetscInt j = 0; j < f.size; j++) {
-      vx += p[3 * j + X];
-      vy += p[3 * j + Y];
-      vz += p[3 * j + Z];
-      w +=                    //
-        POW2(p[3 * j + X]) +  //
-        POW2(p[3 * j + Y]) +  //
-        POW2(p[3 * j + Z]);
-    }
-
-    n = f.size;
-    PetscCall(sort->storage.restore_attributes(f));
-
-    K[i] = sort->kinetic_energy_local();
-
-    PetscReal v[4] = {vx, vy, vz, w};
-    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, v, 4, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &n, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-
-    if (n == 0) {
-      K[i] = 0;
+    K[i] = v[0];
+    if (s.n == 0) {
       std_K[i] = 0;
       continue;
     }
 
-    PetscReal s = v[3] - (v[X] * v[X] + v[Y] * v[Y] + v[Z] * v[Z]) / n;
-    std_K[i] = frac * sqrt(abs(s) / n);
+    PetscReal frac = 0.5 * sort->parameters.m * sort->parameters.mpw;
+    PetscReal d = v[4] - (POW2(v[1]) + POW2(v[2]) + POW2(v[3])) / s.n;
+    std_K[i] = frac * sqrt(abs(d) / s.n);
   }
-
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, K.data(), K.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
-
 
 PetscErrorCode Energy::calculate_field_change()
 {

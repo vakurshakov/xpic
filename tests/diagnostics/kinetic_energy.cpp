@@ -33,7 +33,9 @@ int main(int argc, char** argv)
   auto& sorts = simulation.interfaces::Simulation::particles_;
 
   for (const auto& sort : sorts) {
-    PetscCheck(sort->kinetic_energy_local() == 0, PETSC_COMM_WORLD, PETSC_ERR_USER,
+    interfaces::Particles::KineticSums empty;
+    PetscCall(sort->kinetic_sums_local(empty));
+    PetscCheck(empty.K == 0 && empty.n == 0, PETSC_COMM_WORLD, PETSC_ERR_USER,
       "An empty sort must have zero kinetic energy");
 
     std::vector<Point> local;
@@ -75,7 +77,9 @@ static PetscErrorCode check_energy(
   }
   expected *= 0.5 * mass * density / particles_per_cell;
 
-  const PetscReal actual = sort.kinetic_energy_local();
+  interfaces::Particles::KineticSums sums;
+  PetscCall(sort.kinetic_sums_local(sums));
+  const PetscReal actual = sums.K;
   PetscCheck(equal_rel(actual, expected, 1e-12, 1e-14), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Local kinetic energy of %s differs: %g vs %g", sort.parameters.sort_name.c_str(), actual, expected);
   PetscFunctionReturn(PETSC_SUCCESS);

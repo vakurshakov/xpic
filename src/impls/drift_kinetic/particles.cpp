@@ -138,32 +138,38 @@ PetscErrorCode Particles::prepare_storage()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscReal Particles::kinetic_energy_local() const
+// Momentum spread of the guiding-center step is meaningless, so only `K` and `n` are set.
+PetscErrorCode Particles::kinetic_sums_local(KineticSums& sums) const
 {
-  PetscReal energy = 0.0;
-  PetscCallAbort(PETSC_COMM_WORLD, DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
-  PetscCallAbort(PETSC_COMM_WORLD, DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+  PetscFunctionBeginUser;
+  PetscReal w = 0;
+  PetscCall(DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
+  PetscCall(DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
   DriftKineticEsirkepov esirkepov(world, simulation_.B_arr);
 
   ParticleStorage::Attributes f;
-  PetscCallAbort(PETSC_COMM_WORLD, storage.get_attributes(f));
+  PetscCall(storage.get_attributes(f));
   const DkPointArrays arrays(f);
 
-#pragma omp parallel for reduction(+ : energy)
+#pragma omp parallel for reduction(+ : w)
   for (PetscInt i = 0; i < f.size; i++) {
     const PointByField point = arrays.load(i);
 
     Vector3R B_p{};
     esirkepov.interpolate_B(B_p, point.r);
 
-    energy += POW2(point.p_parallel) +  //
+    w += POW2(point.p_parallel) +  //
       2.0 * point.mu_p * B_p.length() / parameters.m;
   }
 
-  PetscCallAbort(PETSC_COMM_WORLD, storage.restore_attributes(f));
-  PetscCallAbort(PETSC_COMM_WORLD, DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
-  return 0.5 * parameters.m * parameters.mpw * energy;
+  sums = KineticSums{};
+  sums.K = 0.5 * parameters.m * parameters.mpw * w;
+  sums.n = f.size;
+
+  PetscCall(storage.restore_attributes(f));
+  PetscCall(DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscReal Particles::get_average_iteration_number() const

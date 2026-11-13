@@ -51,7 +51,7 @@ public:
 
   PetscErrorCode ingest(const Point* points, PetscInt n) override;
   PetscErrorCode prepare_storage();
-  PetscReal kinetic_energy_local() const override;
+  PetscErrorCode kinetic_sums_local(KineticSums& sums) const override;
   PetscReal get_average_iteration_number() const;
   PetscInt get_max_iteration_number() const;
   PetscInt get_push_retries() const;

@@ -97,12 +97,18 @@ public:
 
   PetscErrorCode calculate_moments();
 
+  /// Local sums over the particles owned by this MPI rank.
+  struct KineticSums {
+    PetscReal K = 0;
+    PetscReal vx = 0, vy = 0, vz = 0, w = 0;  // Zero for sorts without momentum spread.
+    PetscInt n = 0;
+  };
+
   /**
-   * @returns Kinetic energy of the particles owned by this MPI rank.
    * @note Call on all ranks: derived sorts may exchange field ghost values.
-   * The caller performs the global energy reduction.
+   * The caller performs the global reduction.
    */
-  virtual PetscReal kinetic_energy_local() const;
+  virtual PetscErrorCode kinetic_sums_local(KineticSums& sums) const;
 
   Vector3R velocity(const Point& point) const;
 
