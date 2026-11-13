@@ -7,6 +7,13 @@
 
 namespace drift_kinetic {
 
+// `p^2` of a drift-kinetic particle: `p_parallel^2 + p_perp^2`, `|B_p|` is at the guiding center.
+static PetscReal p_squared(
+  const PointByField& point, const Vector3R& B_p, PetscReal m)
+{
+  return POW2(point.p_parallel) + 2.0 * point.mu_p * B_p.length() / m;
+}
+
 Particles::Particles(Simulation& simulation, const SortParameters& parameters)
   : interfaces::Particles(simulation.world, parameters), simulation_(simulation)
 {
@@ -93,7 +100,7 @@ PetscErrorCode Particles::form_iteration()
 }
 
 // Appends the kinetic points converted to the guiding-center form.
-PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
+PetscErrorCode Particles::ingest(const Point* points, PetscInt n, PetscReal* energy)
 {
   PetscFunctionBeginUser;
   const PetscReal qm = parameters.q / parameters.m;
@@ -111,21 +118,73 @@ PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
   PetscCall(storage.get_attributes(f));
   const DkPointArrays arrays(f);
 
+  PetscReal w = 0;
   for (PetscInt i = 0; i < n; i++) {
     const Point& point = points[i];
 
     Vector3R B_p{};
     PetscCall(esirkepov.interpolate_B(B_p, point.r));
-    arrays.store(first + i,
-      coord_is_gc ? PointByField::from_guiding_center(point, B_p, mp)
-                  : PointByField::from_particle_position(point, B_p, mp, qm));
+    const PointByField gc = coord_is_gc
+      ? PointByField::from_guiding_center(point, B_p, mp)
+      : PointByField::from_particle_position(point, B_p, mp, qm);
+    arrays.store(first + i, gc);
+
+    if (!energy)
+      continue;
+    if (!coord_is_gc)
+      PetscCall(esirkepov.interpolate_B(B_p, gc.r));
+    w += p_squared(gc, B_p, mp);
   }
 
   PetscCall(storage.restore_attributes(f));
   PetscCall(DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
 
+  if (energy)
+    *energy += 0.5 * mp * parameters.mpw * w;
+
   // The guiding center may lie outside of the box of the particle
   PetscCall(storage.update_cells());
+  PetscCall(storage.sort());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// Removes particles by their stored `r` and `p`; `energy` uses `p_parallel` and `mu_p`.
+PetscErrorCode Particles::extract(
+  const std::function<bool(const Point&)>& predicate,
+  std::vector<Point>* extracted, PetscReal* energy)
+{
+  PetscFunctionBeginUser;
+  PetscCall(DMGlobalToLocal(simulation_.da, simulation_.B, INSERT_VALUES, simulation_.B_loc));
+  PetscCall(DMDAVecGetArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+
+  DriftKineticEsirkepov esirkepov(world, simulation_.B_arr);
+
+  ParticleStorage::Attributes f;
+  PetscCall(storage.get_attributes(f));
+  const DkPointArrays arrays(f);
+
+  std::vector<PetscInt> indices;
+  PetscReal w = 0;
+  for (PetscInt i = 0; i < f.size; i++) {
+    const PointByField point = arrays.load(i);
+    const Point kinetic{.r = point.r, .p = point.p};
+    if (!predicate(kinetic))
+      continue;
+    extracted->push_back(kinetic);
+    indices.push_back(i);
+
+    Vector3R B_p{};
+    PetscCall(esirkepov.interpolate_B(B_p, point.r));
+    w += p_squared(point, B_p, parameters.m);
+  }
+
+  PetscCall(storage.restore_attributes(f));
+  PetscCall(DMDAVecRestoreArrayRead(simulation_.da, simulation_.B_loc, &simulation_.B_arr));
+
+  if (energy)
+    *energy += 0.5 * parameters.m * parameters.mpw * w;
+
+  PetscCall(storage.remove(std::move(indices)));
   PetscCall(storage.sort());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -159,8 +218,7 @@ PetscErrorCode Particles::kinetic_sums_local(KineticSums& sums) const
     Vector3R B_p{};
     esirkepov.interpolate_B(B_p, point.r);
 
-    w += POW2(point.p_parallel) +  //
-      2.0 * point.mu_p * B_p.length() / parameters.m;
+    w += p_squared(point, B_p, parameters.m);
   }
 
   sums = KineticSums{};

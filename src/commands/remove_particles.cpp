@@ -1,6 +1,5 @@
 #include "remove_particles.h"
 
-#include "src/diagnostics/energy.h"
 #include "src/utils/configuration.h"
 
 RemoveParticles::RemoveParticles(interfaces::Particles& particles, Tester&& test)
@@ -14,9 +13,6 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
   removed_energy_ = 0.0;
   removed_particles_ = 0;
 
-  const PetscReal m = particles_.parameters.m;
-  const PetscReal mpw = particles_.parameters.n / particles_.parameters.Np;
-
   // The geometry is tested at the corner of the cell of the particle
   auto is_removed = [&](const Point& point)
   {
@@ -29,10 +25,7 @@ PetscErrorCode RemoveParticles::execute(PetscInt /* t */)
   };
 
   std::vector<Point> removed;
-  PetscCall(particles_.extract(is_removed, &removed));
-
-  for (const Point& point : removed)
-    removed_energy_ += Energy::get_kinetic(point.p, m, mpw);
+  PetscCall(particles_.extract(is_removed, &removed, &removed_energy_));
   removed_particles_ = (PetscInt)removed.size();
 
   PetscCall(log_statistics());

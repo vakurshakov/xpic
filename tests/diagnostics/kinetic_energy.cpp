@@ -21,6 +21,7 @@ struct EnergyProbe : Energy {
 static void overwrite_config();
 static PetscErrorCode check_energy(
   const interfaces::Particles& sort, PetscReal perpendicular_factor);
+static PetscErrorCode local_energy(const interfaces::Particles& sort, PetscReal& energy);
 
 int main(int argc, char** argv)
 {
@@ -42,8 +43,14 @@ int main(int argc, char** argv)
     for (const auto& point : points)
       if (sort->is_local(point))
         local.push_back(point);
-    PetscCall(sort->ingest(local.data(), local.size()));
+    PetscReal added = 0;
+    PetscCall(sort->ingest(local.data(), local.size(), &added));
     PetscCall(check_energy(*sort, 1));
+
+    PetscReal K = 0;
+    PetscCall(local_energy(*sort, K));
+    PetscCheck(equal_rel(added, K, 1e-12, 1e-14), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Ingested energy of %s differs from its kinetic energy: %g vs %g", sort->parameters.sort_name.c_str(), added, K);
   }
 
   PetscCall(VecScale(simulation.B, 2));
@@ -58,6 +65,17 @@ int main(int argc, char** argv)
     equal_rel(diagnostic.K[1], weight * 0.60, 1e-12, 1e-14),
     PETSC_COMM_WORLD, PETSC_ERR_USER,
     "The general energy diagnostic must use each sort's energy and reduce it globally");
+
+  // With doubled B, drift-kinetic energy differs from `0.5 * m * mpw * p^2` of the stored `p`.
+  for (const auto& sort : sorts) {
+    PetscReal K = 0, removed = 0;
+    PetscCall(local_energy(*sort, K));
+
+    std::vector<Point> extracted;
+    PetscCall(sort->extract([](const Point&) { return true; }, &extracted, &removed));
+    PetscCheck(equal_rel(removed, K, 1e-12, 1e-14), PETSC_COMM_WORLD, PETSC_ERR_USER,
+      "Extracted energy of %s differs from its kinetic energy: %g vs %g", sort->parameters.sort_name.c_str(), removed, K);
+  }
 
   PetscCall(simulation.finalize());
   PetscCall(PetscFinalize());
@@ -82,6 +100,15 @@ static PetscErrorCode check_energy(
   const PetscReal actual = sums.K;
   PetscCheck(equal_rel(actual, expected, 1e-12, 1e-14), PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Local kinetic energy of %s differs: %g vs %g", sort.parameters.sort_name.c_str(), actual, expected);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+static PetscErrorCode local_energy(const interfaces::Particles& sort, PetscReal& energy)
+{
+  PetscFunctionBeginUser;
+  interfaces::Particles::KineticSums sums;
+  PetscCall(sort.kinetic_sums_local(sums));
+  energy = sums.K;
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

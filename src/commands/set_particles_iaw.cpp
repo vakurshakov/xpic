@@ -1,6 +1,5 @@
 #include "set_particles_iaw.h"
 
-#include "src/diagnostics/energy.h"
 #include "src/utils/halton_generator.h"
 
 /**
@@ -164,7 +163,6 @@ PetscErrorCode SetParticlesIonAcousticWave::execute(PetscInt /* t */)
   added_particles = 0;
 
   const SortParameters& params = particles.parameters;
-  const PetscReal mpw = params.n / params.Np;
 
   std::vector<Point> points;
 
@@ -189,13 +187,12 @@ PetscErrorCode SetParticlesIonAcousticWave::execute(PetscInt /* t */)
 
       if (particles.is_local(point)) {
         points.push_back(point);
-        added_energy += Energy::get_kinetic(velocity, params.m, mpw);
         added_particles++;
       }
     }
   }
 
-  PetscCall(particles.ingest(points.data(), (PetscInt)points.size()));
+  PetscCall(particles.ingest(points.data(), (PetscInt)points.size(), &added_energy));
   PetscCall(log_statistics());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

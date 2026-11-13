@@ -49,7 +49,10 @@ public:
 
   PetscErrorCode form_iteration();
 
-  PetscErrorCode ingest(const Point* points, PetscInt n) override;
+  PetscErrorCode ingest(
+    const Point* points, PetscInt n, PetscReal* energy = nullptr) override;
+  PetscErrorCode extract(const std::function<bool(const Point&)>& predicate,
+    std::vector<Point>* extracted, PetscReal* energy = nullptr) override;
   PetscErrorCode prepare_storage();
   PetscErrorCode kinetic_sums_local(KineticSums& sums) const override;
   PetscReal get_average_iteration_number() const;

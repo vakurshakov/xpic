@@ -46,7 +46,7 @@ bool Particles::is_local(const Point& point) const
   return is_point_within_bounds(vg, 0, world.size);
 }
 
-PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
+PetscErrorCode Particles::ingest(const Point* points, PetscInt n, PetscReal* energy)
 {
   PetscFunctionBeginUser;
   PetscInt first;
@@ -55,9 +55,15 @@ PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
   ParticleStorage::Attributes f;
   PetscCall(storage.get_attributes(f));
   const PointArrays arrays(f);
-  for (PetscInt i = 0; i < n; i++)
+  PetscReal w = 0;
+  for (PetscInt i = 0; i < n; i++) {
     arrays.store(first + i, points[i]);
+    w += points[i].p.squared();
+  }
   PetscCall(storage.restore_attributes(f));
+
+  if (energy)
+    *energy += 0.5 * parameters.m * parameters.mpw * w;
 
   PetscCall(storage.sort());
   PetscFunctionReturn(PETSC_SUCCESS);
@@ -65,7 +71,7 @@ PetscErrorCode Particles::ingest(const Point* points, PetscInt n)
 
 PetscErrorCode Particles::extract(
   const std::function<bool(const Point&)>& predicate,
-  std::vector<Point>* extracted)
+  std::vector<Point>* extracted, PetscReal* energy)
 {
   PetscFunctionBeginUser;
   ParticleStorage::Attributes f;
@@ -73,14 +79,19 @@ PetscErrorCode Particles::extract(
   const PointArrays arrays(f);
 
   std::vector<PetscInt> indices;
+  PetscReal w = 0;
   for (PetscInt i = 0; i < f.size; i++) {
     const Point point = arrays.load(i);
     if (!predicate(point))
       continue;
     extracted->push_back(point);
     indices.push_back(i);
+    w += point.p.squared();
   }
   PetscCall(storage.restore_attributes(f));
+
+  if (energy)
+    *energy += 0.5 * parameters.m * parameters.mpw * w;
 
   PetscCall(storage.remove(std::move(indices)));
   PetscCall(storage.sort());

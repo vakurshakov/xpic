@@ -81,15 +81,21 @@ public:
    *
    * @param points Array of `n` points, all within the local MPI-boundaries
    * (see `is_local()`).
+   * @param energy If not null, adds the local kinetic energy of the ingested
+   * particles, as `kinetic_sums_local()` counts it.
    * @note Collective, it is called by all ranks even with `n == 0`.
    */
-  virtual PetscErrorCode ingest(const Point* points, PetscInt n);
+  virtual PetscErrorCode ingest(
+    const Point* points, PetscInt n, PetscReal* energy = nullptr);
 
   /// @brief Removes from `storage` the particles whose kinetic `Point` passes
   /// the `predicate` and appends them to `extracted`.
-  PetscErrorCode extract(                                //
+  /// @param energy If not null, adds the local kinetic energy of the removed
+  /// particles, as `kinetic_sums_local()` counts it.
+  /// @note Collective: derived sorts may exchange field ghost values.
+  virtual PetscErrorCode extract(                        //
     const std::function<bool(const Point&)>& predicate,  //
-    std::vector<Point>* extracted);
+    std::vector<Point>* extracted, PetscReal* energy = nullptr);
 
   /// @brief Hands over the particles that left the local box and sorts the
   /// rest by cell, `storage.cell_offsets()` are valid until the next push.
