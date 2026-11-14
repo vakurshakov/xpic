@@ -17,7 +17,7 @@ cd xpic
 | MPI (`mpicxx`) | unverified | Open MPI 5.0.11 (local), MPICH 5.0.2 (stark) | system package manager, never built from source |
 | make | — | — | system package manager |
 | CMake | 3.10 | 4.4 | system package manager |
-| nlohmann::json | 3.11 | v3.11.2 | cloned into `./external/json` |
+| nlohmann::json | 3.11 | v3.12.0 | cloned into `./external/json` (stark: unpacked from `json-3.12.0.tar.gz`) |
 | BLAS/LAPACK | — | OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark) | through PETSc (`--download-openblas`) |
 | PETSc | 3.26 | v3.26.1 | cloned and built into `./external/petsc` |
 | Python 3 | 3.6 | 3.14 | system package manager |
