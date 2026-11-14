@@ -52,7 +52,7 @@ else
   echo "nlohmann::json $JSON_PINNED_TAG is already installed in $JSON_DIR"
 fi
 
-# Step 3: nothing to build, json is header-only.
-
-# Step 4: verify the result.
+# Step 3: verify the result.
 verify_json "$JSON_DIR" || exit 1
+
+# Step 4: nothing to build, json is header-only.

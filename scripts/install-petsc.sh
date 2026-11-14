@@ -71,7 +71,10 @@ if [[ "$PETSC_TAG" != "$PETSC_PINNED_TAG" ]]; then
   }
 fi
 
-# Step 3: build every requested arch that is not built yet (or all with --force).
+# Step 3: verify the result.
+verify_petsc "$PETSC_DIR" || exit 1
+
+# Step 4: build every requested arch that is not built yet (or all with --force).
 common_options=(
   --with-mpi-dir="$MPI_DIR"
   --with-openmp=1
@@ -112,6 +115,3 @@ for arch in "${arches[@]}"; do
     exit 1
   }
 done
-
-# Step 4: verify the result.
-verify_petsc "$PETSC_DIR" || exit 1
