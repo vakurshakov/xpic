@@ -24,12 +24,9 @@ STACK_FLAGS="-O3 -march=native -mtune=native"
 OPENBLAS_TARGET=ZEN
 
 export PATH="$MPI_DIR/bin:$GCC_DIR/bin:$PATH"
-export LD_LIBRARY_PATH="$MPI_DIR/lib:$GCC_DIR/lib64:$OPENBLAS_DIR/lib:$LD_LIBRARY_PATH"
 
-# Anaconda ships its own libmpifort.so, which the dynamic linker picks up and breaks runs
-# with `undefined symbol: MPII_F_TRUE`. Drop it from the search paths.
-drop_anaconda() { echo "$1" | tr ':' '\n' | grep -v "anaconda3" | paste -sd:; }
-export PATH="$(drop_anaconda "$PATH")"
-export LD_LIBRARY_PATH="$(drop_anaconda "$LD_LIBRARY_PATH")"
-unset -f drop_anaconda
+# Set, not prepended: the inherited value (e.g. Anaconda's old libstdc++ from .bashrc) must not
+# shadow the stack's libraries. Anaconda's Python finds its own libraries through rpath.
+export LD_LIBRARY_PATH="$MPI_DIR/lib:$GCC_DIR/lib64:$OPENBLAS_DIR/lib"
+
 unset compiler
