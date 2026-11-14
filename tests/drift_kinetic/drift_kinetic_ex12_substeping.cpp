@@ -25,7 +25,6 @@ struct Grid {
   }
 };
 
-#if DRIFT_KINETIC_AITKEN == 0
 PetscReal shape(PetscReal x)
 {
   x = std::abs(x);
@@ -40,7 +39,6 @@ PetscReal density(const PointByField& point, PetscInt x, PetscInt y, PetscInt z)
 {
   return shape(x - point.r[X]) * shape(y - point.r[Y]) * shape(z - point.r[Z]);
 }
-#endif
 
 PetscErrorCode run_case(bool oscillator, PetscInt depth)
 {
@@ -94,7 +92,6 @@ PetscErrorCode run_case(bool oscillator, PetscInt depth)
     PetscFunctionReturn(PETSC_SUCCESS);
   }
 
-#if DRIFT_KINETIC_AITKEN == 0
   if (depth == 0) {
     PetscCheck(stats.root_failures == 1 && stats.failed_particles == 1 &&
         stats.leaf_failures == 1 && stats.leaves == 1 && stats.retries == 0,
@@ -151,7 +148,6 @@ PetscErrorCode run_case(bool oscillator, PetscInt depth)
   PetscCheck(source_error < tolerance && continuity_error < tolerance,
     PETSC_COMM_WORLD, PETSC_ERR_PLIB, "Source error %g, continuity error %g",
     (double)source_error, (double)continuity_error);
-#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -168,10 +164,8 @@ int main(int argc, char** argv)
   }
   PetscCall(run_case(false, 0));
   PetscCall(run_case(false, 4));
-#if DRIFT_KINETIC_AITKEN == 0
   PetscCall(run_case(true, 0));
   PetscCall(run_case(true, 4));
-#endif
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

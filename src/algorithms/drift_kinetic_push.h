@@ -3,12 +3,6 @@
 
 #include "src/interfaces/point.h"
 
-/// @brief 0 uses plain Picard, 1 uses sequential Picard with safeguarded
-/// dynamic Aitken relaxation.
-#ifndef DRIFT_KINETIC_AITKEN
-  #define DRIFT_KINETIC_AITKEN 0
-#endif
-
 /// @brief Fully implicit drift-kinetic guiding-center pusher.
 /// Advances guiding-center position and parallel velocity.
 class DriftKineticPush {
@@ -49,11 +43,6 @@ public:
 private:
   PetscErrorCode process_picard(
     PetscReal dt, PointByField& pn, const PointByField& p0);
-  PetscErrorCode process_picard_aitken(
-    PetscReal dt, PointByField& pn, const PointByField& p0);
-
-  /// @brief Increments and residuals scaled as (dr, dt * dv).
-  using State = std::array<PetscReal, 4>;
 
   /// @brief Evaluates drift velocity and acceleration.
   PetscErrorCode evaluate_rhs(const PointByField& pn, const PointByField& p0);
@@ -70,8 +59,6 @@ private:
   bool check_convergence(
     PetscReal dt, const PointByField& pn, const PointByField& p0);
 
-  bool check_increment_convergence(PetscReal dt, const State& f);
-
   // Particle parameters
   PetscReal qm = 0;
   PetscReal mp = 0;
@@ -80,7 +67,6 @@ private:
 
   // Nonlinear iteration state and residuals
   PetscInt it = 0;
-  // Aitken allows up to four times this number of trial updates.
   PetscInt maxit = 100;
   // `atol` is a velocity, the position residual uses `dt * atol`. Both
   // residuals are also scaled by `rtol` with the step: the displacement and

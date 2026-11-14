@@ -66,16 +66,12 @@ PetscErrorCode DriftKineticPush::process(
   FRk = PETSC_MAX_REAL;
   FVk = PETSC_MAX_REAL;
 
-#if DRIFT_KINETIC_AITKEN == 0
   PetscCall(process_picard(dt, pn, p0));
-#elif DRIFT_KINETIC_AITKEN == 1
-  PetscCall(process_picard_aitken(dt, pn, p0));
-#else
-  #error "DRIFT_KINETIC_AITKEN must be 0 or 1"
-#endif
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+// Sequential Picard: the parallel velocity is updated first, then the drift
+// velocity with the new `V_par` (fields at the previous position) moves `r`.
 PetscErrorCode DriftKineticPush::process_picard(
   PetscReal dt, PointByField& pn, const PointByField& p0)
 {
@@ -90,8 +86,11 @@ PetscErrorCode DriftKineticPush::process_picard(
       PetscFunctionReturn(PETSC_SUCCESS);
     }
 
-    update_r(dt, pn, p0);
     update_v_parallel(dt, pn, p0);
+    update_V_par(pn, p0);
+    update_effective_field();
+    update_V_dgc();
+    update_r(dt, pn, p0);
 
     V_dgc_prev = V_dgc;
     a_par_prev = a_par;
@@ -101,94 +100,6 @@ PetscErrorCode DriftKineticPush::process_picard(
   PetscCall(evaluate_rhs(pn, p0));
   converged = check_convergence(dt, pn, p0);
   PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-// Aitken uses the sequential map increment; acceptance and convergence use
-// the original equations. Rejected trials reduce omega from the same point.
-PetscErrorCode DriftKineticPush::process_picard_aitken(
-  PetscReal dt, PointByField& pn, const PointByField& p0)
-{
-  PetscFunctionBeginHot;
-  Vector3R dr = pn.r - p0.r;
-  PetscReal dv = pn.p_parallel - p0.p_parallel;
-  State previous{};
-  PetscReal omega = 1;
-  bool has_history = false;
-  it = 0;
-  PetscCall(evaluate_rhs(pn, p0));
-
-  for (;;) {
-    const Vector3R rr = dt * V_dgc - dr;
-    const State residual{rr[X], rr[Y], rr[Z], dt * (dt * a_par - dv)};
-    converged = check_increment_convergence(dt, residual);
-    if (converged || it >= 4 * maxit)
-      PetscFunctionReturn(PETSC_SUCCESS);
-
-    PetscReal norm2 = 0;
-    for (PetscReal value : residual)
-      norm2 += value * value;
-    if (!std::isfinite(norm2))
-      PetscFunctionReturn(PETSC_SUCCESS);
-
-    const PetscReal dv_next = dt * a_par;
-    V_par = 0.5 * (p0.p_parallel + (p0.p_parallel + dv_next));
-    update_effective_field();
-    update_V_dgc();
-    const Vector3R next = dt * V_dgc - dr;
-    const State f{next[X], next[Y], next[Z], dt * (dv_next - dv)};
-
-    if (has_history) {
-      PetscReal numerator = 0, denominator = 0, scale = 0;
-      for (PetscInt i = 0; i < 4; i++) {
-        const PetscReal difference = f[i] - previous[i];
-        numerator += previous[i] * difference;
-        denominator += difference * difference;
-        scale += f[i] * f[i] + previous[i] * previous[i];
-      }
-      if (denominator > PETSC_MACHINE_EPSILON * scale) {
-        const PetscReal candidate = -omega * numerator / denominator;
-        if (std::isfinite(candidate))
-          omega = std::clamp(candidate, 0.05, 1.0);
-      }
-    }
-
-    const PointByField current(pn);
-    for (;;) {
-      const Vector3R trial_dr = dr + omega * Vector3R(f.data());
-      const PetscReal trial_dv = dv + omega * f[3] / dt;
-      pn.r = p0.r + trial_dr;
-      pn.p_parallel = p0.p_parallel + trial_dv;
-      it++;
-      PetscReal trial_norm2 = PETSC_MAX_REAL;
-      if (std::isfinite(pn.p_parallel) && std::isfinite(pn.r[X]) &&
-        std::isfinite(pn.r[Y]) && std::isfinite(pn.r[Z])) {
-        PetscCall(evaluate_rhs(pn, p0));
-        const Vector3R trial_rr = dt * V_dgc - trial_dr;
-        const PetscReal trial_rv = dt * (dt * a_par - trial_dv);
-        trial_norm2 = trial_rr.squared() + trial_rv * trial_rv;
-        const State trial_residual{
-          trial_rr[X], trial_rr[Y], trial_rr[Z], trial_rv};
-        converged = check_increment_convergence(dt, trial_residual);
-      }
-      if (std::isfinite(trial_norm2) && (converged || trial_norm2 <= 4 * norm2)) {
-        dr = trial_dr;
-        dv = trial_dv;
-        previous = f;
-        has_history = true;
-        break;
-      }
-      if (omega <= 0.05 || it >= 4 * maxit) {
-        pn = current;
-        PetscCall(evaluate_rhs(pn, p0));
-        const Vector3R restore_rr = dt * V_dgc - dr;
-        const State restore_residual{
-          restore_rr[X], restore_rr[Y], restore_rr[Z], dt * (dt * a_par - dv)};
-        converged = check_increment_convergence(dt, restore_residual);
-        PetscFunctionReturn(PETSC_SUCCESS);
-      }
-      omega = std::max(0.05, 0.5 * omega);
-    }
-  }
 }
 
 // Evaluates drift velocity and acceleration.
@@ -267,18 +178,6 @@ bool DriftKineticPush::check_convergence(
     FRk = (pn.r - p0.r - dt * V_dgc).length();
     FVk = std::abs(pn.p_parallel - p0.p_parallel - dt * a_par);
   }
-
-  const PetscReal r_scale = dt * atol + rtol * (dt * V_dgc).length();
-  const PetscReal v_scale =
-    atol + rtol * (std::abs(V_par) + std::abs(dt * a_par));
-
-  return (FRk <= r_scale) && (FVk <= v_scale);
-}
-
-bool DriftKineticPush::check_increment_convergence(PetscReal dt, const State& f)
-{
-  FRk = Vector3R(f.data()).length();
-  FVk = std::abs(f[3]) / dt;
 
   const PetscReal r_scale = dt * atol + rtol * (dt * V_dgc).length();
   const PetscReal v_scale =
