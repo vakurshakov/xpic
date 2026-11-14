@@ -24,7 +24,7 @@ PetscErrorCode EnergyConservation::fill_energy_cons(PetscInt t)
   // Before the first step M, J and E_hk are zero, so all balances vanish.
   PetscReal MdB;
   PetscCall(VecDot(simulation.M, field_change, &MdB));
-  const PetscReal field_balance = dE + dB_total + dEJ - MdB;
+  const PetscReal field_balance = dE + dB + dEJ - MdB;
   const std::string field_title = "dW-tEJ_field";
   energy_cons.add(std::max<PetscInt>(13, field_title.size()), field_title, "{: .6e}", field_balance);
 
