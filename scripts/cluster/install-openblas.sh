@@ -20,7 +20,7 @@
 #$ -cwd
 #$ -j y
 
-source "$(dirname "${BASH_SOURCE[0]}")/../usage.sh"
+source ./scripts/usage.sh
 
 for arg in "$@"; do
   case "$arg" in

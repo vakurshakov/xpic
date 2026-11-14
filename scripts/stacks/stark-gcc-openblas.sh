@@ -11,8 +11,7 @@ compiler="GCC-${GCC_PINNED_VERSION%.*}"
 export GCC_DIR="${GCC_DIR:-$STACK_ROOT/$compiler}"
 export MPI_DIR="${MPI_DIR:-$STACK_ROOT/MPICH-$MPICH_PINNED_VERSION/$compiler}"
 export JSON_DIR="${JSON_DIR:-$STACK_ROOT/json-${JSON_PINNED_TAG#v}}"
-export PETSC_DIR="${PETSC_DIR:-$STACK_ROOT/petsc-${PETSC_PINNED_TAG#v}}"
-export PETSC_DIR="${PETSC_DIR%/}/$compiler-OpenBLAS"
+export PETSC_DIR="${PETSC_DIR:-$STACK_ROOT/petsc-${PETSC_PINNED_TAG#v}/$compiler-OpenBLAS}"
 OPENBLAS_DIR="${OPENBLAS_DIR:-$STACK_ROOT/OpenBLAS-$OPENBLAS_PINNED_VERSION/$compiler}"
 
 # Prefix installs have no arch.
