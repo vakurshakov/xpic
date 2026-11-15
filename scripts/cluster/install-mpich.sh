@@ -37,6 +37,10 @@ extract_source "$MPICH_TARBALL" "$(dirname "$MPI_DIR")" "mpich-$MPICH_PINNED_VER
 
 cd "$(dirname "$MPI_DIR")/mpich-$MPICH_PINNED_VERSION" || exit 1
 
+# The source tree is shared by the stacks (only the prefix differs), and objects of another
+# compiler or flags (e.g. non-PIC ones) must not leak into this build.
+[[ -f Makefile ]] && { make distclean || exit 1; }
+
 ./configure \
   --prefix="$MPI_DIR" \
   --enable-fast=all,O3 \
@@ -44,8 +48,9 @@ cd "$(dirname "$MPI_DIR")/mpich-$MPICH_PINNED_VERSION" || exit 1
   --disable-fortran \
   CC="$STACK_CC" \
   CXX="$STACK_CXX" \
-  MPICHLIB_CFLAGS="$STACK_FLAGS" \
-  MPICHLIB_CXXFLAGS="$STACK_FLAGS" || exit 1
+  MPICHLIB_CFLAGS="${MPICH_FLAGS:-$STACK_FLAGS}" \
+  MPICHLIB_CXXFLAGS="${MPICH_FLAGS:-$STACK_FLAGS}" \
+  "${MPICH_CONFIGURE_ARGS[@]}" || exit 1
 
 make -j "$JOBS" || exit 1
 make install || exit 1

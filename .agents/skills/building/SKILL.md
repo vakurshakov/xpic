@@ -9,7 +9,7 @@ Use this skill when working with the build system, CMake configuration, compilat
 
 ## Environment
 
-Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) (plus optional `GCC_DIR`) are set in `scripts/setenv.sh`; `PETSC_ARCH` is read by CMake from the environment (default per build type) and sourced by all scripts; each can be overridden from the environment, and `STACK=<name>` sources `scripts/stacks/<name>.sh` first (default `local`; unknown names fail). Third-party dependencies (nlohmann::json, PETSc) are expected as clones under `./external/` — see README.md for the exact clone/configure commands, including the two required PETSc arches: `linux-mpi-debug` and `linux-mpi-opt`.
+Environment variables (`MPI_DIR`, `JSON_DIR`, `PETSC_DIR`) (plus optional `GCC_DIR`) are set in `scripts/setenv.sh`; `PETSC_ARCH` is read by CMake from the environment (default per build type) and sourced by all scripts; each can be overridden from the environment, and `STACK=<name>` sources `scripts/stacks/<name>.sh` first (default `local`; unknown names fail). Stacks: `local`, and on stark `stark-gcc-openblas` and `stark-aocc-aocl` (GCC/AOCC + MPICH built by `scripts/cluster/`; they need `STACK_ROOT`). Third-party dependencies (nlohmann::json, PETSc) are expected as clones under `./external/` — see README.md for the exact clone/configure commands, including the two required PETSc arches: `linux-mpi-debug` and `linux-mpi-opt`.
 
 ## Top-level scripts
 

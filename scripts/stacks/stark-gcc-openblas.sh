@@ -23,6 +23,13 @@ STACK_CXX="$GCC_DIR/bin/g++"
 STACK_FLAGS="-O3 -march=native -mtune=native"
 OPENBLAS_TARGET=ZEN
 
+# PETSc: no Fortran, OpenBLAS (full BLAS, C-translated LAPACK) as BLAS/LAPACK.
+# Rpaths make the installed libraries independent of LD_LIBRARY_PATH.
+STACK_PETSC_BUILD_ARCH=linux-mpich-gcc-openblas-real
+STACK_BLAS_DIR="$OPENBLAS_DIR"
+STACK_LDFLAGS="-L$OPENBLAS_DIR/lib -L$MPI_DIR/lib -Wl,-rpath,$MPI_DIR/lib -Wl,-rpath,$GCC_DIR/lib64 -Wl,-rpath,$OPENBLAS_DIR/lib"
+STACK_PETSC_OPTIONS=()
+
 export PATH="$MPI_DIR/bin:$GCC_DIR/bin:$PATH"
 
 # Set, not prepended: the inherited value (e.g. Anaconda's old libstdc++ from .bashrc) must not

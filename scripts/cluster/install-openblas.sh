@@ -38,6 +38,9 @@ extract_source "$OPENBLAS_TARBALL" "$(dirname "$OPENBLAS_DIR")" "OpenBLAS-$OPENB
 
 cd "$(dirname "$OPENBLAS_DIR")/OpenBLAS-$OPENBLAS_PINNED_VERSION" || exit 1
 
+# Objects of an interrupted build (or of other flags) must not be reused.
+[[ -f Makefile ]] && { make clean || exit 1; }
+
 # No gfortran: LAPACK is taken from its C translation. Threads come from libgomp.
 make -j "$JOBS" \
   CC="$STACK_CC" \

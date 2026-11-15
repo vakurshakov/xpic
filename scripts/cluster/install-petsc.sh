@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Builds PETSc from TARBALL_DIR into PETSC_DIR of the stack (a prefix install, so PETSC_ARCH is
-# empty for xpic) and runs `make check` from that prefix. Needs MPICH and OpenBLAS of the stack.
+# empty for xpic) and runs `make check` from that prefix. Needs MPICH and the BLAS/LAPACK of the stack.
 # Run it on a node of the target architecture (`-march=native`), directly or with
 # `qsub`, e.g. `qsub -q <queue> -pe smp 128 -l h_rt=12:00:00 -v STACK=...,STACK_ROOT=...,TARBALL_DIR=...`.
 #
@@ -44,13 +44,10 @@ verify_petsc "$petsc_src" || exit 1
 
 cd "$petsc_src" || exit 1
 
-# Rpaths make the installed libraries independent of LD_LIBRARY_PATH.
-ldflags="-L$OPENBLAS_DIR/lib -L$MPI_DIR/lib -Wl,-rpath,$MPI_DIR/lib -Wl,-rpath,$GCC_DIR/lib64 -Wl,-rpath,$OPENBLAS_DIR/lib"
-
 # configure wants PETSC_DIR to be the source tree and ignores (and warns about) PETSC_ARCH.
 export PETSC_DIR="$PWD"
 unset PETSC_ARCH
-arch=linux-mpich-gcc-openblas-real
+arch="$STACK_PETSC_BUILD_ARCH"
 rm -rf "$arch"
 
 # KNOWN ISSUE: the three-dash `---with-openmp-kernels` is what produced the working stacks, and
@@ -62,7 +59,7 @@ rm -rf "$arch"
   CXX="$MPI_DIR/bin/mpicxx" \
   --with-fc=0 \
   --with-mpiexec="$MPI_DIR/bin/mpiexec" \
-  --with-blaslapack-dir="$OPENBLAS_DIR" \
+  --with-blaslapack-dir="$STACK_BLAS_DIR" \
   --with-threadsafety=1 \
   --with-openmp=1 \
   ---with-openmp-kernels=true \
@@ -71,7 +68,8 @@ rm -rf "$arch"
   --with-ssl=0 \
   COPTFLAGS="$STACK_FLAGS" \
   CXXOPTFLAGS="$STACK_FLAGS" \
-  LDFLAGS="$ldflags" || exit 1
+  LDFLAGS="$STACK_LDFLAGS" \
+  "${STACK_PETSC_OPTIONS[@]}" || exit 1
 
 make PETSC_ARCH="$arch" -j "$JOBS" all || exit 1
 make PETSC_ARCH="$arch" install || exit 1
