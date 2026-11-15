@@ -41,14 +41,14 @@ cd "$(dirname "$MPI_DIR")/mpich-$MPICH_PINNED_VERSION" || exit 1
 # compiler or flags (e.g. non-PIC ones) must not leak into this build.
 [[ -f Makefile ]] && { make distclean || exit 1; }
 
-./configure \
-  --prefix="$MPI_DIR" \
-  --enable-fast=all,O3 \
-  --enable-threads=runtime \
-  --disable-fortran \
-  CC="$STACK_CC" \
-  CXX="$STACK_CXX" \
-  MPICHLIB_CFLAGS="${MPICH_FLAGS:-$STACK_FLAGS}" \
+./configure                                        \
+  --prefix="$MPI_DIR"                              \
+  --enable-fast=all,O3                             \
+  --enable-threads=runtime                         \
+  --disable-fortran                                \
+  CC="$STACK_CC"                                   \
+  CXX="$STACK_CXX"                                 \
+  MPICHLIB_CFLAGS="${MPICH_FLAGS:-$STACK_FLAGS}"   \
   MPICHLIB_CXXFLAGS="${MPICH_FLAGS:-$STACK_FLAGS}" \
   "${MPICH_CONFIGURE_ARGS[@]}" || exit 1
 

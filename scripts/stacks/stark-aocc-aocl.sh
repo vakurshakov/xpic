@@ -43,9 +43,19 @@ MPICH_CONFIGURE_ARGS=(--with-libfabric-args="--with-pic")
 # the code is C++), AOCL (BLIS + libFLAME) as BLAS/LAPACK, `amdlibm` as libm.
 # Rpaths make the installed libraries independent of LD_LIBRARY_PATH.
 STACK_PETSC_BUILD_ARCH=linux-mpich-aocc-aocl-real
-STACK_BLAS_DIR="$AOCL_DIR"
-STACK_LDFLAGS="$gcc_toolchain -L$AOCL_DIR/lib -L$MPI_DIR/lib -Wl,-rpath,$MPI_DIR/lib -Wl,-rpath,$GCC_DIR/lib64 -Wl,-rpath,$AOCL_DIR/lib"
-STACK_PETSC_OPTIONS=(LIBS=-lamdlibm)
+STACK_PETSC_BUILD_OPTIONS=(
+  --with-blaslapack-dir="$AOCL_DIR"
+  LIBS=-lamdlibm
+  COPTFLAGS="$STACK_FLAGS"
+  CXXOPTFLAGS="$STACK_FLAGS"
+  LDFLAGS="                   \
+    $gcc_toolchain            \
+    -L$MPI_DIR/lib            \
+    -L$AOCL_DIR/lib           \
+    -Wl,-rpath,$MPI_DIR/lib   \
+    -Wl,-rpath,$GCC_DIR/lib64 \
+    -Wl,-rpath,$AOCL_DIR/lib"
+)
 
 export PATH="$MPI_DIR/bin:$AOCC_DIR/bin:$PATH"
 

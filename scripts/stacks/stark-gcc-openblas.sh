@@ -1,4 +1,4 @@
-# Stack on stark: GCC + MPICH + OpenBLAS, built by scripts/cluster/. Requires STACK_ROOT.
+# Stack on stark: GCC + MPICH + OpenBLAS (C-translated LAPACK), built by scripts/cluster/. Requires STACK_ROOT.
 # Layout: <component>/<name>-<version> holds sources, <component>/<compiler> the prefix.
 
 if [[ -z "$STACK_ROOT" ]]; then
@@ -26,9 +26,17 @@ OPENBLAS_TARGET=ZEN
 # PETSc: no Fortran, OpenBLAS (full BLAS, C-translated LAPACK) as BLAS/LAPACK.
 # Rpaths make the installed libraries independent of LD_LIBRARY_PATH.
 STACK_PETSC_BUILD_ARCH=linux-mpich-gcc-openblas-real
-STACK_BLAS_DIR="$OPENBLAS_DIR"
-STACK_LDFLAGS="-L$OPENBLAS_DIR/lib -L$MPI_DIR/lib -Wl,-rpath,$MPI_DIR/lib -Wl,-rpath,$GCC_DIR/lib64 -Wl,-rpath,$OPENBLAS_DIR/lib"
-STACK_PETSC_OPTIONS=()
+STACK_PETSC_BUILD_OPTIONS=(
+  --with-blaslapack-dir="$OPENBLAS_DIR"
+  COPTFLAGS="$STACK_FLAGS"
+  CXXOPTFLAGS="$STACK_FLAGS"
+  LDFLAGS="                     \
+    -L$MPI_DIR/lib              \
+    -L$OPENBLAS_DIR/lib         \
+    -Wl,-rpath,$MPI_DIR/lib     \
+    -Wl,-rpath,$GCC_DIR/lib64   \
+    -Wl,-rpath,$OPENBLAS_DIR/lib"
+)
 
 export PATH="$MPI_DIR/bin:$GCC_DIR/bin:$PATH"
 

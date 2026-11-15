@@ -42,11 +42,11 @@ cd "$(dirname "$OPENBLAS_DIR")/OpenBLAS-$OPENBLAS_PINNED_VERSION" || exit 1
 [[ -f Makefile ]] && { make clean || exit 1; }
 
 # No gfortran: LAPACK is taken from its C translation. Threads come from libgomp.
-make -j "$JOBS" \
-  CC="$STACK_CC" \
-  CFLAGS="$STACK_FLAGS" \
-  NOFORTRAN=1 \
-  C_LAPACK=1 \
+make -j "$JOBS"             \
+  CC="$STACK_CC"            \
+  CFLAGS="$STACK_FLAGS"     \
+  NOFORTRAN=1               \
+  C_LAPACK=1                \
   TARGET="$OPENBLAS_TARGET" \
   USE_OPENMP=1 || exit 1
 
