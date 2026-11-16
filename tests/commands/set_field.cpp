@@ -102,6 +102,17 @@ int main(int argc, char** argv)
     }
 
     {
+      const PetscReal value = 2, curvature = 0.125;
+      const Vector3R center{3, 2, 1};
+      PetscCall(SetMirrorField{value, curvature, center}(vec, stagger));
+      PetscCall(check(tag, vec, stagger, [&](PetscInt c, const PetscReal r[3]) {
+        const PetscReal z = r[Z] - center[Z];
+        return c == Z ? value * (1 + curvature * z * z)
+                      : -value * curvature * z * (r[c] - center[c]);
+      }));
+    }
+
+    {
       const PetscReal value = 2.0, cx = 3.0, cy = 1.0, radius = 5.0;
       PetscCall(SetAzimuthalField{value, cx, cy, radius}(vec, stagger));
       PetscCall(check(tag, vec, stagger, [&](PetscInt c, const PetscReal r[3]) {

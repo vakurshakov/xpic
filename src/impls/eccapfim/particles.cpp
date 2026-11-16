@@ -2,14 +2,14 @@
 
 #include "src/algorithms/crank_nicolson_push.h"
 #include "src/algorithms/implicit_esirkepov.h"
-#include "src/impls/eccapfim/simulation.h"
+#include "src/interfaces/simulation.h"
 #include "src/utils/profiler.h"
 
 namespace eccapfim {
 
-Particles::Particles(Simulation& simulation, const SortParameters& parameters)
-  : interfaces::Particles(simulation.world, parameters),
-    simulation_(simulation)
+Particles::Particles(
+  interfaces::Simulation& simulation, const SortParameters& parameters)
+  : interfaces::Particles(simulation.world, parameters)
 {
 }
 
@@ -46,6 +46,12 @@ PetscReal Particles::get_average_number_of_traversed_cells() const
 PetscInt Particles::get_maximum_number_of_traversed_cells() const
 {
   return maxcell;
+}
+
+void Particles::set_field_tolerances(PetscReal atol, PetscReal rtol)
+{
+  field_atol = atol;
+  field_rtol = rtol;
 }
 
 
@@ -146,8 +152,6 @@ PetscErrorCode Particles::form_iteration()
 
   PetscReal max = std::numeric_limits<double>::max();
 
-  const PetscReal atol = simulation_.atol;
-
   auto process_bound = [&](PetscReal vh, PetscReal x, PetscReal xb, PetscReal xe)
   {
     if (vh > 0 && abs(xe - x) > 1e-7)
@@ -204,8 +208,10 @@ PetscErrorCode Particles::form_iteration()
         const PetscReal alpha = 0.5 * dtau * (q / m);
 
         const PetscInt cn_maxit = 30;
-        const PetscReal cn_atol = 0.5 * atol;
-        const PetscReal cn_rtol = 0.5 * atol;
+        // `cn_rtol` is relative to the initial residual `r0`,
+        // `cn_atol` is the rounding error of |v| ~ c.
+        const PetscReal cn_atol = 1e-16;
+        const PetscReal cn_rtol = 1e-13;
 
         PetscInt it = 0, s;
         PetscReal rn, r0, d, ds, bs;

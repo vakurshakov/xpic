@@ -1,7 +1,5 @@
 #include "set_particles.h"
 
-#include "src/diagnostics/energy.h"
-
 SetParticles::SetParticles(std::vector<Sort> sorts,
   PetscInt number_of_particles, const CoordinateGenerator& generate_coordinate)
   : sorts(sorts),
@@ -39,17 +37,13 @@ PetscErrorCode SetParticles::load(PetscInt number_of_particles)
 
       if (particles.is_local(point)) {
         points[s].push_back(point);
-        const PetscReal m = particles.parameters.m;
-        const PetscReal mpw = particles.parameters.mpw;
-
-        added_energy[s] += Energy::get_kinetic(momentum, m, mpw);
         added_particles[s]++;
       }
     }
   }
 
   for (std::size_t s = 0; s < sorts.size(); s++)
-    PetscCall(sorts[s].particles.ingest(points[s].data(), (PetscInt)points[s].size()));
+    PetscCall(sorts[s].particles.ingest(points[s].data(), (PetscInt)points[s].size(), &added_energy[s]));
 
   PetscCall(log_statistics());
   PetscFunctionReturn(PETSC_SUCCESS);

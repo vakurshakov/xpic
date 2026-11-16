@@ -1,6 +1,6 @@
 #include "set_particles_iaw.h"
 
-#include "src/diagnostics/energy.h"
+#include "src/utils/halton_generator.h"
 
 /**
  * @details
@@ -29,19 +29,6 @@ static_assert(  //
   bases_are_disjoint(coordinate_bases, velocity_radius_bases) &&
   bases_are_disjoint(coordinate_bases, velocity_phase_bases) &&
   bases_are_disjoint(velocity_radius_bases, velocity_phase_bases));
-
-/// Reverts digits of `i` in `base`, @returns the result as fraction in [0,1).
-PetscReal van_der_corput(std::size_t i, std::size_t base)
-{
-  PetscReal q = 0;
-  PetscReal bk = 1.0 / static_cast<PetscReal>(base);
-  while (i > 0) {
-    q += static_cast<PetscReal>(i % base) * bk;
-    i /= base;
-    bk /= static_cast<PetscReal>(base);
-  }
-  return q;
-}
 
 PetscReal sine_density_inv_cdf(
   PetscReal u, PetscReal amplitude, PetscReal mode, PetscReal phase)
@@ -176,7 +163,6 @@ PetscErrorCode SetParticlesIonAcousticWave::execute(PetscInt /* t */)
   added_particles = 0;
 
   const SortParameters& params = particles.parameters;
-  const PetscReal mpw = params.n / params.Np;
 
   std::vector<Point> points;
 
@@ -201,13 +187,12 @@ PetscErrorCode SetParticlesIonAcousticWave::execute(PetscInt /* t */)
 
       if (particles.is_local(point)) {
         points.push_back(point);
-        added_energy += Energy::get_kinetic(velocity, params.m, mpw);
         added_particles++;
       }
     }
   }
 
-  PetscCall(particles.ingest(points.data(), (PetscInt)points.size()));
+  PetscCall(particles.ingest(points.data(), (PetscInt)points.size(), &added_energy));
   PetscCall(log_statistics());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

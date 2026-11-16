@@ -5,13 +5,15 @@
 #include "src/interfaces/particles.h"
 #include "src/utils/shape.h"
 
-namespace eccapfim {
-
+namespace interfaces {
 class Simulation;
+}
+
+namespace eccapfim {
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const SortParameters& parameters);
+  Particles(interfaces::Simulation& simulation, const SortParameters& parameters);
   PetscErrorCode initialize() override;
 
   PetscErrorCode prepare_storage();
@@ -22,6 +24,8 @@ public:
   PetscReal get_average_iteration_number() const;
   PetscReal get_average_number_of_traversed_cells() const;
   PetscInt get_maximum_number_of_traversed_cells() const;
+
+  void set_field_tolerances(PetscReal atol, PetscReal rtol);
 
 protected:
   static constexpr const auto& shape_func = spline_of_2nd_order;
@@ -34,7 +38,8 @@ protected:
   PetscReal avgcell = 0;
   PetscInt maxcell = 0;
 
-  Simulation& simulation_;
+  PetscReal field_atol = 0;  // SNES tolerances of the field residual.
+  PetscReal field_rtol = 0;
 
   // Profiler handles
   PetscInt event_prepare_storage;

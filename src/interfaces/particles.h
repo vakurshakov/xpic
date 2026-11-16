@@ -81,21 +81,40 @@ public:
    *
    * @param points Array of `n` points, all within the local MPI-boundaries
    * (see `is_local()`).
+   * @param energy If not null, adds the local kinetic energy of the ingested
+   * particles, as `kinetic_sums_local()` counts it.
    * @note Collective, it is called by all ranks even with `n == 0`.
    */
-  virtual PetscErrorCode ingest(const Point* points, PetscInt n);
+  virtual PetscErrorCode ingest(
+    const Point* points, PetscInt n, PetscReal* energy = nullptr);
 
   /// @brief Removes from `storage` the particles whose kinetic `Point` passes
   /// the `predicate` and appends them to `extracted`.
-  PetscErrorCode extract(                                //
+  /// @param energy If not null, adds the local kinetic energy of the removed
+  /// particles, as `kinetic_sums_local()` counts it.
+  /// @note Collective: derived sorts may exchange field ghost values.
+  virtual PetscErrorCode extract(                        //
     const std::function<bool(const Point&)>& predicate,  //
-    std::vector<Point>* extracted);
+    std::vector<Point>* extracted, PetscReal* energy = nullptr);
 
   /// @brief Hands over the particles that left the local box and sorts the
   /// rest by cell, `storage.cell_offsets()` are valid until the next push.
   virtual PetscErrorCode update_cells();
 
   PetscErrorCode calculate_rho();
+
+  /// Local sums over the particles owned by this MPI rank.
+  struct KineticSums {
+    PetscReal K = 0;
+    PetscReal vx = 0, vy = 0, vz = 0, w = 0;  // Zero for sorts without momentum spread.
+    PetscInt n = 0;
+  };
+
+  /**
+   * @note Call on all ranks: derived sorts may exchange field ghost values.
+   * The caller performs the global reduction.
+   */
+  virtual PetscErrorCode kinetic_sums_local(KineticSums& sums) const;
 
   Vector3R velocity(const Point& point) const;
 

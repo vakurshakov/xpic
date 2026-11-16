@@ -26,30 +26,45 @@ PetscErrorCode Energy::initialize()
 
   PetscCall(Profiler::register_event("energy_field", &event_field));
   PetscCall(Profiler::register_event("energy_kinetic", &event_kinetic));
+
+  PetscCall(VecDuplicate(simulation.E, &E_prev));
+  PetscCall(VecDuplicate(simulation.B, &B_prev));
+  PetscCall(VecCopy(simulation.E, E_prev));
+  PetscCall(VecCopy(simulation.B, B_prev));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Energy::finalize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(VecDestroy(&E_prev));
+  PetscCall(VecDestroy(&B_prev));
+  PetscCall(energy.finalize());
+  PetscCall(energy_cons.finalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Energy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (!initialized) {
+  const bool first = !initialized;
+  if (first)
     PetscCall(initialize());
-    PetscCall(calculate_field());
-    PetscCall(calculate_kinetic());
-  }
 
-  E0 = E;
-  B0 = B;
   K0 = K;
 
   PetscCall(calculate_field());
   PetscCall(calculate_kinetic());
+  if (first)
+    K0 = K;
 
   PetscCall(fill_energy(t));
   PetscCall(fill_energy_cons(t));
 
   PetscCall(energy.diagnose(t));
   PetscCall(energy_cons.diagnose(t));
+  PetscCall(VecCopy(simulation.E, E_prev));
+  PetscCall(VecCopy(simulation.B, B_prev));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -58,6 +73,8 @@ PetscErrorCode Energy::calculate_field()
   PetscFunctionBeginUser;
   PetscCall(Profiler::push_event(event_field));
 
+  PetscCall(VecDot(simulation.B, simulation.B, &B_total));
+  B_total *= 0.5;
   PetscCall(VecAXPY(simulation.B, -1, simulation.B0));
 
   PetscCall(VecNorm(simulation.E, NORM_2, &E));
@@ -84,58 +101,58 @@ PetscErrorCode Energy::calculate_kinetic()
   PetscFunctionBeginUser;
   PetscCall(Profiler::push_event(event_kinetic));
 
-  PetscReal frac, m, mpw, vx, vy, vz, w;
-  PetscInt n;
-
   for (std::size_t i = 0; i < simulation.particles_.size(); ++i) {
     auto& sort = simulation.particles_[i];
 
-    m = sort->parameters.m;
-    mpw = sort->parameters.n / (PetscReal)sort->parameters.Np;
+    interfaces::Particles::KineticSums s;
+    PetscCall(sort->kinetic_sums_local(s));
 
-    frac = 0.5 * m * mpw;
-    vx = vy = vz = w = 0;
-    n = 0;
+    PetscReal v[5] = {s.K, s.vx, s.vy, s.vz, s.w};
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, v, 5, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
+    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &s.n, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
 
-    ParticleStorage::Attributes f;
-    PetscCall(sort->storage.get_attribute(f, "p"));
-    const PetscReal* p = f["p"];
-
-#pragma omp parallel for reduction(+ : vx, vy, vz, w)
-    for (PetscInt j = 0; j < f.size; j++) {
-      vx += p[3 * j + X];
-      vy += p[3 * j + Y];
-      vz += p[3 * j + Z];
-      w +=                    //
-        POW2(p[3 * j + X]) +  //
-        POW2(p[3 * j + Y]) +  //
-        POW2(p[3 * j + Z]);
-    }
-
-    n = f.size;
-    PetscCall(sort->storage.restore_attributes(f));
-
-    K[i] = frac * w;
-
-    PetscReal v[4] = {vx, vy, vz, w};
-    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, v, 4, MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
-    PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, &n, 1, MPIU_INT, MPI_SUM, PETSC_COMM_WORLD));
-
-    if (n == 0) {
-      K[i] = 0;
+    K[i] = v[0];
+    if (s.n == 0) {
       std_K[i] = 0;
       continue;
     }
 
-    PetscReal s = v[3] - (v[X] * v[X] + v[Y] * v[Y] + v[Z] * v[Z]) / n;
-    std_K[i] = frac * sqrt(abs(s) / n);
+    PetscReal frac = 0.5 * sort->parameters.m * sort->parameters.mpw;
+    PetscReal d = v[4] - (POW2(v[1]) + POW2(v[2]) + POW2(v[3])) / s.n;
+    std_K[i] = frac * sqrt(abs(d) / s.n);
   }
-  PetscCallMPI(MPI_Allreduce(MPI_IN_PLACE, K.data(), K.size(), MPIU_REAL, MPI_SUM, PETSC_COMM_WORLD));
 
   PetscCall(Profiler::pop_event(event_kinetic));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
+PetscErrorCode Energy::calculate_field_change()
+{
+  PetscFunctionBeginUser;
+  Vec sum, diff;
+  PetscCall(DMGetGlobalVector(simulation.da, &sum));
+  PetscCall(DMGetGlobalVector(simulation.da, &diff));
+
+  // Avoid subtracting nearly equal field energies.
+  PetscCall(VecWAXPY(diff, -1, E_prev, simulation.E));
+  PetscCall(VecWAXPY(sum, 1, E_prev, simulation.E));
+  PetscCall(VecDot(sum, diff, &dE));
+  dE *= 0.5;
+
+  PetscCall(VecWAXPY(diff, -1, B_prev, simulation.B));
+  PetscCall(VecWAXPY(sum, 1, B_prev, simulation.B));
+  PetscCall(VecDot(sum, diff, &dB_total));
+  dB_total *= 0.5;
+
+  // The standard wB excludes the prescribed background B0.
+  PetscCall(VecAXPY(sum, -2, simulation.B0));
+  PetscCall(VecDot(sum, diff, &dB));
+  dB *= 0.5;
+
+  PetscCall(DMRestoreGlobalVector(simulation.da, &sum));
+  PetscCall(DMRestoreGlobalVector(simulation.da, &diff));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
 PetscErrorCode Energy::fill_energy(PetscInt t)
 {
@@ -150,7 +167,7 @@ PetscErrorCode Energy::fill_energy(PetscInt t)
 
   for (i = 0; i < size; ++i) {
     auto& name = particles[i]->parameters.sort_name;
-    energy.add(13, "wK_" + name, "{: .6e}", K[i]);
+    energy.add(std::max<PetscInt>(13, 3 + name.size()), "wK_" + name, "{: .6e}", K[i]);
   }
 
   energy.add(13, "sE", "{: .6e}", std_E);
@@ -158,8 +175,17 @@ PetscErrorCode Energy::fill_energy(PetscInt t)
 
   for (i = 0; i < size; ++i) {
     auto& name = particles[i]->parameters.sort_name;
-    energy.add(13, "sK_" + name, "{: .6e}", std_K[i]);
+    energy.add(std::max<PetscInt>(13, 3 + name.size()), "sK_" + name, "{: .6e}", std_K[i]);
   }
+
+  PetscReal total_K = 0;
+  for (PetscReal kinetic : K)
+    total_K += kinetic;
+
+  energy.add(13, "wK", "{: .6e}", total_K);
+  energy.add(13, "wB_total", "{: .6e}", B_total);
+  energy.add(13, "wEB+wK", "{: .6e}", E + B + total_K);
+  energy.add(13, "wEB_total+wK", "{: .6e}", E + B_total + total_K);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -168,8 +194,7 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
   PetscFunctionBeginUser;
   energy_cons.add(6, "Time", "{:d}", t);
 
-  dE = E - E0;
-  dB = B - B0;
+  PetscCall(calculate_field_change());
 
   dF = dE + dB;
   energy_cons.add(13, "dE", "{: .6e}", dE);
@@ -178,9 +203,11 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
   dK = 0;
   for (PetscInt i = 0; i < (PetscInt)K.size(); ++i) {
     auto&& n = simulation.particles_[i]->parameters.sort_name;
-    energy_cons.add(13, "dK_" + n, "{: .6e}", K[i] - K0[i]);
+    energy_cons.add(std::max<PetscInt>(13, 3 + n.size()), "dK_" + n, "{: .6e}", K[i] - K0[i]);
     dK += K[i] - K0[i];
   }
+
+  const PetscReal raw_dK = dK;
 
   for (const auto& command : simulation.step_presets_) {
     if (auto&& damp = dynamic_cast<DampenFields*>(command.get())) {
@@ -204,6 +231,8 @@ PetscErrorCode Energy::fill_energy_cons(PetscInt t)
     }
   }
 
+  // Raw particle change (without source/sink corrections) precedes the total balance.
+  energy_cons.add(13, "dK", "{: .6e}", raw_dK);
   energy_cons.add(13, "dE+dB+dK", "{: .6e}", dF + dK);
   PetscFunctionReturn(PETSC_SUCCESS);
 }
