@@ -37,5 +37,23 @@
         "tov": true
       }
     }
+  ],
+  "Diagnostics": [
+    {
+      "diagnostic": "LogView",
+      "level": "EachTimestep"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "DiagnosePeriodAvg"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "AllTimestepsSummary"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "EachTimestepEvents"
+    }
   ]
 }
