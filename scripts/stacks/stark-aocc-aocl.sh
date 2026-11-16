@@ -25,6 +25,7 @@ export PETSC_DIR="${PETSC_DIR:-$STACK_ROOT/petsc-${PETSC_PINNED_TAG#v}/$compiler
 # Prefix installs have no arch.
 export PETSC_ARCH=
 
+
 # Clang takes the legacy system GCC (and its linker objects, crtbegin.o etc.) by default, which
 # fails to build C++20 code and to link against the newer libstdc++. `--gcc-toolchain` points both
 # the compile and the link step to the stack's GCC instead.
@@ -36,8 +37,8 @@ STACK_CXX="$AOCC_DIR/bin/clang++"
 STACK_FLAGS="-O3 -march=native -mtune=native $gcc_toolchain"
 
 # MPICH is linked into shared libraries: libfabric needs PIC explicitly.
-MPICH_FLAGS="$STACK_FLAGS -fPIC"
-MPICH_CONFIGURE_ARGS=(--with-libfabric-args="--with-pic")
+STACK_MPICH_FLAGS="$STACK_FLAGS -fPIC"
+STACK_MPICH_BUILD_OPTIONS=(--with-libfabric-args="--with-pic")
 
 # PETSc: no Fortran (AOCC has no gfortran-compatible runtime in the stack, and 
 # the code is C++), AOCL (BLIS + libFLAME) as BLAS/LAPACK, `amdlibm` as libm.

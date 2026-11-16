@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Unpacks the nlohmann::json tarball from TARBALL_DIR into STACK_ROOT (the cluster has no
-# internet, so scripts/install-json.sh cannot clone it) and validates the result.
-# The tarball's top directory (json-<version>) is kept and must match JSON_DIR of the stack.
+# internet, so scripts/install-json.sh cannot clone it) and validates the result. Header-only:
+# the unpacked source is the install, so SRC must match JSON_DIR of the stack.
 #
 # Usage: ./scripts/cluster/install-json.sh [-h|--help] [--force]
 #   --force     replace an existing JSON_DIR with a fresh extraction
@@ -14,6 +14,7 @@
 #   TARBALL_DIR  directory with the source tarballs (required)
 
 #$ -S /bin/bash
+#$ -N install-json
 #$ -V
 #$ -cwd
 #$ -j y
@@ -31,7 +32,23 @@ done
 source ./scripts/setenv.sh || exit 1
 source ./scripts/cluster/common.sh
 
-guard_prefix "$JSON_DIR" "$force"
-extract_source "$JSON_TARBALL" "$STACK_ROOT" "$(basename "$JSON_DIR")" "$force"
+# Every install script declares the same variables and goes through the same steps (source,
+# build tree, configure, build, install, check); only the commands inside the steps differ.
+#   NAME     component directory in STACK_ROOT, holds the source (and the build tree)
+#   TARBALL  file in TARBALL_DIR
+#   SOURCE   directory the tarball unpacks to, inside the component directory
+#   PREFIX   install prefix from the stack file
+NAME="json"
+TARBALL="json-${JSON_PINNED_TAG#v}.tar.gz"
+SOURCE="json-${JSON_PINNED_TAG#v}"
+PREFIX="$JSON_DIR"
 
-verify_json "$JSON_DIR" || exit 1
+COMPONENT_DIR="$STACK_ROOT"
+SOURCE_DIR="$COMPONENT_DIR/$SOURCE"
+
+# Step 1: guard the prefix and extract the source.
+guard_prefix "$PREFIX" "$force"
+extract_source "$TARBALL" "$COMPONENT_DIR" "$SOURCE" "$force"
+
+# Step 2: verify the unpacked version (header-only: there is nothing to build).
+verify_json "$PREFIX" || exit 1

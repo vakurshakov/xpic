@@ -17,6 +17,7 @@ export PETSC_DIR="${PETSC_DIR:-$STACK_ROOT/petsc-${PETSC_PINNED_TAG#v}/$compiler
 # Prefix installs have no arch.
 export PETSC_ARCH=
 
+
 # Used by the install scripts. The CPU target belongs to the stack, not to a script.
 STACK_CC="$GCC_DIR/bin/gcc"
 STACK_CXX="$GCC_DIR/bin/g++"
@@ -24,9 +25,10 @@ STACK_FLAGS="-O3 -march=native -mtune=native"
 OPENBLAS_TARGET=ZEN
 
 # PETSc: no Fortran (--with-fc=0), so LAPACK cannot be built from the reference Fortran sources.
-# BLAS/LAPACK  is f2cblaslapack: the reference LAPACK translated to C, built by PETSc
+# BLAS/LAPACK is f2cblaslapack: the reference LAPACK translated to C, built by PETSc
 # from the local tarball in TARBALL_DIR (the cluster has no network).
 # Rpaths make the installed libraries independent of LD_LIBRARY_PATH.
+F2CBLASLAPACK_TARBALL=f2cblaslapack-3.8.0.q2.tar.gz
 STACK_PETSC_BUILD_ARCH=linux-mpich-gcc-f2c-real
 STACK_PETSC_BUILD_OPTIONS=(
   --download-f2cblaslapack="$TARBALL_DIR/$F2CBLASLAPACK_TARBALL"

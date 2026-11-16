@@ -12,7 +12,6 @@ GIT_MIN_VERSION=1.8.5
 # On stark GCC is built by scripts/cluster/install-gcc.sh.
 COMPILER_MIN_VERSION=
 GCC_PINNED_VERSION=15.1.0
-GCC_TARBALL="gcc-$GCC_PINNED_VERSION.tar.xz"
 COMPILER_TESTED="GCC 15.1, GCC 16.2, AOCC 5.2.0 (with GCC_DIR)"
 
 # gfortran: needed locally only, because PETSc's OpenBLAS install always passes `FC=`.
@@ -21,7 +20,6 @@ GFORTRAN_TESTED="GCC 15.1"
 # MPI is never built locally; built by the cluster scripts on stark.
 MPI_MIN_VERSION=
 MPICH_PINNED_VERSION=5.0.2
-MPICH_TARBALL="mpich-$MPICH_PINNED_VERSION.tar.gz"
 MPI_TESTED="Open MPI 5.0.11 (local), MPICH 5.0.2 (stark)"
 
 MAKE_MIN_VERSION=
@@ -31,18 +29,14 @@ CMAKE_TESTED=4.4
 
 JSON_MIN_VERSION=3.11
 JSON_PINNED_TAG=v3.12.0
-JSON_TARBALL="json-${JSON_PINNED_TAG#v}.tar.gz"
 
 PETSC_MIN_VERSION=3.26
 PETSC_PINNED_TAG=v3.26.1
-PETSC_TARBALL="petsc-${PETSC_PINNED_TAG#v}.tar.gz"
 
 # BLAS/LAPACK is installed through PETSc locally.
 # OpenBLAS is built by the cluster scripts on stark.
 # f2cblaslapack is taken through PETSc `--download-f2cblaslapack`.
 OPENBLAS_PINNED_VERSION=0.3.34
-OPENBLAS_TARBALL="OpenBLAS-$OPENBLAS_PINNED_VERSION.tar.gz"
-F2CBLASLAPACK_TARBALL=f2cblaslapack-3.8.0.q2.tar.gz
 BLAS_TESTED="OpenBLAS 0.3.34 (local), f2cblaslapack and AOCL 5.3.0 (stark)"
 
 PYTHON_MIN_VERSION=3.6

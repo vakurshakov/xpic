@@ -1,4 +1,5 @@
-# Sourced by the cluster install scripts after setenv.sh: checks the inputs and sets JOBS.
+# Sourced by the cluster install scripts after setenv.sh: checks the inputs, sets JOBS and holds
+# the helpers. The steps themselves stay in each script.
 # The scripts never download: sources come from TARBALL_DIR.
 
 [[ -n "$STACK" ]] || { echo "STACK is required (e.g. STACK=stark-gcc-openblas)." >&2; exit 1; }
@@ -17,7 +18,7 @@ guard_prefix() {
   fi
 }
 
-# Extracts the tarball into the component directory, unless the source is there.
+# Extracts the tarball from TARBALL_DIR into the component directory, unless the source is there.
 # With force the source tree is removed first, so the build starts clean.
 # Usage: extract_source <tarball> <component_dir> <source_dir_name> <force>
 extract_source() {

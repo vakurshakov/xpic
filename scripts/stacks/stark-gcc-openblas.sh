@@ -17,6 +17,7 @@ OPENBLAS_DIR="${OPENBLAS_DIR:-$STACK_ROOT/OpenBLAS-$OPENBLAS_PINNED_VERSION/$com
 # Prefix installs have no arch.
 export PETSC_ARCH=
 
+
 # Used by the install scripts. The CPU target belongs to the stack, not to a script.
 STACK_CC="$GCC_DIR/bin/gcc"
 STACK_CXX="$GCC_DIR/bin/g++"
