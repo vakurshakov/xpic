@@ -4,7 +4,9 @@
 .scratch/
 
 build/
+configs/
 external/
+logs/
 results/
 
 docs/build/

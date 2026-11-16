@@ -13,7 +13,7 @@ tol = 1e-7
 
 dt = 0.5  # 1 / w_pe
 dts = 50 * dt    # 1 / w_pe
-tau = 1000       # 1 / w_pe 
+tau = 1000       # 1 / w_pe
 dtb = tau / 2    # 1 / w_pe
 time = 6 * tau   # 1 / w_pe
 
@@ -40,7 +40,7 @@ def gen_out_paths():
     out_result = f"results/{name}"
     out_config = f"configs/{name}.json"
     # i = 1
-    # 
+    #
     # while os.path.exists(out_result):
     #     out_result = f"results/{name}_new{i}"
     #     out_config = f"configs/{name}_new{i}.json"
@@ -51,7 +51,7 @@ def gen_out_dirs():
         os.makedirs(out_result) # , exist_ok=True)
         os.makedirs(os.path.dirname(out_config), exist_ok=True)
     except Exception as e:
-        print(f"An error occurred: {e}\n") 
+        print(f"An error occurred: {e}\n")
 
 def gen_config():
     global config
@@ -61,10 +61,10 @@ def gen_config():
             "min": [ f"{Nx // 2 - r} [dx]", 0, 0 ],
             "max": [ f"{Nx // 2 + r} [dx]", f"{Ny} [dy]", f"{Nz} [dz]" ],
         }
-    
+
     g_damp = { "geometry": { "name": "BoxGeometry", **box(r_damp) } }
 
-    def distribution_moment(sort): 
+    def distribution_moment(sort):
         return {
             "diagnostic": "DistributionMoment",
             "particles": sort,
@@ -101,7 +101,7 @@ def gen_config():
         ],
 
         "Presets": [
-            { 
+            {
                 "command": "SetMagneticField",
                 "setter": { "name": "SetUniformField", "value": [0, 0, B0] },
             }
@@ -113,12 +113,12 @@ def gen_config():
                 "damping_coefficient": 0.8,
                 **g_damp,
             },
-            {   
+            {
                 "command": "RemoveParticles",
                 "particles": "ions",
                 **g_damp,
             },
-            {   
+            {
                 "command": "RemoveParticles",
                 "particles": "electrons",
                 **g_damp,
@@ -135,7 +135,7 @@ def gen_config():
                 "momentum_e": { "name": "MaxwellianMomentum", "tov": True },
             }
         ],
-        
+
         "Diagnostics": [
             { "diagnostic": "LogView", "level": "EachTimestep" },
             { "diagnostic": "LogView", "level": "DiagnosePeriodAvg" },
@@ -143,7 +143,7 @@ def gen_config():
 
             { "diagnostic": "FieldViewZAvg", "field": "E" },
             { "diagnostic": "FieldViewZAvg", "field": "B" },
-            
+
             { "diagnostic": "FieldViewZAvg", "field": "ions/J" },
             { "diagnostic": "FieldViewZAvg", "field": "ions/rho" },
             { "diagnostic": "FieldViewZAvg", "field": "electrons/J" },
@@ -158,17 +158,17 @@ def gen_config():
         }
     }
 
-def submit():
     with open(out_config, "w") as f:
         json.dump(config, f, indent=4)
 
+def submit():
     if sim == "eccapfim":
         options = f"-snes_type anderson -snes_atol {tol:.0e} -snes_rtol {tol:.0e} -snes_stol {tol:.0e}"
     elif sim == "ecsimcorr":
         options = f"-ksp_atol {tol:.0e} -ksp_rtol {tol:.0e}"
 
     os.system(f"qsub ./scripts/run.sh {out_config} {out_result}/output {options}")
-    
+
 if __name__ == "__main__":
     for sim, Np, d in pool:
         dx = d  # c / w_pe
