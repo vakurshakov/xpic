@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Formats the whole project. Local edits are formatted by the PostToolUse hook
-# (.claude/hooks/format.sh), run this only for project-wide style fixes.
+# (.agents/hooks/format.sh), run this only for project-wide style fixes.
 # Usage: ./run-format-all.sh [--install]
 
 install_command() {

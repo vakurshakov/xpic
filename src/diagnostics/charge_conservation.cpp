@@ -1,6 +1,7 @@
 #include "charge_conservation.h"
 
 #include "src/utils/configuration.h"
+#include "src/utils/profiler.h"
 
 ChargeConservation::ChargeConservation(const interfaces::Simulation& simulation)
   : TableDiagnostic(CONFIG().out_dir + "/temporal/charge_conservation.txt"),
@@ -8,9 +9,19 @@ ChargeConservation::ChargeConservation(const interfaces::Simulation& simulation)
 {
 }
 
+PetscErrorCode ChargeConservation::initialize()
+{
+  PetscFunctionBeginUser;
+  PetscCall(TableDiagnostic::initialize());
+  PetscCall(Profiler::register_event("charge_cons", &event_diagnose));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 PetscErrorCode ChargeConservation::add_columns(PetscInt t)
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_event(event_diagnose));
+
   add(6, "Time", "{:d}", t);
 
   // It is important to get `da_rho` as it has reduced dof
@@ -53,5 +64,7 @@ PetscErrorCode ChargeConservation::add_columns(PetscInt t)
   add(13, "N2dQ_tot", "{: .6e}", norm[1]);
 
   PetscCall(DMRestoreGlobalVector(da, &sum));
+
+  PetscCall(Profiler::pop_event(event_diagnose));
   PetscFunctionReturn(PETSC_SUCCESS);
 }

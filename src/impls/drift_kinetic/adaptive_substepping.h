@@ -33,7 +33,8 @@ struct PushStatistics {
 class AdaptiveSubstepping {
 public:
   AdaptiveSubstepping(PetscReal dt, PetscReal charge_weight,
-    PetscReal particle_weight, PetscInt max_depth, PushStatistics& stats);
+    PetscReal particle_weight, PetscInt max_depth, PushStatistics& stats,
+    PetscInt phase_push, PetscInt phase_decompose);
 
   void process(PointByField& current, const PointByField& previous,
     DriftKineticPush& push, DriftKineticEsirkepov& util);
@@ -52,6 +53,7 @@ private:
   PetscReal charge_weight, particle_weight;
   PetscInt max_depth;
   PushStatistics& stats;
+  PetscInt phase_push, phase_decompose;
   std::vector<Leaf> leaves;
 };
 

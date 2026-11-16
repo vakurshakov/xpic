@@ -101,7 +101,7 @@ public:
   /// rest by cell, `storage.cell_offsets()` are valid until the next push.
   virtual PetscErrorCode update_cells();
 
-  PetscErrorCode calculate_moments();
+  PetscErrorCode calculate_rho();
 
   /// Local sums over the particles owned by this MPI rank.
   struct KineticSums {
@@ -125,8 +125,8 @@ protected:
   static constexpr PetscInt MPI_TAG_POINTS = 4;
   static constexpr PetscInt OMP_CHUNK_SIZE = 16;
 
-  PetscClassId classid;
-  PetscLogEvent events[1];
+  PetscInt event_update_cells;
+  PetscInt event_calculate_rho;
 };
 
 }  // namespace interfaces

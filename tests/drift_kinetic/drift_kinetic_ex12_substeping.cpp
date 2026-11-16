@@ -1,6 +1,7 @@
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/adaptive_substepping.h"
+#include "src/utils/profiler.h"
 
 namespace {
 
@@ -70,7 +71,11 @@ PetscErrorCode run_case(bool oscillator, PetscInt depth)
   initial.mu_p = 0.3;
   PointByField result = initial;
   PushStatistics stats;
-  AdaptiveSubstepping substeps(1, 1, 1, depth, stats);
+  PetscInt phase_push, phase_decompose;
+  PetscCall(Profiler::register_event("push", &phase_push));
+  PetscCall(Profiler::register_event("decompose", &phase_decompose));
+  AdaptiveSubstepping substeps(
+    1, 1, 1, depth, stats, phase_push, phase_decompose);
   substeps.process(result, initial, push, util);
 
   PetscCheck(stats.invalid_particles == 0, PETSC_COMM_WORLD, PETSC_ERR_PLIB,

@@ -11,6 +11,7 @@ public:
 
   PetscErrorCode finalize() override;
   PetscErrorCode diagnose(PetscInt t) override;
+  PetscErrorCode initialize();
 
   static PetscReal get_field(const Vector3R& f);
   static PetscReal get_kinetic(const Vector3R& p, PetscReal m, PetscReal mpw);
@@ -34,6 +35,9 @@ protected:
   PetscReal dF = 0, dK = 0;  // Balance terms corrected for sources and sinks.
 
   std::vector<PetscReal> K, K0, std_K;
+
+  PetscInt event_field;
+  PetscInt event_kinetic;
 
 private:
   Vec E_prev = nullptr;

@@ -45,6 +45,7 @@ int main(int argc, char** argv)
   PetscCall(VecDestroy(&rho0));
   PetscCall(VecDestroy(&gauss));
   PetscCall(simulation.finalize());
+
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
 }

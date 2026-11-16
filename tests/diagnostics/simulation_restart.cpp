@@ -4,11 +4,11 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Testing that a run restarted from \"SimulationBackup\" reproduces the     \n"
-  "continuous one. The simulation (`-restart_simulation`) is run for `N`     \n"
-  "steps without a stop, then, for every `k`, it is run for `k` steps with a \n"
-  "backup, loaded from it and continued up to `N`. Fields and particles at   \n"
-  "`N` must be the same up to the round-off and the summation order.        \n";
+  "Testing that a run restarted from \"SimulationBackup\" reproduces the   \n"
+  "continuous one. The simulation (`-simulation`) is run for `N` steps     \n "
+  "without a stop, then, for every `k`, it is run for `k` steps with a     \n"
+  "backup, loaded from it and continued up to `N`. Fields and particles at \n"
+  "`N` must be the same up to the round-off and the summation order.       \n";
 
 static constexpr PetscInt N = 8;
 static constexpr PetscInt k = 2;
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
 
   char name[PETSC_MAX_PATH_LEN] = "";
-  PetscCall(PetscOptionsGetString(NULL, NULL, "-restart_simulation", name, sizeof(name), NULL));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-simulation", name, sizeof(name), NULL));
 
   // The tables of other simulations from the shared directory must not be compared
   PetscMPIInt rank;

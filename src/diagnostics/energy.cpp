@@ -4,6 +4,7 @@
 #include "src/commands/inject_particles.h"
 #include "src/commands/remove_particles.h"
 #include "src/utils/configuration.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 Energy::Energy(const interfaces::Simulation& simulation)
@@ -11,10 +12,26 @@ Energy::Energy(const interfaces::Simulation& simulation)
     energy(CONFIG().out_dir + "/temporal/energy.txt"),
     energy_cons(CONFIG().out_dir + "/temporal/energy_conservation.txt")
 {
+}
+
+PetscErrorCode Energy::initialize()
+{
+  PetscFunctionBeginUser;
+  initialized = true;
+
   auto& particles = simulation.particles_;
   std::fill_n(std::back_inserter(K), particles.size(), 0);
   std::fill_n(std::back_inserter(K0), particles.size(), 0);
   std::fill_n(std::back_inserter(std_K), particles.size(), 0);
+
+  PetscCall(Profiler::register_event("energy_field", &event_field));
+  PetscCall(Profiler::register_event("energy_kinetic", &event_kinetic));
+
+  PetscCall(VecDuplicate(simulation.E, &E_prev));
+  PetscCall(VecDuplicate(simulation.B, &B_prev));
+  PetscCall(VecCopy(simulation.E, E_prev));
+  PetscCall(VecCopy(simulation.B, B_prev));
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Energy::finalize()
@@ -30,21 +47,16 @@ PetscErrorCode Energy::finalize()
 PetscErrorCode Energy::diagnose(PetscInt t)
 {
   PetscFunctionBeginUser;
-  if (!initialized) {
-    PetscCall(VecDuplicate(simulation.E, &E_prev));
-    PetscCall(VecDuplicate(simulation.B, &B_prev));
-    PetscCall(VecCopy(simulation.E, E_prev));
-    PetscCall(VecCopy(simulation.B, B_prev));
-  }
+  const bool first = !initialized;
+  if (first)
+    PetscCall(initialize());
 
   K0 = K;
 
   PetscCall(calculate_field());
   PetscCall(calculate_kinetic());
-  if (!initialized) {
-    initialized = true;
+  if (first)
     K0 = K;
-  }
 
   PetscCall(fill_energy(t));
   PetscCall(fill_energy_cons(t));
@@ -59,6 +71,8 @@ PetscErrorCode Energy::diagnose(PetscInt t)
 PetscErrorCode Energy::calculate_field()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_event(event_field));
+
   PetscCall(VecDot(simulation.B, simulation.B, &B_total));
   B_total *= 0.5;
   PetscCall(VecAXPY(simulation.B, -1, simulation.B0));
@@ -77,12 +91,16 @@ PetscErrorCode Energy::calculate_field()
   std_B = sqrt((B - 0.5 * mean_B.squared() / g3) / g3);
 
   PetscCall(VecAXPY(simulation.B, +1, simulation.B0));
+
+  PetscCall(Profiler::pop_event(event_field));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Energy::calculate_kinetic()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_event(event_kinetic));
+
   for (std::size_t i = 0; i < simulation.particles_.size(); ++i) {
     auto& sort = simulation.particles_[i];
 
@@ -103,6 +121,8 @@ PetscErrorCode Energy::calculate_kinetic()
     PetscReal d = v[4] - (POW2(v[1]) + POW2(v[2]) + POW2(v[3])) / s.n;
     std_K[i] = frac * sqrt(abs(d) / s.n);
   }
+
+  PetscCall(Profiler::pop_event(event_kinetic));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

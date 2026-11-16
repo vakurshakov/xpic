@@ -17,6 +17,11 @@ public:
 
   Simulation& simulation_;
 
+  // Profiler handles of the shared phases
+  PetscInt phase_interpolate;
+  PetscInt phase_push;
+  PetscInt phase_decompose;
+
   static constexpr PetscReal shr = 1.5;
   static constexpr auto&& sfunc = spline_of_2nd_order;
 };

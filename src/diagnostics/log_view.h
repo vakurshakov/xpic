@@ -22,6 +22,10 @@
  *
  * - `AllTimestepsSummary` - Works as a `-log_view` database option,
  *   but we will dump data each `diagnose_period` to avoid losses.
+ *
+ * - `EachTimestepEvents` - Timestep block, one column per stage: stage header
+ *   with its time (sec), then at most 5 events with the largest step time,
+ *   each as a percent of the stage, events under 0.1% of the step are dropped.
  * @li
  *
  * @see `PetscLogHandler`, `PetscLogView()`, `PetscLogViewWarnDebugging()`
@@ -31,7 +35,8 @@ public:
   enum Level {
     EachTimestep,
     DiagnosePeriodAvg,
-    AllTimestepsSummary
+    AllTimestepsSummary,
+    EachTimestepEvents
   };
 
   LogView(Level level);
@@ -39,12 +44,14 @@ public:
   PetscErrorCode diagnose(PetscInt t) override;
 
 private:
-  PetscErrorCode level_0_init();
+  PetscErrorCode level_0_initialize();
   PetscErrorCode level_0_impl(PetscInt t);
   PetscErrorCode level_1_impl(PetscInt t);
   PetscErrorCode level_2_impl(PetscInt t);
+  PetscErrorCode level_3_impl(PetscInt t);
 
-  PetscErrorCode init();
+  PetscErrorCode initialize();
+  PetscErrorCode open_file(std::string_view filename, bool print_warn = true);
   PetscErrorCode warn();
   PetscErrorCode pop_stack();
   PetscErrorCode push_stack();
@@ -57,6 +64,7 @@ private:
 
   PetscLogDouble prev_time_;
   std::map<std::string, PetscLogDouble> prev_times_;
+  std::map<std::pair<PetscInt, PetscInt>, PetscLogDouble> prev_event_times_;
 };
 
 #endif  // SRC_DIAGNOSTICS_LOG_VIEW_H

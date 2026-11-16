@@ -3,6 +3,7 @@
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/implicit_drift_kinetic.h"
 #include "src/impls/drift_kinetic/simulation.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 namespace drift_kinetic {
@@ -37,6 +38,10 @@ PetscErrorCode Particles::initialize()
 
   PetscCall(DMCreateGlobalVector(da, &M));
   PetscCall(DMCreateLocalVector(da, &M_loc));
+
+  PetscCall(Profiler::register_event("interpolate", &phase_interpolate));
+  PetscCall(Profiler::register_event("push", &phase_push));
+  PetscCall(Profiler::register_event("decompose", &phase_decompose));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -75,11 +80,16 @@ PetscErrorCode Particles::form_iteration()
       [&](const Vector3R& r0, const Vector3R& rn, Vector3R& E_p,
         PetscReal& lenB_p, Vector3R& b_p, Vector3R& gradB_p, Vector3R& rotB_p)
       {
-        return util.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
+        Profiler::push_phase(phase_interpolate);
+        const PetscErrorCode error =
+          util.interpolate(E_p, lenB_p, b_p, gradB_p, rotB_p, rn, r0);
+        Profiler::pop_phase(phase_interpolate);
+        return error;
       });
 
     AdaptiveSubstepping substeps(
-      dt, q * mpw, mpw, substepping ? max_substep_depth : 0, stats);
+      dt, q * mpw, mpw, substepping ? max_substep_depth : 0, stats,
+      phase_push, phase_decompose);
 #pragma omp for schedule(static)
     for (PetscInt i = 0; i < f.size; i++) {
       PointByField current = arrays.load(i);
@@ -89,6 +99,7 @@ PetscErrorCode Particles::form_iteration()
     }
   }
 
+  PetscCall(Profiler::flush());
   PetscCall(storage.restore_attributes(f));
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));
   PetscCall(DMDAVecRestoreArrayWrite(da, M_loc, &M_arr));

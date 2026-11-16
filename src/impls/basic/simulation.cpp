@@ -1,6 +1,7 @@
 #include "simulation.h"
 
 #include "src/utils/operators.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 namespace basic {
@@ -8,6 +9,8 @@ namespace basic {
 PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::register_stage("Push particles", &stage_push_particles));
+  PetscCall(Profiler::register_stage("Push fields", &stage_push_fields));
   PetscCall(init_particles(*this, particles_));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
@@ -32,6 +35,7 @@ PetscErrorCode Simulation::timestep_implementation(PetscInt /* t */)
 PetscErrorCode Simulation::push_particles()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_stage(stage_push_particles));
   if (evolve_fields) {
     PetscCall(VecAXPY(B, -1.0, B0));
     PetscCall(MatMult(rotE, E, rE));
@@ -54,12 +58,14 @@ PetscErrorCode Simulation::push_particles()
 
   PetscCall(DMDAVecRestoreArrayRead(da, E_loc, &E_arr));
   PetscCall(DMDAVecRestoreArrayRead(da, B_loc, &B_arr));
+  PetscCall(Profiler::pop_stage(stage_push_particles));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::push_fields()
 {
   PetscFunctionBeginUser;
+  PetscCall(Profiler::push_stage(stage_push_fields));
   Vec util;
   PetscReal norm;
   PetscCall(DMGetGlobalVector(da, &util));
@@ -84,6 +90,7 @@ PetscErrorCode Simulation::push_fields()
   LOG("  Norm of the difference in electric fields between steps: {:.7f}", norm);
 
   PetscCall(DMRestoreGlobalVector(da, &util));
+  PetscCall(Profiler::pop_stage(stage_push_fields));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

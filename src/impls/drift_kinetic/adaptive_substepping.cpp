@@ -2,6 +2,7 @@
 
 #include "src/algorithms/drift_kinetic_push.h"
 #include "src/algorithms/implicit_drift_kinetic.h"
+#include "src/utils/profiler.h"
 
 namespace drift_kinetic {
 
@@ -63,12 +64,15 @@ PetscErrorCode PushStatistics::finish(const PushStatistics& local, MPI_Comm comm
 }
 
 AdaptiveSubstepping::AdaptiveSubstepping(PetscReal dt, PetscReal charge_weight,
-  PetscReal particle_weight, PetscInt max_depth, PushStatistics& stats)
+  PetscReal particle_weight, PetscInt max_depth, PushStatistics& stats,
+  PetscInt phase_push, PetscInt phase_decompose)
   : dt(dt),
     charge_weight(charge_weight),
     particle_weight(particle_weight),
     max_depth(max_depth),
-    stats(stats)
+    stats(stats),
+    phase_push(phase_push),
+    phase_decompose(phase_decompose)
 {
 }
 
@@ -84,6 +88,7 @@ void AdaptiveSubstepping::process(PointByField& current,
   // Discard the entire trial before depositing any source if a leaf is invalid.
   bool valid = advance(0, 1, trial, previous, 0, push, util, step);
   if (valid) {
+    Profiler::push_phase(phase_decompose);
     for (const auto& leaf : leaves) {
       util.set_interval(leaf.begin, leaf.end);
       const PetscReal weight = leaf.end - leaf.begin;
@@ -94,6 +99,7 @@ void AdaptiveSubstepping::process(PointByField& current,
         break;
       }
     }
+    Profiler::pop_phase(phase_decompose);
   }
   if (valid) {
     current = trial;
@@ -120,7 +126,9 @@ bool AdaptiveSubstepping::advance(PetscReal begin, PetscReal end,
     return false;
   }
 
+  Profiler::push_phase(phase_push);
   const PetscErrorCode error = push.process(h, finish, start);
+  Profiler::pop_phase(phase_push);
   const bool converged = push.has_converged();
   step.iteration_sum += push.get_iteration_number();
   step.max_iterations =
