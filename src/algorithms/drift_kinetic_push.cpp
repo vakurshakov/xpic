@@ -162,26 +162,29 @@ void DriftKineticPush::update_v_parallel(
   pn.p_parallel = p0.p_parallel + dt * a_par;
 }
 
-// After an update `pn.r - p0.r = dt * V_dgc_prev` up to rounding, so the
-// residual is the Picard increment. It is computed without subtracting the
-// absolute coordinates, whose rounding error eps * |r| would otherwise set
-// the floor of `FRk`. The warm start (`pn` from the previous outer iteration)
-// has no stored right-hand side and is checked by the absolute coordinates.
+// Both residuals are velocities, as in the kinetic Crank-Nicolson push, and
+// are compared with `atol + rtol * r0`, where `r0` is the residual of the
+// initial guess. After an update `pn.r - p0.r = dt * V_dgc_prev` up to
+// rounding, so the residuals are Picard increments. They are computed without
+// subtracting the absolute coordinates, whose rounding error eps * |r| would
+// otherwise set the floor of `FRk`. The warm start (`pn` from the previous
+// outer iteration) has no stored right-hand side and is checked by the
+// absolute coordinates.
 bool DriftKineticPush::check_convergence(
   PetscReal dt, const PointByField& pn, const PointByField& p0)
 {
   if (has_prev) {
-    FRk = dt * (V_dgc_prev - V_dgc).length();
+    FRk = (V_dgc_prev - V_dgc).length();
     FVk = dt * std::abs(a_par_prev - a_par);
   }
   else {
-    FRk = (pn.r - p0.r - dt * V_dgc).length();
+    FRk = ((pn.r - p0.r) / dt - V_dgc).length();
     FVk = std::abs(pn.p_parallel - p0.p_parallel - dt * a_par);
   }
 
-  const PetscReal r_scale = dt * atol + rtol * (dt * V_dgc).length();
-  const PetscReal v_scale =
-    atol + rtol * (std::abs(V_par) + std::abs(dt * a_par));
-
-  return (FRk <= r_scale) && (FVk <= v_scale);
+  if (it == 0) {
+    FR0 = FRk;
+    FV0 = FVk;
+  }
+  return (FRk <= atol + rtol * FR0) && (FVk <= atol + rtol * FV0);
 }

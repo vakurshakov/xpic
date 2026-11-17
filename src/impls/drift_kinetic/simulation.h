@@ -23,6 +23,10 @@ protected:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt t) override;
 
+  /// @brief Reads `"push": {"atol", "rtol"}` of the sort from "Particles".
+  static bool get_push_tolerances(
+    const std::string& sort_name, PetscReal& atol, PetscReal& rtol);
+
   static PetscErrorCode form_iteration(SNES snes, Vec vx, Vec vf, void* ctx);
 
   PetscErrorCode form_current();

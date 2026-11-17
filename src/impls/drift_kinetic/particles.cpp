@@ -74,6 +74,7 @@ PetscErrorCode Particles::form_iteration()
 #pragma omp parallel reduction(drift_kinetic_stats : stats)
   {
     DriftKineticPush push(q / m, m);
+    push.set_tolerances(push_atol, push_rtol, push_maxit);
     DriftKineticEsirkepov util(
       world, E_arr, Bn0_arr, B_arr, Bn1_arr, J_arr, M_arr);
     push.set_fields_callback(
@@ -87,9 +88,8 @@ PetscErrorCode Particles::form_iteration()
         return error;
       });
 
-    AdaptiveSubstepping substeps(
-      dt, q * mpw, mpw, substepping ? max_substep_depth : 0, stats,
-      phase_push, phase_decompose);
+    AdaptiveSubstepping substeps(dt, q * mpw, mpw,
+      substepping ? max_substep_depth : 0, stats, phase_push, phase_decompose);
 #pragma omp for schedule(static)
     for (PetscInt i = 0; i < f.size; i++) {
       PointByField current = arrays.load(i);
@@ -111,7 +111,8 @@ PetscErrorCode Particles::form_iteration()
 }
 
 // Appends the kinetic points converted to the guiding-center form.
-PetscErrorCode Particles::ingest(const Point* points, PetscInt n, PetscReal* energy)
+PetscErrorCode Particles::ingest(
+  const Point* points, PetscInt n, PetscReal* energy)
 {
   PetscFunctionBeginUser;
   const PetscReal qm = parameters.q / parameters.m;
@@ -296,6 +297,12 @@ void Particles::set_field_tolerances(PetscReal atol, PetscReal rtol)
 {
   field_atol = atol;
   field_rtol = rtol;
+}
+
+void Particles::set_push_tolerances(PetscReal atol, PetscReal rtol)
+{
+  push_atol = atol;
+  push_rtol = rtol;
 }
 
 const Simulation& Particles::simulation() const

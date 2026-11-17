@@ -69,6 +69,7 @@ public:
   bool get_fail_on_any_push_nonconvergence() const;
 
   void set_field_tolerances(PetscReal atol, PetscReal rtol);
+  void set_push_tolerances(PetscReal atol, PetscReal rtol);
 
   const Simulation& simulation() const;
 
@@ -90,6 +91,11 @@ protected:
 
   PetscReal field_atol = 0;  // SNES tolerances of the field residual.
   PetscReal field_rtol = 0;
+
+  // Tolerances of `DriftKineticPush`, see its `atol` and `rtol`.
+  PetscReal push_atol = 1e-15;
+  PetscReal push_rtol = 1e-15;
+  PetscInt push_maxit = 100;
 
   Simulation& simulation_;
 

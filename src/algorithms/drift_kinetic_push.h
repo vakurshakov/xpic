@@ -23,7 +23,7 @@ public:
   PetscInt get_iteration_number() const;
   bool has_converged() const;
 
-  /// @brief Returns the last position residual.
+  /// @brief Returns the last position residual, in velocity units.
   PetscReal get_FRk() const;
 
   /// @brief Returns the last parallel velocity residual.
@@ -68,13 +68,12 @@ private:
   // Nonlinear iteration state and residuals
   PetscInt it = 0;
   PetscInt maxit = 100;
-  // `atol` is a velocity, the position residual uses `dt * atol`. Both
-  // residuals are also scaled by `rtol` with the step: the displacement and
-  // |V_par| + |dt * a_par|, since the rounding error of the parallel velocity
-  // is relative to it and not to its small increment.
-  PetscReal atol = 1e-16;
-  PetscReal rtol = 1e-13;
+  // As in the kinetic push: both residuals are velocities, `atol` is an
+  // absolute velocity, `rtol` is relative to the initial residuals.
+  PetscReal atol = 1e-15;
+  PetscReal rtol = 1e-15;
   PetscReal FRk, FVk;
+  PetscReal FR0, FV0;  // Residuals of the initial guess.
   bool converged = false;
 
   // Right-hand side that built the current `pn`, see `check_convergence()`

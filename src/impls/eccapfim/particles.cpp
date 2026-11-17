@@ -1,8 +1,8 @@
 #include "particles.h"
 
+#include "src/interfaces/simulation.h"
 #include "src/algorithms/crank_nicolson_push.h"
 #include "src/algorithms/implicit_esirkepov.h"
-#include "src/interfaces/simulation.h"
 #include "src/utils/profiler.h"
 
 namespace eccapfim {
@@ -52,6 +52,12 @@ void Particles::set_field_tolerances(PetscReal atol, PetscReal rtol)
 {
   field_atol = atol;
   field_rtol = rtol;
+}
+
+void Particles::set_push_tolerances(PetscReal atol, PetscReal rtol)
+{
+  push_atol = atol;
+  push_rtol = rtol;
 }
 
 
@@ -208,10 +214,6 @@ PetscErrorCode Particles::form_iteration()
         const PetscReal alpha = 0.5 * dtau * (q / m);
 
         const PetscInt cn_maxit = 30;
-        // `cn_rtol` is relative to the initial residual `r0`,
-        // `cn_atol` is the rounding error of |v| ~ c.
-        const PetscReal cn_atol = 1e-16;
-        const PetscReal cn_rtol = 1e-13;
 
         PetscInt it = 0, s;
         PetscReal rn, r0, d, ds, bs;
@@ -251,7 +253,7 @@ PetscErrorCode Particles::form_iteration()
         set_fields();
         rn = r0 = get_residue();
 
-        for (; rn > cn_atol + cn_rtol * r0 && it < cn_maxit; it++) {
+        for (; rn > push_atol + push_rtol * r0 && it < cn_maxit; it++) {
           Profiler::push_phase(phase_push);
           Vector3R a, b, w;
           a = alpha * E_p;

@@ -6,8 +6,8 @@
 
 namespace drift_kinetic {
 
-static constexpr PetscReal atol = 1e-10;
-static constexpr PetscReal rtol = 1e-10;
+static constexpr PetscReal atol = 1e-13;
+static constexpr PetscReal rtol = 1e-13;
 static constexpr PetscReal stol = 0;
 static constexpr PetscReal divtol = PETSC_DETERMINE;
 static constexpr PetscInt maxit = 1000;
@@ -22,7 +22,16 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(SNESCreate(PETSC_COMM_WORLD, &snes));
   PetscCall(SNESSetType(snes, SNESNGMRES));
   // PetscCall(SNESSetType(snes, SNESANDERSON));
-  PetscCall(SNESSetTolerances(snes, atol, rtol, stol, maxit, maxf));
+  // Defaults are overridden by "FieldSolver", and both by the command line.
+  PetscReal snes_atol = atol, snes_rtol = rtol;
+  PetscInt snes_maxit = maxit;
+  if (auto it = CONFIG().json.find("FieldSolver"); it != CONFIG().json.end()) {
+    snes_atol = it->value("atol", snes_atol);
+    snes_rtol = it->value("rtol", snes_rtol);
+    snes_maxit = it->value("maxit", snes_maxit);
+  }
+  PetscCall(
+    SNESSetTolerances(snes, snes_atol, snes_rtol, stol, snes_maxit, maxf));
   PetscCall(SNESSetDivergenceTolerance(snes, divtol));
   PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
   PetscCall(SNESSetFromOptions(snes));
@@ -70,6 +79,9 @@ PetscErrorCode Simulation::initialize_implementation()
 
   for (auto& sort : particles_) {
     sort->set_field_tolerances(field_atol, field_rtol);
+    PetscReal push_atol, push_rtol;
+    if (get_push_tolerances(sort->parameters.sort_name, push_atol, push_rtol))
+      sort->set_push_tolerances(push_atol, push_rtol);
     sort->set_substepping(substepping, max_depth);
     sort->set_coord_is_gc(is_gc_coord);
     sort->set_fail_on_any_push_nonconvergence(is_fail_any_push);
@@ -85,6 +97,28 @@ PetscErrorCode Simulation::initialize_implementation()
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+// Returns false if the sort has no "push".
+bool Simulation::get_push_tolerances(
+  const std::string& sort_name, PetscReal& atol, PetscReal& rtol)
+{
+  const Configuration::json_t& json = CONFIG().json;
+  auto it = json.find("Particles");
+  if (it == json.end())
+    return false;
+
+  for (auto&& info : *it) {
+    if (info.at("sort_name") != sort_name)
+      continue;
+    auto push = info.find("push");
+    if (push == info.end())
+      return false;
+    atol = push->at("atol");
+    rtol = push->at("rtol");
+    return true;
+  }
+  return false;
 }
 
 PetscErrorCode Simulation::finalize()

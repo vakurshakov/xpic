@@ -26,6 +26,7 @@ public:
   PetscInt get_maximum_number_of_traversed_cells() const;
 
   void set_field_tolerances(PetscReal atol, PetscReal rtol);
+  void set_push_tolerances(PetscReal atol, PetscReal rtol);
 
 protected:
   static constexpr const auto& shape_func = spline_of_2nd_order;
@@ -40,6 +41,11 @@ protected:
 
   PetscReal field_atol = 0;  // SNES tolerances of the field residual.
   PetscReal field_rtol = 0;
+
+  // Crank-Nicolson push: `push_atol` is an absolute velocity residual,
+  // `push_rtol` is relative to the initial residual `r0`.
+  PetscReal push_atol = 1e-15;
+  PetscReal push_rtol = 1e-15;
 
   // Profiler handles
   PetscInt event_prepare_storage;

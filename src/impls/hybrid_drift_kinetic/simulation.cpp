@@ -207,6 +207,9 @@ PetscErrorCode Simulation::init_kinetic_particles()
       std::find_if(all_particles.begin(), all_particles.end(), is_named);
 
     auto sort = std::make_shared<Particles>(*this, (*dk)->parameters);
+    PetscReal push_atol, push_rtol;
+    if (get_push_tolerances(name, push_atol, push_rtol))
+      sort->set_push_tolerances(push_atol, push_rtol);
     PetscCall(sort->initialize());
     PetscCall((*dk)->finalize());
     particles_.erase(dk);

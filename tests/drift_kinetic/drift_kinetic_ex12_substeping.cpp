@@ -58,6 +58,9 @@ PetscErrorCode run_case(bool oscillator, PetscInt depth)
   DriftKineticEsirkepov util(world, electric.planes, magnetic.planes,
     magnetic.planes, magnetic.planes, current.planes, magnetization.planes);
   DriftKineticPush push(1, 1);
+  // The test checks the splitting logic, not the push accuracy: the residual
+  // rounding floor here is dt * |dF/dz| * eps * |z| ~ 1e-15.
+  push.set_tolerances(1e-13, 1e-13, 100);
   push.set_fields_callback(
     [&](const Vector3R& start, const Vector3R& finish, Vector3R& E,
       PetscReal& B, Vector3R& b, Vector3R& grad, Vector3R& rot)
