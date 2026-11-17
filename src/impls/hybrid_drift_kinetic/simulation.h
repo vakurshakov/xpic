@@ -18,12 +18,10 @@ public:
 
 protected:
   PetscErrorCode initialize_implementation() override;
-  PetscErrorCode timestep_implementation(PetscInt t) override;
-
-  static PetscErrorCode form_iteration(SNES snes, Vec vx, Vec vf, void* ctx);
+  PetscErrorCode prepare_particles() override;
+  PetscErrorCode form_current() override;
 
   PetscErrorCode init_kinetic_particles();
-  PetscErrorCode form_current();
 
   PetscErrorCode init_preconditioner();
   static PetscErrorCode form_preconditioned_step(SNES npc, Vec vx);

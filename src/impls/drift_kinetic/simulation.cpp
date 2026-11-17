@@ -144,49 +144,58 @@ PetscErrorCode Simulation::finalize()
 PetscErrorCode Simulation::timestep_implementation(PetscInt t)
 {
   PetscFunctionBeginUser;
-  for (auto& sort : particles_)
-    PetscCall(sort->prepare_storage());
+  PetscCall(prepare_particles());
 
   if (!evolve_fields) {
     PetscCall(VecCopy(E, E_hk));
     PetscCall(VecCopy(B, B_hk));
     PetscCall(form_current());
     PetscCall(accept_push(t));
+  }
+  else {
+    /// @note Solution is initialized with guess before it is passed into `SNESSolve()`.
+    /// The simplest choice is: (E^{n+1/2, k=0}, B^{n+1/2, k=0}) = (E^{n}, B^{n}).
+    PetscCall(to_snes(E, B, sol));
 
-    for (auto& sort : particles_)
-      PetscCall(sort->update_cells());
-    PetscFunctionReturn(PETSC_SUCCESS);
+    PetscCall(SNESSolve(snes, NULL, sol));
+    PetscCall(SNESGetIterationNumber(snes, &snes_iteration_number));
+
+    LOG("SNESSolve() has finished, SNESConvergedReasonView():");
+    PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
+
+    SNESConvergedReason reason;
+    PetscCall(SNESGetConvergedReason(snes, &reason));
+    PetscCheck(reason >= 0, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
+      "SNESSolve has not converged, reason: %s", SNESConvergedReasons[reason]);
+
+    PetscCall(SNESGetSolution(snes, &sol));
+    PetscCall(from_snes(sol, E_hk, B_hk));
+
+    // `SNESNGMRES` may return a point other than the last pushed one,
+    // then the particles and sources are made consistent with it.
+    PetscBool is_last;
+    PetscCall(VecEqual(sol, last_push_fields, &is_last));
+
+    if (!is_last) {
+      LOG("The returned solution is not the last pushed point, pushing again");
+      PetscCall(form_current());
+    }
+
+    PetscCall(accept_push(t));
+    PetscCall(VecAXPBY(E, 2, -1, E_hk));
+    PetscCall(VecAXPBY(B, 2, -1, B_hk));
   }
 
-  /// @note Solution is initialized with guess before it is passed into `SNESSolve()`.
-  /// The simplest choice is: (E^{n+1/2, k=0}, B^{n+1/2, k=0}) = (E^{n}, B^{n}).
-  PetscCall(to_snes(E, B, sol));
-
-  PetscCall(SNESSolve(snes, NULL, sol));
-  PetscCall(SNESGetIterationNumber(snes, &snes_iteration_number));
-
-  LOG("SNESSolve() has finished, SNESConvergedReasonView():");
-  PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
-
-  SNESConvergedReason reason;
-  PetscCall(SNESGetConvergedReason(snes, &reason));
-  PetscCheck(reason >= 0, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
-    "Field solver did not converge");
-  PetscCall(SNESGetSolution(snes, &sol));
-  PetscCall(from_snes(sol, E_hk, B_hk));
-  PetscBool is_last;
-  PetscCall(VecEqual(sol, last_push_fields, &is_last));
-  if (!is_last)
-    PetscCall(form_current());
-  PetscCall(accept_push(t));
-
-  PetscCall(VecAXPBY(E, 2, -1, E_hk));
-  PetscCall(VecAXPBY(B, 2, -1, B_hk));
-
-  for (auto& sort : particles_) {
+  for (auto& sort : interfaces::Simulation::particles_)
     PetscCall(sort->update_cells());
-  }
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
+PetscErrorCode Simulation::prepare_particles()
+{
+  PetscFunctionBeginUser;
+  for (auto& sort : particles_)
+    PetscCall(sort->prepare_storage());
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

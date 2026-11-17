@@ -78,7 +78,6 @@ PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
   PetscCall(drift_kinetic::Simulation::initialize_implementation());
-  PetscCall(SNESSetFunction(snes, NULL, Simulation::form_iteration, this));
   PetscCall(init_kinetic_particles());
   PetscCall(init_preconditioner());
 
@@ -108,69 +107,13 @@ PetscErrorCode Simulation::finalize()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-PetscErrorCode Simulation::timestep_implementation(PetscInt t)
+PetscErrorCode Simulation::prepare_particles()
 {
   PetscFunctionBeginUser;
-  for (auto& sort : particles_)
-    PetscCall(sort->prepare_storage());
+  PetscCall(drift_kinetic::Simulation::prepare_particles());
   for (auto& sort : kinetic_particles_)
     PetscCall(sort->prepare_storage());
-
   mass_matrix_is_current = false;
-
-  if (!evolve_fields) {
-    PetscCall(VecCopy(E, E_hk));
-    PetscCall(VecCopy(B, B_hk));
-    PetscCall(form_current());
-    PetscCall(accept_push(t));
-  }
-  else {
-    PetscCall(to_snes(E, B, sol));
-
-    PetscCall(SNESSolve(snes, NULL, sol));
-    PetscCall(SNESGetIterationNumber(snes, &snes_iteration_number));
-
-    LOG("SNESSolve() has finished, SNESConvergedReasonView():");
-    PetscCall(SNESConvergedReasonView(snes, PETSC_VIEWER_STDOUT_WORLD));
-
-    SNESConvergedReason reason;
-    PetscCall(SNESGetConvergedReason(snes, &reason));
-
-    PetscCheck(reason >= 0, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED,
-      "SNESSolve has not converged, reason: %s", SNESConvergedReasons[reason]);
-
-    PetscCall(SNESGetSolution(snes, &sol));
-    PetscCall(from_snes(sol, E_hk, B_hk));
-
-    // `SNESNGMRES` may return a point other than the last pushed one,
-    // then the particles and sources are made consistent with it.
-    PetscBool is_last;
-    PetscCall(VecEqual(sol, last_push_fields, &is_last));
-
-    if (!is_last) {
-      LOG("The returned solution is not the last pushed point, pushing again");
-      PetscCall(form_current());
-    }
-
-    PetscCall(accept_push(t));
-    PetscCall(VecAXPBY(E, 2, -1, E_hk));
-    PetscCall(VecAXPBY(B, 2, -1, B_hk));
-  }
-
-  for (auto& sort : particles_)
-    PetscCall(sort->update_cells());
-  for (auto& sort : kinetic_particles_)
-    PetscCall(sort->update_cells());
-  PetscFunctionReturn(PETSC_SUCCESS);
-}
-
-PetscErrorCode Simulation::form_iteration(SNES, Vec vx, Vec vf, void* ctx)
-{
-  PetscFunctionBeginUser;
-  auto* simulation = (Simulation*)ctx;
-  PetscCall(simulation->from_snes(vx, simulation->E_hk, simulation->B_hk));
-  PetscCall(simulation->form_current());
-  PetscCall(simulation->form_function(vf));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -27,9 +27,13 @@ protected:
   static bool get_push_tolerances(
     const std::string& sort_name, PetscReal& atol, PetscReal& rtol);
 
+  /// @brief Copies the current particles into the previous layer.
+  virtual PetscErrorCode prepare_particles();
+
   static PetscErrorCode form_iteration(SNES snes, Vec vx, Vec vf, void* ctx);
 
-  PetscErrorCode form_current();
+  /// @brief Pushes all sorts in `E_hk`, `B_hk` and collects `J`, `M`.
+  virtual PetscErrorCode form_current();
   PetscErrorCode accept_push(PetscInt step);
   PetscErrorCode form_function(Vec vf);
 
