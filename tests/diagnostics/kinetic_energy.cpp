@@ -57,7 +57,9 @@ int main(int argc, char** argv)
   PetscCall(check_energy(*simulation.kinetic_particles_[0], 1));
   PetscCall(check_energy(*simulation.particles_[0], 2));
 
+  // `initialize()` sizes `K`, it is normally called by the first `diagnose()`.
   EnergyProbe diagnostic(simulation);
+  PetscCall(diagnostic.initialize());
   PetscCall(diagnostic.calculate_kinetic());
   // Initial sum |v|^2 is 0.35; doubling B adds the perpendicular sum 0.25.
   const PetscReal weight = 0.5 * mass * density / particles_per_cell;
@@ -77,6 +79,7 @@ int main(int argc, char** argv)
       "Extracted energy of %s differs from its kinetic energy: %g vs %g", sort->parameters.sort_name.c_str(), removed, K);
   }
 
+  PetscCall(diagnostic.finalize());
   PetscCall(simulation.finalize());
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);
