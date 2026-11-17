@@ -83,6 +83,11 @@ protected:
   PetscErrorCode init_particles(SimSpec& that,  //
     std::vector<std::shared_ptr<PartSpec>>& container);
 
+  /// @brief Parses "Particles" and calls `create_sort(info, params)` for each
+  /// sort; it creates, initializes and registers the sort.
+  template<class CreateSort>
+  PetscErrorCode init_particles(CreateSort&& create_sort);
+
   PetscErrorCode log_information() const;
 
   /// @brief Creates fields, particle sorts and diagnostics of the concrete model.

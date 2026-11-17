@@ -54,7 +54,7 @@ PetscErrorCode Simulation::initialize_implementation()
   if (evolve_fields)
     PetscCall(VecDuplicate(sol, &last_push_fields));
 
-  PetscCall(init_particles(*this, particles_));
+  PetscCall(init_particle_sorts());
 
   const Configuration::json_t& json = CONFIG().json;
 
@@ -79,9 +79,6 @@ PetscErrorCode Simulation::initialize_implementation()
 
   for (auto& sort : particles_) {
     sort->set_field_tolerances(field_atol, field_rtol);
-    PetscReal push_atol, push_rtol;
-    if (get_push_tolerances(sort->parameters.sort_name, push_atol, push_rtol))
-      sort->set_push_tolerances(push_atol, push_rtol);
     sort->set_substepping(substepping, max_depth);
     sort->set_coord_is_gc(is_gc_coord);
     sort->set_fail_on_any_push_nonconvergence(is_fail_any_push);
@@ -99,26 +96,27 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// Returns false if the sort has no "push".
-bool Simulation::get_push_tolerances(
-  const std::string& sort_name, PetscReal& atol, PetscReal& rtol)
+PetscErrorCode Simulation::init_particle_sorts()
 {
-  const Configuration::json_t& json = CONFIG().json;
-  auto it = json.find("Particles");
-  if (it == json.end())
-    return false;
+  PetscFunctionBeginUser;
+  PetscCall(init_particles(
+    [&](const Configuration::json_t& info, const SortParameters& params)
+    {
+      return add_drift_kinetic_sort(info, params);
+    }));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  for (auto&& info : *it) {
-    if (info.at("sort_name") != sort_name)
-      continue;
-    auto push = info.find("push");
-    if (push == info.end())
-      return false;
-    atol = push->at("atol");
-    rtol = push->at("rtol");
-    return true;
-  }
-  return false;
+PetscErrorCode Simulation::add_drift_kinetic_sort(
+  const Configuration::json_t& info, const SortParameters& params)
+{
+  PetscFunctionBeginUser;
+  auto sort = std::make_shared<Particles>(*this, params);
+  set_push_tolerances(*sort, info);
+  PetscCall(sort->initialize());
+  particles_.emplace_back(sort);
+  interfaces::Simulation::particles_.emplace_back(sort);
+  PetscFunctionReturn(PETSC_SUCCESS);
 }
 
 PetscErrorCode Simulation::finalize()

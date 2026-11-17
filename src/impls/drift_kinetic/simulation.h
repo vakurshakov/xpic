@@ -4,6 +4,7 @@
 #include <petscsnes.h>
 
 #include "src/interfaces/simulation.h"
+#include "src/utils/configuration.h"
 #include "src/impls/drift_kinetic/diagnostic.h"
 #include "src/impls/drift_kinetic/particles.h"
 
@@ -23,9 +24,20 @@ protected:
   PetscErrorCode initialize_implementation() override;
   PetscErrorCode timestep_implementation(PetscInt t) override;
 
-  /// @brief Reads `"push": {"atol", "rtol"}` of the sort from "Particles".
-  static bool get_push_tolerances(
-    const std::string& sort_name, PetscReal& atol, PetscReal& rtol);
+  /// @brief Creates the sorts from "Particles", all are drift-kinetic.
+  virtual PetscErrorCode init_particle_sorts();
+
+  /// @brief Creates, initializes and registers one drift-kinetic sort.
+  PetscErrorCode add_drift_kinetic_sort(
+    const Configuration::json_t& info, const SortParameters& params);
+
+  /// @brief Applies `"push": {"atol", "rtol"}` of the sort `info`, if present.
+  template<class Sort>
+  static void set_push_tolerances(Sort& sort, const Configuration::json_t& info)
+  {
+    if (auto push = info.find("push"); push != info.end())
+      sort.set_push_tolerances(push->at("atol"), push->at("rtol"));
+  }
 
   /// @brief Copies the current particles into the previous layer.
   virtual PetscErrorCode prepare_particles();

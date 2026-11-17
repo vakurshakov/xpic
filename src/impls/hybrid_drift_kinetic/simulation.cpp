@@ -78,7 +78,6 @@ PetscErrorCode Simulation::initialize_implementation()
 {
   PetscFunctionBeginUser;
   PetscCall(drift_kinetic::Simulation::initialize_implementation());
-  PetscCall(init_kinetic_particles());
   PetscCall(init_preconditioner());
 
   PetscReal field_atol, field_rtol;
@@ -117,50 +116,32 @@ PetscErrorCode Simulation::prepare_particles()
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
-// All sorts are created by the base as drift-kinetic ones,
-// the "kinetic" ones are rebuilt here with the same parameters.
-PetscErrorCode Simulation::init_kinetic_particles()
+// Each sort is created by its "model", drift-kinetic by default.
+PetscErrorCode Simulation::init_particle_sorts()
 {
   PetscFunctionBeginUser;
-  const Configuration::json_t& json = CONFIG().json;
-  auto it = json.find("Particles");
-
-  if (it == json.end())
-    PetscFunctionReturn(PETSC_SUCCESS);
-
-  auto& all_particles = interfaces::Simulation::particles_;
-
-  for (auto&& info : *it) {
-    const std::string model = info.value("model", "drift_kinetic");
-
-    PetscCheck(model == "kinetic" || model == "drift_kinetic", PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
-      "Unknown particles model \"%s\", expected \"kinetic\" or \"drift_kinetic\"", model.c_str());
-
-    if (model != "kinetic")
-      continue;
-
-    const std::string name = info.at("sort_name");
-    auto is_named = [&](const auto& sort)
+  PetscCall(init_particles(
+    [&](const Configuration::json_t& info, const SortParameters& params)
     {
-      return sort->parameters.sort_name == name;
-    };
+      PetscFunctionBeginUser;
+      const std::string model = info.value("model", "drift_kinetic");
 
-    auto dk = std::find_if(particles_.begin(), particles_.end(), is_named);
-    auto base =
-      std::find_if(all_particles.begin(), all_particles.end(), is_named);
+      PetscCheck(model == "kinetic" || model == "drift_kinetic", PETSC_COMM_WORLD, PETSC_ERR_ARG_WRONG,
+        "Unknown particles model \"%s\", expected \"kinetic\" or \"drift_kinetic\"", model.c_str());
 
-    auto sort = std::make_shared<Particles>(*this, (*dk)->parameters);
-    PetscReal push_atol, push_rtol;
-    if (get_push_tolerances(name, push_atol, push_rtol))
-      sort->set_push_tolerances(push_atol, push_rtol);
-    PetscCall(sort->initialize());
-    PetscCall((*dk)->finalize());
-    particles_.erase(dk);
-    *base = sort;
-    kinetic_particles_.emplace_back(sort);
+      if (model == "drift_kinetic") {
+        PetscCall(add_drift_kinetic_sort(info, params));
+        PetscFunctionReturn(PETSC_SUCCESS);
+      }
 
-    LOG("  {} are described by the kinetic model", name);
-  }
+      auto sort = std::make_shared<Particles>(*this, params);
+      set_push_tolerances(*sort, info);
+      PetscCall(sort->initialize());
+      kinetic_particles_.emplace_back(sort);
+      interfaces::Simulation::particles_.emplace_back(sort);
+      LOG("  {} are described by the kinetic model", params.sort_name);
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

@@ -7,6 +7,23 @@ PetscErrorCode Simulation::init_particles(
   SimSpec& that, std::vector<std::shared_ptr<PartSpec>>& container)
 {
   PetscFunctionBeginUser;
+  PetscCall(init_particles(
+    [&](const Configuration::json_t&, const SortParameters& params)
+    {
+      PetscFunctionBeginUser;
+      auto sort = std::make_shared<PartSpec>(that, params);
+      PetscCall(sort->initialize());
+      container.emplace_back(sort);
+      particles_.emplace_back(sort);
+      PetscFunctionReturn(PETSC_SUCCESS);
+    }));
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+template<class CreateSort>
+PetscErrorCode Simulation::init_particles(CreateSort&& create_sort)
+{
+  PetscFunctionBeginUser;
   LOG("Configuring particles");
 
   const Configuration::json_t& json = CONFIG().json;
@@ -79,11 +96,7 @@ PetscErrorCode Simulation::init_particles(
     if (info.contains("pz"))
       info.at("pz").get_to(params.pz);
 
-    auto&& sort = std::make_shared<PartSpec>(that, params);
-    PetscCall(sort->initialize());
-
-    container.emplace_back(sort);
-    particles_.emplace_back(sort);
+    PetscCall(create_sort(info, params));
 
     PetscReal frac = (params.m * mec2);
 
