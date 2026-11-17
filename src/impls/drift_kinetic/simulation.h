@@ -39,6 +39,9 @@ protected:
       sort.set_push_tolerances(push->at("atol"), push->at("rtol"));
   }
 
+  /// @brief Registers the model diagnostics.
+  virtual PetscErrorCode init_diagnostics();
+
   /// @brief Copies the current particles into the previous layer.
   virtual PetscErrorCode prepare_particles();
 

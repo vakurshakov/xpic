@@ -22,6 +22,7 @@ protected:
   PetscErrorCode form_current() override;
 
   PetscErrorCode init_particle_sorts() override;
+  PetscErrorCode init_diagnostics() override;
 
   PetscErrorCode init_preconditioner();
   static PetscErrorCode form_preconditioned_step(SNES npc, Vec vx);

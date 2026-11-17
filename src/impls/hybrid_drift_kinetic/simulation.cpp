@@ -84,13 +84,14 @@ PetscErrorCode Simulation::initialize_implementation()
   PetscCall(SNESGetTolerances(snes, &field_atol, &field_rtol, nullptr, nullptr, nullptr));
   for (auto& sort : kinetic_particles_)
     sort->set_field_tolerances(field_atol, field_rtol);
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
 
-  for (auto& diagnostic : diagnostics_) {
-    if (dynamic_cast<drift_kinetic::EnergyConservation*>(diagnostic.get()))
-      diagnostic = std::make_unique<EnergyConservation>(*this);
-    else if (dynamic_cast<drift_kinetic::ConvergenceHistory*>(diagnostic.get()))
-      diagnostic = std::make_unique<ConvergenceHistory>(*this);
-  }
+PetscErrorCode Simulation::init_diagnostics()
+{
+  PetscFunctionBeginUser;
+  diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
+  diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 

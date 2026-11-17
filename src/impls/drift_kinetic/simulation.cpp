@@ -91,6 +91,13 @@ PetscErrorCode Simulation::initialize_implementation()
   LOG("    Substepping: {}, max depth: {}, fail on accepted push nonconvergence: {}",
     substepping, max_depth, fail_on_accepted_push_nonconvergence);
 
+  PetscCall(init_diagnostics());
+  PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+PetscErrorCode Simulation::init_diagnostics()
+{
+  PetscFunctionBeginUser;
   diagnostics_.emplace_back(std::make_unique<ConvergenceHistory>(*this));
   diagnostics_.emplace_back(std::make_unique<EnergyConservation>(*this));
   PetscFunctionReturn(PETSC_SUCCESS);
