@@ -38,13 +38,21 @@ add_test(
 add_test(
   NAME particle_storage_mpi_x4y4z1
   COMMAND ${MPI_DIR}/bin/mpiexec
-    --oversubscribe -np 16 ./particle_storage.out
+    -np 16 ./particle_storage.out
     -da_processors_x 4
     -da_processors_y 4
     -da_processors_z 1
 )
+
 foreach(test particle_storage_mpi_x2y2z2 particle_storage_mpi_x4y4z1)
   set_property(TEST ${test} PROPERTY LABELS smoke utils mpi)
+
+  # Large number of ranks may exceed the slots. Open MPI 5 / 4 read these to oversubscribe;
+  # MPICH has no such option (its mpiexec rejects `--oversubscribe`) and ignores them.
+  set_property(TEST ${test} PROPERTY ENVIRONMENT
+    "PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe"
+    "OMPI_MCA_rmaps_base_oversubscribe=1"
+  )
 endforeach()
 
 add_test(NAME particle_storage_mpi_x3

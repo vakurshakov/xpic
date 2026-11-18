@@ -1,34 +1,81 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Absolute paths, because they end up in rpaths.
+get_filename_component(MPI_DIR "$ENV{MPI_DIR}" ABSOLUTE)
+get_filename_component(JSON_DIR "$ENV{JSON_DIR}" ABSOLUTE)
+get_filename_component(PETSC_DIR "$ENV{PETSC_DIR}" ABSOLUTE)
 
-# clangd (see .clangd) reads the database of the last configured build type.
-file(CREATE_LINK ${CMAKE_BINARY_DIR}/compile_commands.json
-  ${CMAKE_SOURCE_DIR}/build/compile_commands.json SYMBOLIC)
+# The compiler is whatever the MPI wrapper wraps; it must be set before project().
+set(CMAKE_CXX_COMPILER ${MPI_DIR}/bin/mpicxx)
 
-set(MPI_DIR $ENV{MPI_DIR})
-set(JSON_DIR $ENV{JSON_DIR})
-set(PETSC_DIR $ENV{PETSC_DIR})
-
-set(MPI_CXX_COMPILER "${MPI_DIR}/bin/mpicxx")
-set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+project(xpic
+  VERSION 0.2
+  DESCRIPTION "A family of particle-in-cell codes for plasma simulation based on PETSc"
+  HOMEPAGE_URL "https://github.com/vakurshakov/xpic"
+  LANGUAGES CXX
+)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 
-project(xpic VERSION 0.1 LANGUAGES CXX)
+# Found for the compiler chosen above, so it follows the stack.
+find_package(OpenMP REQUIRED)
 
 set(CMAKE_CONFIGURATION_TYPES
   "Debug"
   "Release"
 )
 
-set(CMAKE_CXX_FLAGS "-fpic -fopenmp -Wall -Wextra -Wpedantic -Werror -Wno-missing-field-initializers -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native -mno-wbnoinvd")
+string(APPEND CMAKE_CXX_FLAGS
+  " -Werror -Wall -Wextra -Wpedantic"
+  " -Wno-missing-field-initializers"
+  " -Wno-unused-variable"
+  " -Wno-unused-but-set-variable"
+  " -Wno-unused-parameter"
+)
 
-set(PETSC_ARCH_OPT linux-mpi-opt)
-set(PETSC_ARCH_DEBUG linux-mpi-debug)
+string(APPEND CMAKE_CXX_FLAGS_DEBUG
+  " -O0"
+  " -ggdb"
+)
+string(APPEND CMAKE_CXX_FLAGS_RELEASE
+  " -O3"
+  " -march=native"
+  " -mtune=native"
+  " -mno-wbnoinvd"
+)
+
+# PETSC_ARCH from the environment overrides the per-configuration defaults.
+if(DEFINED ENV{PETSC_ARCH})
+  set(PETSC_ARCH_OPT $ENV{PETSC_ARCH})
+  set(PETSC_ARCH_DEBUG $ENV{PETSC_ARCH})
+else()
+  set(PETSC_ARCH_OPT linux-mpi-opt)
+  set(PETSC_ARCH_DEBUG linux-mpi-debug)
+endif()
+set(PETSC_DIR_LIB ${PETSC_DIR}/$<IF:$<CONFIG:Release>,${PETSC_ARCH_OPT},${PETSC_ARCH_DEBUG}>/lib)
+
+# clang needs the libstdc++ of a GCC installation, which GCC_DIR points to.
+set(GCC_DIR $ENV{GCC_DIR})
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND GCC_DIR)
+  file(GLOB gcc_cxx_dirs ${GCC_DIR}/include/c++/*)
+  list(SORT gcc_cxx_dirs COMPARE NATURAL)
+  list(POP_BACK gcc_cxx_dirs gcc_cxx_dir)
+  file(GLOB gcc_cxx_target_dirs LIST_DIRECTORIES true ${gcc_cxx_dir}/*-*)
+  string(APPEND CMAKE_CXX_FLAGS " --gcc-toolchain=${GCC_DIR} -isystem ${gcc_cxx_dir}")
+  foreach(dir ${gcc_cxx_target_dirs})
+    string(APPEND CMAKE_CXX_FLAGS " -isystem ${dir}")
+  endforeach()
+  set(GCC_RPATH "-Wl,-rpath,${GCC_DIR}/lib64")
+endif()
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# clangd (see .clangd) reads the database of the last configured build type.
+file(CREATE_LINK ${CMAKE_BINARY_DIR}/compile_commands.json
+  ${CMAKE_SOURCE_DIR}/build/compile_commands.json SYMBOLIC)
+
 
 set(interfaces
   src/interfaces/simulation.cpp
@@ -153,13 +200,20 @@ target_include_directories(
 target_link_directories(
   ${PROJECT_NAME}
   PUBLIC ${MPI_DIR}/lib
-  PUBLIC ${PETSC_DIR}/$<IF:$<CONFIG:Release>,${PETSC_ARCH_OPT},${PETSC_ARCH_DEBUG}>/lib
+  PUBLIC ${PETSC_DIR_LIB}
+)
+
+target_link_options(
+  ${PROJECT_NAME}
+  PUBLIC -Wl,-rpath,${MPI_DIR}/lib
+  PUBLIC -Wl,-rpath,${PETSC_DIR_LIB}
+  PUBLIC ${GCC_RPATH}
 )
 
 target_link_libraries(
   ${PROJECT_NAME}
   petsc
-  m
+  OpenMP::OpenMP_CXX
 )
 
 add_executable(${PROJECT_NAME}.out src/main.cpp)

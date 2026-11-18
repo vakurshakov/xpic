@@ -4,7 +4,7 @@
     {
       "type": "cppbuild",
       "label": "Project build-script",
-      "command": "./build.sh",
+      "command": "./scripts/build.sh",
       "args": [
         "Debug"
       ],
