@@ -113,7 +113,7 @@ void overwrite_config()
     {"DriftKineticPush",
       {
         {"coord_is_gc", true},
-        {"fail_on_terminal_nonconvergence", true},
+        {"fail_on_any_push_nonconvergence", true},
       }},
     {
       "Geometry",

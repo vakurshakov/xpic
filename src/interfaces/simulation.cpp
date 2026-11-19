@@ -9,8 +9,10 @@
 #include "src/impls/eccapfim/simulation.h"
 #include "src/impls/ecsim/simulation.h"
 #include "src/impls/ecsimcorr/simulation.h"
+#include "src/impls/hybrid_drift_kinetic/simulation.h"
 #include "src/utils/configuration.h"
 #include "src/utils/operators.h"
+#include "src/utils/profiler.h"
 #include "src/utils/utils.h"
 
 std::unique_ptr<interfaces::Simulation> build_simulation()
@@ -28,6 +30,8 @@ std::unique_ptr<interfaces::Simulation> build_simulation()
     simulation = std::make_unique<drift_kinetic::Simulation>();
   else if (simulation_str == "eccapfim")
     simulation = std::make_unique<eccapfim::Simulation>();
+  else if (simulation_str == "hybrid_drift_kinetic")
+    simulation = std::make_unique<hybrid_drift_kinetic::Simulation>();
   else if (simulation_str == "ecsim")
     simulation = std::make_unique<ecsim::Simulation>();
   else if (simulation_str == "ecsimcorr")
@@ -49,8 +53,8 @@ PetscErrorCode Simulation::initialize()
   PetscCall(world.initialize());
   PetscCall(log_information());
 
-  PetscCall(register_log_stage("Commands run", &stagenums[0]));
-  PetscCall(register_log_stage("Diagnostics run", &stagenums[1]));
+  PetscCall(Profiler::register_event("commands", &event_commands));
+  PetscCall(Profiler::register_event("diagnostics", &event_diagnostics));
 
   da = world.da;
   da_rho = world.da_rho;
@@ -122,7 +126,7 @@ PetscErrorCode Simulation::initialize()
     preset->execute(start);
 
   for (const Particles_sp& sort : particles_) {
-    PetscCall(sort->calculate_moments());
+    PetscCall(sort->calculate_rho());
     PetscCall(VecCopy(sort->rho[1], sort->rho[0]));
     PetscCall(VecCopy(sort->rho_loc[1], sort->rho_loc[0]));
   }
@@ -140,20 +144,20 @@ PetscErrorCode Simulation::calculate()
     LOG_FLUSH();
     LOG("Timestep = {:.4f} [1/w_pe] = {} [dt]", t * dt, t);
 
-    PetscCall(PetscLogStagePush(stagenums[0]));
+    PetscCall(Profiler::push_event(event_commands));
     for (const Command_up& command : step_presets_)
       PetscCall(command->execute(t));
-    PetscCall(PetscLogStagePop());
+    PetscCall(Profiler::pop_event(event_commands));
 
     PetscCall(timestep_implementation(t));
 
     for (const Particles_sp& sort : particles_)
-      PetscCall(sort->calculate_moments());
+      PetscCall(sort->calculate_rho());
 
-    PetscCall(PetscLogStagePush(stagenums[1]));
+    PetscCall(Profiler::push_event(event_diagnostics));
     for (const Diagnostic_up& diagnostic : diagnostics_)
       PetscCall(diagnostic->diagnose(t));
-    PetscCall(PetscLogStagePop());
+    PetscCall(Profiler::pop_event(event_diagnostics));
   }
   PetscFunctionReturn(PETSC_SUCCESS);
 }

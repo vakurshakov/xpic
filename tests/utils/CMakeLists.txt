@@ -20,6 +20,11 @@ foreach(test ${tests})
   endforeach()
 endforeach()
 
+add_executable(coordinate_generators_qs.out coordinate_generators_qs.cpp)
+target_link_libraries(coordinate_generators_qs.out ${PROJECT_NAME})
+add_test(NAME coordinate_generators_qs COMMAND ./coordinate_generators_qs.out)
+set_property(TEST coordinate_generators_qs PROPERTY LABELS smoke utils)
+
 # Edge and corner neighbours. The domain is 16x18x16 cells (y splits unevenly over 4 ranks)
 # and the DMDA needs at least 4 cells per rank, so x4 is the finest split along x.
 add_test(
@@ -33,11 +38,23 @@ add_test(
 add_test(
   NAME particle_storage_mpi_x4y4z1
   COMMAND ${MPI_DIR}/bin/mpiexec
-    --oversubscribe -np 16 ./particle_storage.out
+    -np 16 ./particle_storage.out
     -da_processors_x 4
     -da_processors_y 4
     -da_processors_z 1
 )
+
 foreach(test particle_storage_mpi_x2y2z2 particle_storage_mpi_x4y4z1)
   set_property(TEST ${test} PROPERTY LABELS smoke utils mpi)
+
+  # Large number of ranks may exceed the slots. Open MPI 5 / 4 read these to oversubscribe;
+  # MPICH has no such option (its mpiexec rejects `--oversubscribe`) and ignores them.
+  set_property(TEST ${test} PROPERTY ENVIRONMENT
+    "PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe"
+    "OMPI_MCA_rmaps_base_oversubscribe=1"
+  )
 endforeach()
+
+add_test(NAME particle_storage_mpi_x3
+  COMMAND ${MPI_DIR}/bin/mpiexec -np 3 ./particle_storage.out -da_processors_x 3)
+set_property(TEST particle_storage_mpi_x3 PROPERTY LABELS smoke utils mpi)

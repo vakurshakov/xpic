@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.10)
+
+add_executable(hybrid_drift_kinetic_ex1_balance.out hybrid_drift_kinetic_ex1_balance.cpp)
+target_link_libraries(hybrid_drift_kinetic_ex1_balance.out ${PROJECT_NAME})
+
+set(balance_options -snes_atol 1e-12 -snes_rtol 1e-12 -snes_stol 0)
+add_test(NAME hybrid_drift_kinetic_ex1_balance COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -np 1 ./hybrid_drift_kinetic_ex1_balance.out ${balance_options})
+set_property(TEST hybrid_drift_kinetic_ex1_balance PROPERTY LABELS sanity impls hybrid_drift_kinetic)
+set_property(TEST hybrid_drift_kinetic_ex1_balance PROPERTY RESOURCE_LOCK hybrid_drift_kinetic)
+foreach(axis x y z)
+  set(test hybrid_drift_kinetic_ex1_balance_mpi_${axis}2)
+  add_test(NAME ${test} COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -np 2 ./hybrid_drift_kinetic_ex1_balance.out ${balance_options} -da_processors_${axis} 2)
+  set_property(TEST ${test} PROPERTY LABELS sanity impls hybrid_drift_kinetic mpi)
+  set_property(TEST ${test} PROPERTY RESOURCE_LOCK hybrid_drift_kinetic)
+endforeach()
+
+add_executable(hybrid_drift_kinetic_ex2_fms.out hybrid_drift_kinetic_ex2_fms.cpp)
+target_link_libraries(hybrid_drift_kinetic_ex2_fms.out ${PROJECT_NAME})
+add_test(NAME hybrid_drift_kinetic_ex2_fms COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -np 1 ./hybrid_drift_kinetic_ex2_fms.out)
+set_property(TEST hybrid_drift_kinetic_ex2_fms PROPERTY LABELS regression impls hybrid_drift_kinetic)
+set_property(TEST hybrid_drift_kinetic_ex2_fms PROPERTY RESOURCE_LOCK "hybrid_drift_kinetic")
+
+add_test(NAME hybrid_drift_kinetic_ex2_fms_plot COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tools/hybrid_drift_kinetic_ex2_fms.py)
+set_property(TEST hybrid_drift_kinetic_ex2_fms_plot PROPERTY DEPENDS hybrid_drift_kinetic_ex2_fms)
+set_property(TEST hybrid_drift_kinetic_ex2_fms_plot PROPERTY LABELS regression impls hybrid_drift_kinetic)
+set_property(TEST hybrid_drift_kinetic_ex2_fms_plot PROPERTY ENVIRONMENT "MPLBACKEND=Agg")

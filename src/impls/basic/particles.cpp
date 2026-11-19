@@ -4,6 +4,7 @@
 #include "src/algorithms/esirkepov_decomposition.h"
 #include "src/algorithms/simple_interpolation.h"
 #include "src/impls/basic/simulation.h"
+#include "src/utils/profiler.h"
 
 namespace basic {
 
@@ -20,6 +21,10 @@ PetscErrorCode Particles::initialize()
   PetscCall(storage.register_attribute("r", 3));
   PetscCall(storage.register_attribute("p", 3));
   PetscCall(storage.commit_attributes());
+
+  PetscCall(Profiler::register_event("interpolate", &phase_interpolate));
+  PetscCall(Profiler::register_event("push", &phase_push));
+  PetscCall(Profiler::register_event("decompose", &phase_decompose));
   PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -40,27 +45,36 @@ PetscErrorCode Particles::push()
     BorisPush push;
     push.set_qm(parameters.q / parameters.m);
 
+    Profiler::push_phase(phase_push);
     push.update_r(dt / 2.0, point);
+    Profiler::pop_phase(phase_push);
 
+    Profiler::push_phase(phase_interpolate);
     Shape shape;
     shape.setup(point.r, shr, sfunc);
 
     Vector3R E_p, B_p;
     SimpleInterpolation interpolation(shape);
     interpolation.process({{E_p, E_arr}}, {{B_p, B_arr}});
+    Profiler::pop_phase(phase_interpolate);
 
+    Profiler::push_phase(phase_push);
     push.set_fields(E_p, B_p);
     push.update_vEB(dt, point);
     push.update_r(dt / 2.0, point);
+    Profiler::pop_phase(phase_push);
 
+    Profiler::push_phase(phase_decompose);
     shape.setup(old_r, point.r, shr, sfunc);
     EsirkepovDecomposition decomposition(
       shape, parameters.q * parameters.mpw / (6.0 * dt));
     decomposition.process(J_arr);
+    Profiler::pop_phase(phase_decompose);
 
     arrays.store(i, point);
   }
 
+  PetscCall(Profiler::flush());
   PetscCall(storage.restore_attributes(f));
 
   PetscCall(DMDAVecRestoreArrayWrite(da, J_loc, &J_arr));

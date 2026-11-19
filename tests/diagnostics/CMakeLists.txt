@@ -10,6 +10,7 @@ set(tests
   distribution_moment_dk
   distribution_moment_deposit
   distribution_moment_empty
+  kinetic_energy
   simulation_backup
   simulation_backup_dk
 )
@@ -19,7 +20,12 @@ foreach(test ${tests})
   add_executable(${test}.out ${test}.cpp)
   target_link_libraries(${test}.out ${PROJECT_NAME})
 
-  add_test(NAME "${test}" COMMAND ./${test}.out)
+  if(test STREQUAL "kinetic_energy")
+    # Avoid singleton MPI initialization hangs for the serial run.
+    add_test(NAME "${test}" COMMAND ${MPI_DIR}/bin/mpiexec --bind-to none -np 1 ./${test}.out)
+  else()
+    add_test(NAME "${test}" COMMAND ./${test}.out)
+  endif()
   set_property(TEST "${test}" PROPERTY LABELS smoke diagnostics)
   set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "${test}")
 
@@ -40,20 +46,32 @@ endforeach()
 add_executable(simulation_restart.out simulation_restart.cpp)
 target_link_libraries(simulation_restart.out ${PROJECT_NAME})
 
-foreach(simulation eccapfim drift_kinetic)
+foreach(simulation eccapfim drift_kinetic hybrid_drift_kinetic)
   set(test "simulation_restart_${simulation}")
-  add_test(NAME "${test}" COMMAND ./simulation_restart.out -restart_simulation ${simulation})
+  add_test(NAME "${test}" COMMAND ./simulation_restart.out -simulation ${simulation})
   set_property(TEST "${test}" PROPERTY LABELS sanity diagnostics)
   set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "simulation_restart")
 
   foreach(axis x y z)
     set(name "${test}_mpi_${axis}2")
-    add_test(NAME "${name}" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./simulation_restart.out -restart_simulation ${simulation} -da_processors_${axis} 2)
+    add_test(NAME "${name}" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./simulation_restart.out -simulation ${simulation} -da_processors_${axis} 2)
     set_property(TEST "${name}" PROPERTY LABELS sanity diagnostics mpi)
     set_property(TEST "${name}" PROPERTY RESOURCE_LOCK "simulation_restart")
   endforeach()
 endforeach()
 
-# Known defect of the DK pusher on multi-rank runs (see `drift_kinetic_ex7_balance_mpi_*`): the
-# continuous run itself diverges here, before any restart. Drop WILL_FAIL when it is fixed.
-set_property(TEST simulation_restart_drift_kinetic_mpi_x2 PROPERTY WILL_FAIL TRUE)
+# One file set for all schemes, so they hold a common lock and run one at a time.
+add_executable(log_view.out log_view.cpp)
+target_link_libraries(log_view.out ${PROJECT_NAME})
+
+foreach(simulation basic drift_kinetic eccapfim ecsim ecsimcorr)
+  set(test "log_view_${simulation}")
+
+  add_test(NAME "${test}" COMMAND ./log_view.out -simulation ${simulation})
+  set_property(TEST "${test}" PROPERTY LABELS smoke diagnostics ${simulation})
+  set_property(TEST "${test}" PROPERTY RESOURCE_LOCK "log_view")
+
+  add_test(NAME "${test}_mpi_x2" COMMAND ${MPI_DIR}/bin/mpiexec -np 2 ./log_view.out -simulation ${simulation} -da_processors_x 2)
+  set_property(TEST "${test}_mpi_x2" PROPERTY LABELS smoke diagnostics ${simulation} mpi)
+  set_property(TEST "${test}_mpi_x2" PROPERTY RESOURCE_LOCK "log_view")
+endforeach()

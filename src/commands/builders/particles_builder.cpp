@@ -23,19 +23,26 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     number_of_particles = (PetscInt)dots.size();
     gen = PreciseCoordinate(std::move(dots));
   }
-  else if (name == "CoordinateInBox") {
+  else if (name == "CoordinateInBox" || name == "CoordinateInBoxQS") {
     BoxGeometry box;
     load_geometry(info, box);
     number_of_particles = std::round((box.max - box.min).elements_product() * np);
-    gen = CoordinateInBox(std::move(box));
+    if (name == "CoordinateInBoxQS")
+      gen = CoordinateInBoxQS{box};
+    else
+      gen = CoordinateInBox{box};
   }
-  else if (name == "CoordinateInCylinder") {
+  else if (name == "CoordinateInCylinder" || name == "CoordinateInCylinderQS") {
     CylinderGeometry cyl;
     load_geometry(info, cyl);
     number_of_particles = std::round(M_PI * POW2(cyl.radius) * cyl.height * np);
-    gen = CoordinateInCylinder(std::move(cyl));
+    if (name == "CoordinateInCylinderQS")
+      gen = CoordinateInCylinderQS{cyl};
+    else
+      gen = CoordinateInCylinder{cyl};
   }
-  else if (name == "CoordinateInBoxCosineHump") {
+  else if (name == "CoordinateInBoxCosineHump" ||
+    name == "CoordinateInBoxCosineHumpQS") {
     BoxGeometry box;
     load_geometry(info, box);
 
@@ -43,7 +50,10 @@ void ParticlesBuilder::load_coordinate(const Configuration::json_t& info,
     Axis axis = get_component(axis_name);
 
     number_of_particles = std::round((box.max - box.min).elements_product() * np);
-    gen = CoordinateInBoxCosineHump{std::move(box), axis};
+    if (name == "CoordinateInBoxCosineHumpQS")
+      gen = CoordinateInBoxCosineHumpQS{box, axis};
+    else
+      gen = CoordinateInBoxCosineHump{box, axis};
   }
   else {
     throw std::runtime_error("Unknown coordinate generator name " + name);

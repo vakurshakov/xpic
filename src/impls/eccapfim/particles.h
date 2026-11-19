@@ -5,13 +5,15 @@
 #include "src/interfaces/particles.h"
 #include "src/utils/shape.h"
 
-namespace eccapfim {
-
+namespace interfaces {
 class Simulation;
+}
+
+namespace eccapfim {
 
 class Particles : public interfaces::Particles {
 public:
-  Particles(Simulation& simulation, const SortParameters& parameters);
+  Particles(interfaces::Simulation& simulation, const SortParameters& parameters);
   PetscErrorCode initialize() override;
 
   PetscErrorCode prepare_storage();
@@ -19,14 +21,11 @@ public:
   PetscErrorCode form_prediction(PetscReal**** I_arr, PetscReal**** L_arr);
   PetscErrorCode form_iteration();
 
-  /// @brief Seconds per thread, summed over all `form_iteration()` calls.
-  PetscReal get_interpolate_time() const;
-  PetscReal get_cn_push_time() const;
-  PetscReal get_decompose_time() const;
-
   PetscReal get_average_iteration_number() const;
   PetscReal get_average_number_of_traversed_cells() const;
   PetscInt get_maximum_number_of_traversed_cells() const;
+
+  void set_field_tolerances(PetscReal atol, PetscReal rtol);
 
 protected:
   static constexpr const auto& shape_func = spline_of_2nd_order;
@@ -35,17 +34,18 @@ protected:
   // We should iterate the `Point` ~ (x^{n+1,k}, v^{n+1,k}) from _previous_
   // timestep, they are the `r_prev` and `p_prev` fields of `storage`.
   PetscInt size = 0;
-  PetscReal interpolate_time = 0;
-  PetscReal cn_push_time = 0;
-  PetscReal decompose_time = 0;
   PetscReal avgit = 0;
   PetscReal avgcell = 0;
   PetscInt maxcell = 0;
 
-  Simulation& simulation_;
+  PetscReal field_atol = 0;  // SNES tolerances of the field residual.
+  PetscReal field_rtol = 0;
 
-  PetscClassId classid;
-  PetscLogEvent events[2];
+  // Profiler handles
+  PetscInt event_prepare_storage;
+  PetscInt phase_interpolate;
+  PetscInt phase_push;
+  PetscInt phase_decompose;
 };
 
 

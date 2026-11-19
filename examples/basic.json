@@ -1,0 +1,59 @@
+{
+  "Simulation": "basic",
+  "OutputDirectory": "results/basic",
+  "Geometry": {
+    "x": 5.0,
+    "y": 5.0,
+    "z": 5.0,
+    "t": 1.25,
+    "dx": 0.5,
+    "dy": 0.5,
+    "dz": 0.5,
+    "dt": 0.25,
+    "diagnose_period": 1.25,
+    "da_boundary_x": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_y": "DM_BOUNDARY_PERIODIC",
+    "da_boundary_z": "DM_BOUNDARY_PERIODIC"
+  },
+  "Particles": [
+    {
+      "sort_name": "electrons",
+      "Np": 20,
+      "n": 1.0,
+      "q": -1.0,
+      "m": 1.0,
+      "T": 5.0
+    }
+  ],
+  "Presets": [
+    {
+      "command": "SetParticles",
+      "particles": "electrons",
+      "coordinate": {
+        "name": "CoordinateInBox"
+      },
+      "momentum": {
+        "name": "MaxwellianMomentum",
+        "tov": true
+      }
+    }
+  ],
+  "Diagnostics": [
+    {
+      "diagnostic": "LogView",
+      "level": "EachTimestep"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "DiagnosePeriodAvg"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "AllTimestepsSummary"
+    },
+    {
+      "diagnostic": "LogView",
+      "level": "EachTimestepEvents"
+    }
+  ]
+}

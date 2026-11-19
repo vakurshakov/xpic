@@ -54,7 +54,8 @@ int main(int argc, char** argv)
   PetscCheck(check_mean_v.dot(v_gradB) > 0.0, PETSC_COMM_WORLD, PETSC_ERR_USER,
     "Particle should drift along theoretical prediction, having mean: (%f, %f, %f), theory: (%f, %f, %f)", REP3_A(check_mean_v), REP3_A(v_gradB));
 
-  PetscCall(compare_temporal(__FILE__, chin_scheme_id + ".txt"));
+  // The reference is not bit-reproducible across machines (libm, FMA), so noisy columns need a floor.
+  PetscCall(compare_temporal(__FILE__, chin_scheme_id + ".txt", 1e-6));
 
   PetscCall(PetscFinalize());
   PetscFunctionReturn(PETSC_SUCCESS);

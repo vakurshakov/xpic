@@ -4,11 +4,11 @@
 #include "tests/common.h"
 
 static constexpr char help[] =
-  "Testing that a run restarted from \"SimulationBackup\" reproduces the     \n"
-  "continuous one. The simulation (`-restart_simulation`) is run for `N`     \n"
-  "steps without a stop, then, for every `k`, it is run for `k` steps with a \n"
-  "backup, loaded from it and continued up to `N`. Fields and particles at   \n"
-  "`N` must be the same up to the round-off and the summation order.        \n";
+  "Testing that a run restarted from \"SimulationBackup\" reproduces the   \n"
+  "continuous one. The simulation (`-simulation`) is run for `N` steps     \n "
+  "without a stop, then, for every `k`, it is run for `k` steps with a     \n"
+  "backup, loaded from it and continued up to `N`. Fields and particles at \n"
+  "`N` must be the same up to the round-off and the summation order.       \n";
 
 static constexpr PetscInt N = 8;
 static constexpr PetscInt k = 2;
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
   PetscCall(PetscInitialize(&argc, &argv, NULL, help));
 
   char name[PETSC_MAX_PATH_LEN] = "";
-  PetscCall(PetscOptionsGetString(NULL, NULL, "-restart_simulation", name, sizeof(name), NULL));
+  PetscCall(PetscOptionsGetString(NULL, NULL, "-simulation", name, sizeof(name), NULL));
 
   // The tables of other simulations from the shared directory must not be compared
   PetscMPIInt rank;
@@ -49,16 +49,17 @@ int main(int argc, char** argv)
   }
   PetscCallMPI(MPI_Barrier(PETSC_COMM_WORLD));
 
+  const PetscInt steps = std::string(name) == "hybrid_drift_kinetic" ? 4 : N;
   State continuous;
-  PetscCall(run(name, N, {}, "continuous", &continuous));
+  PetscCall(run(name, steps, {}, "continuous", &continuous));
 
-  for (PetscInt t = k; t < N; t += k) {
+  for (PetscInt t = k; t < steps; t += k) {
     std::string subdir = std::format("restart_{}", t);
 
-    PetscCall(run(name, t, {{"diagnose_period", (PetscReal)t}}, subdir, NULL));
+    PetscCall(run(name, t, {{"diagnose_period", t * dt}}, subdir, NULL));
 
     State restarted;
-    PetscCall(run(name, N, {{"diagnose_period", (PetscReal)t}, {"load_from", t}}, subdir, &restarted));
+    PetscCall(run(name, steps, {{"diagnose_period", t * dt}, {"load_from", t}}, subdir, &restarted));
     PetscCall(compare(continuous, restarted));
     PetscCall(compare_tables(subdir));
   }
@@ -75,7 +76,7 @@ static PetscErrorCode run(const std::string& simulation_name, PetscInt nt,
   geom_nx = geom_ny = geom_nz = 8;
   geom_x = geom_y = geom_z = 8.0;
 
-  dt = 1.0;
+  dt = simulation_name == "hybrid_drift_kinetic" ? 0.1 : 1.0;
   geom_nt = nt;
   geom_t = nt * dt;
 
@@ -142,6 +143,22 @@ static PetscErrorCode run(const std::string& simulation_name, PetscInt nt,
     {"Presets", presets},
   };
 
+  if (simulation_name == "hybrid_drift_kinetic") {
+    json["Particles"][0]["model"] = "kinetic";
+    auto guiding_centers = json["Particles"][0];
+    guiding_centers["sort_name"] = "guiding_centers";
+    guiding_centers["model"] = "drift_kinetic";
+    guiding_centers["q"] = 1;
+    json["Particles"].push_back(guiding_centers);
+    for (const auto& preset : presets) {
+      if (preset.at("command") != "SetParticles")
+        continue;
+      auto copy = preset;
+      copy["particles"] = "guiding_centers";
+      json["Presets"].push_back(copy);
+    }
+  }
+
   if (!backup.is_null())
     json["SimulationBackup"] = backup;
 
@@ -162,7 +179,15 @@ static PetscErrorCode run(const std::string& simulation_name, PetscInt nt,
       out->assign(array, array + size);
       PetscCall(VecRestoreArrayRead(vec, &array));
     }
-    PetscCall(take_snapshot(simulation->particles_[0]->storage, state->particles));
+    state->particles.clear();
+    for (std::size_t i = 0; i < simulation->particles_.size(); i++) {
+      Snapshot snapshot;
+      PetscCall(take_snapshot(simulation->particles_[i]->storage, snapshot));
+      for (auto& point : snapshot) {
+        point.insert(point.begin(), (PetscReal)i);
+        state->particles.push_back(std::move(point));
+      }
+    }
   }
 
   PetscCall(simulation->finalize());

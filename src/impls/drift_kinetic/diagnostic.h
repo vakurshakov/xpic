@@ -2,7 +2,7 @@
 #define SRC_IMPLS_DRIFT_KINETIC_DIAGNOSTIC_H
 
 #include "src/diagnostics/distribution_moment.h"
-#include "src/diagnostics/table_diagnostic.h"
+#include "src/diagnostics/energy.h"
 #include "src/impls/drift_kinetic/particles.h"
 
 namespace drift_kinetic {
@@ -66,25 +66,24 @@ private:
   PetscInt frames_written = 0;
 };
 
-class EnergyConservation : public TableDiagnostic {
+class EnergyConservation : public ::Energy {
 public:
   EnergyConservation(const Simulation& simulation);
-  PetscErrorCode diagnose(PetscInt t) override;
-  PetscErrorCode initialize() override;
-  PetscErrorCode finalize() override;
+
+protected:
+  PetscErrorCode fill_energy_cons(PetscInt t) override;
+
+  const Simulation& dk_simulation;
+  PetscReal dEJ = 0;  // dt * E_hk . J
+};
+
+class ConvergenceHistory : public TableDiagnostic {
+public:
+  ConvergenceHistory(const Simulation& simulation);
   PetscErrorCode add_columns(PetscInt t) override;
 
-private:
-  void calculate_kinetic_energies(
-    std::vector<PetscReal>& per_sort, PetscReal& total) const;
-
+protected:
   const Simulation& simulation;
-  PetscReal K0 = 0;
-  PetscReal K = 0;
-  Vec E_prev = nullptr;
-  Vec B_prev = nullptr;
-  std::vector<PetscReal> K0_by_sort;
-  std::vector<PetscReal> K_by_sort;
 };
 
 }  // namespace drift_kinetic
